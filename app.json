@@ -36,7 +36,8 @@
         }
       ],
       "./plugins/with-ios-scene-lifecycle.ts",
-      "expo-localization"
+      "expo-localization",
+      "@maplibre/maplibre-react-native"
     ],
     "experiments": {
       "typedRoutes": true,

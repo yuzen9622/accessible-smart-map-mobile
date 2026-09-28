@@ -3,10 +3,14 @@ import { useEffect, useState } from 'react';
 import { Linking, Share } from 'react-native';
 
 import { mapCamera } from '@/features/map';
+// formatDistance 經 namespace 取用，讓上一行既有 import 保持原樣（namespace 不觸發 import/no-duplicates）
+import * as mapFeature from '@/features/map';
 import { getAppConfig } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
 
 import { buildAccessibilityChecklist, type ChecklistItem } from '../domain/accessibilityChecklist';
+import { nearbyFacilityRows, type NearbyFacilityRow } from '../domain/nearbyFacilityRows';
+import { buildPlaceBadges, type PlaceBadge } from '../domain/placeBadges';
 import { placeKey, SAVED_PLACE_CATEGORIES, type SavedPlaceCategory } from '../domain/placeKey';
 import { buildPlaceShareUrl } from '../domain/shareUrl';
 import { isSavedPlace, useSavedPlacesStore } from '../store/savedPlacesStore';
@@ -45,6 +49,10 @@ export interface PlaceDetailLinkRow {
   label: string;
   onPress: () => void;
 }
+
+export type PlaceDetailBadge = PlaceBadge;
+
+export type PlaceDetailNearbyRow = NearbyFacilityRow;
 
 export interface PlaceDetailReviewRow {
   key: string;
@@ -86,6 +94,17 @@ export interface PlaceDetailModel {
   checklist: PlaceDetailChecklistRow[];
   links: PlaceDetailLinkRow[];
   reviews: PlaceDetailReviewsModel | null;
+  /** `onRecenter` 的名實相符文案；`planRouteLabel` 保留待路線 feature 落地 */
+  recenterLabel: string;
+  /** 與 `onPlanRoute` 同一個 handler（目前只把相機帶回該地點） */
+  onRecenter: () => void;
+  infoLabel: string;
+  /** coordinate 地點為 [] */
+  badges: PlaceDetailBadge[];
+  nearbyTitle: string;
+  nearbyEmptyLabel: string;
+  /** coordinate 地點為 [] */
+  nearbyRows: PlaceDetailNearbyRow[];
 }
 
 /**
@@ -233,5 +252,12 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     checklist,
     links,
     reviews: reviewsModel,
+    recenterLabel: t('recenter'),
+    onRecenter: handlePlanRoute,
+    infoLabel: t('placeInfoLabel'),
+    badges: buildPlaceBadges(place, t),
+    nearbyTitle: t('nearbyA11y'),
+    nearbyEmptyLabel: t('noNearbyA11y'),
+    nearbyRows: nearbyFacilityRows(place, mapFeature.formatDistance),
   };
 }

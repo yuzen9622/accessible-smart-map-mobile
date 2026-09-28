@@ -32,7 +32,6 @@ export default function RootLayout() {
               sheetInitialDetentIndex: 0,
               sheetLargestUndimmedDetentIndex: SHEET_UNDIMMED_DETENT_INDEX,
               sheetGrabberVisible: true,
-              // 常駐 sheet：只能在 detent 間切換，不能下滑關閉（Spike C）
               gestureEnabled: false,
             }}
             listeners={{

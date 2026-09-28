@@ -2,9 +2,9 @@
 
 | 項目 | 內容 |
 |---|---|
-| 版本 | v0.3（草案） |
-| 日期 | 2026-09-25 |
-| 狀態 | 待審閱；§8 後端變更與 §14 未決問題需決策。v0.2：納入使用者決策（原生 UI 優先、email 頁留 web、五期分工）與 Phase 0 套件核實結果。v0.3（2026-09-26）：三個 spike 結論（`docs/spikes/`）寫回 ADR-03／05／06 |
+| 版本 | v0.4（草案） |
+| 日期 | 2026-09-28 |
+| 狀態 | 待審閱；§8 後端變更與 §14 未決問題需決策。v0.2：納入使用者決策（原生 UI 優先、email 頁留 web、五期分工）與 Phase 0 套件核實結果。v0.3（2026-09-26）：三個 spike 結論（`docs/spikes/`）寫回 ADR-03／05／06；新增鎖定畫面即時動態與常駐導航通知（iOS Live Activities / Android Ongoing Notification）設計。v0.4（2026-09-28）：納入使用者決策，全 App UI 圖示一律採用 Lucide icon（`lucide-react-native` + `react-native-svg`），跨雙平台與 Web 版視覺語言完全對齊，淘汰雙平台原生符號分歧（SF / Material Symbols）；新增 ADR-16 並更新元件對照表、面板清單、HUD 與各 Feature 圖示定義。 |
 | 參考系統 | Web 版 `/Users/yuen/orca/taipei-accessible-map`（Next.js 16，移植基準 commit `5eadc71`）、後端 `/Users/yuen/project/taipei-accessible-backend` |
 | 分期執行 | 見 [`ROADMAP.md`](./ROADMAP.md) |
 
@@ -70,7 +70,8 @@
 | ADR-12 | 平台分檔：沿用本 repo 規則（`Foo.types.ts` + `.tsx` + `.ios.tsx` + `.android.tsx`），**只有真的有平台差異的元件才拆**，純邏輯與無差異元件不拆 | 規則的目的是型別一致，不是強迫每個檔都有三份；否則會產生大量重複 | 每個元件一律三份 |
 | ADR-13 | i18n：沿用 **i18next + react-i18next**，語系由 `expo-localization` 偵測；移除 `[lng]` 路由段 | 翻譯檔（`src/i18n/locale/{zh-TW,en}/translation.json`，各約 700 個頂層 key）可直接沿用 | 改用其他 i18n 函式庫 |
 | ADR-14 | 狀態：沿用 **zustand 5**，但拆掉 Web 的 `useMapStore` god store，依 feature 各自擁有 store | 本 repo 規則要求 feature 自帶 store 且不互相 import 內部 | 原樣搬 god store |
-| ADR-15 | **UI 原生元件優先**：能用 `@expo/ui/swift-ui`（iOS）／`@expo/ui/jetpack-compose`（Android）、Expo Router 原生 formSheet／`Stack.Toolbar`／native tabs、`expo-glass-effect` 就用；做不到才用 RN／JS 元件，並在該 feature 設計中寫明理由 | 使用者決策（2026-09-25）：要 iOS Liquid Glass 效果與原生互動；參考 https://docs.expo.dev/versions/latest/sdk/ui/swift-ui | 以 RN View＋StyleSheet 自繪（拿不到玻璃、需自己補無障礙語意） |
+| ADR-15 | **UI 原生元件優先**：能用 `@expo/ui/swift-ui`（iOS）／`@expo/ui/jetpack-compose`（Android）、Expo Router 原生 formSheet／`Stack.Toolbar`／native tabs、`expo-glass-effect` 就用；做不到才用 RN／JS 元件，並在該 feature 設計中寫明理由。**UI 圖示依 ADR-16 統一採用 Lucide icons** | 使用者決策（2026-09-25）：要 iOS Liquid Glass 效果與原生互動；參考 https://docs.expo.dev/versions/latest/sdk/ui/swift-ui | 以 RN View＋StyleSheet 自繪（拿不到玻璃、需自己補無障礙語意） |
+| ADR-16 | **UI 圖示全面採用 Lucide icons**（`lucide-react-native` + `react-native-svg`） | 使用者決策（2026-09-28）：跨 iOS 與 Android 具備一致的幾何線條風格與圖示語意，並與 Web 版（`lucide-react`）100% 視覺對齊；避免 iOS SF Symbols 與 Android Material Symbols 命名意象不對等與樣式割裂；SVG 向量縮放完整支援 Dynamic Type 與高對比模式 | 雙平台原生符號分歧方案（iOS `expo-symbols` SF Symbols + Android Material Symbols；兩端風格不一致且與 Web 版割裂） |
 
 ---
 
@@ -157,6 +158,7 @@ features/<x>/
 | `SheetController` | `features/map`（sheet 狀態擁有者） | ai、place、route、navigation | `open(mode, payload)`、`snapTo(detent)`、`close()` |
 | `RouteSessionPort` | `features/route` | ai、voice、navigation | `computeRoute(req)`（async）、`endRouteSession()`、`hasRouteSession()` |
 | `NavigationPort` | `features/navigation` | voice、route | `startLocal(route)`、`adoptVoiceNavigation(state)`、`exit(reason)` |
+| `LiveNavigationPort` | `features/navigation` | navigation | `start(snapshot)`、`update(progress)`、`end()`（驅動 iOS Live Activity／動態島與 Android 鎖定畫面常駐導航通知） |
 | `AuthPort` | `features/auth` | shared/api | `getSession()`、`commitSession()`、`invalidateSession(captured)`（對應 Web `configureAuthState`） |
 | `LocationPort` | `shared/location` | map、navigation、sos、voice、hazard | `getCurrent()`、`watch(opts)`、`startBackground(task)`、`watchHeading()` |
 
@@ -195,9 +197,9 @@ MapScreen
 | 確認（結束導航、SOS） | `ConfirmationDialog`／`Alert` | `AlertDialog` |
 | 分享 | `ShareLink` 或 RN `Share.share` | RN `Share.share` |
 | 滑動操作（刪收藏） | `SwipeActions` | — |
-| 浮動按鈕（定位、2D/3D、圖層、語音、SOS） | `Button` + `buttonStyle('glass'｜'glassProminent')`、`GlassEffectContainer` 讓相鄰按鈕融合 | `FloatingActionButton`／`IconButton` |
-| 空狀態／錯誤 | `ContentUnavailableView` | RN fallback |
-| 圖示 | SF Symbols（`expo-symbols` `SymbolView`，可做 bounce／pulse 動畫） | Material Symbols |
+| 浮動按鈕（定位、2D/3D、圖層、語音、SOS） | `Button` + `buttonStyle('glass'｜'glassProminent')`、`GlassEffectContainer` 讓相鄰按鈕融合（內容為 Lucide icon；或以 RN `Pressable` + Lucide icon + `GlassEffectContainer` 實作） | `FloatingActionButton`／`IconButton` |
+| 空狀態／錯誤 | `ContentUnavailableView`／RN fallback（搭配 Lucide icon） | RN fallback |
+| 圖示 | Lucide icons（`lucide-react-native` + `react-native-svg`，全 App 統一向量圖示；可搭配 Reanimated 製作微動態） | Lucide icons（`lucide-react-native` + `react-native-svg`，雙平台一致） |
 
 **地圖主 sheet（常駐面板）**
 
@@ -212,8 +214,8 @@ MapScreen
 |---|---|---|
 | `home` | `(sheet)/index` | peek：搜尋框（`TextField`）＋快速動作列；half：最近搜尋、收藏 `List` |
 | `plan` 路線規劃 | `(sheet)/plan` | 起訖點兩列（可交換）、模式 `Picker` segmented、無障礙偏好收在 `DisclosureGroup`、出發時間 `DatePicker` |
-| `route` 路線列表 | `(sheet)/routes` | `List`，每列＝一條路線：總時間、到達時間、leg 圖示串（SF Symbols：`figure.roll`、`bus.fill`、`tram.fill`、`car.fill`）、無障礙亮點 badge；整列一個 `accessibilityLabel` 念出完整摘要 |
-| 路線詳情／大眾運輸詳情 | `(sheet)/routes/[index]` | `List` + 每個 leg 一個 `Section`；transit leg 的經過站點用 `DisclosureGroup` 展開；開車事故、步行無障礙摘要用 `Label` 列；底部「開始導航」`buttonStyle('glassProminent')` |
+| `route` 路線列表 | `(sheet)/routes` | `List`，每列＝一條路線：總時間、到達時間、leg 圖示串（Lucide icons：`Accessibility`、`Bus`、`TrainFront`、`Car` 等）、無障礙亮點 badge；整列一個 `accessibilityLabel` 念出完整摘要 |
+| 路線詳情／大眾運輸詳情 | `(sheet)/routes/[index]` | `List` + 每個 leg 一個 `Section`；transit leg 的經過站點用 `DisclosureGroup` 展開；開車事故（`AlertTriangle`、`Construction`）、步行無障礙摘要（`Accessibility`）以 Lucide 圖示標記；底部「開始導航」`buttonStyle('glassProminent')` |
 | 公車 ETA（leg 內與 `bus` 面板） | `(sheet)/bus`、`(sheet)/bus/[routeId]` | 站牌列用 `LabeledContent`（站名／到站文字）；即將進站用 `Gauge` 或 `ProgressView`；方向用 `Picker` segmented；下拉更新 |
 | POI／地點詳情 | `(sheet)/place/[id]` | 標題列＋動作列（導航、分享 `ShareLink`、收藏、複製）；無障礙屬性 `Section`；評論 `List` |
 | `a11y` 設施詳情 | `(sheet)/facility/[id]` | 同上精簡版 |
@@ -221,10 +223,19 @@ MapScreen
 
 **導航 HUD（第二期）**：導航時 sheet 收到最低 detent（或隱藏），地圖上疊兩塊 `GlassView` 卡片：
 
-- 頂部：轉向 SF Symbol（`arrow.turn.up.right` 等，換步驟時 `SymbolView` bounce）、剩餘距離（大字、`accessibilityLiveRegion`）、下一步提示；leg 交接時換成交接卡（「在○○站下車，步行到△△」）。
+- 頂部：轉向 Lucide icon（`CornerUpRight` 等，對齊 Web 版 `navStepIcon.ts`；換步驟時以 Reanimated 微動態轉場）、剩餘距離（大字、`accessibilityLiveRegion`）、下一步提示；leg 交接時換成交接卡（「在○○站下車，步行到△△」）。
 - 底部：預計抵達時間／剩餘時間與距離、「步驟」「結束」兩個 glass 按鈕；「結束」→ `ConfirmationDialog`。
 - 重算中：頂部卡片內換成 `ProgressView` + 「重新規劃路線中」，並 `announceForAccessibility`。
-- 上架後候選：iOS Live Activity／動態島顯示同一份資料。
+- **鎖定畫面與即時動態（Live Activities / Ongoing Notification）**：導航進行時同步將狀態推播至系統級常駐介面：
+  - **iOS 鎖定畫面卡片與動態島（Dynamic Island）**：
+    - 鎖定畫面：轉向指示（對齊 Lucide 轉向圖示，如 `CornerUpRight` 等）、下一步路名與行進指示、剩餘距離（大字）、路線進度條、預計抵達時間（ETA）與剩餘分鐘、結束導航按鈕。
+    - 動態島（支援機種）：
+      - Compact：Leading 放轉向箭頭、Trailing 放下個路口剩餘距離。
+      - Expanded（長按展開）：等同鎖定畫面卡片摘要。
+      - Minimal：單一轉向圖示。
+  - **Android 鎖定畫面常駐通知**：
+    - 前景服務發布 `CATEGORY_NAVIGATION`、`VISIBILITY_PUBLIC` 之常駐通知（`setOngoing(true)`）。
+    - 包含轉向圖示、步驟指示、距離、進度條與「結束導航」動作按鈕。
 
 ---
 
@@ -253,7 +264,7 @@ MapScreen
   - style JSON 直接沿用 Web 版（liberty／dark）；以 `mapStyle` 傳 URL 或物件。
   - 2D/3D：**不換 style**，在同 style 內對兩組 layer 做透明度交叉淡化（沿用 `basemap3d.ts` 的決策）。maplibre-react-native 的 layer props 是宣告式，淡化改由 state 驅動 `fillExtrusionOpacity` 等屬性；能否動畫過場於 Phase 0 spike 驗證。
   - 設施資料：`GET /api/v1/a11y/all-facilities?category=elevator,ramp,toilet`（約 1.6MB / 7.9k 筆）（2026-09-26 實測 5,836 筆、約 1.1 MB）一次載入，MMKV 快取＋`ETag`／時間戳過期；轉成 GeoJSON 給 `GeoJSONSource cluster`。
-  - Icon：`Images` 註冊 sprite，`SymbolLayer iconImage` 依 `category` expression 選圖；點擊 cluster → `getClusterExpansionZoom` 放大；點擊單點 → `SheetController.open("a11y", …)`。
+  - Icon：`Images` 註冊由 Lucide SVG 導出之設施圖示 sprite（`Accessibility`、`Toilet`、電梯／坡道圖示等），`SymbolLayer iconImage` 依 `category` expression 選圖；點擊 cluster → `getClusterExpansionZoom` 放大；點擊單點 → `SheetController.open("a11y", …)`。地圖浮動控制（`MapControls`）一律採用 Lucide icons（定位 `LocateFixed`、2D/3D `Box`／`Layers`、圖層開關等）。
   - 地圖語系：對 symbol layer 的 `textField` 以 expression 選 `name:zh-Hant`／`name:zh`／`name:en` fallback。
 - **必守不變量**：
   - 2D/3D 切換不得 reload style（覆蓋圖層必須不受影響）；首次載入直接設定到位，不做淡入（Web `ClientMap.tsx:186-193`）。
@@ -278,7 +289,7 @@ MapScreen
 - **能力**：步行／大眾運輸／開車多模式規劃、路線排序、無障礙亮點標籤、大眾運輸 leg 詳情（站點、ETA）、開車事故提示、步行無障礙摘要、AI 路線說明、「回到路線」常駐 pill。
 - **移植來源**：Web `src/hook/useComputeRoute.ts`、`src/lib/route/routeSession.ts`、`src/lib/geo.ts`、`src/lib/routePreviewAdapter.ts`、`src/types/route.ts`、`src/components/shared/RouteCard/*`、`src/components/Route/RouteSessionPill.tsx`。
 - **後端**：`POST /api/v1/a11y/accessible-route`（選擇性登入）、`POST /accessible-route/reroute`、`POST /route/instructions`（body 只收 `{routeToken, userHeading?, language}`）、`POST /api/v1/ai/explain`、`GET /api/v1/line/route-preview`。
-- **原生設計**：面板對應見 §4.5「第二期各面板的原生對應」；路線卡用 `@expo/ui` `List`（每列一個完整語意描述）；leg 展開用 `DisclosureGroup`。
+- **原生設計**：面板對應見 §4.5「第二期各面板的原生對應」；路線卡用 `@expo/ui` `List`（每列一個完整語意描述）；leg 展開用 `DisclosureGroup`；運具與狀態圖示全面採用 Lucide icons（`Accessibility`、`Bus`、`TrainFront`、`Car`、`Footprints`、`AlertTriangle`），對齊 Web 版視覺風格。
 - **必守不變量**：
   - **Route session**：路線幾何在地圖上 ⟺ 有常駐控制可回到並結束它；切換到其他功能**不得**毀掉已規劃路線；只有 `endRouteSession()` 能清除，且清除清單必須包含 origin／destination（Web 曾因漏清導致 pin 殘留）。
   - `hasRouteSession()`：只有 `destination` 還沒算出路線也算 session；`shouldShowRoutePill()` 是 pill 顯示的唯一判斷（聊天開啟時覆蓋其他例外）。
@@ -289,13 +300,19 @@ MapScreen
 
 ### 6.4 navigation — 逐步導航
 
-- **能力**：導航 HUD（轉向圖示、距離、進度）、偏航偵測與自動／手動重算、重算中遮罩、抵達偵測、離開導航確認、步驟清單、語音播報（本機 TTS 與語音助理二擇一）、螢幕常亮、**背景持續導航（新增）**。
+- **能力**：導航 HUD（轉向圖示、距離、進度）、偏航偵測與自動／手動重算、重算中遮罩、抵達偵測、離開導航確認、步驟清單、語音播報（本機 TTS 與語音助理二擇一）、螢幕常亮、**背景持續導航（新增）**、**鎖定畫面即時動態與常駐導航通知（iOS Live Activities／Dynamic Island、Android Ongoing Notification，新增）**。
 - **移植來源**：Web `src/hook/useNavigation.ts`（約 750 行，需拆解）、`src/lib/navigation/*`（`advisorySpeech`、`navigationAudio`、`navigationGeometryRuntime`、`navigationLifecycle`、`legMode`、`localRerouteCoordinator`、`rerouteCoordinator`、`foregroundLocation`）、`src/stores/useNavStore.ts`、`src/components/Navigation/*`。
 - **原生設計**：
   - 引擎：把 `useNavigation.ts` 拆成 `domain/navigationEngine.ts`（純函式：位置 → 進度／偏航／抵達判斷）＋ `NavigationController`（持有 LocationPort、TTS、計時器）＋ 薄 hook。
   - 定位：前景 `expo-location watchPositionAsync`（`BestForNavigation`）；進入背景時由 `expo-task-manager` 背景任務接手（iOS `UIBackgroundModes: location`、Android foreground service 通知）。背景任務在 JS 頂層 `defineTask`，只寫入 store／計算進度與播報，不操作 UI。
   - 方位：`watchHeadingAsync`（取代 `DeviceOrientationEvent` 與 iOS 權限請求）。
+  - 轉向圖示：移植 Web 版 `src/components/Navigation/navStepIcon.ts` 的 Lucide 轉向圖示對應系統（`CornerUpRight`、`CornerUpLeft`、`ArrowUp`、`ArrowUpRight`、`ArrowUpLeft`、`RotateCcw`、`MapPin`、`Flag` 等），雙平台統一。
   - 播報：`expo-speech`（zh-TW／en 語音；啟動時檢查可用語音，缺 zh-TW 語音時顯示提示）；`expo-haptics` 在轉彎前震動；`expo-keep-awake` 導航期間常亮。
+  - 即時動態與常駐通知：
+    - `LiveNavigationPort`（`features/navigation/domain/liveNavigation.ts`）：由 `NavigationController` 隨導航生命週期調用（`start`、`update`、`end`）。
+    - iOS：自建 Config Plugin（`plugins/with-live-activity.ts`）配置 Widget Extension target 與 `NSSupportsLiveActivities: true`；以 Swift 定義 `NavigationActivityAttributes` 與 `ContentState`，UI 以 SwiftUI（WidgetKit）刻劃；Expo Native Module 暴露 Swift 橋接函式。
+    - Android：與背景定位 Foreground Service 整合，發布 `CATEGORY_NAVIGATION`、`VISIBILITY_PUBLIC` 常駐通知，在步驟與位置更新時調用 `NotificationManagerCompat.notify`。
+    - 頻率控制：位置微小飄移不觸發 ActivityKit 重繪；設定節流（步驟改變、或下步剩餘距離改變 ≥10m、或每 2 秒最多 1 次），防範耗電與系統預算限制。
   - HUD 與 sheet 互斥；導航中 sheet 收為步驟清單入口（HUD 版面見 §4.5）。
 - **必守不變量**：
   - 兩個喇叭（本機 TTS 與語音助理音訊）**不得同時發聲**；語音 session 在本機導航中啟動時不得搶走喇叭按鈕或把本機 TTS 靜音（Web `src/lib/navigation/navigationAudio.ts:4-21`）。
@@ -303,7 +320,9 @@ MapScreen
   - 抵達只設定一次（`if (!nav.arrived)` 守門）；**不要**以放寬抵達閾值處理「一按導航就抵達」類問題（根因是 per-leg 索引錯配）。
   - `REROUTE_COOLDOWN_MS` 冷卻，避免重算風暴。
   - Leg 交接卡（下車→步行到下一段）判斷沿用 `findLegHandoffIndex`／`isLegHandoff`／`isVehicleLegType`。
-- **驗收**：iOS 模擬器以 GPX 路線模擬行走，鎖螢幕／切到背景後仍持續播報與更新進度；偏航 20 m 以上觸發重算且冷卻有效；多段路線 leg 交接正確。
+  - 導航結束（手動結束、抵達、或離開導航）**必須立即結束 Live Activity（`dismissalPolicy: .immediate`）並銷毀 Android 常駐通知**，不得殘留在鎖定畫面。
+  - 偏航重算時，鎖定畫面卡片與動態島必須同步切換為「重新規劃路線中」狀態，避免顯示已失效的轉向指令。
+- **驗收**：iOS 模擬器以 GPX 路線模擬行走，鎖螢幕／切到背景後仍持續播報與更新進度；鎖定畫面與動態島正確顯示下一步轉向與距離，隨移動即時遞減；偏航 20 m 以上觸發重算且冷卻有效；多段路線 leg 交接正確；Android 鎖定畫面常駐通知正常顯示與更新。
 
 ### 6.5 bus — 即時公車
 
@@ -329,8 +348,8 @@ MapScreen
   - Markdown：`@expo/ui` `Text` 的 `markdownEnabled` 只支援 SwiftUI 行內語法（粗體、斜體、連結、行內程式碼），**不含清單、表格、程式碼區塊**，只適合短回覆。完整渲染在 Phase 4 開頭做小 spike 比較：(a) JS markdown → RN `Text` 樹的渲染器（套件選型與維護狀態未核實）；(b) `'use dom'` 元件承載 Web 版 `StreamingMarkdown`（ADR-02 唯一例外，行為與 Web 完全一致，但每個 DOM 元件有 WebView 成本，只能整段對話共用一個，不能每則訊息一個）。判準：串流時不整段重播（§6.6 不變量）、VoiceOver 可逐段閱讀、連結 sanitize。
   - ThinkingTrace（對齊 Web `src/components/ai/ThinkingTrace.tsx`：header＝狀態 orb＋shimmer 文字＋展開箭頭；執行中自動展開、完成後收合；展開後是左側細線串起的工具呼叫時間軸）：
     - 資料：`domain/thinkingTrace.ts` 原樣移植（`TraceRow`、`ThinkingHeader`），元件只畫圖。
-    - 主案（RN 組合，ADR-15 例外，理由：SwiftUI 元件沒有 shimmer 與時間軸版面）：header 放在 `GlassView` 膠囊內；orb 改用 `SymbolView`（`sparkles`，執行中 pulse／variable color 動畫；Web 的 `thinking-orbs` 是 canvas，不移植）；shimmer 用 Reanimated 動畫的漸層遮罩；展開收合用 Reanimated layout animation；row 狀態圖示 `SymbolView`（執行中 `circle.dotted` 旋轉、完成換成 `checkmark.circle.fill` 並 bounce 一次）。減少動態效果開啟時全部改為靜態。
-    - 備案（全原生、較樸素）：`@expo/ui` `DisclosureGroup`（`isExpanded` 綁 auto-expand 規則）＋每列 `Label`（SF Symbol）＋執行中 `ProgressView`。
+    - 主案（RN 組合，ADR-15 例外，理由：SwiftUI 元件沒有 shimmer 與時間軸版面）：header 放在 `GlassView` 膠囊內；狀態圖示採用 Lucide `Sparkles`（執行中以 Reanimated 製作微旋轉或 pulse 呼吸動態；Web 的 `thinking-orbs` 是 canvas，不移植）；shimmer 用 Reanimated 動畫的漸層遮罩；展開收合用 Reanimated layout animation；row 狀態圖示採用 Lucide `Loader2`（旋轉）／完成換成 `Check`（或 `CheckCircle2`）並以 Reanimated 微彈跳一次。減少動態效果開啟時全部改為靜態。
+    - 備案（全原生、較樸素）：`@expo/ui` `DisclosureGroup`（`isExpanded` 綁 auto-expand 規則）＋每列 Lucide icon 標籤＋執行中 `ProgressView`。
     - 無障礙：header 是按鈕（`accessibilityState.expanded`），狀態文字 `accessibilityLiveRegion="polite"`，對應 Web 的 `aria-live`。
   - 聊天紀錄：Web 用 `sessionStorage`（重整保留、關瀏覽器清除）；原生對應為 **記憶體＋App 生命週期內保留**，冷啟動清除（可設定是否保留）。
 - **必守不變量**：
@@ -473,11 +492,13 @@ MapScreen
 
 | 項目 | 設定 |
 |---|---|
+| 圖示庫 | `lucide-react-native` + `react-native-svg`（全 App UI 統一向量圖示；淘汰 `expo-symbols` 作為主要 UI 圖示依賴） |
 | 地圖 | `@maplibre/maplibre-react-native` plugin |
 | 定位 | `expo-location` plugin：`locationWhenInUsePermission`、`locationAlwaysAndWhenInUsePermission`（中英文用途說明）、`isAndroidBackgroundLocationEnabled`、`isAndroidForegroundServiceEnabled`；iOS `UIBackgroundModes: ["location", "audio"]`（audio 只在語音導航需要背景播報時加，需評估審查影響） |
 | 麥克風 | `NSMicrophoneUsageDescription`、Android `RECORD_AUDIO`；`react-native-audio-api` plugin |
 | 相機／相簿 | `expo-image-picker` plugin 用途說明 |
 | 推播 | `expo-notifications` plugin、APNs key、FCM 設定（EAS credentials） |
+| 即時動態 | `plugins/with-live-activity.ts`：配置 iOS Widget Extension target、`NSSupportsLiveActivities: true`、SwiftUI 原始檔連結；Android 導航前景服務通知設定 |
 | 登入 | `@react-native-google-signin/google-signin` plugin（iosUrlScheme）、`expo-apple-authentication`（`usesAppleSignIn: true`） |
 | 既有 | `plugins/with-ios-scene-lifecycle.ts`：新增的原生 plugin 若修改 AppDelegate，必須與它相容（它找不到預期程式碼時會 throw） |
 
@@ -493,6 +514,7 @@ MapScreen
 | 地圖替代路徑 | 地圖內容對螢幕閱讀器不可靠，必須提供「附近設施清單」「路線文字步驟」等同等資訊的列表視圖 |
 | 動態字級 | 支援 iOS Dynamic Type／Android 字型縮放到最大級距不截字；不得鎖字級 |
 | 觸控目標 | ≥ 44×44 pt（iOS）／48×48 dp（Android）；SOS 主按鈕 ≥ 64 pt |
+| 圖示無障礙 | 所有 Lucide SVG 圖示預設設為裝飾性（`aria-hidden={true}`、`importantForAccessibility="no"`）；具互動性的圖示按鈕必須在外層容器具備明確 `accessibilityRole="button"` 與 `accessibilityLabel`，不得僅依賴圖示識別；文字與圖示並列時圖示對螢幕閱讀器隱藏 |
 | 對比 | 文字對比 ≥ 4.5:1；高對比模式 ≥ 7:1；地圖圖示在深淺底圖皆可辨識 |
 | 動態效果 | 尊重「減少動態效果」（`AccessibilityInfo.isReduceMotionEnabled`）：關閉 3D 過場、公車內插動畫降級 |
 | 狀態播報 | 路線算完、重算、抵達、SOS 狀態變更以 `AccessibilityInfo.announceForAccessibility` 播報 |

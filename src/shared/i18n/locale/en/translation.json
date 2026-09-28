@@ -964,5 +964,7 @@
   "nativePlaceLoadError": "Couldn't load place info",
   "nativeShare": "Share",
   "nativeCopied": "Link copied",
-  "nativeNoSearchResults": "No matching results"
+  "nativeNoSearchResults": "No matching results",
+  "nativeRouteErrorEmpty": "No suitable accessible route found",
+  "nativeRouteErrorFailed": "Route planning failed. Please try again later."
 }

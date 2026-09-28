@@ -950,5 +950,7 @@
   "nativePlaceLoadError": "無法載入地點資訊",
   "nativeShare": "分享",
   "nativeCopied": "已複製連結",
-  "nativeNoSearchResults": "找不到符合的結果"
+  "nativeNoSearchResults": "找不到符合的結果",
+  "nativeRouteErrorEmpty": "找不到合適的無障礙路線",
+  "nativeRouteErrorFailed": "路線規劃失敗，請稍後再試"
 }

@@ -1,0 +1,43 @@
+// bus 的純邏輯公開出口（與 `@/features/route/domain` 同一規則：不得 import react-native／expo）。
+export {
+  CURRENT_STOP_RADIUS_M,
+  buildStopRows,
+  equalStopName,
+  fallbackStopRows,
+  normalizeStopName,
+  parseStatusLabel,
+  pickDirection,
+  resolveCurrentStopSeq,
+  resolveEtaLabel,
+  resolveLegDirection,
+  resolveLegRide,
+  resolveLegStops,
+  sliceLegStops,
+  type BusLegStopRow,
+  type EtaLabel,
+  type EtaLabelKind,
+  type EtaTone,
+  type LegRideRef,
+  type StopRowKind,
+  type StopRowState,
+} from './busLegStops';
+export {
+  BUS_TWEEN_DURATION_MS,
+  buildBusTweens,
+  busFrame,
+  easeOutCubic,
+  type AnimatedBus,
+  type BusTween,
+  type DrawnPosition,
+} from './busTween';
+export {
+  BUS_STATUS,
+  type BusArrivalData,
+  type BusArrivalItem,
+  type BusSearchResult,
+  type BusStopSearchResult,
+  type LiveBus,
+  type LiveBusPositionsData,
+  type RouteDetailDirection,
+  type RouteDetailStop,
+} from '../types/transit';

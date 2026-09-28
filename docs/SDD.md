@@ -91,7 +91,7 @@ app/（Expo Router：路由與畫面組裝）
 
 1. 依賴只往下，UI 不直接呼叫 `fetch`（沿用 Web「API client → store／hook → UI」單向依賴）。
 2. `features/*/domain/` 放純函式與型別，**不得 import `react-native`、`expo-*`**，才能用 jest 在 node 下測。移植自 Web `lib/` 的邏輯一律進 `domain/`。
-3. feature 之間只能 import 對方 `index.ts` 的公開 API。跨 feature 的副作用（例：AI 要叫地圖飛到某處）走 §4.3 的 port，不直接改別人的 store。
+3. feature 之間只能 import 對方 `index.ts` 的公開 API；另外每個 feature 可提供 `domain/index.ts` 作為**純邏輯公開出口**，其他 feature 的 `domain/` 只能從這個出口引用（`index.ts` 會帶進 controller／原生模組，domain 就無法在 node 下測）。規則 2、3 由 `eslint.config.js` 的 `no-restricted-imports`（`src/features/*/domain/**`）機械化執行。跨 feature 的副作用（例：AI 要叫地圖飛到某處）走 §4.3 的 port，不直接改別人的 store。
 4. 所有外部副作用（定位、音訊、儲存、網路、時間）以 port 介面注入，domain 與 controller 可在測試中替換（沿用 Web `VoiceSessionController`、`foregroundLocation.ts` 的依賴注入設計）。
 
 ### 4.2 目錄結構
@@ -314,7 +314,7 @@ MapScreen
     - `LiveNavigationPort`（`features/navigation/domain/liveNavigation.ts`）：由 `NavigationController` 隨導航生命週期調用（`start`、`update`、`end`）。
     - iOS：自建 Config Plugin（`plugins/with-live-activity.ts`）配置 Widget Extension target 與 `NSSupportsLiveActivities: true`；以 Swift 定義 `NavigationActivityAttributes` 與 `ContentState`，UI 以 SwiftUI（WidgetKit）刻劃；Expo Native Module 暴露 Swift 橋接函式。
     - Android：與背景定位 Foreground Service 整合，發布 `CATEGORY_NAVIGATION`、`VISIBILITY_PUBLIC` 常駐通知，在步驟與位置更新時調用 `NotificationManagerCompat.notify`。
-    - 頻率控制：位置微小飄移不觸發 ActivityKit 重繪；設定節流（步驟改變、或下步剩餘距離改變 ≥10m、或每 2 秒最多 1 次），防範耗電與系統預算限制。
+    - 頻率控制（`domain/liveNavigation.ts` `shouldSendLiveUpdate`）：轉向（指示／圖示）或重算狀態改變時立即送；否則只有下步剩餘距離變化 ≥10 m **且**距上次 ≥2 秒才送。位置微小飄移不觸發 ActivityKit 重繪，防範耗電與系統預算限制。步行約 1.4 m/s 時距離約每 7 秒更新一次；接近轉彎時是否放寬待真機體驗後決定。
   - HUD 與 sheet 互斥；導航中 sheet 收為步驟清單入口（HUD 版面見 §4.5）。
 - **必守不變量**：
   - 兩個喇叭（本機 TTS 與語音助理音訊）**不得同時發聲**；語音 session 在本機導航中啟動時不得搶走喇叭按鈕或把本機 TTS 靜音（Web `src/lib/navigation/navigationAudio.ts:4-21`）。

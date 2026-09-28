@@ -160,25 +160,25 @@
 
 **2.2 bus**
 
-- [ ] 移植 `lib/transit/{busLegStops,busRouteDetailCache}.ts` 與測試；補「365／26 反向、70 不反」與「整段同一狀態文字」的測試案例
-- [ ] leg 站點 ETA（`useBusLegStopEtas`）、即時公車位置（輪詢＋內插，AppState 感知）
-- [ ] 公車面板：附近站牌、路線／站牌搜尋、路線詳情（依方向）
-- [ ] 交通警示（`/transit/alerts`）
+- [x] 移植 `lib/transit/{busLegStops,busRouteDetailCache}.ts` 與測試；補「365／26 反向、70 不反」與「整段同一狀態文字」的測試案例（2026-09-29；真實路線資料驗收待 App 可實跑後與 Web 比對）
+- [ ] leg 站點 ETA（`useBusLegStopEtas`）、即時公車位置（輪詢＋內插，AppState 感知）——邏輯層完成（2026-09-29：`shared/polling`、`busWatchers`、`busTween`、hooks）；地圖 LiveBusLayer 與內插動畫待 Mac
+- [ ] 公車面板：附近站牌、路線／站牌搜尋、路線詳情（依方向）——API 與 `useBusSearch` 完成（2026-09-29）；面板 UI 待 Mac
+- [ ] 交通警示（`/transit/alerts`）——Web 沒有直接呼叫此端點，警示夾在路線回應（`metroAlerts`／`transitAlerts`，已在 route store）；待路線面板 UI 一起呈現
 
 **2.3 navigation**
 
-- [ ] 移植 `lib/navigation/*` 與測試（`advisorySpeech`、`foregroundLocation`、`legMode`、`navigationAudio`、`rerouteCoordinator`、`navigationTakeoverGeometry`、`useRouteReroute`）
-- [ ] 把 Web `useNavigation.ts` 拆成 `domain/navigationEngine.ts`（純函式）＋ `NavigationController`＋薄 hook，並為 engine 寫測試
+- [x] 移植 `lib/navigation/*` 與測試（`advisorySpeech`、`foregroundLocation`、`legMode`、`navigationAudio`、`rerouteCoordinator`、`navigationTakeoverGeometry`、`useRouteReroute`）（2026-09-29；`navigationAudio` 依賴語音 store 的區塊隨 Phase 4）
+- [x] 把 Web `useNavigation.ts` 拆成 `domain/navigationEngine.ts`（純函式）＋ `NavigationController`＋薄 hook，並為 engine 寫測試（2026-09-29；鏡頭跟隨部分待 Mac 接 HUD）
 - [ ] NavigationHUD（轉向圖示、距離、進度、leg 交接卡）、步驟清單、離開確認、重算遮罩——版面依 SDD §4.5「導航 HUD」（`GlassView` 卡片＋Lucide icons，移植 Web 版 `navStepIcon` 轉向圖示系統）
-- [ ] 偏航偵測＋`/accessible-route/reroute`＋冷卻
+- [x] 偏航偵測＋`/accessible-route/reroute`＋冷卻（2026-09-29，邏輯層；重算遮罩 UI 待 Mac）
 - [ ] `expo-speech` 播報（喇叭仲裁規則）、`expo-haptics`、`expo-keep-awake`
 - [ ] **背景定位**：`expo-task-manager` 任務、iOS `UIBackgroundModes: location`、Android foreground service 通知；只在導航進行中啟用
 - [ ] **鎖定畫面導航與即時動態（Live Activities & Ongoing Notification）**：
   - `plugins/with-live-activity.ts`：Config Plugin 配置 iOS Widget Extension target、`NSSupportsLiveActivities: true`、SwiftUI 檔案連結
   - iOS 原生端：Swift 定義 `NavigationActivityAttributes`、SwiftUI 實作鎖定畫面卡片與動態島（Compact、Expanded、Minimal）
   - Android 原生端：前景服務整合 `CATEGORY_NAVIGATION`、`VISIBILITY_PUBLIC` 常駐通知，支援自訂版面與結束導航動作
-  - `LiveNavigationPort` 與 TS 介面封裝（`start`、`update`、`end`），串接 `navigationEngine` 狀態，加入更新節流機制（每 2 秒或距離變更 ≥10m）
-- [ ] 抵達偵測（只設定一次）
+  - `LiveNavigationPort` 與 TS 介面封裝（`start`、`update`、`end`），串接 `navigationEngine` 狀態，加入更新節流機制（轉向／重算立即送；否則距離變更 ≥10m 且間隔 ≥2 秒，見 SDD §6.4）——介面、快照與節流已完成（2026-09-29，`domain/liveNavigation.ts`＋測試），原生實作待 Mac
+- [x] 抵達偵測（只設定一次）（2026-09-29，`navigationEngine.advanceNavigation`＋測試）
 
 ### 出口條件
 

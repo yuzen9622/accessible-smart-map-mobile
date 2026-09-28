@@ -952,5 +952,14 @@
   "errorBoundaryFallbackTitle": "Failed to load section",
   "errorBoundaryFallbackDesc": "This component encountered an error and cannot be displayed. Please try reloading.",
   "errorGlobalTitle": "System Error",
-  "errorGlobalDescription": "A critical error occurred in the application. Please try reloading the page."
+  "errorGlobalDescription": "A critical error occurred in the application. Please try reloading the page.",
+  "nativeMapLoadFailed": "Map failed to load",
+  "nativeShowOnMap": "Show on map",
+  "nativeFacilityCategory": "Category",
+  "nativeDistance": "Distance",
+  "nativeFacilityNotFound": "Facility not found",
+  "nativePlaceLoadError": "Couldn't load place info",
+  "nativeShare": "Share",
+  "nativeCopied": "Link copied",
+  "nativeNoSearchResults": "No matching results"
 }

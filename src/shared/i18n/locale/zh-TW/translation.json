@@ -938,5 +938,14 @@
   "errorBoundaryFallbackTitle": "此區塊載入失敗",
   "errorBoundaryFallbackDesc": "這個元件遇到問題無法正常顯示，請嘗試重新載入。",
   "errorGlobalTitle": "系統發生重大錯誤",
-  "errorGlobalDescription": "應用程式核心元件發生錯誤，請嘗試重新載入頁面。"
+  "errorGlobalDescription": "應用程式核心元件發生錯誤，請嘗試重新載入頁面。",
+  "nativeMapLoadFailed": "地圖載入失敗",
+  "nativeShowOnMap": "在地圖上顯示",
+  "nativeFacilityCategory": "類別",
+  "nativeDistance": "距離",
+  "nativeFacilityNotFound": "找不到這個設施",
+  "nativePlaceLoadError": "無法載入地點資訊",
+  "nativeShare": "分享",
+  "nativeCopied": "已複製連結",
+  "nativeNoSearchResults": "找不到符合的結果"
 }

@@ -31,9 +31,13 @@ export const mapCamera = {
     claimed = true;
     camera?.easeTo({ center, zoom, duration, padding: currentPadding() });
   },
-  fitBounds(bounds: LngLatBounds): void {
+  /** `edge` 是 sheet inset 以外、額外保留的邊距（例：路線要避開頂部浮動控制，對齊 Web top 70／左右 40）。 */
+  fitBounds(bounds: LngLatBounds, edge?: { top?: number; left?: number; right?: number }): void {
     claimed = true;
-    camera?.fitBounds(bounds, { padding: currentPadding(), duration: 800 });
+    camera?.fitBounds(bounds, {
+      padding: { ...currentPadding(edge?.top ?? 0), left: edge?.left ?? 0, right: edge?.right ?? 0 },
+      duration: 800,
+    });
   },
   /** 冷啟動第一個 GPS fix：只在沒有其他相機動作搶先時置中一次（對齊 Web hasAutoLocatedRef） */
   autoCenterOnce(center: LngLat, zoom: number): boolean {

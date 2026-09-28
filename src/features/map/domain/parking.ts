@@ -58,19 +58,8 @@ export interface ParkingLotNearby {
 
 export type ParkingNearbyItem = ParkingSpaceNearby | ParkingLotNearby;
 
-/** 移植自 Web src/types/route.ts:931-940，四捨五入規則逐條對齊。 */
-export function formatDistance(meters: number): string {
-  if (!Number.isFinite(meters)) return '';
-  // >=100km: whole km, a decimal place is false precision at that range.
-  if (meters >= 100_000) return `${Math.round(meters / 1000)} km`;
-  if (meters >= 1000) return `${(meters / 1000).toFixed(1)} km`;
-  // Below 10m the round-to-10 rule renders a real 4m step as "0 m", which
-  // reads as no movement at all — the CSR engine emits plenty of these.
-  if (meters < 10) return `${Math.round(meters)} m`;
-  // Round to the nearest 10m — "583 m" implies GPS accuracy this app
-  // doesn't have; "580 m" reads as the estimate it actually is.
-  return `${Math.round(meters / 10) * 10} m`;
-}
+// formatDistance 已搬到 `shared/geo`（Phase 2 路線也要用），這裡轉出以保持 map feature 既有 API。
+export { formatDistance } from '@/shared/geo';
 
 /** TDX CarParkType：1 平面 / 2 立體 / 3 地下 / 4 停車塔 / 5 機械式。 */
 export function carParkTypeLabel(

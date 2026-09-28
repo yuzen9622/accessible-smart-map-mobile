@@ -10,7 +10,7 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 
 | 變數 | 必填 | 說明 |
 |---|---|---|
-| `EXPO_PUBLIC_END_POINT` | 是 | API base URL（dev：`https://map-dev.yuzen.dev`） |
+| `EXPO_PUBLIC_END_POINT` | 是 | API base URL：正式 `https://map.yuzen.dev`（`.env` 預設）；開發後端 `https://map-dev.yuzen.dev`（寫在 `.env.local`） |
 | `EXPO_PUBLIC_SHARE_BASE_URL` | 是 | 分享連結網域（`https://map.yuzen.dev`） |
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Phase 3 | Google 登入 web client ID |
 | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | Phase 3 | Google 登入 iOS client ID |

@@ -33,7 +33,7 @@ npx expo-doctor           # 專案健康檢查
 - `ios/`、`android/` 由 CNG 產生且已 gitignore，不要手改；原生設定走 `app.json` 與 config plugin（本地 plugin 放 `plugins/`，用 TypeScript 寫）。原生設定變更後用 `npx expo prebuild --platform ios --clean` 重新產生。
 - **iOS 27 SDK 強制 UIScene life cycle**，而 SDK 57 的 prebuild 模板沒有採用（App 會停在 splash 並在 log 印 `UIScene life cycle is required`）。`plugins/with-ios-scene-lifecycle.ts` 把 SDK 58 模板的做法（`SceneDelegate: ExpoAppSceneDelegate` + Info.plist `UIApplicationSceneManifest` + AppDelegate 改 conform `ExpoReactNativeFactoryProvider`）移植過來；升到 SDK 58 後應移除此 plugin。要改 AppDelegate 的其他 plugin 須與它相容（它會在找不到預期程式碼時直接 throw）。
 - CocoaPods 需要 UTF-8 locale：shell 若是 `LANG=C`，`pod install` 會報 `Unicode Normalization not appropriate for ASCII-8BIT`。執行 `expo run:ios`／`prebuild` 前加 `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8`。
-- Bundle ID／Android package：`dev.yuzen.accessiblesmartmap`；`app.json` 已開 `typedRoutes` 與 `reactCompiler`（React Compiler 已自動 memo，不要手動到處加 `useMemo`/`useCallback`）。
+- Bundle ID／Android package：`com.accessiblemap.app`（沿用 Web 版 Capacitor 的 ID；Capacitor 版未上架、將棄用）；`app.json` 已開 `typedRoutes` 與 `reactCompiler`（React Compiler 已自動 memo，不要手動到處加 `useMemo`/`useCallback`）。
 
 ## 驗證
 

@@ -8,7 +8,7 @@ import {
   withInfoPlist,
   withPlugins,
   withXcodeProject,
-} from 'expo/config-plugins';
+} from 'expo/config-plugins.js'; // 帶 .js：eas-cli 以 Node 原生 ESM 載入本檔，expo 套件沒有 exports map
 
 // Backport of the SDK 58 bare template: the iOS 27 SDK refuses to launch apps
 // that have not adopted the UIScene life cycle.

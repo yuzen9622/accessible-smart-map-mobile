@@ -5,46 +5,18 @@ export {
   endRouteSession,
   hasActiveRouteSession,
   loadRoutePreview,
+  replaceSelectedRoute,
   type ComputeRouteResult,
 } from './controller/routeSessionPort';
-export { getRouteSessionSnapshot, useRouteSession, type RouteSessionView } from './hooks/useRouteSession';
+export {
+  getRouteSessionSnapshot,
+  subscribeRouteSession,
+  useRouteSession,
+  type RouteSessionView,
+} from './hooks/useRouteSession';
 export type { SelectedRoute } from './store/routeSessionStore';
 
 export { getRouteInstructions, rerouteAccessibleRoute } from './api/route';
 
-export {
-  hasRouteSession,
-  routeResumeTarget,
-  shouldShowRoutePill,
-  type RouteResumeTarget,
-  type SheetMode,
-} from './domain/routeSession';
-export {
-  bearingDeg,
-  buildCumulativePath,
-  filterIncidentsAlongRoute,
-  normalizeDeg,
-  pointToPolylineDistanceM,
-  projectToPath,
-  resolveWaypoints,
-  shortestAngleLerp,
-  type CumulativePath,
-  type Projection,
-  type Waypoint,
-} from './domain/geo';
-export {
-  A11Y_FEATURE_COLOR,
-  TRAFFIC_BASE_COLOR,
-  TRAFFIC_LEVEL_COLORS,
-  formatDuration,
-  getA11yLabelColor,
-  getA11yLabelText,
-  getLegColor,
-  plausibleSlopePercent,
-  scoreToLabel,
-  scoreToStars,
-  visibleTrafficSegments,
-} from './domain/routeDisplay';
-export { ROUTE_FAILURE_I18N, type ComputeRouteParams, type RouteFailureKind } from './domain/routeRequest';
-
-export type * from './types/route';
+// 純邏輯（型別、geo、顯示 helper）；其他 feature 的 domain 層請直接從 `@/features/route/domain` 引用。
+export * from './domain';

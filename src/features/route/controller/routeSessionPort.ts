@@ -199,6 +199,22 @@ export async function loadRoutePreview(sessionId: string): Promise<boolean> {
   }
 }
 
+/**
+ * 導航重算（`nav.route_replaced`／本機 reroute）：以新版路線取代目前選中的那條，選擇的 index 不變，
+ * `computeRoutes` 裡同一格一起換掉（對齊 Web `applyRouteReplacement` 對 `useMapStore` 的寫法）。
+ * 沒有選中路線時（session 已結束）不動作並回傳 false——重算回應不得把已結束的 session 復活。
+ */
+export function replaceSelectedRoute(route: AccessibleRoute): boolean {
+  const { selectRoute, computeRoutes } = useRouteSessionStore.getState();
+  if (!selectRoute) return false;
+  const index = selectRoute.index;
+  useRouteSessionStore.setState({
+    selectRoute: { index, route },
+    computeRoutes: computeRoutes ? computeRoutes.map((item, i) => (i === index ? route : item)) : null,
+  });
+  return true;
+}
+
 /** 唯一的結束路線入口（pill 的 ✕、結束導航、AI「取消路線」）。 */
 export function endRouteSession(): void {
   inflight?.abort();

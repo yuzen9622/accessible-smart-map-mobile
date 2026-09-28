@@ -18,3 +18,8 @@ export function useRouteSession<T>(selector: (state: RouteSessionView) => T): T 
 export function getRouteSessionSnapshot(): RouteSessionView {
   return useRouteSessionStore.getState();
 }
+
+/** 非 React 訂閱：路線 session 任一欄位變動時呼叫（導航的幾何 runtime 用它跟上重算後的新路線）。 */
+export function subscribeRouteSession(listener: (state: RouteSessionView, previous: RouteSessionView) => void): () => void {
+  return useRouteSessionStore.subscribe(listener);
+}

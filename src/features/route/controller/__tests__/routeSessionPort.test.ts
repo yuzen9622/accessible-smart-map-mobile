@@ -8,6 +8,7 @@ import {
   endRouteSession,
   hasActiveRouteSession,
   loadRoutePreview,
+  replaceSelectedRoute,
 } from '../routeSessionPort';
 
 const mockFitBounds = jest.fn();
@@ -369,5 +370,23 @@ describe('request generations (review follow-ups)', () => {
     expect(s.routeWaypoints).toEqual([DEST]);
     expect(s.destinationName).toBe('市政府');
     expect(s.isLoading).toBe(false);
+  });
+});
+
+describe('replaceSelectedRoute', () => {
+  it('swaps the selected route and its slot in the result list', async () => {
+    mockGetAccessibleRoute.mockResolvedValue(ok({ routes: [route('a'), route('b')] }));
+    await computeRoute({ origin: ORIGIN, destination: DEST });
+    useRouteSessionStore.getState().selectRouteIndex(1);
+
+    expect(replaceSelectedRoute(route('b-v2'))).toBe(true);
+    const s = useRouteSessionStore.getState();
+    expect(s.selectRoute).toEqual({ index: 1, route: route('b-v2') });
+    expect(s.computeRoutes?.map((r) => r.routeId)).toEqual(['a', 'b-v2']);
+  });
+
+  it('never resurrects an ended session', () => {
+    expect(replaceSelectedRoute(route('late'))).toBe(false);
+    expect(hasActiveRouteSession()).toBe(false);
   });
 });

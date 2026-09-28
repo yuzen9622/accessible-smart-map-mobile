@@ -19,6 +19,8 @@ export function useLocationTracking(): void {
   const setPermission = useUserLocationStore((state) => state.setPermission);
   const setPosition = useUserLocationStore((state) => state.setPosition);
   const setHeading = useUserLocationStore((state) => state.setHeading);
+  const setCourse = useUserLocationStore((state) => state.setCourse);
+  const navigationAccuracy = useUserLocationStore((state) => state.navigationAccuracy);
   const setGpsError = useUserLocationStore((state) => state.setGpsError);
   const noLocationMessage = t('noLocation');
 
@@ -38,6 +40,7 @@ export function useLocationTracking(): void {
     const port = getLocationPort();
     const handlers = createGpsPositionHandlers({
       onLocationUpdate: setPosition,
+      onHeadingUpdate: setCourse,
       storage: appStorage,
       storageKey: LAST_USER_LOCATION_KEY,
       onErrorNotification: () => {
@@ -50,7 +53,9 @@ export function useLocationTracking(): void {
     const start = async () => {
       try {
         const stopPosition = await port.watch(
-          { accuracy: 'high', timeIntervalMs: 1000, distanceIntervalMeters: 2 },
+          // 導航中升到 best-for-navigation：導航只吃這一條定位（Web 同樣以 store 的 userLocation 為唯一來源），
+          // 背景定位任務之後也寫進同一個 store。
+          { accuracy: navigationAccuracy ? 'best-for-navigation' : 'high', timeIntervalMs: 1000, distanceIntervalMeters: 2 },
           handlers.handlePosition,
         );
         const stopHeading = await port.watchHeading((degrees) => setHeading(degrees));
@@ -69,5 +74,5 @@ export function useLocationTracking(): void {
       cancelled = true;
       unsubscribers.forEach((stop) => stop());
     };
-  }, [permission, setPosition, setHeading, setGpsError, noLocationMessage]);
+  }, [permission, navigationAccuracy, setPosition, setHeading, setCourse, setGpsError, noLocationMessage]);
 }

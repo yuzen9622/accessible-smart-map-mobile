@@ -8,3 +8,5 @@ export { default as ParkingLayer } from './components/ParkingLayer';
 export { useUserLocationStore } from './store/userLocationStore';
 export { applyDefaultFacilityCategories } from './store/facilityStore';
 export { PINNED_FACILITY_CATEGORIES, type PinnedFacilityCategory } from './domain/facilities';
+export { useNearbyViewModel, type NearbyRow, type NearbyStatus } from './hooks/useNearbyViewModel';
+export { formatDistance } from './domain/parking';

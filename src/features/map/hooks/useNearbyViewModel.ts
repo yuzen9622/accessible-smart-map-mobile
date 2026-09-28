@@ -15,6 +15,8 @@ export interface NearbyRow {
   title: string;
   subtitle: string;
   distanceText: string;
+  /** 設施類別；停車為 `'parking'`（供其他面板挑對應圖示） */
+  category: PinnedFacilityCategory | 'parking';
   /** VoiceOver 一次念完：名稱、類別、距離 */
   accessibilityLabel: string;
   onPress: () => void;
@@ -66,6 +68,7 @@ export function useNearbyViewModel(): NearbyViewModel {
         title: item.facility.name,
         subtitle,
         distanceText,
+        category: item.facility.category,
         accessibilityLabel: `${item.facility.name}，${subtitle}，${distanceText}`,
         onPress: () => router.push({ pathname: '/facility/[id]', params: { id: item.id } }),
       };
@@ -77,6 +80,7 @@ export function useNearbyViewModel(): NearbyViewModel {
       title,
       subtitle,
       distanceText,
+      category: 'parking',
       accessibilityLabel: `${title}，${subtitle}，${distanceText}`,
       onPress: () => mapCamera.flyTo([item.position.lng, item.position.lat], 18),
     };

@@ -19,7 +19,13 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "dev.yuzen.accessiblesmartmap"
+      "package": "dev.yuzen.accessiblesmartmap",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -36,11 +42,40 @@
         }
       ],
       "./plugins/with-ios-scene-lifecycle.ts",
-      "expo-localization"
+      "expo-localization",
+      "@maplibre/maplibre-react-native",
+      [
+        "react-native-audio-api",
+        {
+          "iosMicrophonePermission": "語音助理需要使用麥克風，將你的語音即時傳給助理以回覆你。Voice assistant uses the microphone to send your speech to the assistant.",
+          "iosBackgroundMode": false,
+          "androidPermissions": [
+            "android.permission.RECORD_AUDIO",
+            "android.permission.MODIFY_AUDIO_SETTINGS"
+          ],
+          "androidForegroundService": false,
+          "androidFSTypes": [],
+          "androidFSStopWithTask": true,
+          "disableFFmpeg": true,
+          "disableStaticExternalLibs": false
+        }
+      ],
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "用來在地圖上顯示你的位置、搜尋附近的無障礙設施與規劃路線。Your location is used to show nearby accessible facilities and plan routes.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {}
     }
   }
 }

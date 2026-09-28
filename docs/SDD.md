@@ -2,9 +2,9 @@
 
 | 項目 | 內容 |
 |---|---|
-| 版本 | v0.2（草案） |
+| 版本 | v0.3（草案） |
 | 日期 | 2026-09-25 |
-| 狀態 | 待審閱；§8 後端變更與 §14 未決問題需決策。v0.2：納入使用者決策（原生 UI 優先、email 頁留 web、五期分工）與 Phase 0 套件核實結果 |
+| 狀態 | 待審閱；§8 後端變更與 §14 未決問題需決策。v0.2：納入使用者決策（原生 UI 優先、email 頁留 web、五期分工）與 Phase 0 套件核實結果。v0.3（2026-09-26）：三個 spike 結論（`docs/spikes/`）寫回 ADR-03／05／06 |
 | 參考系統 | Web 版 `/Users/yuen/orca/taipei-accessible-map`（Next.js 16，移植基準 commit `5eadc71`）、後端 `/Users/yuen/project/taipei-accessible-backend` |
 | 分期執行 | 見 [`ROADMAP.md`](./ROADMAP.md) |
 
@@ -58,10 +58,10 @@
 |---|---|---|---|
 | ADR-01 | **獨立 repo，邏輯以「移植＋來源紀錄」方式搬入** | 使用者決定；兩端工具鏈（Next/Biome/Vitest vs Expo/ESLint/Jest）與規範（本 repo 禁 `.then`、禁 ts-ignore）不同 | monorepo 共用 `packages/core`（使用者否決）；git submodule（維護成本高） |
 | ADR-02 | **不做 DOM-component 全殼**；只在 AI 訊息 markdown 可選用 `'use dom'` | Capacitor 已等同 WebView 殼，重做無價值；DOM 畫面每個約 2 MB runtime | expo-web-to-native 預設的「day-one DOM shell」 |
-| ADR-03 | 地圖：**`@maplibre/maplibre-react-native` 11.x** | 唯一能直接吃 Web 版 MapLibre style JSON（含 `fill-extrusion` 3D）的方案；有 Expo plugin；原生 `GeoJSONSource cluster`；`Camera.flyTo/fitBounds`。2026-09-25 核實（npm／repo 原始碼）：最新 11.4.0，peer `expo>=54`、`react-native>=0.80`，**只支援 New Architecture**；v11 改名 `MapView→Map`、`ShapeSource→GeoJSONSource`、Camera `easing="fly"`；`fillExtrusionOpacity` 有對應 `fillExtrusionOpacityTransition`（交叉淡化有 API，實際效果待 Spike A） | `react-native-maps`、`expo-maps`（不支援自訂 vector style／3D 圖層） |
+| ADR-03 | 地圖：**`@maplibre/maplibre-react-native` 11.x** | 唯一能直接吃 Web 版 MapLibre style JSON（含 `fill-extrusion` 3D）的方案；有 Expo plugin；原生 `GeoJSONSource cluster`；`Camera.flyTo/fitBounds`。2026-09-25 核實（npm／repo 原始碼）：最新 11.4.0，peer `expo>=54`、`react-native>=0.80`，**只支援 New Architecture**；v11 改名 `MapView→Map`、`ShapeSource→GeoJSONSource`、Camera `easing="fly"`；`fillExtrusionOpacity` 有對應 `fillExtrusionOpacityTransition`。**Spike A 已驗證**（`docs/spikes/map.md`）：style、3D 淡化、原生分群、flyTo／fitBounds 可用；相機 padding 必須放進每次動畫的 options | `react-native-maps`、`expo-maps`（不支援自訂 vector style／3D 圖層） |
 | ADR-04 | 分群改用 **原生 GeoJSONSource cluster + SymbolLayer**，不再用 React view 當 marker | 原生端 React view marker 數量多時效能差；Web 版 supercluster 可淘汰 | 保留 `use-supercluster` + `<MarkerView>` |
-| ADR-05 | 地圖上常駐 sheet **改為原生 sheet 優先**（見 ADR-15、§4.5）：iOS 以 Expo Router `formSheet`（`sheetAllowedDetents` + `sheetLargestUndimmedDetentIndex` 讓地圖在低 detent 可操作）或 `@expo/ui` `BottomSheet` + `presentationDetents` + `presentationBackgroundInteraction` 實作，二選一由 Spike C 決定；Android 以同一個 formSheet 為先，行為不足才退回 `@gorhom/bottom-sheet` | 原生 sheet 才能拿到 iOS 26+ Liquid Glass 與系統手勢／VoiceOver 行為；v0.1 以為 `@expo/ui` BottomSheet 只能模態，2026-09-25 查原始碼確認可經 modifier 設 detent 與背景互動（`node_modules/@expo/ui/src/swift-ui/modifiers/presentationModifiers.ts`） | 全部用 `@gorhom/bottom-sheet`（JS 繪製，拿不到玻璃效果；v0.1 原方案，降為 Android 備案） |
-| ADR-06 | 語音音訊：**Spike B 比較兩案後定案**。候選 1：`expo-audio`（SDK 57 新增 `useAudioStream({sampleRate, channels, encoding:'float32', onBuffer})` 即時 PCM 擷取，Expo 官方維護）；候選 2：`react-native-audio-api` 0.13.x（`AudioRecorder.onAudioReady` 回傳 Float32 `AudioBuffer`、可指定 16000 Hz；`AudioBufferQueueSourceNode` 排程播放；`AudioManager.setAudioSessionOptions` 設 `playAndRecord`／`voiceChat`；需 `react-native-worklets`）。下行 24 kHz 播放目前只有候選 2 有已知 API | 兩者都有即時 PCM 擷取 API（2026-09-25 查 repo 原始碼）；**重取樣演算法（是否抗混疊）兩者都未核實**，是 spike 的核心判準 | `@siteed/expo-audio-studio`（最後發版 2026-06，社群維護風險）；自寫 Expo native module（備案） |
+| ADR-05 | 地圖上常駐 sheet **改為原生 sheet 優先**（見 ADR-15、§4.5）：iOS 以 Expo Router `formSheet`（`sheetAllowedDetents` + `sheetLargestUndimmedDetentIndex` 讓地圖在低 detent 可操作）或 `@expo/ui` `BottomSheet` + `presentationDetents` + `presentationBackgroundInteraction` 實作。**Spike C 已定案 iOS 用 Expo Router formSheet**（`docs/spikes/sheet.md`：低 detent 地圖可操作、`gestureEnabled: false` 不可關閉、sheet 內 push 正常、iOS 26+ 系統外觀）；Android 以同一個 formSheet 為先，行為不足才退回 `@gorhom/bottom-sheet` | 原生 sheet 才能拿到 iOS 26+ Liquid Glass 與系統手勢／VoiceOver 行為；v0.1 以為 `@expo/ui` BottomSheet 只能模態，2026-09-25 查原始碼確認可經 modifier 設 detent 與背景互動（`node_modules/@expo/ui/src/swift-ui/modifiers/presentationModifiers.ts`） | 全部用 `@gorhom/bottom-sheet`（JS 繪製，拿不到玻璃效果；v0.1 原方案，降為 Android 備案） |
+| ADR-06 | 語音音訊：**定案 `react-native-audio-api`，擷取與播放同一套件**（Spike B，`docs/spikes/voice.md`：iOS 用 `AVAudioConverter` 最高品質重取樣、固定 1600 frame、24 kHz 佇列播放與打斷實測可用；`expo-audio` 無 PCM 播放 API 且串流 session 不能設 `voiceChat`，淘汰）。以下為當初比較的兩案：候選 1：`expo-audio`（SDK 57 新增 `useAudioStream({sampleRate, channels, encoding:'float32', onBuffer})` 即時 PCM 擷取，Expo 官方維護）；候選 2：`react-native-audio-api` 0.13.x（`AudioRecorder.onAudioReady` 回傳 Float32 `AudioBuffer`、可指定 16000 Hz；`AudioBufferQueueSourceNode` 排程播放；`AudioManager.setAudioSessionOptions` 設 `playAndRecord`／`voiceChat`；需 `react-native-worklets`）。下行 24 kHz 播放目前只有候選 2 有已知 API | 兩者都有即時 PCM 擷取 API（2026-09-25 查 repo 原始碼）；**重取樣演算法（是否抗混疊）兩者都未核實**，是 spike 的核心判準 | `@siteed/expo-audio-studio`（最後發版 2026-06，社群維護風險）；自寫 Expo native module（備案） |
 | ADR-07 | 串流 HTTP：**`expo/fetch` 的 `ReadableStream` + 自寫 SSE parser**（`shared/api/sse.ts`）；spike 失敗則改 `react-native-sse` | AI chat 是 POST SSE、SOS stream 需 Bearer header，原生 `EventSource` 都不適用；自寫 parser 可與 Web 版行為對齊 | `EventSource` polyfill 無 header 支援者 |
 | ADR-08 | 儲存：token 用 **`expo-secure-store`**；zustand persist 用 **`react-native-mmkv` 4.x**（需 `react-native-nitro-modules`；2026-09-25 查：mmkv 4.3.2、nitro 0.37.1，peer 皆為 `*`，版本配對要在安裝後實跑確認） | Keychain／Keystore 保護憑證；MMKV 同步讀取可避免 hydrate 閃爍 | AsyncStorage（非同步、慢） |
 | ADR-09 | 登入：**`@react-native-google-signin/google-signin`** + **`expo-apple-authentication`**；Email/密碼沿用 | App Store Guideline 4.8：提供 Google 登入即須提供同等隱私的登入（Sign in with Apple） | `expo-auth-session` 網頁式 OAuth（體驗差） |
@@ -252,14 +252,14 @@ MapScreen
 - **原生設計**：
   - style JSON 直接沿用 Web 版（liberty／dark）；以 `mapStyle` 傳 URL 或物件。
   - 2D/3D：**不換 style**，在同 style 內對兩組 layer 做透明度交叉淡化（沿用 `basemap3d.ts` 的決策）。maplibre-react-native 的 layer props 是宣告式，淡化改由 state 驅動 `fillExtrusionOpacity` 等屬性；能否動畫過場於 Phase 0 spike 驗證。
-  - 設施資料：`GET /api/v1/a11y/all-facilities?category=elevator,ramp,toilet`（約 1.6MB / 7.9k 筆）一次載入，MMKV 快取＋`ETag`／時間戳過期；轉成 GeoJSON 給 `GeoJSONSource cluster`。
+  - 設施資料：`GET /api/v1/a11y/all-facilities?category=elevator,ramp,toilet`（約 1.6MB / 7.9k 筆）（2026-09-26 實測 5,836 筆、約 1.1 MB）一次載入，MMKV 快取＋`ETag`／時間戳過期；轉成 GeoJSON 給 `GeoJSONSource cluster`。
   - Icon：`Images` 註冊 sprite，`SymbolLayer iconImage` 依 `category` expression 選圖；點擊 cluster → `getClusterExpansionZoom` 放大；點擊單點 → `SheetController.open("a11y", …)`。
   - 地圖語系：對 symbol layer 的 `textField` 以 expression 選 `name:zh-Hant`／`name:zh`／`name:en` fallback。
 - **必守不變量**：
   - 2D/3D 切換不得 reload style（覆蓋圖層必須不受影響）；首次載入直接設定到位，不做淡入（Web `ClientMap.tsx:186-193`）。
   - 語系改寫只動 `textField` 內含 `"name"` 的 layer，且要做相等判斷避免無限重繪（Web `ClientMap.tsx:64-91`）。
   - GPS 錯誤退避：沿用 `gpsErrorHandler` 的計數與提示節流邏輯（改注入 MMKV）。
-- **驗收**：7.9k 設施點在 iPhone 中階機種平移縮放維持流暢（目標 ≥ 50fps，以 Perf Monitor 量測）；VoiceOver 可聚焦並朗讀單點設施（需提供地圖外的「附近設施清單」作為無障礙替代路徑，見 §10）。
+- **驗收**：約 5.8k 設施點在 iPhone 中階機種平移縮放維持流暢（目標 ≥ 50fps，以 Perf Monitor 量測）；VoiceOver 可聚焦並朗讀單點設施（需提供地圖外的「附近設施清單」作為無障礙替代路徑，見 §10）。
 
 ### 6.2 place — 搜尋、地點詳情、評論、收藏
 
@@ -350,7 +350,8 @@ MapScreen
   - 下行：**PCM16 LE、24000 Hz、mono**，chunk 長度不固定，需依序排程播放。
   - 控制訊息：`session.end`、`nav.setRoute{routeToken}`、`nav.position`、`nav.cancel`、`nav.start`、`nav.resume{navigationId,routeVersion,routeToken,lastKnownStepIndex,currentPosition?}`；伺服器事件：`session.ready`、`error`、`interrupted`、`tool_call`、`tool_result`、`transcript`、`transcript.correction`、`turn.complete`、`nav.*`。
 - **原生設計**：
-  - `AudioCapturePort` 實作：`react-native-audio-api` `AudioRecorder`（`sampleRate: 16000`、`channelCount: 1`、`bufferLength: 1600`）→ Float32 轉 Int16 → `ws.send(ArrayBuffer)`。
+  - `AudioCapturePort` 實作：`react-native-audio-api` `AudioRecorder`（`sampleRate: 16000`、`channelCount: 1`、`bufferLength: 1600`）→ Float32 轉 Int16 → `ws.send(ArrayBuffer)`（轉換函式已在 Spike B 寫好並有測試：`src/features/spikes/voice/pcm.ts`，Phase 4 移入 `features/voice/domain`）。
+  - 已知 0.13.6 bug：`AudioBufferQueueSourceNode.start()` 必須明確傳 `start(0, 0)`。
   - **重取樣必須有抗混疊**：若裝置無法直接以 16 kHz 擷取，必須用函式庫內建重取樣或帶 low-pass 的重取樣，**禁止**「每 N 個取 1 個」的裸抽稀（會 aliasing 並造成 44.1 kHz 裝置變速變調；後端協定文件 §258-259 明文禁止）。
   - `AudioPlaybackPort` 實作：`AudioContext({sampleRate: 24000})` + `AudioBufferQueueSourceNode` 依序排隊；`interrupted` 事件時清空佇列。
   - 音訊 session：iOS 設為 `playAndRecord` + `voiceChat` 模式（回音消除）、允許藍牙；與導航 TTS 的喇叭仲裁走 `navigationAudio` 規則。
@@ -415,7 +416,7 @@ MapScreen
 
 | 變數 | 說明 |
 |---|---|
-| `EXPO_PUBLIC_END_POINT` | API base URL。Web 版 dev 為 `https://map-dev.yuzen.dev`；正式 API 主機名稱**未在後端 repo 宣告**，需向部署負責人確認 |
+| `EXPO_PUBLIC_END_POINT` | API base URL。正式：`https://map.yuzen.dev`（使用者 2026-09-28 確認，`.env` 預設）；開發：`https://map-dev.yuzen.dev`（`.env.local` 覆寫） |
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google 登入的 web client ID（idToken audience） |
 | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | iOS client ID |
 | `EXPO_PUBLIC_SHARE_BASE_URL` | 分享連結網域（對應 Web `NEXT_PUBLIC_URL`，`https://map.yuzen.dev`） |
@@ -457,14 +458,14 @@ MapScreen
 
 | ID | 變更 | 原因 | 優先級 | 需要於 |
 |---|---|---|---|---|
-| B-01 | `/user/refresh` 支援非 cookie 管道：原生 client（例如帶 `X-Client: mobile`）登入時於 body 回傳 refresh token；refresh 時接受 body 或 header；保留 web 的 httpOnly cookie 路徑 | 目前只讀 `req.cookies.refreshToken`（後端 `src/modules/user/user.controller.ts:186`），原生無法可靠使用 | P0 | Phase 1 |
-| B-02 | Google `verifyIdToken` 的 `audience` 改為陣列（web、iOS、Android client ID） | 目前只接受單一 `GOOGLE_CLIENT_ID`（後端 `user.auth.service.ts:421-443`） | P0 | Phase 3 |
-| B-03 | 新增 Sign in with Apple（`POST /auth/apple`，驗證 identityToken，比照 Google 的帳號連結邏輯） | App Store Guideline 4.8 | P0（iOS 上架必要） | Phase 3 |
-| B-04 | 推播：`POST/DELETE /api/v1/user/push-tokens`（Expo push token、平台、語系）＋ SOS 狀態變更與通報審核結果推送 | 後端完全沒有推播基礎設施；SOS 在背景時 SSE 會斷 | P1 | Phase 3 |
-| B-05 | 修正 refresh cookie `maxAge`（7 天）與 token `exp`（1 天）不一致；原生管道採一致 TTL，並考慮 refresh token rotation | 過期行為難以預期（後端 `src/config/lib.ts:78` vs `src/config/jwt.ts`） | P2 | Phase 1 |
-| B-06 | 〔v0.2 縮小範圍〕Email 驗證與重設密碼**維持開 Web**，不需改。只剩分享連結要 Universal Link 時，才於 `map.yuzen.dev` 提供 `apple-app-site-association` 與 `assetlinks.json` | 使用者決策：這兩頁留在 Web | P3 | v1.x |
-| B-07 | 確認正式環境 API 主機名稱與反向代理 `trust proxy` hop 數 | 匿名通報以 IP hash 識別、rate limit 以 IP 為 key | P1 | Phase 0 |
-| B-08 | 新增帳號刪除 API（`DELETE /api/v1/user`，連同緊急聯絡人、AI 記憶、推播 token；評論與通報匿名化或刪除） | App Store 要求可在 App 內刪除帳號；後端 `src/modules/user/user.router.ts` 目前沒有刪除端點 | P0（上架必要） | Phase 3 |
+| B-01（[#17](https://github.com/yuzen9622/accessible-smart-map-backend/issues/17)） | `/user/refresh` 支援非 cookie 管道：原生 client（例如帶 `X-Client: mobile`）登入時於 body 回傳 refresh token；refresh 時接受 body 或 header；保留 web 的 httpOnly cookie 路徑 | 目前只讀 `req.cookies.refreshToken`（後端 `src/modules/user/user.controller.ts:186`），原生無法可靠使用 | P0 | Phase 1 |
+| B-02（[#18](https://github.com/yuzen9622/accessible-smart-map-backend/issues/18)） | Google `verifyIdToken` 的 `audience` 改為陣列（web、iOS、Android client ID） | 目前只接受單一 `GOOGLE_CLIENT_ID`（後端 `user.auth.service.ts:421-443`） | P0 | Phase 3 |
+| B-03（[#19](https://github.com/yuzen9622/accessible-smart-map-backend/issues/19)） | 新增 Sign in with Apple（`POST /auth/apple`，驗證 identityToken，比照 Google 的帳號連結邏輯） | App Store Guideline 4.8 | P0（iOS 上架必要） | Phase 3 |
+| B-04（[#20](https://github.com/yuzen9622/accessible-smart-map-backend/issues/20)） | 推播：`POST/DELETE /api/v1/user/push-tokens`（Expo push token、平台、語系）＋ SOS 狀態變更與通報審核結果推送 | 後端完全沒有推播基礎設施；SOS 在背景時 SSE 會斷 | P1 | Phase 3 |
+| B-05（[#21](https://github.com/yuzen9622/accessible-smart-map-backend/issues/21)） | 修正 refresh cookie `maxAge`（7 天）與 token `exp`（1 天）不一致；原生管道採一致 TTL，並考慮 refresh token rotation | 過期行為難以預期（後端 `src/config/lib.ts:78` vs `src/config/jwt.ts`） | P2 | Phase 1 |
+| B-06（[#22](https://github.com/yuzen9622/accessible-smart-map-backend/issues/22)） | 〔v0.2 縮小範圍〕Email 驗證與重設密碼**維持開 Web**，不需改。只剩分享連結要 Universal Link 時，才於 `map.yuzen.dev` 提供 `apple-app-site-association` 與 `assetlinks.json` | 使用者決策：這兩頁留在 Web | P3 | v1.x |
+| B-07（[#23](https://github.com/yuzen9622/accessible-smart-map-backend/issues/23)） | 確認正式環境 API 主機名稱與反向代理 `trust proxy` hop 數 | 匿名通報以 IP hash 識別、rate limit 以 IP 為 key | P1 | Phase 0 |
+| B-08（[#24](https://github.com/yuzen9622/accessible-smart-map-backend/issues/24)） | 新增帳號刪除 API（`DELETE /api/v1/user`，連同緊急聯絡人、AI 記憶、推播 token；評論與通報匿名化或刪除） | App Store 要求可在 App 內刪除帳號；後端 `src/modules/user/user.router.ts` 目前沒有刪除端點 | P0（上架必要） | Phase 3 |
 
 ---
 
@@ -541,7 +542,7 @@ MapScreen
 | R6 | `expo/fetch` 串流在 SDK 57 取消語意或穩定性問題 | AI 串流／SOS 更新異常 | 低 | spike；備案 `react-native-sse` |
 | R7 | zh-TW TTS 語音在部分 Android 裝置缺失 | 導航播報失效 | 低 | 啟動檢查＋提示安裝語音包；以震動＋畫面提示降級 |
 | R9 | 未付 Apple Developer 年費（使用者決定上架延後） | 無法 TestFlight；免費帳號真機簽章 7 天失效，且**不支援 Sign in with Apple、推播**等 capability，Phase 3 這兩項在 iOS 真機無法驗證 | 高 | Android 真機可免費側載 APK，語音與背景定位的真機驗證先在 Android 做；iOS 真機驗證集中到繳費後一次補做；ROADMAP 各期出口條件中的「送 TestFlight」改為「可在模擬器與 Android 真機安裝」 |
-| R8 | Bundle ID 與 Capacitor 版不同 | 若 Capacitor 版已上架，舊用戶不會自動遷移 | 待確認 | §14 Q1 |
+| R8 | ~~Bundle ID 與 Capacitor 版不同~~ | 原生 App 改用 Capacitor 的 `com.accessiblemap.app`（Q1），Capacitor 版將棄用 | 已排除 | — |
 
 ---
 
@@ -561,8 +562,8 @@ MapScreen
 
 | # | 問題 | 影響 | 建議 |
 |---|---|---|---|
-| Q1 | Capacitor 版是否已上架？ | 決定是否要沿用 `com.accessiblemap.app` 以承接舊用戶 | 未上架則維持 `dev.yuzen.accessiblesmartmap` |
-| Q2 | 正式 API 主機名稱？ | `EXPO_PUBLIC_END_POINT` | 向部署負責人確認（B-07） |
+| Q1 | ~~Capacitor 版是否已上架？~~ **已結案** | 2026-09-28 查 App Store lookup（0 筆）與 Google Play（404）：`com.accessiblemap.app` 未上架 | 使用者決定：原生 App **沿用 `com.accessiblemap.app`**，Web 版 Capacitor 之後棄用 |
+| Q2 | ~~正式 API 主機名稱？~~ **已結案** | `EXPO_PUBLIC_END_POINT` | 使用者 2026-09-28 確認：正式 `https://map.yuzen.dev`、開發 `https://map-dev.yuzen.dev`。B-07 只剩確認 `TRUST_PROXY_HOPS` |
 | Q3 | 收藏地點要不要上雲端同步？ | 後端目前無 API，v1 只存本機 | v1 本機；v2 評估 |
 | Q4 | 語音導航是否需要背景播放（`UIBackgroundModes: audio`）？ | 審查與電量 | v1 只做本機 TTS 背景播報，語音助理限前景 |
 | Q5 | 是否支援平板與橫向？ | 版面工作量 | v1 直向手機，確保 iPad 可用但不最佳化 |

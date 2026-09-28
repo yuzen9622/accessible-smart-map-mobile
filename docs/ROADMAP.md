@@ -31,50 +31,50 @@
 ### 步驟
 
 **0.1 工程基礎**
-- [ ] 第一個 commit：現有骨架＋`docs/`（待使用者指示）
+- [x] 第一個 commit：現有骨架＋`docs/`
 - [x] 切到 dev build 工作流程：`npx expo install expo-dev-client`，`LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo run:ios` 能啟動（2026-09-25 iOS 27 模擬器實跑）
-- [ ] Android 模擬器 `npx expo run:android` 能啟動
+- [ ] Android 模擬器 `npx expo run:android` 能啟動（使用者決定 Phase 0 先跳過：本機沒有 emulator 映像且磁碟空間不足）
 - [x] 建立 `eas.json`（development／development-device／preview／production profile）
-- [ ] `eas build --profile development` 一次（需登入 Expo 帳號）
+- [x] `eas build --profile development` 一次：2026-09-28 iOS（simulator）成功，專案 `@yuzen/accessible-smart-map-mobile`，build `18e4e57d-73f3-437b-8999-dc9adc8c98e7`。修正：`plugins/with-ios-scene-lifecycle.ts` 要 import `expo/config-plugins.js`（eas-cli 用 Node 原生 ESM 載入 TS plugin）
 - [x] 導入 `jest-expo` 與 `@testing-library/react-native`，加 `npm test` 腳本（`jest.config.js`；TS 6 需在 `tsconfig` 寫 `types: ["jest"]`）
 - [x] CI（GitHub Actions）：typecheck + lint + test（`.github/workflows/ci.yml`，推上 GitHub 後才會實際跑）
 - [x] 建立 `docs/port-ledger.md`（SDD §13 格式）
 
 **0.2 共用層（`src/shared/`）**
 - [x] `shared/config`：`EXPO_PUBLIC_*` 驗證＋設定錯誤畫面（iOS `ContentUnavailableView`）；值放 `.env`
-- [ ] `shared/api`：移植 Web `src/lib/fetch.ts`（`fetchRequest`／`authenticatedRequest`／`ApiError`，401-retry-once、403 立即失效、`skipAuthRetry`）與 `ApiResponse<T>` 型別；先接上 stub `AuthPort`
-- [ ] `shared/api/sse.ts`：`expo/fetch` `ReadableStream` SSE parser＋單元測試（切事件、多行 data、斷線、Abort）
-- [ ] `shared/storage`：MMKV 實例、SecureStore 包裝、zustand persist adapter、schema version migration 工具（取代 Web 13 個用到 localStorage 的檔案，對照見 SDD §7.3）
+- [x] `shared/api`：移植 Web `src/lib/fetch.ts`（`fetchRequest`／`authenticatedRequest`／`ApiError`，401-retry-once、403 立即失效、`skipAuthRetry`）與 `ApiResponse<T>` 型別；先接上 stub `AuthPort`
+- [x] `shared/api/sse.ts`：`expo/fetch` `ReadableStream` SSE parser＋單元測試（切事件、多行 data、斷線、Abort）
+- [x] `shared/storage`：MMKV 實例、SecureStore 包裝、zustand persist adapter、schema version migration 工具（取代 Web 13 個用到 localStorage 的檔案，對照見 SDD §7.3）
 - [x] `shared/i18n`：i18next + `expo-localization`，搬入 Web `src/i18n/locale/{zh-TW,en}/translation.json`；移除 `[lng]` 路由與 middleware 的等價物（App 內自選語系留待 settings）
-- [ ] `shared/theme`：擴充既有 theme：淺／深／高對比 token、字級倍率
-- [ ] `shared/location`：`LocationPort` 介面＋前景實作
-- [ ] `shared/ui`：Button、Toast、EmptyState、ErrorState、LoadingState（含無障礙屬性）
+- [x] `shared/theme`：擴充既有 theme：淺／深／高對比 token、字級倍率
+- [x] `shared/location`：`LocationPort` 介面＋前景實作
+- [x] `shared/ui`：Button、EmptyState、ErrorState、LoadingState（含無障礙屬性；iOS 用 `@expo/ui`）。Toast 延到 Phase 1 有實際使用處時再定（iOS 無系統 toast，需選型）
 
 **0.3 Spike A — 地圖（R2）**
-- [ ] 安裝 `@maplibre/maplibre-react-native`（11.4.0，peer 已核實相容 SDK 57／RN 0.86 New Arch），載入 Web 版 liberty／dark style
-- [ ] 載入 `all-facilities`（約 7.9k 點），用 `GeoJSONSource cluster` + `SymbolLayer` 顯示，量測 FPS 與記憶體
-- [ ] 驗證 `fill-extrusion` 3D 建物，以及 2D/3D 透明度交叉淡化可行性
-- [ ] 驗證 `Camera.flyTo`、`fitBounds`、padding（sheet 遮擋時的地圖 inset）
-- [ ] 產出：`docs/spikes/map.md`（可行／不可行、數據、決定）
+- [x] 安裝 `@maplibre/maplibre-react-native`（11.4.0，peer 已核實相容 SDK 57／RN 0.86 New Arch），載入 Web 版 liberty／dark style
+- [x] 載入 `all-facilities`（實測 5,836 點、1.1 MB），用 `GeoJSONSource cluster` + `SymbolLayer` 顯示，量測 FPS 與記憶體
+- [x] 驗證 `fill-extrusion` 3D 建物，以及 2D/3D 透明度交叉淡化可行性
+- [x] 驗證 `Camera.flyTo`、`fitBounds`、padding（sheet 遮擋時的地圖 inset）
+- [x] 產出：`docs/spikes/map.md`（可行／不可行、數據、決定）
 
 **0.4 Spike B — 語音（R1）**
-- [ ] 閱讀後端 `docs/specs/VOICE_WS_PROTOCOL.md` 全文
-- [ ] 兩個候選各做一次 16 kHz mono 擷取：`expo-audio` `useAudioStream`（官方，先試）與 `react-native-audio-api` `AudioRecorder.onAudioReady`；確認資料格式（兩者文件皆為 Float32）與實際取樣率
-- [ ] 確認重取樣具抗混疊（44.1 kHz／48 kHz 裝置錄音後頻譜檢查，或用已知頻率測試音）
-- [ ] 24 kHz PCM16 佇列播放、打斷清空
-- [ ] 連後端 `wss://.../api/v1/voice/ws` 完成一次真機對話
-- [ ] 產出：`docs/spikes/voice.md`；不可行則啟動備案（自寫 Expo native module）並重估 Phase 4
+- [ ] 閱讀後端 `docs/specs/VOICE_WS_PROTOCOL.md` 全文（Phase 4 開頭連線前做；Spike B 只依 SDD §6.7 摘要的格式驗證）
+- [x] 兩個候選各做一次 16 kHz mono 擷取：`expo-audio` `useAudioStream`（官方，先試）與 `react-native-audio-api` `AudioRecorder.onAudioReady`；確認資料格式（兩者文件皆為 Float32）與實際取樣率
+- [ ] 確認重取樣具抗混疊（原始碼已確認 iOS 用 `AVAudioConverter` 最高品質、Android 用 miniaudio 線性＋低通；頻譜實測需真機）（44.1 kHz／48 kHz 裝置錄音後頻譜檢查，或用已知頻率測試音）
+- [x] 24 kHz PCM16 佇列播放、打斷清空
+- [ ] 連後端 `wss://.../api/v1/voice/ws` 完成一次真機對話（`session.start` 需登入 token，移到 Phase 4 開頭）
+- [x] 產出：`docs/spikes/voice.md`；不可行則啟動備案（自寫 Expo native module）並重估 Phase 4
 - 註：模擬器麥克風不可靠，擷取品質要真機驗證；iOS 免費帳號可裝到自己的 iPhone（7 天簽章），或先用 Android 真機
 
 **0.4b Spike C — 原生 sheet 與玻璃效果（ADR-05、ADR-15）**
-- [ ] 地圖畫面上以 Expo Router `formSheet`（`sheetAllowedDetents`、`sheetLargestUndimmedDetentIndex`）做常駐 sheet：低 detent 時地圖可拖曳、可禁止下滑關閉、sheet 內 push／back 正常
-- [ ] 確認 iOS 26+ sheet 背景是否自動套 Liquid Glass；浮動按鈕用 `@expo/ui` `Button` glass style＋`GlassEffectContainer`
-- [ ] 不可行時試 `@expo/ui` `BottomSheet` + `presentationDetents` + `presentationBackgroundInteraction`；Android 行為不足則評估 `@gorhom/bottom-sheet`
-- [ ] 產出：`docs/spikes/sheet.md`
+- [x] 地圖畫面上以 Expo Router `formSheet`（`sheetAllowedDetents`、`sheetLargestUndimmedDetentIndex`）做常駐 sheet：低 detent 時地圖可拖曳、可禁止下滑關閉、sheet 內 push／back 正常
+- [x] 確認 iOS 26+ sheet 背景是否自動套 Liquid Glass；浮動按鈕用 `@expo/ui` `Button` glass style＋`GlassEffectContainer`
+- [x] ~~不可行時試 `@expo/ui` `BottomSheet`~~（formSheet 已可行，不需要） + `presentationDetents` + `presentationBackgroundInteraction`；Android 行為不足則評估 `@gorhom/bottom-sheet`
+- [x] 產出：`docs/spikes/sheet.md`
 
 **0.5 後端與決策**
-- [ ] 把 SDD §8 的 B-01～B-08 開成後端 issue，並排定時程
-- [ ] 回答 SDD §14 的 Q1、Q2（bundle ID、正式 API 主機）
+- [x] 把 SDD §8 的 B-01～B-08 開成後端 issue（accessible-smart-map-backend #17–#24），時程待後端排定
+- [x] 回答 SDD §14 的 Q1、Q2：沿用 `com.accessiblemap.app`（Capacitor 版未上架、將棄用）；正式 API `https://map.yuzen.dev`
 - [x] B-01（refresh 不只靠 cookie）、B-02（Google audience 接受 iOS／Android）、B-03（Apple 登入）：使用者已決定會向後端提出
 
 ### 出口條件

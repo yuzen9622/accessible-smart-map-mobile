@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.accessiblemap.app"
+      "bundleIdentifier": "com.accessiblemap.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -75,7 +78,11 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {}
-    }
+      "router": {},
+      "eas": {
+        "projectId": "bb9d1d34-20a9-4b56-9da0-07ebca78c153"
+      }
+    },
+    "owner": "yuzen"
   }
 }

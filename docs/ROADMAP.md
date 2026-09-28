@@ -150,8 +150,8 @@
 
 **2.1 route**
 
-- [ ] 移植 `src/types/route.ts`、`lib/geo.ts`、`lib/route/routeSession.ts`、`lib/routePreviewAdapter.ts` 與測試（`routeSession`、`geo-incidents`、`route-traffic`）
-- [ ] `RouteSessionPort`：`computeRoute`、`endRouteSession`（清除清單含 origin／destination）、`hasRouteSession`、`shouldShowRoutePill`
+- [x] 移植 `src/types/route.ts`、`lib/geo.ts`、`lib/route/routeSession.ts`、`lib/routePreviewAdapter.ts` 與測試（`routeSession`、`geo-incidents`、`route-traffic`）（2026-09-29；另補 `geo-waypoints`、`routePreviewAdapter`、`routeRequest` 測試）
+- [x] `RouteSessionPort`：`computeRoute`、`endRouteSession`（清除清單含 origin／destination）、`hasRouteSession`、`shouldShowRoutePill`（2026-09-29，`features/route/controller/routeSessionPort.ts`；含請求競態保護與 `loadRoutePreview`；面板 UI 待接）
 - [ ] 起訖點輸入、模式切換（步行／大眾運輸／開車）、無障礙偏好
 - [ ] 路線卡列表、排序、無障礙亮點；leg 詳情（步行步驟、大眾運輸站點、開車步驟、事故提示、步行無障礙摘要；運具 leg 圖示統一為 Lucide icons：`Accessibility`、`Bus`、`TrainFront`、`Car`）——各面板的原生元件對應見 SDD §4.5 表格
 - [ ] RouteLayer：分段 polyline（per-leg `polylineIndex` + `legIndex`）

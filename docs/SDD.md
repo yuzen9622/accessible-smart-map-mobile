@@ -156,7 +156,7 @@ features/<x>/
 |---|---|---|---|
 | `MapController` | `features/map` | ai、navigation、place、route、sos | `flyTo`、`fitBounds`、`setPadding`、`showMarkers(layerId, features)`、`clearMarkers` |
 | `SheetController` | `features/map`（sheet 狀態擁有者） | ai、place、route、navigation | `open(mode, payload)`、`snapTo(detent)`、`close()` |
-| `RouteSessionPort` | `features/route` | ai、voice、navigation | `computeRoute(req)`（async）、`endRouteSession()`、`hasRouteSession()` |
+| `RouteSessionPort` | `features/route` | ai、voice、navigation、sos | `computeRoute(req)`（async，resolve 出 `ComputeRouteResult`）、`endRouteSession()`、`hasActiveRouteSession()`、`applyComputedRoutes()`、`loadRoutePreview(sessionId)`；讀取用唯讀 `useRouteSession(selector)`／`getRouteSessionSnapshot()` |
 | `NavigationPort` | `features/navigation` | voice、route | `startLocal(route)`、`adoptVoiceNavigation(state)`、`exit(reason)` |
 | `LiveNavigationPort` | `features/navigation` | navigation | `start(snapshot)`、`update(progress)`、`end()`（驅動 iOS Live Activity／動態島與 Android 鎖定畫面常駐導航通知） |
 | `AuthPort` | `features/auth` | shared/api | `getSession()`、`commitSession()`、`invalidateSession(captured)`（對應 Web `configureAuthState`） |
@@ -181,6 +181,8 @@ MapScreen
  ├─ VoiceFloatingIndicator
  └─ MapSheet（原生 formSheet stack，見 §4.5；detent：peek / half / full；內容依 sheet 路由）
 ```
+
+組裝規則：`features/route` 的 controller 依賴 `@/features/map`（`mapCamera`、`useUserLocationStore`），所以 **map 不得反向 import route**（否則形成 require cycle）。RouteLayer、RouteSessionPill 等跨 feature 的圖層與控制在 `app/index.tsx` 組裝，以 children／slot 傳給 `MapScreen`。
 
 ### 4.5 原生 UI 策略與面板（ADR-05、ADR-15）
 

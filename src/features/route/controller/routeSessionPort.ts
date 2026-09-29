@@ -119,6 +119,7 @@ export async function computeRoute(params: ComputeRouteParams): Promise<ComputeR
       computeRoutes: routes,
       metroAlerts: data.metroAlerts ?? null,
       transitAlerts: data.transitAlerts ?? null,
+      slopeConstraint: data.slopeConstraint ?? null,
       selectRoute: { index: 0, route: routes[0] },
       routeWaypoints: waypoints,
     });

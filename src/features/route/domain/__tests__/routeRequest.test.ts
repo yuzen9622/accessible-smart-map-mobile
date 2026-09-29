@@ -16,6 +16,20 @@ const KAOHSIUNG = { lat: 22.6273, lng: 120.3014 };
 const TOKYO = { lat: 35.6812, lng: 139.7671 };
 
 describe('planRouteRequest', () => {
+  it('sends hard accessibility constraints only when enabled', () => {
+    const on = planRouteRequest(
+      { origin: TAIPEI_MAIN, destination: CITY_HALL, mode: 'elderly', avoidStairs: true, requireElevator: true },
+      null,
+    );
+    expect(on.ok && on.request).toMatchObject({ avoidStairs: true, requireElevator: true });
+    const off = planRouteRequest(
+      { origin: TAIPEI_MAIN, destination: CITY_HALL, mode: 'wheelchair', avoidStairs: false, requireElevator: false },
+      null,
+    );
+    expect(off.ok && 'avoidStairs' in off.request).toBe(false);
+    expect(off.ok && 'requireElevator' in off.request).toBe(false);
+  });
+
   it('rejects a request with nothing to route', () => {
     expect(planRouteRequest({}, TAIPEI_MAIN)).toEqual({ ok: false, reason: 'missing-input' });
   });

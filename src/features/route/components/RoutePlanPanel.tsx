@@ -58,26 +58,32 @@ export default function RoutePlanPanel({ model }: RoutePlanPanelProps) {
     </Pressable>
   );
 
+  /** 直接在起點／終點那一列輸入（不再另開搜尋框）；自動完成建議顯示在卡片下方。 */
+  const renderInput = (label: string) => (
+    <TextInput
+      autoFocus
+      value={model.query}
+      onChangeText={model.onQueryChange}
+      placeholder={model.labels.searchPlaceholder}
+      placeholderTextColor={colors.textSecondary}
+      accessibilityLabel={label}
+      style={[routeStyles.flex, styles.searchInput, { color: colors.text }]}
+      autoCorrect={false}
+      returnKeyType="search"
+    />
+  );
+
+  const renderEditorTrailing = () =>
+    model.suggestionsLoading || model.resolving ? (
+      <ActivityIndicator size="small" color={colors.textSecondary} />
+    ) : (
+      <Pressable accessibilityRole="button" accessibilityLabel={model.labels.cancel} onPress={model.onCancelEdit} hitSlop={10}>
+        <Icon name="close" size={16} color={colors.textSecondary} />
+      </Pressable>
+    );
+
   const renderEditor = () => (
     <View style={routeStyles.section}>
-      <View style={[styles.searchBar, { backgroundColor: colors.backgroundElement }]}>
-        <Icon name="search" color={colors.textSecondary} />
-        <TextInput
-          autoFocus
-          value={model.query}
-          onChangeText={model.onQueryChange}
-          placeholder={model.labels.searchPlaceholder}
-          placeholderTextColor={colors.textSecondary}
-          accessibilityLabel={model.editing === 'origin' ? model.labels.origin : model.labels.destination}
-          style={[styles.searchInput, { color: colors.text }]}
-          autoCorrect={false}
-          returnKeyType="search"
-        />
-        {model.suggestionsLoading || model.resolving ? <ActivityIndicator size="small" color={colors.textSecondary} /> : null}
-        <Pressable accessibilityRole="button" accessibilityLabel={model.labels.cancel} onPress={model.onCancelEdit} hitSlop={8}>
-          <Text style={[styles.cancelText, { color: tones.accent }]}>{model.labels.cancel}</Text>
-        </Pressable>
-      </View>
       {model.editing === 'origin' ? (
         <Pressable
           accessibilityRole="button"
@@ -120,39 +126,52 @@ export default function RoutePlanPanel({ model }: RoutePlanPanelProps) {
       keyboardDismissMode="on-drag">
       <View style={[routeStyles.card, styles.endpoints, { backgroundColor: ROUTE_SURFACE_COLOR }]}>
         <View style={routeStyles.flex}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${model.labels.origin}：${model.originLabel}，${model.labels.edit}`}
-            onPress={() => model.onEdit('origin')}
-            style={styles.endpointRow}>
-            {model.originIsMyLocation ? (
+          <View style={styles.endpointRow}>
+            {model.originIsMyLocation && model.editing !== 'origin' ? (
               <Icon name="navigation" size={16} color={ROUTE_ORIGIN_COLOR} />
             ) : (
               <View style={[styles.dot, { borderColor: ROUTE_ORIGIN_COLOR }]} />
             )}
-            <Text style={[routeStyles.bodyText, routeStyles.flex, { color: colors.text }]} numberOfLines={1}>
-              {model.originLabel}
-            </Text>
-          </Pressable>
+            {model.editing === 'origin' ? (
+              renderInput(model.labels.origin)
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${model.labels.origin}：${model.originLabel}，${model.labels.edit}`}
+                onPress={() => model.onEdit('origin')}
+                style={[routeStyles.flex, styles.endpointPress]}>
+                <Text style={[routeStyles.bodyText, { color: colors.text }]} numberOfLines={1}>
+                  {model.originLabel}
+                </Text>
+              </Pressable>
+            )}
+            {model.editing === 'origin' ? renderEditorTrailing() : null}
+          </View>
           <View style={[styles.divider, { backgroundColor: ROUTE_BORDER_COLOR }]} />
           <View style={styles.endpointRow}>
             <View style={[styles.dot, styles.dotFilled, { backgroundColor: ROUTE_DESTINATION_COLOR, borderColor: ROUTE_DESTINATION_COLOR }]} />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                model.destinationLabel
-                  ? `${model.labels.destination}：${model.destinationLabel}，${model.labels.edit}`
-                  : model.labels.chooseDestination
-              }
-              onPress={() => model.onEdit('destination')}
-              style={[routeStyles.flex, styles.endpointPress]}>
-              <Text
-                style={[routeStyles.bodyText, { color: model.destinationLabel ? colors.text : colors.textSecondary }]}
-                numberOfLines={1}>
-                {model.destinationLabel ?? model.labels.searchPlaceholder}
-              </Text>
-            </Pressable>
-            {model.destinationLabel ? (
+            {model.editing === 'destination' ? (
+              renderInput(model.labels.destination)
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  model.destinationLabel
+                    ? `${model.labels.destination}：${model.destinationLabel}，${model.labels.edit}`
+                    : model.labels.chooseDestination
+                }
+                onPress={() => model.onEdit('destination')}
+                style={[routeStyles.flex, styles.endpointPress]}>
+                <Text
+                  style={[routeStyles.bodyText, { color: model.destinationLabel ? colors.text : colors.textSecondary }]}
+                  numberOfLines={1}>
+                  {model.destinationLabel ?? model.labels.searchPlaceholder}
+                </Text>
+              </Pressable>
+            )}
+            {model.editing === 'destination' ? (
+              renderEditorTrailing()
+            ) : model.destinationLabel ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={model.labels.clear}
@@ -205,7 +224,7 @@ export default function RoutePlanPanel({ model }: RoutePlanPanelProps) {
         disabled={!model.canStart}
         onPress={model.onStart}
         style={[routeStyles.primaryButton, !model.canStart && routeStyles.disabled]}>
-        {model.loading ? <ActivityIndicator color={ROUTE_ON_ACCENT_COLOR} /> : <Icon name="route" color={ROUTE_ON_ACCENT_COLOR} />}
+        {model.loading ? <ActivityIndicator color={ROUTE_ON_ACCENT_COLOR} /> : <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />}
         <Text style={routeStyles.primaryButtonText}>{model.loading ? model.labels.loading : model.labels.start}</Text>
       </Pressable>
     </ScrollView>
@@ -219,8 +238,6 @@ const styles = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, marginLeft: 26 },
   dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 3, marginHorizontal: 1 },
   dotFilled: { borderWidth: 0 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, borderRadius: 12, paddingHorizontal: 12 },
-  searchInput: { flex: 1, fontSize: 16, paddingVertical: 10 },
-  cancelText: { fontSize: 15, fontWeight: '500' },
+  searchInput: { fontSize: 16, minHeight: 44, paddingVertical: 10 },
   errorCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,59,48,0.12)' },
 });

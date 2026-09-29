@@ -8,7 +8,7 @@ import {
   type NavInstructionsData,
   type NavInstructionsRequest,
 } from '@/features/route/domain';
-import type { ApiResponse } from '@/shared/api';
+import { ApiError, type ApiResponse } from '@/shared/api';
 import type { LatLng } from '@/shared/geo';
 import type { LocationPort } from '@/shared/location';
 import type { VisibilitySource } from '@/shared/polling';
@@ -316,8 +316,12 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       if (carriedReason) useNavStore.getState().setLastRerouteReason(carriedReason);
       useNavStore.getState().setRouteTotalM(cp.cumM[cp.cumM.length - 1] ?? null);
       if (tookOverFromVoice) queuePosition();
-    } catch {
+    } catch (error) {
       // Web 同樣吞掉：沒有指令時 HUD 以路線幾何顯示，使用者仍可手動切步驟。
+      // `INVALID_ROUTE_TOKEN`＝routeToken 過期（30 分鐘）或無效，重試同一個 token 不會成功，維持幾何導引。
+      if (error instanceof ApiError && error.reason === 'INVALID_ROUTE_TOKEN') {
+        console.warn('[navigation] routeToken expired; falling back to geometry-based guidance');
+      }
     } finally {
       if (instructionsAbort === controller) instructionsAbort = null;
     }

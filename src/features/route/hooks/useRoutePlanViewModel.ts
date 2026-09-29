@@ -110,6 +110,8 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const storedTravelMode = useRouteSessionStore((s) => s.travelMode);
   const storedRouteMode = useRouteSessionStore((s) => s.routeMode);
   const profileRouteMode = useOnboardingStore((s) => s.profile.routeMode);
+  const profileAvoidStairs = useOnboardingStore((s) => s.profile.avoidStairs);
+  const profileRequireElevator = useOnboardingStore((s) => s.profile.requireElevator);
   const position = useUserLocationStore((s) => s.position);
 
   const [editing, setEditing] = useState<PlanField | null>(null);
@@ -181,6 +183,8 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       destination,
       mode: routeMode,
       travelMode,
+      avoidStairs: profileAvoidStairs,
+      requireElevator: profileRequireElevator,
     });
     if (result.ok) {
       AccessibilityInfo.announceForAccessibility(t('nativeRoutesFound', { count: result.routes.length }));

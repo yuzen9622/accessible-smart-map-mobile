@@ -159,6 +159,11 @@ export interface DriveStep {
 }
 
 // --- Leg（以 `type` 區分的 discriminated union） ---
+export interface WalkRestPoint {
+  type: 'accessible_toilet';
+  distanceM: number;
+}
+
 export interface WalkLeg {
   type: 'WALK';
   from: string;
@@ -174,7 +179,10 @@ export interface WalkLeg {
   crossings?: number | null;
   crossingsWithCurbRamp?: number | null;
   minPathWidthCm?: number | null;
-  surfaceType?: string;
+  /** `unknown` 是「不知道」，不是鋪面良好。 */
+  surfaceType?: 'paved' | 'gravel' | 'unknown';
+  /** 空陣列＝沒有已知可用的無障礙廁所，不代表沿途沒有廁所。`distanceM` 是從步行段起點沿路徑的進度。 */
+  restPoints?: WalkRestPoint[];
   /** 這段步行沿線的政府人行道路段登記的斜坡道數量——整段的計數，不是路徑上的位置。 */
   sidewalkRampCount?: number;
   /** 只在 `engine: "pedestrian-a11y"` 路線出現。空陣列＝查過但沒有可分類的；缺欄位＝沒查過。 */
@@ -329,6 +337,29 @@ export interface ScoreComponents {
 
 export type A11yLabel = 'excellent' | 'good' | 'fair' | 'poor' | 'critical';
 
+export type HazardType = 'obstacle' | 'construction' | 'data_error';
+export type HazardSeverity = 'blocking' | 'difficult' | 'minor';
+
+export interface RouteHazard {
+  id: string;
+  hazardType: HazardType;
+  severity: HazardSeverity;
+  description?: string;
+  location: { lat: number; lng: number };
+  distanceM: number;
+}
+
+/**
+ * 已驗證且有社群確認的通報與路線的比對結果。欄位缺漏＝伺服器沒有完整比對結果，不是「沒有危險」；
+ * `avoided` 只有在後端明確列出時才能宣稱「已避開」，空陣列或缺欄位都不能推論。
+ */
+export interface HazardAdvisory {
+  onRoute: RouteHazard[];
+  avoided: RouteHazard[];
+  blockingOnRoute: number;
+  penaltyPoints: number;
+}
+
 export interface AccessibleRoute {
   routeId: string;
   /** 可重算路線的導航身分。 */
@@ -356,6 +387,7 @@ export interface AccessibleRoute {
   facilities?: Record<string, SlimOsmA11y>;
   attribution?: string;
   transitAlerts?: MatchedAlert[];
+  hazardAdvisory?: HazardAdvisory;
 }
 
 export type RouteMode = 'wheelchair' | 'elderly' | 'visual_impaired' | 'normal';
@@ -382,6 +414,14 @@ export interface AccessibleRouteData {
   intent?: RouteIntent;
   metroAlerts?: MetroAlertResult[];
   transitAlerts?: MatchedAlert[];
+  /** 登入且 profile 設了坡度上限時出現。`enforced: false` 代表這個設定實際上沒有作用，必須把 `note` 告訴使用者。 */
+  slopeConstraint?: SlopeConstraint;
+}
+
+export interface SlopeConstraint {
+  requestedMaxPercent: number;
+  enforced: boolean;
+  note?: string;
 }
 
 export interface ApiCoordinate {
@@ -400,6 +440,9 @@ export interface AccessibleRouteRequest {
   maxTransfers?: number;
   departureTime?: string;
   format?: 'standard' | 'compact';
+  /** 硬性條件：只在使用者明確開啟時才送；送 `false` 會覆蓋 `mode` 預設（輪椅的保護），沒選過就整個欄位別送。 */
+  avoidStairs?: boolean;
+  requireElevator?: boolean;
 }
 
 // --- 導航指令（/a11y/route/instructions） ---
@@ -426,6 +469,10 @@ export interface NavInstruction {
   legType: 'WALK' | 'BUS' | 'METRO' | 'THSR' | 'TRA' | 'DRIVE' | 'MOTORCYCLE';
   /** 在 route.legs 的來源索引；舊版與語音指令沒有。 */
   legIndex?: number;
+  /** 抵達此 maneuver 起點前已累積的可量測行進距離（可作進度顯示）；舊版與語音指令沒有。 */
+  cumulativeDistanceM?: number;
+  /** 該步行段含樓梯；不代表整個 `distanceM` 都是樓梯。非步行指引為 false。 */
+  stairs?: boolean;
   /** 本指令所屬 leg 的 `polyline` 索引（per-leg），不是串接後整條路徑的索引。 */
   polylineIndex: number | null;
 }

@@ -1,4 +1,4 @@
-import { fetchRequest, type ApiResponse } from '@/shared/api';
+import { fetchRequest, getAccessToken, type ApiResponse } from '@/shared/api';
 import { getAppConfig } from '@/shared/config';
 
 import type {
@@ -127,7 +127,14 @@ export async function getAccessibleRoute(
   request: AccessibleRouteRequest,
   signal?: AbortSignal,
 ): Promise<ApiResponse<AccessibleRouteData>> {
-  const response = await fetchRequest(url('/api/v1/a11y/accessible-route'), { method: 'POST', body: request, signal });
+  // 登入時帶 Bearer，後端會把已儲存的無障礙 profile 當作未明確傳入欄位的預設值。過期 401／無效 403 不降級匿名重送
+  // （`requireAuth` 會先 refresh 再重試；仍失敗就讓錯誤浮出）。未登入不能設 `requireAuth`，否則會送出 `Bearer undefined`。
+  const response = await fetchRequest(url('/api/v1/a11y/accessible-route'), {
+    method: 'POST',
+    body: request,
+    signal,
+    requireAuth: Boolean(getAccessToken()),
+  });
   return narrow(response, parseAccessibleRouteData);
 }
 

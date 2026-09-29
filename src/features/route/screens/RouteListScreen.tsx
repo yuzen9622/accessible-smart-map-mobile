@@ -26,6 +26,7 @@ export default function RouteListScreen({ onStartNavigation }: RouteListScreenPr
   const colors = useThemeColors();
   const routes = useRouteSessionStore((s) => s.computeRoutes);
   const selected = useRouteSessionStore((s) => s.selectRoute);
+  const slope = useRouteSessionStore((s) => s.slopeConstraint);
 
   return (
     <>
@@ -46,6 +47,14 @@ export default function RouteListScreen({ onStartNavigation }: RouteListScreenPr
               <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
               <Text style={routeStyles.primaryButtonText}>{t('startNav')}</Text>
             </Pressable>
+          ) : null}
+          {slope && !slope.enforced ? (
+            <View accessible style={routeStyles.row}>
+              <Icon name="alert" size={16} color={colors.textSecondary} />
+              <Text style={[routeStyles.metaText, routeStyles.flex, { color: colors.text }]}>
+                {slope.note ?? t('nativeSlopeNotEnforced', { percent: slope.requestedMaxPercent })}
+              </Text>
+            </View>
           ) : null}
           <View style={routeStyles.section}>
             {routes.map((route, index) => (

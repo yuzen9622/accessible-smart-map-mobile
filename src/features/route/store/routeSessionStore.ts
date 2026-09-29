@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import type { LatLng } from '@/shared/geo';
 
 import type { RouteFailureKind } from '../domain/routeRequest';
-import type { AccessibleRoute, MatchedAlert, MetroAlertResult, RouteMode, TravelMode } from '../types/route';
+import type { AccessibleRoute, MatchedAlert, MetroAlertResult, RouteMode, SlopeConstraint, TravelMode } from '../types/route';
 
 /**
  * 移植自 Web `src/stores/map/createRouteSlice.ts`（commit 5eadc71）的路線欄位；拆出 route feature
@@ -31,6 +31,7 @@ export interface RouteSessionState {
   routeWaypoints: LatLng[];
   metroAlerts: MetroAlertResult[] | null;
   transitAlerts: MatchedAlert[] | null;
+  slopeConstraint: SlopeConstraint | null;
   isLoading: boolean;
   lastFailure: RouteFailureKind | null;
   /** 每次開始算路或結束 session 都 +1；晚到的回應比對不上就丟掉。 */
@@ -69,6 +70,7 @@ const CLEARED_SESSION = {
   routeWaypoints: [],
   metroAlerts: null,
   transitAlerts: null,
+  slopeConstraint: null,
   isLoading: false,
   lastFailure: null,
 } satisfies Partial<RouteSessionState>;

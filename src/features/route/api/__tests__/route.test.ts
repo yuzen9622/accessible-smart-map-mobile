@@ -10,8 +10,10 @@ import {
 } from '../route';
 
 const mockFetchRequest = jest.fn();
+let mockAccessToken: string | undefined;
 jest.mock('@/shared/api', () => ({
   fetchRequest: (...args: unknown[]) => mockFetchRequest(...args),
+  getAccessToken: () => mockAccessToken,
 }));
 jest.mock('@/shared/config', () => ({
   getAppConfig: () => ({ apiBaseUrl: 'https://api.test' }),
@@ -115,7 +117,15 @@ describe('transport', () => {
     await getAccessibleRoute({ query: 'x' }, controller.signal);
     const [url, init] = mockFetchRequest.mock.calls[0];
     expect(url).toBe('https://api.test/api/v1/a11y/accessible-route');
-    expect(init).toEqual({ method: 'POST', body: { query: 'x' }, signal: controller.signal });
+    expect(init).toEqual({ method: 'POST', body: { query: 'x' }, signal: controller.signal, requireAuth: false });
+  });
+
+  it('sends the Bearer token (requireAuth) only when logged in', async () => {
+    mockFetchRequest.mockResolvedValue(envelope({ routes: [] }));
+    mockAccessToken = 'tok';
+    await getAccessibleRoute({ query: 'x' });
+    mockAccessToken = undefined;
+    expect(mockFetchRequest.mock.calls[0][1]).toMatchObject({ requireAuth: true });
   });
 
   it('drops preview routes with unknown leg types', async () => {

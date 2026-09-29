@@ -21,7 +21,7 @@ import {
 } from '../domain/routeCard';
 import { A11Y_FEATURE_COLOR, formatDuration, getLegColor, pointLabel } from '../domain/routeDisplay';
 import { useRouteSessionStore } from '../store/routeSessionStore';
-import type { DriveLeg, MatchedAlert, MetroAlert, RouteLeg, TrafficLevel, WalkLeg } from '../types/route';
+import type { DriveLeg, MatchedAlert, MetroAlert, RouteLeg, TrafficLevel, WalkLeg, WalkRestPoint } from '../types/route';
 import Disclosure from './Disclosure';
 import { ROUTE_SURFACE_COLOR, ROUTE_WARN_SURFACE, routeStyles, routeTones, type RouteTones } from './palette';
 import { LEG_ICON } from './RouteCard';
@@ -152,6 +152,12 @@ function WalkDetail({ leg, engine, t, tones }: { leg: WalkLeg; engine?: string; 
           ) : null}
         </View>
       ) : null}
+      {leg.restPoints?.length ? (
+        <View accessible accessibilityLabel={restPointsText(leg.restPoints, t)} style={routeStyles.row}>
+          <Icon name="check" size={14} color={tones.ok} />
+          <Text style={[routeStyles.metaText, routeStyles.flex, { color: colors.text }]}>{restPointsText(leg.restPoints, t)}</Text>
+        </View>
+      ) : null}
       {leg.steps?.length ? (
         <Disclosure label={t('viewWalkSteps')}>
           {leg.steps.map((step, index) => {
@@ -178,6 +184,10 @@ function WalkDetail({ leg, engine, t, tones }: { leg: WalkLeg; engine?: string; 
       ) : null}
     </>
   );
+}
+
+function restPointsText(points: WalkRestPoint[], t: (key: string, options?: Record<string, unknown>) => string): string {
+  return points.map((p) => t('nativeWalkRestPoint', { distance: formatDistance(p.distanceM) })).join('、');
 }
 
 function Metric({ label, color, verdict, value }: { label: string; color: string; verdict: string; value?: string }) {

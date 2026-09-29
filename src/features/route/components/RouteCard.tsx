@@ -54,6 +54,15 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail }: R
   const colors = useThemeColors();
   const tones = routeTones(useColorScheme() === 'dark');
   const { t } = useAppTranslation();
+  // hazardAdvisory 缺漏＝後端沒有完整比對結果，不是「沒有危險」；只在後端明確列出時才顯示。
+  const advisory = route.hazardAdvisory;
+  const hazardBlocking = (advisory?.blockingOnRoute ?? 0) > 0;
+  const hazardLines: string[] = [];
+  if (advisory?.onRoute.length) {
+    hazardLines.push(t('nativeRouteHazardsOnRoute', { count: advisory.onRoute.length }));
+    if (hazardBlocking) hazardLines.push(t('nativeRouteHazardsBlocking', { count: advisory.blockingOnRoute }));
+  }
+  if (advisory?.avoided.length) hazardLines.push(t('nativeRouteHazardsAvoided', { count: advisory.avoided.length }));
   const translate = t as Translate;
 
   const duration = formatDuration(route.totalMinutes);
@@ -171,6 +180,18 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail }: R
                 {route.warnings.map((warning) => (
                   <Text key={warning} style={[routeStyles.metaText, { color: colors.text }]}>
                     {warning}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ) : null}
+          {hazardLines.length ? (
+            <View style={[styles.warningCard, { backgroundColor: hazardBlocking ? ROUTE_DANGER_SURFACE : ROUTE_WARN_SURFACE }]}>
+              <Icon name="alert" size={16} color={hazardBlocking ? tones.danger : tones.warn} />
+              <View style={routeStyles.flex}>
+                {hazardLines.map((line) => (
+                  <Text key={line} style={[routeStyles.metaText, { color: colors.text }]}>
+                    {line}
                   </Text>
                 ))}
               </View>

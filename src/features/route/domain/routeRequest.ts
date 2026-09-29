@@ -17,6 +17,9 @@ export interface ComputeRouteParams {
   query?: string;
   mode?: RouteMode;
   travelMode?: TravelMode;
+  /** 使用者明確開啟才傳 true；未開啟就不要傳，讓後端沿用 `mode` 預設。 */
+  avoidStairs?: boolean;
+  requireElevator?: boolean;
 }
 
 export type RoutePlanResult =
@@ -63,6 +66,8 @@ export function planRouteRequest(params: ComputeRouteParams, userLocation: LatLn
   if (query) request.query = query;
   if (mode) request.mode = mode;
   if (travelMode) request.travelMode = travelMode;
+  if (params.avoidStairs) request.avoidStairs = true;
+  if (params.requireElevator) request.requireElevator = true;
   if (here) request.userLocation = toApiCoordinate(here);
 
   return { ok: true, request, start, end };

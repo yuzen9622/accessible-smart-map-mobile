@@ -2,7 +2,6 @@ import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import { backendCapabilities } from '@/shared/config';
 import i18n from '@/shared/i18n';
 
 import { registerPushToken } from './api/pushTokenApi';
@@ -54,7 +53,7 @@ function projectId(): string | undefined {
 }
 
 /**
- * 取得 Expo push token 並（後端就緒時）登記到帳號。模擬器或未簽 push entitlement 的免費帳號拿不到 token
+ * 取得 Expo push token 並登記到帳號。模擬器或未簽 push entitlement 的免費帳號拿不到 token
  * （SDD R9），此時只記 log、回傳 null，App 其他功能不受影響。
  */
 export async function syncPushToken(loggedIn: boolean): Promise<string | null> {
@@ -66,7 +65,7 @@ export async function syncPushToken(loggedIn: boolean): Promise<string | null> {
     console.warn('[push] getExpoPushTokenAsync failed (simulator or missing entitlement?)', error);
     return null;
   }
-  if (loggedIn && backendCapabilities.pushTokens && cachedToken) {
+  if (loggedIn && cachedToken) {
     try {
       await registerPushToken({
         token: cachedToken,

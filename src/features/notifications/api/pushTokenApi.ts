@@ -1,8 +1,8 @@
 import { authenticatedRequest, fetchRequest } from '@/shared/api';
 
 /**
- * B-04 草案：`POST|DELETE /api/v1/user/push-tokens`（Expo push token、平台、語系）。
- * 後端尚未實作；呼叫端以 `backendCapabilities.pushTokens` 控制是否真的送出。
+ * `POST|DELETE /api/v1/user/push-tokens`。token 綁定的是「這次登入的 session」而不是帳號：
+ * 每次登入後都要重新登記；重複登記是冪等的。
  */
 const PATH = '/api/v1/user/push-tokens';
 

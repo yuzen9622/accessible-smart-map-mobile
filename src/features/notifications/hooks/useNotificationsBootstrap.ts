@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { useEffect } from 'react';
 
 import { onLogout, selectIsLoggedIn, useAuthStore } from '@/features/auth';
-import { backendCapabilities } from '@/shared/config';
 import { usePreferencesStore } from '@/shared/preferences';
 
 import { unregisterPushToken } from '../api/pushTokenApi';
@@ -33,6 +32,7 @@ function openTarget(data: unknown): void {
 export function useNotificationsBootstrap(): void {
   const loggedIn = useAuthStore(selectIsLoggedIn);
   const wantsNotifications = usePreferencesStore((s) => s.notifications);
+  const language = usePreferencesStore((s) => s.language);
   const lastResponse = Notifications.useLastNotificationResponse();
 
   useEffect(() => {
@@ -50,13 +50,22 @@ export function useNotificationsBootstrap(): void {
       }
     };
     void run();
+  }, [loggedIn, wantsNotifications, language]);
+
+  // Expo push token 輪替時重新登記（後端註冊是冪等的）。
+  useEffect(() => {
+    if (!wantsNotifications || !loggedIn) return;
+    const subscription = Notifications.addPushTokenListener(() => {
+      void syncPushToken(true).catch((error: unknown) => console.warn('[push] resync failed', error));
+    });
+    return () => subscription.remove();
   }, [loggedIn, wantsNotifications]);
 
   useEffect(
     () =>
       onLogout(async (captured) => {
         const token = getCachedPushToken();
-        if (!token || !backendCapabilities.pushTokens || !captured.accessToken) return;
+        if (!token || !captured.accessToken) return;
         await unregisterPushToken(token, captured.accessToken);
       }),
     [],

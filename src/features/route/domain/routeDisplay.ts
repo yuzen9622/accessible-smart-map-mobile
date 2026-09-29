@@ -114,6 +114,20 @@ export function getLegColor(leg: RouteLeg): string {
   return LEG_COLORS[leg.type] ?? LEG_COLORS.BUS;
 }
 
+/**
+ * 運具膠囊（路線卡「🚌 28」）的底色：上面要放 13pt 白字，必須 ≥ 4.5:1。`LEG_COLORS` 是畫在地圖上的線條色，
+ * 公車綠 #22c55e 配白字只有 2.28:1、捷運橘 2.84:1，所以膠囊另用同色相的加深版（測試守住對比）。
+ */
+export const LEG_LABEL_FILL: Record<RouteLeg['type'], string> = {
+  WALK: '#1D4ED8',
+  BUS: '#15803D',
+  METRO: '#C2410C',
+  THSR: '#C2410C',
+  TRA: '#003366',
+  DRIVE: '#475569',
+  MOTORCYCLE: '#B91C1C',
+};
+
 export function formatDuration(minutes: number): string {
   if (!Number.isFinite(minutes)) return '';
   const hours = Math.floor(minutes / 60);
@@ -131,4 +145,22 @@ export function plausibleSlopePercent(value: number | null | undefined, hasStair
   if (value == null || !Number.isFinite(value)) return null;
   const limit = hasStairs ? SLOPE_PLAUSIBLE_MAX_STAIRS : SLOPE_PLAUSIBLE_MAX_PATH;
   return value > limit ? null : value;
+}
+
+/**
+ * leg 起訖點的顯示文字。型別宣告為 string，但後端的開車 leg 實際會送 `{ name?, address?, label?, lat, lng }`
+ * 物件——直接插進字串就會出現「[object Object]」。移植自 Web `components/shared/RouteCard/utils.ts`
+ * `getPointLabel`（commit 5eadc71）的取名規則；只有座標、沒有名字的點退回呼叫端給的名稱
+ * （起點用使用者輸入的起點名、終點用目的地名；Web 另外用座標比對，這裡以 leg 位置判斷）。
+ */
+export function pointLabel(point: unknown, fallback = ''): string {
+  if (typeof point === 'string') return point.trim() || fallback;
+  if (typeof point === 'object' && point !== null) {
+    const p = point as Record<string, unknown>;
+    for (const key of ['name', 'address', 'label']) {
+      const value = p[key];
+      if (typeof value === 'string' && value.trim() !== '') return value.trim();
+    }
+  }
+  return fallback;
 }

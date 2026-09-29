@@ -246,3 +246,35 @@ export function walkA11yMetrics(leg: WalkLeg): WalkA11yMetrics | null {
   if (!legend.length && slope == null && width == null && unconfirmed == null) return null;
   return { legend, slope, width, unconfirmedCrossings: unconfirmed, crossings: leg.crossings ?? null };
 }
+
+export interface LegChainSegment {
+  type: RouteLeg['type'];
+  /** 運具上要印的短標籤：公車路線號、捷運線名、火車車次；步行與開車沒有。 */
+  label?: string;
+}
+
+/**
+ * 路線卡的運具串。連續的步行合併成一段（後端常把一次步行切成好幾個 WALK leg，卡片上就變成三個一樣的腳印），
+ * 大眾運輸帶上路線號，讓「步行 › 🚌 28 › 步行」一眼看得出要搭什麼。
+ */
+export function legChainSegments(legs: readonly RouteLeg[]): LegChainSegment[] {
+  const out: LegChainSegment[] = [];
+  for (const leg of legs) {
+    if (leg.type === 'WALK' && out.at(-1)?.type === 'WALK') continue;
+    switch (leg.type) {
+      case 'BUS':
+        out.push({ type: leg.type, label: leg.routeName });
+        break;
+      case 'METRO':
+        out.push({ type: leg.type, label: leg.lineName });
+        break;
+      case 'THSR':
+      case 'TRA':
+        out.push({ type: leg.type, label: leg.trainNo });
+        break;
+      default:
+        out.push({ type: leg.type });
+    }
+  }
+  return out;
+}

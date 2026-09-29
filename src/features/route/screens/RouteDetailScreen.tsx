@@ -59,6 +59,8 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg }: R
                 key={`${leg.type}-${legIndex}`}
                 leg={leg}
                 engine={route.engine}
+                isFirst={legIndex === 0}
+                isLast={legIndex === route.legs.length - 1}
                 busStops={leg.type === 'BUS' && renderBusLeg ? renderBusLeg({ route, routeIndex, legIndex, leg }) : undefined}
               />
             ))}

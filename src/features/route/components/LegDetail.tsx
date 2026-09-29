@@ -19,7 +19,8 @@ import {
   type A11yGrade,
   type Translate,
 } from '../domain/routeCard';
-import { A11Y_FEATURE_COLOR, formatDuration, getLegColor } from '../domain/routeDisplay';
+import { A11Y_FEATURE_COLOR, formatDuration, getLegColor, pointLabel } from '../domain/routeDisplay';
+import { useRouteSessionStore } from '../store/routeSessionStore';
 import type { DriveLeg, MatchedAlert, MetroAlert, RouteLeg, TrafficLevel, WalkLeg } from '../types/route';
 import Disclosure from './Disclosure';
 import { ROUTE_SURFACE_COLOR, ROUTE_WARN_SURFACE, routeStyles, routeTones, type RouteTones } from './palette';
@@ -30,6 +31,9 @@ export interface LegDetailProps {
   /** 公車 leg 的站點／即時 ETA 由 bus feature 提供（route 不 import bus）；沒給時顯示靜態摘要。 */
   busStops?: ReactNode;
   engine?: 'pedestrian-a11y' | 'otp-fallback';
+  /** 這段是整條路線的第一段／最後一段：只有這兩種情況，沒有名字的起／終點才退回使用者輸入的起訖名稱。 */
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
 const TRAFFIC_SUFFIX_KEY: Partial<Record<TrafficLevel, string>> = {
@@ -188,18 +192,36 @@ function Metric({ label, color, verdict, value }: { label: string; color: string
   );
 }
 
-function DriveDetail({ leg, t, tones }: { leg: DriveLeg; t: Translate; tones: RouteTones }) {
+function DriveDetail({
+  leg,
+  t,
+  tones,
+  isFirst,
+  isLast,
+}: {
+  leg: DriveLeg;
+  t: Translate;
+  tones: RouteTones;
+  isFirst: boolean;
+  isLast: boolean;
+}) {
   const colors = useThemeColors();
   const suffixKey = leg.trafficLevel ? TRAFFIC_SUFFIX_KEY[leg.trafficLevel] : undefined;
   const incidents = filterIncidentsAlongRoute(leg.incidents, leg.polyline);
   const allRoadwork = incidents.length > 0 && incidents.every((i) => i.title.includes('施工') || /work/i.test(i.title));
+  const originName = useRouteSessionStore((s) => s.originName);
+  const destinationName = useRouteSessionStore((s) => s.destinationName);
+  // 後端的開車 leg 起訖點是物件（見 pointLabel）；只有座標時退回使用者輸入的起訖名稱，兩端都沒有就不顯示這行。
+  const endpoints = [pointLabel(leg.from, isFirst ? originName : ''), pointLabel(leg.to, isLast ? destinationName : '')]
+    .filter(Boolean)
+    .join(' → ');
   return (
     <>
       <Text style={[routeStyles.bodyText, { color: colors.text }]}>
         {`${formatDistance(leg.distanceM)} · ${t('approxTime', { time: formatDuration(driveLegMinutes(leg)) })}`}
         {suffixKey ? <Text style={{ color: leg.trafficLevel === 'moderate' ? tones.warn : tones.danger }}>{t(suffixKey)}</Text> : null}
       </Text>
-      <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{`${leg.from} → ${leg.to}`}</Text>
+      {endpoints ? <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{endpoints}</Text> : null}
       {incidents.length > 0 ? (
         <Disclosure label={t(allRoadwork ? 'roadworkAlongRoute' : 'incidentsAlongRoute', { count: incidents.length })} color={tones.warn}>
           {incidents.map((incident) => (
@@ -238,7 +260,7 @@ function DriveDetail({ leg, t, tones }: { leg: DriveLeg; t: Translate; tones: Ro
  * 捷運／高鐵／台鐵（起訖站、站數、時刻、設施亮點、營運公告）、開車（路況、沿線事件、步驟）。
  * 所有文字都是可讀的列表內容，這個畫面就是 SDD §10「路線文字步驟」的替代路徑。
  */
-export default function LegDetail({ leg, busStops, engine }: LegDetailProps) {
+export default function LegDetail({ leg, busStops, engine, isFirst = false, isLast = false }: LegDetailProps) {
   const colors = useThemeColors();
   const tones = routeTones(useColorScheme() === 'dark');
   const { t } = useAppTranslation();
@@ -284,7 +306,7 @@ export default function LegDetail({ leg, busStops, engine }: LegDetailProps) {
           <Alerts alerts={leg.alerts} tones={tones} />
         </>
       ) : null}
-      {leg.type === 'DRIVE' || leg.type === 'MOTORCYCLE' ? <DriveDetail leg={leg} t={translate} tones={tones} /> : null}
+      {leg.type === 'DRIVE' || leg.type === 'MOTORCYCLE' ? <DriveDetail leg={leg} t={translate} tones={tones} isFirst={isFirst} isLast={isLast} /> : null}
     </View>
   );
 }

@@ -68,8 +68,16 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "用來在地圖上顯示你的位置、搜尋附近的無障礙設施與規劃路線。Your location is used to show nearby accessible facilities and plan routes.",
-          "isIosBackgroundLocationEnabled": false,
-          "isAndroidBackgroundLocationEnabled": false
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "locationAlwaysAndWhenInUsePermission": "導航進行中切到背景或鎖定螢幕時，持續更新你的位置以播報下一步；只在導航時使用。Your location keeps updating during navigation while the app is in the background, so turn-by-turn guidance continues. Used only while navigating.",
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "frequentUpdates": true
         }
       ]
     ],

@@ -6,7 +6,7 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 
 - 設計文件：[`docs/SDD.md`](docs/SDD.md)、分期計畫：[`docs/ROADMAP.md`](docs/ROADMAP.md)、移植帳本：[`docs/port-ledger.md`](docs/port-ledger.md)
 - 需要 development build（已裝 `expo-dev-client`，不能用 Expo Go）：`LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo run:ios`
-- 環境變數寫在 `.env`（公開值，會內嵌進 bundle，不放 secret）；本機覆寫用 `.env.local`。缺值或格式錯誤時 App 會顯示設定錯誤畫面。
+- 環境變數：`cp .env.example .env.local`（公開值，會內嵌進 bundle，不放 secret；`.env*.local` 已 gitignore）。缺值或格式錯誤時 App 會顯示設定錯誤畫面。
 
 | 變數 | 必填 | 說明 |
 |---|---|---|
@@ -15,6 +15,8 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Phase 3 | Google 登入 web client ID |
 | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | Phase 3 | Google 登入 iOS client ID |
 
+- 權限與原生設定（Phase 2）：定位「使用期間」＋導航中背景定位「永遠允許」（iOS `UIBackgroundModes: location`、Android 前景服務）；iOS Live Activity（`expo-widgets`，會多一個 Widget Extension target 與 App Group `group.com.accessiblemap.app`）。改動後要 `npx expo prebuild --platform ios --clean`。
+- 模擬導航：`xcrun simctl location booted start --speed=3 <lat,lng> <lat,lng> ...` 沿路線送 GPS。
 - 檢查：`npm run typecheck`、`npm run lint`、`npm test`
 
 ## Get started

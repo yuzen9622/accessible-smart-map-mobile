@@ -2,9 +2,9 @@
 
 | 項目 | 內容 |
 |---|---|
-| 版本 | v0.4（草案） |
-| 日期 | 2026-09-28 |
-| 狀態 | 待審閱；§8 後端變更與 §14 未決問題需決策。v0.2：納入使用者決策（原生 UI 優先、email 頁留 web、五期分工）與 Phase 0 套件核實結果。v0.3（2026-09-26）：三個 spike 結論（`docs/spikes/`）寫回 ADR-03／05／06；新增鎖定畫面即時動態與常駐導航通知（iOS Live Activities / Android Ongoing Notification）設計。v0.4（2026-09-28）：納入使用者決策，全 App UI 圖示一律採用 Lucide icon（`lucide-react-native` + `react-native-svg`），跨雙平台與 Web 版視覺語言完全對齊，淘汰雙平台原生符號分歧（SF / Material Symbols）；新增 ADR-16 並更新元件對照表、面板清單、HUD 與各 Feature 圖示定義。 |
+| 版本 | v0.5（草案） |
+| 日期 | 2026-09-29 |
+| 狀態 | 待審閱；§8 後端變更與 §14 未決問題需決策。v0.2：納入使用者決策（原生 UI 優先、email 頁留 web、五期分工）與 Phase 0 套件核實結果。v0.3（2026-09-26）：三個 spike 結論（`docs/spikes/`）寫回 ADR-03／05／06；新增鎖定畫面即時動態與常駐導航通知（iOS Live Activities / Android Ongoing Notification）設計。v0.4（2026-09-28）：納入使用者決策，全 App UI 圖示一律採用 Lucide icon（`lucide-react-native` + `react-native-svg`），跨雙平台與 Web 版視覺語言完全對齊，淘汰雙平台原生符號分歧（SF / Material Symbols）；新增 ADR-16 並更新元件對照表、面板清單、HUD 與各 Feature 圖示定義。v0.5（2026-09-29，Phase 2 實作）：Live Activity 改用 SDK 57 官方 `expo-widgets`（取代自建 config plugin＋Swift）；導航鏡頭跟隨改用 maplibre 原生 `trackUserLocation`（取代 Web 的每幀 jumpTo）；導航中 sheet 只允許 peek／half。 |
 | 參考系統 | Web 版 `/Users/yuen/orca/taipei-accessible-map`（Next.js 16，移植基準 commit `5eadc71`）、後端 `/Users/yuen/project/taipei-accessible-backend` |
 | 分期執行 | 見 [`ROADMAP.md`](./ROADMAP.md) |
 
@@ -306,14 +306,15 @@ MapScreen
 - **移植來源**：Web `src/hook/useNavigation.ts`（約 750 行，需拆解）、`src/lib/navigation/*`（`advisorySpeech`、`navigationAudio`、`navigationGeometryRuntime`、`navigationLifecycle`、`legMode`、`localRerouteCoordinator`、`rerouteCoordinator`、`foregroundLocation`）、`src/stores/useNavStore.ts`、`src/components/Navigation/*`。
 - **原生設計**：
   - 引擎：把 `useNavigation.ts` 拆成 `domain/navigationEngine.ts`（純函式：位置 → 進度／偏航／抵達判斷）＋ `NavigationController`（持有 LocationPort、TTS、計時器）＋ 薄 hook。
+  - 鏡頭：v0.5 起跟隨交給 maplibre `Camera.trackUserLocation`（步行 `heading`、開車 `course`，縮放／俯角依 leg 與 2D/3D），使用者拖曳時原生解除並顯示「回到導航」；GPS 離路線 >500 m 時沿步驟預覽（對齊 Web）。
   - 定位：前景 `expo-location watchPositionAsync`（`BestForNavigation`）；進入背景時由 `expo-task-manager` 背景任務接手（iOS `UIBackgroundModes: location`、Android foreground service 通知）。背景任務在 JS 頂層 `defineTask`，只寫入 store／計算進度與播報，不操作 UI。
   - 方位：`watchHeadingAsync`（取代 `DeviceOrientationEvent` 與 iOS 權限請求）。
   - 轉向圖示：移植 Web 版 `src/components/Navigation/navStepIcon.ts` 的 Lucide 轉向圖示對應系統（`CornerUpRight`、`CornerUpLeft`、`ArrowUp`、`ArrowUpRight`、`ArrowUpLeft`、`RotateCcw`、`MapPin`、`Flag` 等），雙平台統一。
   - 播報：`expo-speech`（zh-TW／en 語音；啟動時檢查可用語音，缺 zh-TW 語音時顯示提示）；`expo-haptics` 在轉彎前震動；`expo-keep-awake` 導航期間常亮。
   - 即時動態與常駐通知：
     - `LiveNavigationPort`（`features/navigation/domain/liveNavigation.ts`）：由 `NavigationController` 隨導航生命週期調用（`start`、`update`、`end`）。
-    - iOS：自建 Config Plugin（`plugins/with-live-activity.ts`）配置 Widget Extension target 與 `NSSupportsLiveActivities: true`；以 Swift 定義 `NavigationActivityAttributes` 與 `ContentState`，UI 以 SwiftUI（WidgetKit）刻劃；Expo Native Module 暴露 Swift 橋接函式。
-    - Android：與背景定位 Foreground Service 整合，發布 `CATEGORY_NAVIGATION`、`VISIBILITY_PUBLIC` 常駐通知，在步驟與位置更新時調用 `NotificationManagerCompat.notify`。
+    - iOS：**`expo-widgets`**（SDK 57 官方；v0.5 取代原規劃的自建 `plugins/with-live-activity.ts`＋Swift＋Expo module）。`createLiveActivity` 以 `'widget'` 元件（只能用 `@expo/ui/swift-ui`）描述鎖定畫面卡片與動態島；widget runtime 沒有 i18n 與 RN SVG，文字在 App 端組好以 props 傳入，轉向圖示以 SF Symbol 對照 Lucide 名稱（ADR-16 的例外）。config plugin 自動加 Widget Extension target、App Group 與 `NSSupportsLiveActivities`。
+    - Android：與背景定位 Foreground Service 整合，發布 `CATEGORY_NAVIGATION`、`VISIBILITY_PUBLIC` 常駐通知，在步驟與位置更新時調用 `NotificationManagerCompat.notify`。〔v0.5 狀態：先以 `expo-location` 背景定位前景服務的固定通知代替；逐步更新內容需自訂原生模組，待有 Android 裝置時實作〕
     - 頻率控制（`domain/liveNavigation.ts` `shouldSendLiveUpdate`）：轉向（指示／圖示）或重算狀態改變時立即送；否則只有下步剩餘距離變化 ≥10 m **且**距上次 ≥2 秒才送。位置微小飄移不觸發 ActivityKit 重繪，防範耗電與系統預算限制。步行約 1.4 m/s 時距離約每 7 秒更新一次；接近轉彎時是否放寬待真機體驗後決定。
   - HUD 與 sheet 互斥；導航中 sheet 收為步驟清單入口（HUD 版面見 §4.5）。
 - **必守不變量**：
@@ -500,7 +501,7 @@ MapScreen
 | 麥克風 | `NSMicrophoneUsageDescription`、Android `RECORD_AUDIO`；`react-native-audio-api` plugin |
 | 相機／相簿 | `expo-image-picker` plugin 用途說明 |
 | 推播 | `expo-notifications` plugin、APNs key、FCM 設定（EAS credentials） |
-| 即時動態 | `plugins/with-live-activity.ts`：配置 iOS Widget Extension target、`NSSupportsLiveActivities: true`、SwiftUI 原始檔連結；Android 導航前景服務通知設定 |
+| 即時動態 | `expo-widgets` plugin（`frequentUpdates: true`）：自動產生 Widget Extension target、App Group、`NSSupportsLiveActivities`；Android 導航前景服務通知由 `expo-location` 背景定位提供 |
 | 登入 | `@react-native-google-signin/google-signin` plugin（iosUrlScheme）、`expo-apple-authentication`（`usesAppleSignIn: true`） |
 | 既有 | `plugins/with-ios-scene-lifecycle.ts`：新增的原生 plugin 若修改 AppDelegate，必須與它相容（它找不到預期程式碼時會 throw） |
 

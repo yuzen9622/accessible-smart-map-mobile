@@ -152,32 +152,32 @@
 
 - [x] 移植 `src/types/route.ts`、`lib/geo.ts`、`lib/route/routeSession.ts`、`lib/routePreviewAdapter.ts` 與測試（`routeSession`、`geo-incidents`、`route-traffic`）（2026-09-29；另補 `geo-waypoints`、`routePreviewAdapter`、`routeRequest` 測試）
 - [x] `RouteSessionPort`：`computeRoute`、`endRouteSession`（清除清單含 origin／destination）、`hasRouteSession`、`shouldShowRoutePill`（2026-09-29，`features/route/controller/routeSessionPort.ts`；含請求競態保護與 `loadRoutePreview`；面板 UI 待接）
-- [ ] 起訖點輸入、模式切換（步行／大眾運輸／開車）、無障礙偏好
-- [ ] 路線卡列表、排序、無障礙亮點；leg 詳情（步行步驟、大眾運輸站點、開車步驟、事故提示、步行無障礙摘要；運具 leg 圖示統一為 Lucide icons：`Accessibility`、`Bus`、`TrainFront`、`Car`）——各面板的原生元件對應見 SDD §4.5 表格
-- [ ] RouteLayer：分段 polyline（per-leg `polylineIndex` + `legIndex`）
-- [ ] RouteSessionPill：切到其他功能後可回到路線
-- [ ] 路線文字步驟視圖（無障礙替代路徑）
+- [x] 起訖點輸入、模式切換（步行／大眾運輸／開車）、無障礙偏好（2026-09-29，`(sheet)/plan`；輪椅／視障停用開車機車。中繼站 UI 未做，後端與 port 已支援）
+- [x] 路線卡列表、排序、無障礙亮點；leg 詳情（步行步驟、大眾運輸站點、開車步驟、事故提示、步行無障礙摘要；運具 leg 圖示統一為 Lucide icons：`Accessibility`、`Bus`、`TrainFront`、`Car`）——各面板的原生元件對應見 SDD §4.5 表格
+- [x] RouteLayer：分段 polyline（per-leg `polylineIndex` + `legIndex`）（2026-09-29，`domain/routeLayerData.ts`＋步行虛線、無障礙疊色、開車路況、事故點）
+- [x] RouteSessionPill：切到其他功能後可回到路線
+- [x] 路線文字步驟視圖（無障礙替代路徑）（`(sheet)/routes/[index]` 路線明細即文字替代路徑）
 
 **2.2 bus**
 
 - [x] 移植 `lib/transit/{busLegStops,busRouteDetailCache}.ts` 與測試；補「365／26 反向、70 不反」與「整段同一狀態文字」的測試案例（2026-09-29；真實路線資料驗收待 App 可實跑後與 Web 比對）
-- [ ] leg 站點 ETA（`useBusLegStopEtas`）、即時公車位置（輪詢＋內插，AppState 感知）——邏輯層完成（2026-09-29：`shared/polling`、`busWatchers`、`busTween`、hooks）；地圖 LiveBusLayer 與內插動畫待 Mac
-- [ ] 公車面板：附近站牌、路線／站牌搜尋、路線詳情（依方向）——API 與 `useBusSearch` 完成（2026-09-29）；面板 UI 待 Mac
-- [ ] 交通警示——照 Web 用路線回應的 `metroAlerts`／`transitAlerts`（已在 route store），隨路線面板 UI 呈現。`/transit/alerts` 只有要做獨立的警示查詢頁時才需要（後端 2026-09-29 確認），v1 不做
+- [x] leg 站點 ETA（`useBusLegStopEtas`）、即時公車位置（輪詢＋內插，AppState 感知）——2026-09-29：`BusLegStops`（路線明細的公車 leg）、`LiveBusLayer`（~10 fps 內插，減少動態效果時直接跳）
+- [x] 公車面板：附近站牌、路線／站牌搜尋、路線詳情（依方向）——2026-09-29：`(sheet)/bus`、`bus/route`、`bus/stop`＋`BusStopLayer`
+- [x] 交通警示——照 Web 用路線回應的 `metroAlerts`／`transitAlerts`：路線卡顯示警示數 badge，leg 明細列出各段公告（2026-09-29）。`/transit/alerts` 只有要做獨立的警示查詢頁時才需要（後端 2026-09-29 確認），v1 不做
 
 **2.3 navigation**
 
 - [x] 移植 `lib/navigation/*` 與測試（`advisorySpeech`、`foregroundLocation`、`legMode`、`navigationAudio`、`rerouteCoordinator`、`navigationTakeoverGeometry`、`useRouteReroute`）（2026-09-29；`navigationAudio` 依賴語音 store 的區塊隨 Phase 4）
 - [x] 把 Web `useNavigation.ts` 拆成 `domain/navigationEngine.ts`（純函式）＋ `NavigationController`＋薄 hook，並為 engine 寫測試（2026-09-29；鏡頭跟隨部分待 Mac 接 HUD）
-- [ ] NavigationHUD（轉向圖示、距離、進度、leg 交接卡）、步驟清單、離開確認、重算遮罩——版面依 SDD §4.5「導航 HUD」（`GlassView` 卡片＋Lucide icons，移植 Web 版 `navStepIcon` 轉向圖示系統）
+- [x] NavigationHUD（轉向圖示、距離、進度、leg 交接卡）、步驟清單、離開確認、重算遮罩——版面依 SDD §4.5「導航 HUD」（`GlassView` 卡片＋Lucide icons，移植 Web 版 `navStepIcon` 轉向圖示系統）
 - [x] 偏航偵測＋`/accessible-route/reroute`＋冷卻（2026-09-29，邏輯層；重算遮罩 UI 待 Mac）
-- [ ] `expo-speech` 播報（喇叭仲裁規則）、`expo-haptics`、`expo-keep-awake`
-- [ ] **背景定位**：`expo-task-manager` 任務、iOS `UIBackgroundModes: location`、Android foreground service 通知；只在導航進行中啟用
-- [ ] **鎖定畫面導航與即時動態（Live Activities & Ongoing Notification）**：
-  - `plugins/with-live-activity.ts`：Config Plugin 配置 iOS Widget Extension target、`NSSupportsLiveActivities: true`、SwiftUI 檔案連結
-  - iOS 原生端：Swift 定義 `NavigationActivityAttributes`、SwiftUI 實作鎖定畫面卡片與動態島（Compact、Expanded、Minimal）
-  - Android 原生端：前景服務整合 `CATEGORY_NAVIGATION`、`VISIBILITY_PUBLIC` 常駐通知，支援自訂版面與結束導航動作
-  - `LiveNavigationPort` 與 TS 介面封裝（`start`、`update`、`end`），串接 `navigationEngine` 狀態，加入更新節流機制（轉向／重算立即送；否則距離變更 ≥10m 且間隔 ≥2 秒，見 SDD §6.4）——介面、快照與節流已完成（2026-09-29，`domain/liveNavigation.ts`＋測試），原生實作待 Mac
+- [x] `expo-speech` 播報（喇叭仲裁規則）、`expo-haptics`、`expo-keep-awake`（2026-09-29；鎖螢幕發聲待真機）
+- [x] **背景定位**：`expo-task-manager` 任務、iOS `UIBackgroundModes: location`、Android foreground service 通知；只在導航進行中啟用（2026-09-29，`shared/location/backgroundLocation.ts`；iOS 模擬器鎖屏後仍前進步驟）
+- [x] **鎖定畫面導航與即時動態（Live Activities & Ongoing Notification）**（2026-09-29：iOS 改用官方 `expo-widgets`，取代自建 plugin＋Swift；Android 以前景服務固定通知代替，逐步更新列為已知限制）：
+  - ~~`plugins/with-live-activity.ts`~~ → `expo-widgets` config plugin（`frequentUpdates: true`）產生 Widget Extension target 與 `NSSupportsLiveActivities`
+  - iOS：`features/navigation/liveActivity/NavigationLiveActivity.tsx`（`'widget'` 元件：鎖定畫面卡片＋動態島 compact／expanded／minimal；轉向圖示用 SF Symbol 對照 Lucide 名稱）
+  - Android：背景定位前景服務的固定通知（`killServiceOnDestroy`）；`CATEGORY_NAVIGATION` 逐步更新與結束動作需自訂原生模組，本機無 Android 裝置，**未做**
+  - `LiveNavigationPort` 與節流（2026-09-29，`domain/liveNavigation.ts`＋`controller/liveNavigationDriver.ts`＋測試：開始、轉向立即送、重算立即切換、抵達／結束立即 `end('immediate')`）
 - [x] 抵達偵測（只設定一次）（2026-09-29，`navigationEngine.advanceNavigation`＋測試）
 
 ### 出口條件

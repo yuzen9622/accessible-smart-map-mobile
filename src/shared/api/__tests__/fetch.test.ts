@@ -125,13 +125,28 @@ describe('fetchRequest 403 immediate invalidate', () => {
       makeResponse({
         status: 403,
         ok: false,
-        json: async () => ({ status: 'error', code: 403, message: 'revoked' }),
+        json: async () => ({ status: 'error', code: 403, message: 'Forbidden' }),
       }),
     );
 
     await expect(authenticatedRequest('http://test.local/api/v1/thing')).rejects.toThrow(ApiError);
     expect(refresh).not.toHaveBeenCalled();
     expect(fake.port.invalidateSession).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('fetchRequest 403 business errors (native-only)', () => {
+  it.each([
+    [{ status: 'error', code: 403, message: '您不是此求救的發起者', data: { reason: 'NOT_SESSION_OWNER' } }],
+    [{ status: 'error', code: 403, message: '無權限修改此評價' }],
+  ])('does not invalidate the session for an ownership 403 %#', async (body) => {
+    const fake = makeFakeAuthPort({ accessToken: 'token' });
+    configureAuthPort(fake.port);
+    const fetchMock = installFetchMock();
+    fetchMock.mockResolvedValueOnce(makeResponse({ status: 403, ok: false, json: async () => body }));
+
+    await expect(authenticatedRequest('http://test.local/api/v1/thing')).rejects.toThrow(ApiError);
+    expect(fake.port.invalidateSession).not.toHaveBeenCalled();
   });
 });
 

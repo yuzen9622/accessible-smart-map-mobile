@@ -10,7 +10,7 @@ import type { GeoPosition } from './types';
  * 導航控制器照常從 store 驅動進度與播報，不操作 UI。
  *
  * `defineTask` 必須在 JS 頂層執行（App 從背景被喚醒時要找得到任務），所以本檔要在 root layout
- * 以副作用 import 載入。只在導航中啟用（SDD §9：背景定位只用於導航／SOS）。
+ * 以副作用 import 載入。只在導航或 SOS 進行中啟用（SDD §9：背景定位只用於導航／SOS）。
  */
 export const BACKGROUND_LOCATION_TASK = 'navigation-background-location';
 
@@ -47,14 +47,25 @@ export interface BackgroundLocationTexts {
 }
 
 /**
- * 開始背景定位。iOS 需要「永遠允許」；使用者只給「使用 App 期間」時回傳 false，
- * 導航仍以前景定位運作（呼叫端決定是否提示）。
+ * 誰在用背景定位（導航、SOS 可能同時進行）。最後一個擁有者結束才真的停止，避免 SOS 解除時把
+ * 仍在進行的導航背景定位一起關掉。
  */
-export async function startBackgroundLocation(texts: BackgroundLocationTexts): Promise<boolean> {
+export type BackgroundLocationOwner = 'navigation' | 'sos';
+const owners = new Set<BackgroundLocationOwner>();
+
+/**
+ * 開始背景定位。iOS 需要「永遠允許」；使用者只給「使用 App 期間」時回傳 false，
+ * 導航／SOS 仍以前景定位運作（呼叫端決定是否提示）。
+ */
+export async function startBackgroundLocation(
+  texts: BackgroundLocationTexts,
+  owner: BackgroundLocationOwner = 'navigation',
+): Promise<boolean> {
   const foreground = await Location.getForegroundPermissionsAsync();
   if (foreground.status !== Location.PermissionStatus.GRANTED) return false;
   const background = await Location.requestBackgroundPermissionsAsync();
   if (background.status !== Location.PermissionStatus.GRANTED) return false;
+  owners.add(owner);
   if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) return true;
   await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
     accuracy: Location.LocationAccuracy.BestForNavigation,
@@ -72,7 +83,9 @@ export async function startBackgroundLocation(texts: BackgroundLocationTexts): P
   return true;
 }
 
-export async function stopBackgroundLocation(): Promise<void> {
+export async function stopBackgroundLocation(owner: BackgroundLocationOwner = 'navigation'): Promise<void> {
+  owners.delete(owner);
+  if (owners.size > 0) return;
   if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
     await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
   }

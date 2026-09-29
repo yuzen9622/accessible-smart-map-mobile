@@ -57,6 +57,19 @@ import Info from 'lucide-react-native/icons/info';
 import CircleX from 'lucide-react-native/icons/circle-x';
 import ArrowLeft from 'lucide-react-native/icons/arrow-left';
 import Timer from 'lucide-react-native/icons/timer';
+import Phone from 'lucide-react-native/icons/phone';
+import Siren from 'lucide-react-native/icons/siren';
+import Users from 'lucide-react-native/icons/users';
+import ShieldCheck from 'lucide-react-native/icons/shield-check';
+import Camera from 'lucide-react-native/icons/camera';
+import ImageIcon from 'lucide-react-native/icons/image';
+import Settings from 'lucide-react-native/icons/settings';
+import CircleUserRound from 'lucide-react-native/icons/circle-user-round';
+import ThumbsUp from 'lucide-react-native/icons/thumbs-up';
+import ThumbsDown from 'lucide-react-native/icons/thumbs-down';
+import Trash from 'lucide-react-native/icons/trash';
+import Pencil from 'lucide-react-native/icons/pencil';
+import Megaphone from 'lucide-react-native/icons/megaphone';
 import { View } from 'react-native';
 
 import type { IconName, IconProps } from './Icon.types';
@@ -120,6 +133,19 @@ const ICONS: Record<IconName, LucideIcon> = {
   circleX: CircleX,
   arrowLeft: ArrowLeft,
   timer: Timer,
+  phone: Phone,
+  siren: Siren,
+  users: Users,
+  shieldCheck: ShieldCheck,
+  camera: Camera,
+  image: ImageIcon,
+  settings: Settings,
+  user: CircleUserRound,
+  thumbsUp: ThumbsUp,
+  thumbsDown: ThumbsDown,
+  trash: Trash,
+  pencil: Pencil,
+  megaphone: Megaphone,
 };
 
 /**

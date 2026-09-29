@@ -42,12 +42,12 @@ export async function changeAppLanguage(language: AppLanguage): Promise<void> {
 }
 
 /**
- * 跟隨裝置語系。Android 可在 App 執行中改語系，useLocales 會重新 render。
- * TODO(settings)：使用者在 App 內指定語系後，以使用者設定優先（Phase 3 settings）。
+ * 跟隨裝置語系；`override` 為使用者在設定中指定的語系（`shared/preferences`），有值時優先。
+ * Android 可在 App 執行中改語系，useLocales 會重新 render。
  */
-export function useDeviceLanguageSync(): void {
+export function useDeviceLanguageSync(override: AppLanguage | null = null): void {
   const locales = useLocales();
-  const language = resolveDeviceLanguage(locales);
+  const language = override ?? resolveDeviceLanguage(locales);
   useEffect(() => {
     const sync = async () => {
       try {

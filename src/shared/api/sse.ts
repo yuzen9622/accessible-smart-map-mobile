@@ -138,6 +138,8 @@ export interface StreamSseInit {
 
 export interface StreamSseHandlers {
   onEvent: (event: SseEvent) => void;
+  /** 回應標頭到達時呼叫；在這裡 throw（例如非 2xx）會讓 `streamSse` reject、不讀 body。 */
+  onOpen?: (response: { status: number; ok: boolean }) => void;
   signal?: AbortSignal;
 }
 
@@ -157,6 +159,8 @@ export async function streamSse(
     headers: init.headers,
     signal: handlers.signal ?? null,
   });
+
+  handlers.onOpen?.({ status: response.status, ok: response.ok });
 
   const body = response.body;
   if (!body) {

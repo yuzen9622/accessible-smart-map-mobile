@@ -56,7 +56,20 @@ export type IconName =
   | 'info'
   | 'circleX'
   | 'arrowLeft'
-  | 'timer';
+  | 'timer'
+  | 'phone'
+  | 'siren'
+  | 'users'
+  | 'shieldCheck'
+  | 'camera'
+  | 'image'
+  | 'settings'
+  | 'user'
+  | 'thumbsUp'
+  | 'thumbsDown'
+  | 'trash'
+  | 'pencil'
+  | 'megaphone';
 
 export interface IconProps {
   name: IconName;

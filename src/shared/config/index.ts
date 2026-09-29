@@ -23,3 +23,4 @@ export function getAppConfig(): AppConfig {
   }
   return appConfigResult.config;
 }
+export { backendCapabilities } from './backendCapabilities';

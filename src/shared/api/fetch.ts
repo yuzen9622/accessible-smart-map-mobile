@@ -101,6 +101,15 @@ async function parseResponseBody(response: Response): Promise<ApiResponse<unknow
   return syntheticEnvelope(response, response.statusText || 'Unexpected response body shape');
 }
 
+/**
+ * 403 有兩種意思：認證 middleware 的撤銷（token 無效、tokenVersion 變動、session 被撤銷；訊息 `Forbidden`、
+ * 沒有 `data.reason`），與業務上的權限不足（`NOT_SESSION_OWNER`、`NOT_CONTACT_OWNER`、改別人的評論…）。
+ * Web 版任何 403 都登出；原生只在前者登出，否則例如 SOS 復原查到上一個帳號的 session 會把現在的帳號登出。
+ */
+function isRevocation403(data: ApiResponse<unknown>): boolean {
+  return extractReason(data.data) === undefined && data.message.trim().toLowerCase() === 'forbidden';
+}
+
 export function getAccessToken(): string | undefined {
   return getAuthPort().getSession()?.accessToken;
 }
@@ -129,8 +138,13 @@ export async function fetchRequest<TBody = unknown>(
     ? url
     : `${baseUrl ?? getAppConfig().apiBaseUrl}${url}`;
 
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
   const requestHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
+    // multipart 的 boundary 要由 fetch 自己產生，不能手動設 Content-Type
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    // 後端 B-01：`/api/v1/user/*` 看到 `X-Client: mobile` 才走原生傳輸（token 放 body、不發 cookie、
+    // 不做瀏覽器 CSRF 的 Origin 檢查）；其他路由忽略這個 header。
+    'X-Client': 'mobile',
     ...headers,
   };
   if (requireAuth) {
@@ -144,7 +158,7 @@ export async function fetchRequest<TBody = unknown>(
     headers: requestHeaders,
   };
   if (body !== undefined) {
-    init.body = JSON.stringify(body);
+    init.body = isFormData ? (body as FormData) : JSON.stringify(body);
   }
   if (signal) {
     init.signal = signal;
@@ -154,7 +168,7 @@ export async function fetchRequest<TBody = unknown>(
   const data = await parseResponseBody(response);
   const isSuccess = data.ok === true || data.success === true;
 
-  if (!isSuccess && data.code === 403 && requireAuth) {
+  if (!isSuccess && data.code === 403 && requireAuth && isRevocation403(data)) {
     // 伺服器端撤銷（例如 tokenVersion 變動）：refresh 也一定失敗，直接失效，
     // 不留在「已登入但一直 403」的狀態。
     authPort.invalidateSession(sessionAtEntry);

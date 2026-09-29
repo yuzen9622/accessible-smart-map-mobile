@@ -14,5 +14,6 @@ export {
   setBackgroundPositionSink,
   startBackgroundLocation,
   stopBackgroundLocation,
+  type BackgroundLocationOwner,
   type BackgroundLocationTexts,
 } from './backgroundLocation';

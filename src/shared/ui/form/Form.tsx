@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  useColorScheme,
   ScrollView,
   StyleSheet,
   Switch,
@@ -12,7 +13,7 @@ import {
   type TextInputProps,
 } from 'react-native';
 
-import { scaledSize, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, DANGER_FILL, scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
 import { useFontScale } from '@/shared/preferences';
 
 /**
@@ -21,8 +22,9 @@ import { useFontScale } from '@/shared/preferences';
  * 且本機沒有 Android 裝置，先以 RN 元件實作並確保觸控目標 ≥ 48 dp、所有互動元素有無障礙語意。
  */
 
-const ACCENT = '#1565C0';
-export const FORM_DESTRUCTIVE = '#C62828';
+// 與全 App 同一個主色／危險色（`shared/theme/tokens.ts`）；以前這裡寫死另一種藍 #1565C0。
+const ACCENT = ACCENT_FILL;
+export const FORM_DESTRUCTIVE = DANGER_FILL;
 
 export function FormScreen({ children }: { children: ReactNode }) {
   const colors = useThemeColors();
@@ -53,10 +55,17 @@ export function FormSection({ title, footer, children }: { title?: string; foote
   );
 }
 
+/** 文字用的主色／危險色：深色模式要用亮一階的版本（實心底色才用 ACCENT_FILL／DANGER_FILL）。 */
+function useTextTones() {
+  const tones = semanticColors(useColorScheme() === 'dark');
+  return { accent: tones.accent, danger: tones.danger.fg };
+}
+
 export function FormText({ children, tone = 'primary' }: { children: ReactNode; tone?: 'primary' | 'secondary' | 'error' }) {
   const colors = useThemeColors();
   const scale = useFontScale();
-  const color = tone === 'error' ? FORM_DESTRUCTIVE : tone === 'secondary' ? colors.textSecondary : colors.text;
+  const text = useTextTones();
+  const color = tone === 'error' ? text.danger : tone === 'secondary' ? colors.textSecondary : colors.text;
   return (
     <Text
       accessibilityLiveRegion={tone === 'error' ? 'polite' : 'none'}
@@ -118,10 +127,11 @@ export interface FormRowProps {
 export function FormRow({ label, value, onPress, destructive, disabled, icon }: FormRowProps) {
   const colors = useThemeColors();
   const scale = useFontScale();
+  const text = useTextTones();
   const content = (
     <>
       {icon ? <View importantForAccessibility="no-hide-descendants">{icon}</View> : null}
-      <Text style={[styles.rowLabel, { color: destructive ? FORM_DESTRUCTIVE : onPress ? ACCENT : colors.text, fontSize: scaledSize(16, scale) }]}>
+      <Text style={[styles.rowLabel, { color: destructive ? text.danger : onPress ? text.accent : colors.text, fontSize: scaledSize(16, scale) }]}>
         {label}
       </Text>
       {value ? <Text style={[styles.rowValue, { color: colors.textSecondary, fontSize: scaledSize(15, scale) }]}>{value}</Text> : null}
@@ -147,13 +157,36 @@ export function FormRow({ label, value, onPress, destructive, disabled, icon }: 
   );
 }
 
-export function FormSwitch({ label, value, onValueChange, disabled }: { label: string; value: boolean; onValueChange: (v: boolean) => void; disabled?: boolean }) {
+export function FormSwitch({
+  label,
+  description,
+  value,
+  onValueChange,
+  disabled,
+}: {
+  label: string;
+  /** 副標題（第二行灰字），對應 iOS Toggle 的兩行標籤。 */
+  description?: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
   const colors = useThemeColors();
   const scale = useFontScale();
   return (
     <View style={styles.row}>
-      <Text style={[styles.rowLabel, { color: colors.text, fontSize: scaledSize(16, scale) }]}>{label}</Text>
-      <Switch accessibilityLabel={label} value={value} onValueChange={onValueChange} disabled={disabled} />
+      <View style={styles.rowLabel}>
+        <Text style={{ color: colors.text, fontSize: scaledSize(16, scale) }}>{label}</Text>
+        {description ? (
+          <Text style={{ color: colors.textSecondary, fontSize: scaledSize(13, scale) }}>{description}</Text>
+        ) : null}
+      </View>
+      <Switch
+        accessibilityLabel={description ? `${label}，${description}` : label}
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+      />
     </View>
   );
 }
@@ -233,7 +266,7 @@ const styles = StyleSheet.create({
   screen: { padding: 16, paddingBottom: 48, gap: 20 },
   section: { gap: 6 },
   sectionTitle: { textTransform: 'uppercase', paddingHorizontal: 12 },
-  card: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 4, gap: 4 },
+  card: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 4, gap: 4 },
   footer: { paddingHorizontal: 12 },
   text: { paddingVertical: 10 },
   input: { minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 8 },
@@ -244,5 +277,5 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.5 },
   segmented: { flexDirection: 'row', gap: 6, paddingVertical: 8, flexWrap: 'wrap' },
   segment: { minHeight: 44, flexGrow: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
-  button: { minHeight: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginVertical: 6, paddingHorizontal: 16 },
+  button: { minHeight: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', marginVertical: 6, paddingHorizontal: 16 },
 });

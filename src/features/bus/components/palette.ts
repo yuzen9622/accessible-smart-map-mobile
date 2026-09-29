@@ -1,10 +1,13 @@
+// 數值一律來自 `@/shared/theme` 的設計規範（tokens.ts），這裡只保留各 feature 既有的常數名稱。
+import { ACCENT_FILL, ON_ACCENT_FILL, semanticColors } from '@/shared/theme';
+
 /** bus feature 內部色票（`@/shared/theme` 只有四個 token；同 place／map 的做法在 feature 內固定）。 */
-export const BUS_ACCENT_COLOR = '#0065C8';
-export const BUS_ACCENT_COLOR_DARK = '#6BB2FF';
-export const BUS_ON_ACCENT_COLOR = '#FFFFFF';
+export const BUS_ACCENT_COLOR = ACCENT_FILL;
+export const BUS_ACCENT_COLOR_DARK = semanticColors(true).accent;
+export const BUS_ON_ACCENT_COLOR = ON_ACCENT_FILL;
 export const BUS_BORDER_COLOR = 'rgba(120, 120, 128, 0.3)';
-export const BUS_SURFACE_COLOR = 'rgba(120,120,128,0.12)';
-export const BUS_SELECTED_SURFACE = 'rgba(0,101,200,0.14)';
+export const BUS_SURFACE_COLOR = semanticColors(false).neutral.bg;
+export const BUS_SELECTED_SURFACE = semanticColors(false).accentSoft;
 
 export type PillTone = 'arriving' | 'ok' | 'normal' | 'muted';
 

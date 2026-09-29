@@ -11,7 +11,6 @@ import CircleParking from 'lucide-react-native/icons/circle-parking';
 import Clock from 'lucide-react-native/icons/clock';
 import Copy from 'lucide-react-native/icons/copy';
 import Crosshair from 'lucide-react-native/icons/crosshair';
-import DoorOpen from 'lucide-react-native/icons/door-open';
 import ExternalLink from 'lucide-react-native/icons/external-link';
 import MapPin from 'lucide-react-native/icons/map-pin';
 import MessageSquare from 'lucide-react-native/icons/message-square';
@@ -34,6 +33,7 @@ import Navigation from 'lucide-react-native/icons/navigation';
 import Redo2 from 'lucide-react-native/icons/redo-2';
 import SquareParking from 'lucide-react-native/icons/square-parking';
 import TramFront from 'lucide-react-native/icons/tram-front';
+import Toilet from 'lucide-react-native/icons/toilet';
 import Undo2 from 'lucide-react-native/icons/undo-2';
 import Footprints from 'lucide-react-native/icons/footprints';
 import TrainFront from 'lucide-react-native/icons/train-front';
@@ -83,7 +83,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   bookmarkFilled: BookmarkCheck,
   elevator: ArrowUpDown,
   ramp: Accessibility,
-  toilet: DoorOpen,
+  toilet: Toilet,
   parking: CircleParking,
   share: Share2,
   copy: Copy,

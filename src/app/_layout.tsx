@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme, useWindowDimensions } from 'react-native';
 
+import { useAuthBootstrap } from '@/features/auth';
 import {
   SHEET_DETENTS,
   SHEET_UNDIMMED_DETENT_INDEX,
@@ -10,8 +11,13 @@ import {
   useMapUiStore,
 } from '@/features/map';
 import { useNavStore } from '@/features/navigation';
+import { useNotificationsBootstrap } from '@/features/notifications';
+import { useSettingsSync } from '@/features/settings';
+import { selectSosInProgress, useSosBootstrap, useSosStore } from '@/features/sos';
 import { ConfigErrorScreen, appConfigResult } from '@/shared/config';
-import { useDeviceLanguageSync } from '@/shared/i18n';
+import { useAppTranslation } from '@/shared/i18n';
+import { usePreferencesEffects } from '@/shared/preferences';
+import { HeaderCloseButton } from '@/shared/ui';
 // 背景定位任務必須在 JS 頂層定義（App 從背景被喚醒時要找得到）
 import '@/shared/location/backgroundLocation';
 
@@ -28,39 +34,65 @@ export default function RootLayout() {
   useEffect(() => {
     setSheetInset(sheetBottomInset(0, height));
   }, [isNavigating, height, setSheetInset]);
-  useDeviceLanguageSync();
+  usePreferencesEffects();
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      {appConfigResult.ok ? (
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen
-            name="(sheet)"
-            options={{
-              presentation: 'formSheet',
-              sheetAllowedDetents: isNavigating ? SHEET_DETENTS.slice(0, SHEET_UNDIMMED_DETENT_INDEX + 1) : [...SHEET_DETENTS],
-              sheetInitialDetentIndex: 0,
-              sheetLargestUndimmedDetentIndex: SHEET_UNDIMMED_DETENT_INDEX,
-              sheetGrabberVisible: true,
-              gestureEnabled: false,
-            }}
-            listeners={{
-              sheetDetentChange: (event) => {
-                setSheetInset(sheetBottomInset(event.data.index, height));
-              },
-              focus: () => setSheetInset(sheetBottomInset(0, height)),
-            }}
-          />
-          <Stack.Screen
-            name="onboarding"
-            options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }}
-          />
-          <Stack.Screen name="spikes" />
-        </Stack>
-      ) : (
+      {appConfigResult.ok ? <AppStack isNavigating={isNavigating} height={height} setSheetInset={setSheetInset} /> : (
         <ConfigErrorScreen errors={appConfigResult.errors} />
       )}
       <StatusBar style="auto" />
     </ThemeProvider>
+  );
+}
+
+interface AppStackProps {
+  isNavigating: boolean;
+  height: number;
+  setSheetInset: (inset: number) => void;
+}
+
+/** 設定有效才掛載：Phase 3 的啟動 hook（續期、同步、推播、SOS 復原）都會打 API，需要 `getAppConfig()`。 */
+function AppStack({ isNavigating, height, setSheetInset }: AppStackProps) {
+  useAuthBootstrap();
+  useSettingsSync();
+  useNotificationsBootstrap();
+  useSosBootstrap();
+  const { t } = useAppTranslation();
+  const sosInProgress = useSosStore(selectSosInProgress);
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen
+        name="(sheet)"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: isNavigating ? SHEET_DETENTS.slice(0, SHEET_UNDIMMED_DETENT_INDEX + 1) : [...SHEET_DETENTS],
+          sheetInitialDetentIndex: 0,
+          sheetLargestUndimmedDetentIndex: SHEET_UNDIMMED_DETENT_INDEX,
+          sheetGrabberVisible: true,
+          gestureEnabled: false,
+        }}
+        listeners={{
+          sheetDetentChange: (event) => {
+            setSheetInset(sheetBottomInset(event.data.index, height));
+          },
+          focus: () => setSheetInset(sheetBottomInset(0, height)),
+        }}
+      />
+      <Stack.Screen
+        name="onboarding"
+        options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: false }}
+      />
+      <Stack.Screen
+        name="auth"
+        options={{ presentation: 'modal', headerShown: true, headerLeft: () => <HeaderCloseButton /> }}
+      />
+      <Stack.Screen name="settings" options={{ presentation: 'modal', headerShown: false }} />
+      {/* 倒數與求救中不可滑動關閉（防誤觸，SDD §6.8）；畫面內有「關閉畫面（SOS 持續）」按鈕 */}
+      <Stack.Screen name="sos" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: !sosInProgress }} />
+      <Stack.Screen name="hazard-report" options={{ presentation: 'modal', headerShown: true, title: t('hazardReport') }} />
+      <Stack.Screen name="review" options={{ presentation: 'modal', headerShown: true }} />
+      <Stack.Screen name="spikes" />
+    </Stack>
   );
 }

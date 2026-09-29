@@ -9,7 +9,7 @@ export const unstable_settings = { initialRouteName: 'index' };
 export default function SettingsLayout() {
   const { t } = useAppTranslation();
   return (
-    <Stack>
+    <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Screen name="index" options={{ title: t('settingTitle'), headerLeft: () => <HeaderCloseButton /> }} />
       <Stack.Screen name="security" options={{ title: t('nativeSettingsAccountSecurity') }} />
       <Stack.Screen name="line" options={{ title: t('nativeLineTitle') }} />

@@ -64,7 +64,7 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
   const { t } = useAppTranslation();
   const sosInProgress = useSosStore(selectSosInProgress);
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, headerBackButtonDisplayMode: 'minimal' }}>
       <Stack.Screen name="index" />
       <Stack.Screen
         name="(sheet)"

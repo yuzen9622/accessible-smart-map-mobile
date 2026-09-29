@@ -2,7 +2,7 @@ import { fetch as expoFetchMock } from 'expo/fetch';
 
 import { createSseParser, streamSse, type SseEvent } from '../sse';
 
-jest.mock('expo/fetch', () => ({ fetch: jest.fn() }), { virtual: true });
+jest.mock('expo/fetch', () => ({ fetch: jest.fn() }));
 
 const mockExpoFetch = expoFetchMock as unknown as jest.MockedFunction<typeof expoFetchMock>;
 

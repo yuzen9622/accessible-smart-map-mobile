@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import type { LatLng } from '@/shared/geo';
 
 import type { RouteFailureKind } from '../domain/routeRequest';
-import type { AccessibleRoute, MatchedAlert, MetroAlertResult } from '../types/route';
+import type { AccessibleRoute, MatchedAlert, MetroAlertResult, RouteMode, TravelMode } from '../types/route';
 
 /**
  * 移植自 Web `src/stores/map/createRouteSlice.ts`（commit 5eadc71）的路線欄位；拆出 route feature
@@ -35,11 +35,19 @@ export interface RouteSessionState {
   lastFailure: RouteFailureKind | null;
   /** 每次開始算路或結束 session 都 +1；晚到的回應比對不上就丟掉。 */
   requestSeq: number;
+  /**
+   * 規劃表單的偏好（Web `RoutePlanContent` 的 local state）。刻意不在 CLEARED_SESSION：
+   * 結束一條路線不代表使用者改了交通方式。`routeMode` 為 null 時跟隨 onboarding 需求輪廓。
+   */
+  travelMode: TravelMode;
+  routeMode: RouteMode | null;
 
   setOrigin: (origin: LatLng | null, name?: string) => void;
   setDestination: (destination: LatLng | null, name?: string) => void;
   swapEndpoints: () => void;
   selectRouteIndex: (index: number) => void;
+  setTravelMode: (travelMode: TravelMode) => void;
+  setRouteMode: (routeMode: RouteMode | null) => void;
   /**
    * 清除路線 session 的唯一實作（SDD §6.3 不變量）。feature 內部使用；外部一律呼叫
    * `RouteSessionPort.endRouteSession`，它會先 abort 進行中的網路請求。
@@ -68,6 +76,8 @@ const CLEARED_SESSION = {
 export const useRouteSessionStore = create<RouteSessionState>()((set, get) => ({
   ...CLEARED_SESSION,
   requestSeq: 0,
+  travelMode: 'transit',
+  routeMode: null,
 
   setOrigin: (origin, name = '') => set({ origin, originName: name }),
   setDestination: (destination, name = '') => set({ destination, destinationName: name }),
@@ -81,5 +91,7 @@ export const useRouteSessionStore = create<RouteSessionState>()((set, get) => ({
     if (!route) return;
     set({ selectRoute: { index, route } });
   },
+  setTravelMode: (travelMode) => set({ travelMode }),
+  setRouteMode: (routeMode) => set({ routeMode }),
   endRouteSession: () => set((s) => ({ ...CLEARED_SESSION, requestSeq: s.requestSeq + 1 })),
 }));

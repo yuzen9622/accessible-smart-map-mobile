@@ -215,6 +215,20 @@ export function replaceSelectedRoute(route: AccessibleRoute): boolean {
   return true;
 }
 
+/** 路線卡選擇（Web `RouteCard.handleSelect`）：換選中路線並把相機框到它。 */
+export function selectRouteAt(index: number): void {
+  const store = useRouteSessionStore.getState();
+  store.selectRouteIndex(index);
+  const route = useRouteSessionStore.getState().selectRoute?.route;
+  if (route) fitCamera(route, { origin: store.origin, destination: store.destination, waypoints: store.routeWaypoints });
+}
+
+/** 「回到路線」pill（Web `RouteSessionPill`）：把相機框回選中的路線。 */
+export function fitSelectedRoute(): void {
+  const { selectRoute, origin, destination, routeWaypoints } = useRouteSessionStore.getState();
+  if (selectRoute) fitCamera(selectRoute.route, { origin, destination, waypoints: routeWaypoints });
+}
+
 /** 唯一的結束路線入口（pill 的 ✕、結束導航、AI「取消路線」）。 */
 export function endRouteSession(): void {
   inflight?.abort();

@@ -1,5 +1,5 @@
 // 移植自 Web `src/lib/route/__tests__/routeSession.test.ts`（commit 5eadc71），案例逐一保留。
-import { hasRouteSession, routeResumeTarget, shouldShowRoutePill } from '../routeSession';
+import { hasRouteSession, routeResumeTarget, sheetModeFromPath, shouldShowRoutePill } from '../routeSession';
 
 const EMPTY = {
   computeRoutes: null,
@@ -76,5 +76,26 @@ describe('shouldShowRoutePill', () => {
   it('stays hidden with no session', () => {
     expect(shouldShowRoutePill({ ...base, hasSession: false })).toBe(false);
     expect(shouldShowRoutePill({ ...base, hasSession: false, chatOpen: true })).toBe(false);
+  });
+});
+
+describe('sheetModeFromPath', () => {
+  it('maps the sheet routes to the Web SheetMode the pill rule expects', () => {
+    expect(sheetModeFromPath('/plan')).toBe('plan');
+    expect(sheetModeFromPath('/routes')).toBe('route');
+    expect(sheetModeFromPath('/routes/0')).toBe('route');
+    expect(sheetModeFromPath('/navigation')).toBe('navigation');
+    expect(sheetModeFromPath('/place/osm:node:1')).toBe('place');
+    expect(sheetModeFromPath('/bus')).toBe('home');
+    expect(sheetModeFromPath('/explore')).toBe('home');
+  });
+
+  it('keeps the pill visible on non-route panels such as the bus panel', () => {
+    expect(
+      shouldShowRoutePill({ hasSession: true, sheetMode: sheetModeFromPath('/bus'), isNavigating: false, chatOpen: false }),
+    ).toBe(true);
+    expect(
+      shouldShowRoutePill({ hasSession: true, sheetMode: sheetModeFromPath('/routes/1'), isNavigating: false, chatOpen: false }),
+    ).toBe(false);
   });
 });

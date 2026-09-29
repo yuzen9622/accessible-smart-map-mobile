@@ -63,3 +63,12 @@ export function shouldShowRoutePill(args: {
   if (args.chatOpen) return true;
   return args.sheetMode !== 'plan' && args.sheetMode !== 'route' && args.sheetMode !== 'navigation';
 }
+
+/** 目前 sheet 路由 → Web 的 SheetMode（SDD §4.5：sheet 狀態由路由推導，不另存一份）。 */
+export function sheetModeFromPath(pathname: string): SheetMode {
+  if (pathname === '/plan') return 'plan';
+  if (pathname === '/routes' || pathname.startsWith('/routes/')) return 'route';
+  if (pathname === '/navigation') return 'navigation';
+  if (pathname.startsWith('/place/') || pathname.startsWith('/loc/') || pathname.startsWith('/facility/')) return 'place';
+  return 'home';
+}

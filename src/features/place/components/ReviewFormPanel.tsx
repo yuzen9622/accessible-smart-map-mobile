@@ -22,6 +22,14 @@ export default function ReviewFormPanel({ model }: ReviewFormPanelProps) {
           </FormSection>
         ))}
       </FormSection>
+      <FormSection title={t('nativeReviewEvidenceTitle')} footer={t('nativeReviewEvidenceFooter')}>
+        {model.evidence.map((field) => (
+          <FormSection key={field.key}>
+            <FormText tone="secondary">{field.label}</FormText>
+            <FormSegmented label={field.label} value={field.value} choices={field.options} onChange={field.onChange} />
+          </FormSection>
+        ))}
+      </FormSection>
       <FormSection title={t('nativeReviewComment')}>
         <FormInput label={t('reviewPlaceholder')} value={model.comment} onChangeText={model.setComment} maxLength={500} multiline />
       </FormSection>

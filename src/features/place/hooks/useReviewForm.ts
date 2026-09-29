@@ -5,6 +5,7 @@ import { AccessibilityInfo, Alert } from 'react-native';
 import { useAppTranslation } from '@/shared/i18n';
 
 import { createReview, updateReview } from '../api/reviews';
+import { BOOLEAN_EVIDENCE_KEYS, ENTRANCE_VALUES, UNSET, booleanToChoice, toEvidencePayload, type BooleanEvidenceKey } from '../domain/reviewEvidence';
 import { bumpReviewRevision, useReviewEditorStore } from '../store/reviewEditorStore';
 
 export type RatingKey = 'passageWidthRating' | 'toiletRating' | 'elevatorRating' | 'serviceRating';
@@ -32,6 +33,13 @@ export function useReviewForm() {
     elevatorRating: existing?.elevatorRating ?? 0,
     serviceRating: existing?.serviceRating ?? 0,
   });
+  const [entrance, setEntrance] = useState<string>(existing?.entranceAccessibility ?? UNSET);
+  const [booleans, setBooleans] = useState<Record<BooleanEvidenceKey, string>>({
+    toiletTurningRoom: booleanToChoice(existing?.toiletTurningRoom),
+    wheelchairTableHeight: booleanToChoice(existing?.wheelchairTableHeight),
+    adequateAisleWidth: booleanToChoice(existing?.adequateAisleWidth),
+  });
+  const [staff, setStaff] = useState<string>(existing?.staffHelpfulnessRating ? String(existing.staffHelpfulnessRating) : UNSET);
   const [comment, setComment] = useState(existing?.comment ?? '');
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,7 +56,7 @@ export function useReviewForm() {
     }
     setSubmitting(true);
     try {
-      const input = { ...ratings, ...(trimmed ? { comment: trimmed } : {}) };
+      const input = { ...ratings, ...toEvidencePayload({ entrance, booleans, staff }), ...(trimmed ? { comment: trimmed } : {}) };
       if (existing) await updateReview(existing._id, input);
       else await createReview(target.placeId, target.placeType, input);
       bumpReviewRevision();
@@ -71,6 +79,39 @@ export function useReviewForm() {
       value: ratings[key],
       onChange: (value: number) => setRatings((prev) => ({ ...prev, [key]: value })),
     })),
+    evidence: [
+      {
+        key: 'entranceAccessibility',
+        label: t('nativeReviewEntrance'),
+        menu: true,
+        options: [
+          { value: UNSET, label: t('nativeReviewNotAssessed') },
+          ...ENTRANCE_VALUES.map((value) => ({ value, label: t(`nativeReviewEntrance_${value}`) })),
+        ],
+        value: entrance,
+        onChange: setEntrance,
+      },
+      ...BOOLEAN_EVIDENCE_KEYS.map((key) => ({
+        key,
+        label: t(`nativeReviewEvidence_${key}`),
+        menu: false,
+        options: [
+          { value: UNSET, label: t('nativeReviewNotAssessed') },
+          { value: 'yes', label: t('nativeReviewYes') },
+          { value: 'no', label: t('nativeReviewNo') },
+        ],
+        value: booleans[key],
+        onChange: (value: string) => setBooleans((prev) => ({ ...prev, [key]: value })),
+      })),
+      {
+        key: 'staffHelpfulnessRating',
+        label: t('nativeReviewStaff'),
+        menu: false,
+        options: [{ value: UNSET, label: '–' }, ...['1', '2', '3', '4', '5'].map((value) => ({ value, label: value }))],
+        value: staff,
+        onChange: setStaff,
+      },
+    ],
     comment,
     setComment,
     submitting,

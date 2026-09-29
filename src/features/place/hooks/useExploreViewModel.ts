@@ -48,7 +48,7 @@ export interface ExploreNearbyCard {
 export interface ExploreQuickAction {
   key: 'plan' | 'bus' | 'nearby' | 'saved' | 'hazard';
   label: string;
-  iconName: 'route' | 'bus' | 'accessibility' | 'bookmark' | 'alert';
+  iconName: 'navigation' | 'bus' | 'accessibility' | 'bookmark' | 'alert';
   onPress: () => void;
 }
 
@@ -227,7 +227,7 @@ export function useExploreViewModel(): ExploreViewModel {
     nearby: { title: t('nearbyContextTitle'), cards: nearbyCards },
     quickActions: [
       // 路線規劃與公車（Phase 2）：只經 sheet 路由切換面板，place 不 import 那兩個 feature。
-      { key: 'plan', label: t('planRoute'), iconName: 'route', onPress: () => router.push('/plan') },
+      { key: 'plan', label: t('planRoute'), iconName: 'navigation', onPress: () => router.push('/plan') },
       { key: 'bus', label: t('busInfo'), iconName: 'bus', onPress: () => router.push('/bus') },
       { key: 'nearby', label: t('nearbyA11y'), iconName: 'accessibility', onPress: openNearby },
       { key: 'saved', label: t('savedPlaces'), iconName: 'bookmark', onPress: openSaved },

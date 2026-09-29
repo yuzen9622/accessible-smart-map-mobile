@@ -4,7 +4,19 @@ import type { PlaceReviewType } from './place';
 
 export type { PlaceReviewType };
 
-export interface ReviewItem {
+export type EntranceAccessibility = 'step_free' | 'ramp' | 'stairs_with_assistance' | 'inaccessible';
+
+/** 結構化無障礙證據（皆選填）。回應缺欄位＝未評估，不可推斷為 false。 */
+export interface ReviewEvidence {
+  entranceAccessibility?: EntranceAccessibility;
+  toiletTurningRoom?: boolean;
+  wheelchairTableHeight?: boolean;
+  adequateAisleWidth?: boolean;
+  /** 1–5 整數。 */
+  staffHelpfulnessRating?: number;
+}
+
+export interface ReviewItem extends ReviewEvidence {
   _id: string;
   userId: string;
   rating: number;
@@ -13,6 +25,8 @@ export interface ReviewItem {
   elevatorRating: number;
   serviceRating: number;
   comment?: string;
+  /** 後端衍生的總合無障礙分數（1–5），只出現在 response。 */
+  aggregateAccessibilityScore?: number;
   createdAt: string;
 }
 

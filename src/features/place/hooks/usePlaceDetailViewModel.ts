@@ -14,6 +14,7 @@ import { buildAccessibilityChecklist, type ChecklistItem } from '../domain/acces
 import { nearbyFacilityRows, type NearbyFacilityRow } from '../domain/nearbyFacilityRows';
 import { buildPlaceBadges, type PlaceBadge } from '../domain/placeBadges';
 import { placeKey, SAVED_PLACE_CATEGORIES, type SavedPlaceCategory } from '../domain/placeKey';
+import { evidenceLines } from '../domain/reviewEvidence';
 import { buildPlaceShareUrl } from '../domain/shareUrl';
 import { deleteReview } from '../api/reviews';
 import { bumpReviewRevision, useReviewEditorStore } from '../store/reviewEditorStore';
@@ -62,6 +63,8 @@ export interface PlaceDetailReviewRow {
   key: string;
   starsLabel: string;
   comment?: string;
+  /** 綜合分數與已評估的無障礙細節；未評估的項目不列出。 */
+  evidence: string[];
   /** 「您的評價」／「使用者」＋日期 */
   metaLabel: string;
   /** 自己的評論才有 */
@@ -273,6 +276,12 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
               key: review._id,
               starsLabel: `${'★'.repeat(Math.round(review.rating))} ${review.rating.toFixed(1)}`,
               comment: review.comment,
+              evidence: [
+                ...(review.aggregateAccessibilityScore !== undefined
+                  ? [`${t('nativeReviewAggregate')}：${review.aggregateAccessibilityScore.toFixed(1)}/5`]
+                  : []),
+                ...evidenceLines(review, t),
+              ],
               metaLabel: `${own ? t('reviewYou') : t('reviewUser')} · ${new Date(review.createdAt).toLocaleDateString(i18n.language)}`,
               ...(own ? { onEdit: () => openReviewForm(review), onDelete: () => confirmDeleteReview(review._id) } : {}),
             };

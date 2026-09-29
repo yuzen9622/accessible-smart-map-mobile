@@ -1,54 +1,45 @@
-import { GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
-import type { Feature, FeatureCollection, Point } from 'geojson';
+import { Marker } from '@maplibre/maplibre-react-native';
+import { StyleSheet, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { usePlaceUiStore } from '../store/placeUiStore';
-import type { PlaceDetail } from '../types/place';
 
-const PLACE_PIN_COLOR = '#E53935';
-
-const EMPTY_COLLECTION: FeatureCollection<Point, { id: string }> = { type: 'FeatureCollection', features: [] };
+// Google Maps 風格的圖釘：紅色水滴＋深紅圓心，尖端（底部中央）對準座標。
+const PIN_WIDTH = 30;
+const PIN_HEIGHT = 48;
+const PIN_BODY = '#EA4335';
+const PIN_BORDER = '#C5221F';
+const PIN_CORE = '#B31412';
+const PIN_PATH = 'M13.5 0C6.04 0 0 6.04 0 13.5 0 23.6 13.5 43 13.5 43S27 23.6 27 13.5C27 6.04 20.96 0 13.5 0Z';
 
 /**
- * 選定地點／搜尋結果的地圖 pin（SDD §4.4 `SearchPinLayer`，對齊 Web
- * `SearchPin` 元件，commit 5eadc71，改用原生分群同款的
- * `GeoJSONSource` + `circle` Layer，取代 Web 版 React marker）。
- *
- * `data` 保持參照穩定：沒有選定地點時固定回傳同一個 `EMPTY_COLLECTION`
- * 常數，有選定地點時由 React Compiler 依 selectedPlace 自動 memo，避免每次
- * 無關的 re-render 都讓 maplibre 重新處理整個 source。
+ * 選定地點／搜尋結果的地圖 pin（SDD §4.4 `SearchPinLayer`）：`Marker` 內放自繪 SVG 圖釘，
+ * 形狀與配色參考 Google 地圖，比小圓點或線條圖示醒目。
  */
-function buildCollection(selectedPlace: PlaceDetail | null): FeatureCollection<Point, { id: string }> {
-  if (!selectedPlace) return EMPTY_COLLECTION;
-  const { lat, lng } = selectedPlace.position;
-  const id = selectedPlace.kind === 'place' ? selectedPlace.place.id : `coord:${lat},${lng}`;
-  const feature: Feature<Point, { id: string }> = {
-    type: 'Feature',
-    id,
-    geometry: { type: 'Point', coordinates: [lng, lat] },
-    properties: { id },
-  };
-  return { type: 'FeatureCollection', features: [feature] };
-}
-
 export default function PlacePinLayer() {
   const selectedPlace = usePlaceUiStore((state) => state.selectedPlace);
+  if (!selectedPlace) return null;
 
-  const collection = buildCollection(selectedPlace);
-
-  if (collection.features.length === 0) return null;
-
+  const { lat, lng } = selectedPlace.position;
   return (
-    <GeoJSONSource id="place-pin" data={collection}>
-      <Layer
-        id="place-pin-point"
-        type="circle"
-        paint={{
-          'circle-color': PLACE_PIN_COLOR,
-          'circle-radius': 9,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#FFFFFF',
-        }}
-      />
-    </GeoJSONSource>
+    <Marker id="place-pin" lngLat={[lng, lat]} anchor="bottom">
+      <View style={styles.pin} pointerEvents="none">
+        <Svg width={PIN_WIDTH} height={PIN_HEIGHT} viewBox="-1.5 -1.5 30 46.5">
+          <Path d={PIN_PATH} fill={PIN_BODY} stroke={PIN_BORDER} strokeWidth={1} />
+          <Circle cx={13.5} cy={13.5} r={5.5} fill={PIN_CORE} />
+        </Svg>
+      </View>
+    </Marker>
   );
 }
+
+const styles = StyleSheet.create({
+  pin: {
+    width: PIN_WIDTH,
+    height: PIN_HEIGHT,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+  },
+});

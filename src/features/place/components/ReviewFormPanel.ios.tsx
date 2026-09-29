@@ -34,6 +34,24 @@ export default function ReviewFormPanel({ model }: ReviewFormPanelProps) {
             </VStack>
           ))}
         </Section>
+        <Section title={t('nativeReviewEvidenceTitle')} footer={<Text>{t('nativeReviewEvidenceFooter')}</Text>}>
+          {model.evidence.map((field) => (
+            <VStack key={field.key} alignment="leading" spacing={8}>
+              <Text modifiers={[font({ textStyle: 'subheadline', weight: 'semibold' })]}>{field.label}</Text>
+              <Picker<string>
+                label={field.label}
+                selection={field.value}
+                onSelectionChange={field.onChange}
+                modifiers={[pickerStyle(field.menu ? 'menu' : 'segmented'), labelsHidden()]}>
+                {field.options.map((option) => (
+                  <Text key={option.value} modifiers={[tag(option.value)]}>
+                    {option.label}
+                  </Text>
+                ))}
+              </Picker>
+            </VStack>
+          ))}
+        </Section>
         <Section title={t('nativeReviewComment')}>
           <TextField
             text={commentState}

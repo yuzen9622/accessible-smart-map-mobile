@@ -1,7 +1,7 @@
 import { ApiError, authenticatedRequest, fetchRequest, type ApiResponse } from '@/shared/api';
 import { getAppConfig } from '@/shared/config';
 
-import type { PlaceReviewType, ReviewItem, ReviewListResult, ReviewSummaryResult } from '../types/review';
+import type { PlaceReviewType, ReviewEvidence, ReviewItem, ReviewListResult, ReviewSummaryResult } from '../types/review';
 
 /**
  * 移植自 Web `src/lib/api/review.ts`（commit 5eadc71）。Phase 1.3 只需要讀取
@@ -58,6 +58,8 @@ export interface GetPlaceReviewsParams {
   placeType: PlaceReviewType;
   page?: number;
   limit?: number;
+  /** 只回傳總合無障礙分數 ≥ 此值（1–5）的評價；`totalCount`／`avgRating` 也用同一篩選集合。 */
+  minAggregateScore?: number;
 }
 
 export async function getPlaceReviews(
@@ -70,6 +72,7 @@ export async function getPlaceReviews(
     page: String(params.page ?? 1),
     limit: String(params.limit ?? 10),
   });
+  if (params.minAggregateScore !== undefined) query.set('minAggregateScore', String(params.minAggregateScore));
   const url = `${getAppConfig().apiBaseUrl}${basePath()}?${query.toString()}`;
   const response = await fetchRequest(url, signal ? { signal } : undefined);
   const data = isReviewListResult(response.data) ? response.data : undefined;
@@ -92,7 +95,7 @@ export async function getReviewSummary(
   return { ...response, data } as ApiResponse<ReviewSummaryResult>;
 }
 
-export interface ReviewRatingsInput {
+export interface ReviewRatingsInput extends ReviewEvidence {
   passageWidthRating: number;
   toiletRating: number;
   elevatorRating: number;

@@ -151,7 +151,7 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
           accessibilityLabel={model.planRouteLabel}
           onPress={model.onPlanRoute}
           style={[styles.primaryButton, fontScale >= 1.3 && styles.primaryButtonLarge]}>
-          <Icon name="route" color={PLACE_ON_ACCENT_COLOR} />
+          <Icon name="navigation" color={PLACE_ON_ACCENT_COLOR} />
           <Text style={styles.primaryButtonText}>
             {model.planRouteLabel}
           </Text>
@@ -313,6 +313,11 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
                     <Text style={{ color: colors.text }}>{review.starsLabel}</Text>
                   </View>
                   <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{review.metaLabel}</Text>
+                  {review.evidence.map((line) => (
+                    <Text key={line} style={[styles.bodyText, { color: colors.textSecondary }]}>
+                      {line}
+                    </Text>
+                  ))}
                   {review.comment ? <Text style={[styles.bodyText, { color: colors.text }]}>{review.comment}</Text> : null}
                   {review.onEdit || review.onDelete ? (
                     <View style={styles.sectionHeader}>

@@ -202,8 +202,8 @@
 - [x] 真正的 `AuthPort` 實作（取代 Phase 0 stub）；token 存 SecureStore；冷啟動靜默續期（後端 B-01 #25 mobile transport；refresh token 每次輪替）
 - [x] Email 註冊／登入／重寄驗證信／忘記密碼（寄信）；**驗證與重設密碼頁留在 Web**，信件連結開瀏覽器
 - [x] Google 登入（`@react-native-google-signin/google-signin`；plugin 由 `app.config.ts` 依 `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` 條件加入，`.env.local` 尚未設定 client ID，按鈕目前隱藏、未實跑）
-- [x] Apple 登入（`expo-apple-authentication`，僅 iOS；依後端 B-03 草案 `POST /auth/apple`，後端開發中；真機驗證需付費帳號）
-- [x] 帳號安全（改密碼，`skipAuthRetry: true`）、LINE 綁定碼、登出、刪除帳號（UI 與 API 已做，B-08 未上線前以 `backendCapabilities.accountDeletion` 隱藏）
+- [x] Apple 登入（`expo-apple-authentication`，僅 iOS；對應後端 B-03 `POST /user/auth/apple`（已實作，2026-09-30 對照契約）；真機驗證需付費帳號）
+- [x] 帳號安全（改密碼，`skipAuthRetry: true`）、LINE 綁定碼、登出、刪除帳號（B-08 `DELETE /user` 已上線；Apple 帳號先重新 Apple 登入取 `authorizationCode`，其他帳號遇 `REAUTH_REQUIRED` 才重新登入；已移除 `backendCapabilities` 旗標）
 - [x] 需求輪廓同步 `GET|PUT /user/a11y-profile`
 - [x] 撰寫／編輯／刪除評論（Phase 1 延後的部分）
 
@@ -223,8 +223,8 @@
 
 **3.4 推播**
 
-- [x] `expo-notifications`：權限請求時機（第一次 SOS 或設定頁，不在冷啟動就問）、註冊 token 到 B-04 端點、登出時註銷（B-04 未上線前以 `backendCapabilities.pushTokens` 關閉送出）
-- [x] 處理 SOS 狀態變更推播（點擊開啟 SOS 畫面；payload 依 B-04 草案 `data.type = sos_status`）
+- [x] `expo-notifications`：權限請求時機（第一次 SOS 或設定頁，不在冷啟動就問）、註冊 token 到 B-04 端點、登出時註銷（B-04 已上線；token 綁 session，每次登入重登記，token／語系變動時重登記）
+- [x] 處理 SOS 狀態變更推播（點擊開啟 SOS 畫面；後端 payload 為 `data.type = sos_update`）
 
 **3.5 settings**
 
@@ -302,6 +302,19 @@
 
 - 兩家商店審核通過並上架
 - EAS Update 可推送 OTA 修正
+
+### 後端上線後同步（2026-09-30）
+
+依後端 `docs/FRONTEND_MIGRATION_*.md` 對照補齊：
+
+- [x] B-01～B-05、B-07、B-08 對應的前端契約已對齊；`backendCapabilities` 旗標移除
+- [x] `avoidStairs`／`requireElevator` 只在使用者開啟時送出（關閉時不送，保留 `mode` 預設）
+- [x] 登入時算路帶 Bearer（套用已儲存的 a11y profile）；過期 401／無效 403 不降級匿名
+- [x] `hazardAdvisory`、`slopeConstraint`（`enforced: false` 顯示 `note`）、WALK `restPoints`／`surfaceType`、指令 `stairs`／`cumulativeDistanceM` 型別與顯示
+- [x] 結構化無障礙評論（表單五欄位、`aggregateAccessibilityScore` 顯示、`minAggregateScore` 參數；UI 篩選入口未做）
+- [x] `INVALID_ROUTE_TOKEN` 時維持幾何導引
+- [ ] 語音 WebSocket 的 `utteranceId`／`transcript.correction`（Phase 4 語音模組一併實作）
+- [ ] B-06 分享連結 Universal Links／App Links（後端 #22 仍開啟，v1.x）
 
 ---
 

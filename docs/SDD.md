@@ -2,9 +2,9 @@
 
 | 項目 | 內容 |
 |---|---|
-| 版本 | v0.5（草案） |
+| 版本 | v0.6（草案） |
 | 日期 | 2026-09-29 |
-| 狀態 | 待審閱；§8 後端變更與 §14 未決問題需決策。v0.2：納入使用者決策（原生 UI 優先、email 頁留 web、五期分工）與 Phase 0 套件核實結果。v0.3（2026-09-26）：三個 spike 結論（`docs/spikes/`）寫回 ADR-03／05／06；新增鎖定畫面即時動態與常駐導航通知（iOS Live Activities / Android Ongoing Notification）設計。v0.4（2026-09-28）：納入使用者決策，全 App UI 圖示一律採用 Lucide icon（`lucide-react-native` + `react-native-svg`），跨雙平台與 Web 版視覺語言完全對齊，淘汰雙平台原生符號分歧（SF / Material Symbols）；新增 ADR-16 並更新元件對照表、面板清單、HUD 與各 Feature 圖示定義。v0.5（2026-09-29，Phase 2 實作）：Live Activity 改用 SDK 57 官方 `expo-widgets`（取代自建 config plugin＋Swift）；導航鏡頭跟隨改用 maplibre 原生 `trackUserLocation`（取代 Web 的每幀 jumpTo）；導航中 sheet 只允許 peek／half。 |
+| 狀態 | 待審閱；§8 後端變更與 §14 未決問題需決策。v0.2：納入使用者決策（原生 UI 優先、email 頁留 web、五期分工）與 Phase 0 套件核實結果。v0.3（2026-09-26）：三個 spike 結論（`docs/spikes/`）寫回 ADR-03／05／06；新增鎖定畫面即時動態與常駐導航通知（iOS Live Activities / Android Ongoing Notification）設計。v0.4（2026-09-28）：納入使用者決策，全 App UI 圖示一律採用 Lucide icon（`lucide-react-native` + `react-native-svg`），跨雙平台與 Web 版視覺語言完全對齊，淘汰雙平台原生符號分歧（SF / Material Symbols）；新增 ADR-16 並更新元件對照表、面板清單、HUD 與各 Feature 圖示定義。v0.6（2026-09-30）：後端 B-01～B-05、B-08 上線，前端依實際契約補齊（刪帳號重新驗證、`sos_update`、hard constraints、hazardAdvisory、結構化評論等）。v0.5（2026-09-29，Phase 2 實作）：Live Activity 改用 SDK 57 官方 `expo-widgets`（取代自建 config plugin＋Swift）；導航鏡頭跟隨改用 maplibre 原生 `trackUserLocation`（取代 Web 的每幀 jumpTo）；導航中 sheet 只允許 peek／half。 |
 | 參考系統 | Web 版 `/Users/yuen/orca/taipei-accessible-map`（Next.js 16，移植基準 commit `5eadc71`）、後端 `/Users/yuen/project/taipei-accessible-backend` |
 | 分期執行 | 見 [`ROADMAP.md`](./ROADMAP.md) |
 
@@ -477,6 +477,8 @@ MapScreen
 ---
 
 ## 8. 後端變更需求
+
+> 2026-09-30 狀態：B-01～B-05、B-07、B-08 後端已實作，前端已對齊（契約見後端 `docs/FRONTEND_MIGRATION_*.md`）；B-06（Universal Links）仍為 v1.x。刪除帳號的 Apple 撤銷流程、5 分鐘內重新登入規則與 `sos_update` 推播 payload 以後端文件為準。
 
 | ID | 變更 | 原因 | 優先級 | 需要於 |
 |---|---|---|---|---|

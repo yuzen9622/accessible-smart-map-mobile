@@ -198,37 +198,37 @@
 
 **3.1 auth**
 
-- [ ] 逐行移植 `lib/authRefresh.ts`、`lib/authTransport.ts`、`lib/passwordValidation.ts` 與測試（`authRefresh`、`resetPassword`、`passwordValidation`、`useAuthStore`）
-- [ ] 真正的 `AuthPort` 實作（取代 Phase 0 stub）；token 存 SecureStore；冷啟動靜默續期
-- [ ] Email 註冊／登入／重寄驗證信／忘記密碼（寄信）；**驗證與重設密碼頁留在 Web**，信件連結開瀏覽器
-- [ ] Google 登入（`@react-native-google-signin/google-signin`）
-- [ ] Apple 登入（`expo-apple-authentication`，僅 iOS）
-- [ ] 帳號安全（改密碼，`skipAuthRetry: true`）、LINE 綁定碼、登出、刪除帳號（上架要求，依後端 B-08）
-- [ ] 需求輪廓同步 `GET|PUT /user/a11y-profile`
-- [ ] 撰寫／編輯／刪除評論（Phase 1 延後的部分）
+- [x] 逐行移植 `lib/authRefresh.ts`、`lib/authTransport.ts`、`lib/passwordValidation.ts` 與測試（`authRefresh`、`passwordValidation`；`useAuthStore` 的 logout 案例併入 authRefresh 測試，`updateUserConfig` 案例改為 settings `remoteConfig` 測試；`resetPassword` 不移植：重設密碼頁留在 Web）（2026-09-29）
+- [x] 真正的 `AuthPort` 實作（取代 Phase 0 stub）；token 存 SecureStore；冷啟動靜默續期（後端 B-01 #25 mobile transport；refresh token 每次輪替）
+- [x] Email 註冊／登入／重寄驗證信／忘記密碼（寄信）；**驗證與重設密碼頁留在 Web**，信件連結開瀏覽器
+- [x] Google 登入（`@react-native-google-signin/google-signin`；plugin 由 `app.config.ts` 依 `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` 條件加入，`.env.local` 尚未設定 client ID，按鈕目前隱藏、未實跑）
+- [x] Apple 登入（`expo-apple-authentication`，僅 iOS；依後端 B-03 草案 `POST /auth/apple`，後端開發中；真機驗證需付費帳號）
+- [x] 帳號安全（改密碼，`skipAuthRetry: true`）、LINE 綁定碼、登出、刪除帳號（UI 與 API 已做，B-08 未上線前以 `backendCapabilities.accountDeletion` 隱藏）
+- [x] 需求輪廓同步 `GET|PUT /user/a11y-profile`
+- [x] 撰寫／編輯／刪除評論（Phase 1 延後的部分）
 
 **3.2 sos**
 
-- [ ] 移植 `lib/sosSession.ts`、`useSosLifecycle` 策略（snapshot → SSE → 重試 3 次 → 8 秒輪詢）並**補寫 lifecycle 測試**
-- [ ] SOS 流程畫面（防誤觸確認、大型觸控目標、震動）、處理歷程、分享追蹤連結（`shareToken`）
-- [ ] 緊急聯絡人管理（上限 5 人）
-- [ ] 重啟後復原（12h 內；伺服器為準；只檢查一次）
-- [ ] SOS 期間背景位置上傳
-- [ ] SosTrackerLayer＋導航前往求助者（對齊 Web 版：一鍵直達、預設開車；求助者靜止時不自動重算）
+- [x] 移植 `lib/sosSession.ts`、`useSosLifecycle` 策略（snapshot → SSE → 重試 3 次 → 8 秒輪詢）並**補寫 lifecycle 測試**
+- [x] SOS 流程畫面（防誤觸確認、大型觸控目標、震動）、處理歷程、分享追蹤連結（`shareToken`）
+- [x] 緊急聯絡人管理（上限 5 人）
+- [x] 重啟後復原（12h 內；伺服器為準；只檢查一次；換帳號不復原、解除失敗下次啟動補送）
+- [x] SOS 期間背景位置上傳（背景定位 owner 計數，與導航共用任務）
+- [x] SosTrackerLayer＋導航前往求助者（對齊 Web 版：一鍵直達、預設開車；求助者靜止時不自動重算）；家人端以 `accessiblesmartmap://sos-track/<shareToken>` 開啟
 
 **3.3 hazard**
 
-- [ ] 通報流程：類型、嚴重度、`expo-image-picker` 拍照／相簿、壓縮、`FormData` 上傳
-- [ ] HazardLayer、附近通報、確認他人通報、我的通報
+- [x] 通報流程：類型、嚴重度、`expo-image-picker` 拍照／相簿、壓縮（>5MB 才轉 JPEG，保留 EXIF）、`FormData` 上傳
+- [x] HazardLayer、附近通報、確認他人通報、我的通報
 
 **3.4 推播**
 
-- [ ] `expo-notifications`：權限請求時機（第一次 SOS 或設定頁，不在冷啟動就問）、註冊 token 到 B-04 端點、登出時註銷
-- [ ] 處理 SOS 狀態變更推播（點擊開啟 SOS 畫面）
+- [x] `expo-notifications`：權限請求時機（第一次 SOS 或設定頁，不在冷啟動就問）、註冊 token 到 B-04 端點、登出時註銷（B-04 未上線前以 `backendCapabilities.pushTokens` 關閉送出）
+- [x] 處理 SOS 狀態變更推播（點擊開啟 SOS 畫面；payload 依 B-04 草案 `data.type = sos_status`）
 
 **3.5 settings**
 
-- [ ] 設定首頁與子頁（`@expo/ui`）：主題、高對比、字級、語系、AI 記憶（佔位）、資料管理
+- [x] 設定首頁與子頁（`@expo/ui`）：主題、高對比、字級、語系、AI 記憶（佔位）、資料管理
 
 ### 出口條件
 

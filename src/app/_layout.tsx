@@ -1,13 +1,13 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme, useWindowDimensions } from 'react-native';
 
 import { useAuthBootstrap } from '@/features/auth';
 import {
-  SHEET_DETENTS,
   SHEET_UNDIMMED_DETENT_INDEX,
   sheetBottomInset,
+  sheetConfig,
   useMapUiStore,
 } from '@/features/map';
 import { useNavStore } from '@/features/navigation';
@@ -30,14 +30,17 @@ export default function RootLayout() {
   const setSheetInset = useMapUiStore((state) => state.setSheetInset);
   // 導航中 sheet 只到 half：full 會蓋住 HUD（SDD §4.5：HUD 與 sheet 互斥，sheet 收為步驟清單入口）
   const isNavigating = useNavStore((state) => state.isNavigating);
-  // 換 allowed detents 時 sheet 會重新落在第一個 detent，但不會發 sheetDetentChange：同步地圖 inset。
+  // 點到地點（詳情頁）時 sheet 落在 half、不給 full；換 allowed detents 時 sheet 會重新落在
+  // initialDetentIndex，但不會發 sheetDetentChange：同步地圖 inset。
+  const pathname = usePathname();
+  const { detents, initialDetentIndex } = sheetConfig(isNavigating, pathname);
   useEffect(() => {
-    setSheetInset(sheetBottomInset(0, height));
-  }, [isNavigating, height, setSheetInset]);
+    setSheetInset(sheetBottomInset(initialDetentIndex, height));
+  }, [initialDetentIndex, isNavigating, height, setSheetInset]);
   usePreferencesEffects();
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      {appConfigResult.ok ? <AppStack isNavigating={isNavigating} height={height} setSheetInset={setSheetInset} /> : (
+      {appConfigResult.ok ? <AppStack detents={detents} initialDetentIndex={initialDetentIndex} height={height} setSheetInset={setSheetInset} /> : (
         <ConfigErrorScreen errors={appConfigResult.errors} />
       )}
       <StatusBar style="auto" />
@@ -46,13 +49,14 @@ export default function RootLayout() {
 }
 
 interface AppStackProps {
-  isNavigating: boolean;
+  detents: number[];
+  initialDetentIndex: number;
   height: number;
   setSheetInset: (inset: number) => void;
 }
 
 /** 設定有效才掛載：Phase 3 的啟動 hook（續期、同步、推播、SOS 復原）都會打 API，需要 `getAppConfig()`。 */
-function AppStack({ isNavigating, height, setSheetInset }: AppStackProps) {
+function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppStackProps) {
   useAuthBootstrap();
   useSettingsSync();
   useNotificationsBootstrap();
@@ -66,8 +70,8 @@ function AppStack({ isNavigating, height, setSheetInset }: AppStackProps) {
         name="(sheet)"
         options={{
           presentation: 'formSheet',
-          sheetAllowedDetents: isNavigating ? SHEET_DETENTS.slice(0, SHEET_UNDIMMED_DETENT_INDEX + 1) : [...SHEET_DETENTS],
-          sheetInitialDetentIndex: 0,
+          sheetAllowedDetents: detents,
+          sheetInitialDetentIndex: initialDetentIndex,
           sheetLargestUndimmedDetentIndex: SHEET_UNDIMMED_DETENT_INDEX,
           sheetGrabberVisible: true,
           gestureEnabled: false,
@@ -76,7 +80,7 @@ function AppStack({ isNavigating, height, setSheetInset }: AppStackProps) {
           sheetDetentChange: (event) => {
             setSheetInset(sheetBottomInset(event.data.index, height));
           },
-          focus: () => setSheetInset(sheetBottomInset(0, height)),
+          focus: () => setSheetInset(sheetBottomInset(initialDetentIndex, height)),
         }}
       />
       <Stack.Screen

@@ -26,15 +26,12 @@ import {
 import { useBasemapStyle } from '../hooks/useBasemapStyle';
 import { useFacilitiesLoader } from '../hooks/useFacilitiesLoader';
 import { useLocationTracking } from '../hooks/useLocationTracking';
+import { isPlaceDetailPath } from '../domain/sheetInset';
 import { useMapUiStore } from '../store/mapUiStore';
 import { useUserLocationStore } from '../store/userLocationStore';
 import FacilityLayer from './FacilityLayer';
 import ParkingLayer from './ParkingLayer';
 import MapControls from './MapControls';
-
-function isDetailPath(pathname: string): boolean {
-  return ['/loc/', '/place/', '/facility/'].some((prefix) => pathname.startsWith(prefix));
-}
 
 export interface MapScreenProps {
   /** 其他 feature 的地圖圖層（設施點、搜尋 pin…），由 app 路由組裝 */
@@ -125,7 +122,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
           const [lng, lat] = event.nativeEvent.lngLat;
           const target = { pathname: '/loc/[coords]', params: { coords: `${lat},${lng}` } } as const;
           // 已在看地點／設施詳情時換成新的點（像 Apple 地圖換卡片），不要一路疊頁面
-          if (isDetailPath(pathname)) router.replace(target);
+          if (isPlaceDetailPath(pathname)) router.replace(target);
           else router.push(target);
         }}>
         <Camera

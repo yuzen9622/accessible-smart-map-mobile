@@ -1,3 +1,6 @@
+export { default as AnimatedNumberText } from './AnimatedNumberText';
+export type { AnimatedNumberTextProps, AnimatedNumberWeight } from './AnimatedNumberText.types';
+
 export { default as Button } from './Button';
 export type { ButtonProps, ButtonVariant } from './Button.types';
 

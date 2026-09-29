@@ -22,3 +22,22 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
   isErrorWithCode: () => false,
   statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED', IN_PROGRESS: 'IN_PROGRESS' },
 }));
+
+// react-native-reanimated 在 Jest 環境無原生層，提供基本 mock。
+jest.mock('react-native-reanimated', () => {
+  const { View, Text } = require('react-native');
+  return {
+    __esModule: true,
+    default: {
+      View,
+      Text,
+    },
+    useReducedMotion: () => false,
+    FadeIn: { duration: () => ({}) },
+    FadeOut: { duration: () => ({}) },
+    LayoutAnimationConfig: ({ children }: { children: React.ReactNode }) => children,
+    Easing: { bezier: () => ({}) },
+    withTiming: (v: any) => v,
+  };
+});
+

@@ -4,6 +4,11 @@
  */
 export const SHEET_DETENTS = [0.15, 0.5, 1] as const;
 export const SHEET_UNDIMMED_DETENT_INDEX = 1;
+/**
+ * 導航中的 peek：只露出收合列（剩餘時間＋語音／2D3D／結束），步驟清單要往上滑才出現（對齊 Google Maps）。
+ * 比一般 peek 低；地圖 inset 仍沿用 `SHEET_DETENTS[0]`，多留一點底部 padding 無妨。
+ */
+export const NAV_PEEK_DETENT = 0.1;
 
 /**
  * 依 sheet 目前 detent 算出地圖底部 padding（pt）。
@@ -29,13 +34,13 @@ export interface SheetConfig {
 
 /**
  * 依情境決定 sheet 可用 detent 與落點：
- * - 導航中：peek／half（full 會蓋住 HUD）。
+ * - 導航中：較低的 peek（只露出收合列）／half（full 會蓋住 HUD）。
  * - 地點詳情：peek／half 並直接落在 half（不給 full，地圖上的點才看得到）。
  * - 其他：peek／half／full，落在 peek。
  * 換 allowed detents 時原生 sheet 會重新落在 `initialDetentIndex`，且不會發 sheetDetentChange。
  */
 export function sheetConfig(isNavigating: boolean, pathname: string): SheetConfig {
-  if (isNavigating) return { detents: SHEET_DETENTS.slice(0, SHEET_UNDIMMED_DETENT_INDEX + 1), initialDetentIndex: 0 };
+  if (isNavigating) return { detents: [NAV_PEEK_DETENT, SHEET_DETENTS[SHEET_UNDIMMED_DETENT_INDEX]], initialDetentIndex: 0 };
   if (isPlaceDetailPath(pathname)) {
     return { detents: SHEET_DETENTS.slice(0, SHEET_UNDIMMED_DETENT_INDEX + 1), initialDetentIndex: SHEET_UNDIMMED_DETENT_INDEX };
   }

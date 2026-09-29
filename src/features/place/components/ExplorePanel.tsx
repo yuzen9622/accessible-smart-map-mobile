@@ -63,6 +63,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
         <TextInput
           value={model.query}
           onChangeText={model.onQueryChange}
+          onFocus={model.onSearchFocus}
           placeholder={model.labels.searchPlaceholder}
           placeholderTextColor={colors.textSecondary}
           style={[styles.searchInput, { color: colors.text }]}

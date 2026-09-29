@@ -1,4 +1,4 @@
-import { SHEET_DETENTS, sheetBottomInset, sheetConfig } from '../sheetInset';
+import { NAV_PEEK_DETENT, SHEET_DETENTS, sheetBottomInset, sheetConfig } from '../sheetInset';
 
 describe('sheetBottomInset', () => {
   it('peek 與 half 依比例計算', () => {
@@ -24,7 +24,7 @@ describe('sheetConfig', () => {
     }
   });
 
-  it('導航中不給 full，落在 peek', () => {
-    expect(sheetConfig(true, '/loc/1,2')).toEqual({ detents: [0.15, 0.5], initialDetentIndex: 0 });
+  it('導航中用較低的 peek、不給 full，落在 peek', () => {
+    expect(sheetConfig(true, '/loc/1,2')).toEqual({ detents: [NAV_PEEK_DETENT, 0.5], initialDetentIndex: 0 });
   });
 });

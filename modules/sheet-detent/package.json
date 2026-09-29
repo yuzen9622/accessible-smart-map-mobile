@@ -1,0 +1,10 @@
+{
+  "name": "sheet-detent",
+  "version": "0.1.0",
+  "description": "Programmatically select the detent of the app's persistent formSheet (UISheetPresentationController).",
+  "main": "index.ts",
+  "license": "UNLICENSED",
+  "author": "accessible-smart-map-mobile",
+  "homepage": "https://map.yuzen.dev/",
+  "private": true
+}

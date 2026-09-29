@@ -8,6 +8,7 @@ import {
   SHEET_UNDIMMED_DETENT_INDEX,
   sheetBottomInset,
   sheetConfig,
+  sheetController,
   useMapUiStore,
 } from '@/features/map';
 import { useNavStore } from '@/features/navigation';
@@ -35,7 +36,13 @@ export default function RootLayout() {
   const pathname = usePathname();
   const { detents, initialDetentIndex } = sheetConfig(isNavigating, pathname);
   useEffect(() => {
-    setSheetInset(sheetBottomInset(initialDetentIndex, height));
+    if (!sheetController.available) {
+      setSheetInset(sheetBottomInset(initialDetentIndex, height));
+      return;
+    }
+    // 換 allowed detents 本身不保證落點（UIKit 會留在同索引的 detent）：選到地點時確實升到 half、
+    // 開始導航時確實收成行程列（Apple 地圖的連貫轉場）。其他情況（例：從地點返回搜尋結果）保留使用者的高度。
+    if (initialDetentIndex > 0 || isNavigating) void sheetController.select(initialDetentIndex);
   }, [initialDetentIndex, isNavigating, height, setSheetInset]);
   usePreferencesEffects();
   return (
@@ -79,6 +86,7 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
         listeners={{
           sheetDetentChange: (event) => {
             setSheetInset(sheetBottomInset(event.data.index, height));
+            useMapUiStore.getState().setSheetDetentIndex(event.data.index);
           },
           focus: () => setSheetInset(sheetBottomInset(initialDetentIndex, height)),
         }}

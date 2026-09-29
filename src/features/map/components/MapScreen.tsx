@@ -1,7 +1,7 @@
 import { Camera, Layer, Map, NativeUserLocation } from '@maplibre/maplibre-react-native';
 import { router, usePathname } from 'expo-router';
-import { useEffect, useState, type ReactNode } from 'react';
-import { StyleSheet, View, useColorScheme } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Keyboard, StyleSheet, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTranslation } from '@/shared/i18n';
@@ -10,6 +10,7 @@ import { appStorage, readJson } from '@/shared/storage';
 import { ErrorState, LoadingState } from '@/shared/ui';
 
 import { mapCamera, registerMapCamera } from '../controller/mapCamera';
+import { sheetController } from '../controller/sheetController';
 import {
   BASEMAP_SOURCE_ID,
   BUILDING_3D_LAYER_ID,
@@ -26,6 +27,7 @@ import {
 import { useBasemapStyle } from '../hooks/useBasemapStyle';
 import { useFacilitiesLoader } from '../hooks/useFacilitiesLoader';
 import { useLocationTracking } from '../hooks/useLocationTracking';
+import { shouldCollapseForPan, type ViewportSample } from '../domain/panCollapse';
 import { isPlaceDetailPath } from '../domain/sheetInset';
 import { useMapUiStore } from '../store/mapUiStore';
 import { useUserLocationStore } from '../store/userLocationStore';
@@ -60,6 +62,8 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
     resolveInitialCamera(readJson(appStorage, LAST_USER_LOCATION_KEY, isLatLng, null)),
   );
   const pathname = usePathname();
+  // 一次拖曳手勢的起點；拖得夠遠就把 sheet 收到最小（每個手勢只收一次）
+  const panStart = useRef<{ sample: ViewportSample; collapsed: boolean } | null>(null);
   useLocationTracking();
   useFacilitiesLoader();
 
@@ -116,6 +120,23 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
         mapStyle={basemap.style}
         logo={false}
         compass={false}
+        onRegionWillChange={(event) => {
+          const { userInteraction, center, zoom, bounds } = event.nativeEvent;
+          panStart.current = userInteraction ? { sample: { center, zoom, bounds }, collapsed: false } : null;
+        }}
+        onRegionIsChanging={(event) => {
+          const start = panStart.current;
+          if (!start || start.collapsed || !event.nativeEvent.userInteraction) return;
+          const { center, zoom, bounds } = event.nativeEvent;
+          if (!shouldCollapseForPan(start.sample, { center, zoom, bounds })) return;
+          // Apple 地圖：往地圖探索時卡片讓位、鍵盤收起；導航中則收回只剩行程列
+          start.collapsed = true;
+          Keyboard.dismiss();
+          sheetController.collapse();
+        }}
+        onRegionDidChange={() => {
+          panStart.current = null;
+        }}
         onPress={(event) => {
           if (navigationMode) return;
           // 點地圖空白處：以座標開地點面板（反查地址）；點到設施時 FacilityLayer 已 stopPropagation

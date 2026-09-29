@@ -3,8 +3,10 @@ import { useState } from 'react';
 import { Keyboard, useWindowDimensions } from 'react-native';
 
 import {
+  SHEET_DETENTS,
   mapCamera,
   sheetBottomInset,
+  sheetController,
   useMapUiStore,
   useNearbyViewModel,
   useUserLocationStore,
@@ -75,6 +77,8 @@ function nearbyIconName(category: NearbyRow['category']): ExploreNearbyCard['ico
 export interface ExploreViewModel {
   query: string;
   onQueryChange: (text: string) => void;
+  /** 點進搜尋框：sheet 展開到全高（Apple 地圖），鍵盤才不會蓋住結果。 */
+  onSearchFocus: () => void;
   /** 自動完成請求 in-flight。 */
   loading: boolean;
   mode: ExploreMode;
@@ -217,6 +221,7 @@ export function useExploreViewModel(): ExploreViewModel {
   return {
     query,
     onQueryChange: setQuery,
+    onSearchFocus: () => sheetController.raiseTo(SHEET_DETENTS.length - 1),
     loading,
     mode: query.trim() === '' ? 'history' : 'results',
     historyRows,

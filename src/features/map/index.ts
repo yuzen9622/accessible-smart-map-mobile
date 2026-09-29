@@ -1,7 +1,7 @@
 export { default as MapScreen, type MapScreenProps } from './components/MapScreen';
 export { mapCamera } from './controller/mapCamera';
 export { SHEET_DETENTS, SHEET_UNDIMMED_DETENT_INDEX, sheetBottomInset } from './domain/sheetInset';
-export { useMapUiStore } from './store/mapUiStore';
+export { useMapUiStore, type MapFollowMode, type MapFollowState } from './store/mapUiStore';
 export { default as FacilityDetailScreen } from './screens/FacilityDetailScreen';
 export { default as NearbyScreen } from './screens/NearbyScreen';
 export { default as ParkingLayer } from './components/ParkingLayer';

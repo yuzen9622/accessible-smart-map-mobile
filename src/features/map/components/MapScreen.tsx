@@ -39,9 +39,13 @@ function isDetailPath(pathname: string): boolean {
 export interface MapScreenProps {
   /** 其他 feature 的地圖圖層（設施點、搜尋 pin…），由 app 路由組裝 */
   layers?: ReactNode;
+  /** 疊在地圖上的 RN 控制（路線 pill、導航 HUD），由 app 路由組裝；以絕對定位自行擺放 */
+  overlays?: ReactNode;
+  /** 導航中：隱藏一般浮動按鈕（HUD 有自己的控制），點地圖也不開地點面板 */
+  navigationMode?: boolean;
 }
 
-export default function MapScreen({ layers }: MapScreenProps) {
+export default function MapScreen({ layers, overlays, navigationMode = false }: MapScreenProps) {
   const theme: MapTheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const { t } = useAppTranslation();
   const insets = useSafeAreaInsets();
@@ -52,6 +56,8 @@ export default function MapScreen({ layers }: MapScreenProps) {
   const permission = useUserLocationStore((state) => state.permission);
   const setPermission = useUserLocationStore((state) => state.setPermission);
   const position = useUserLocationStore((state) => state.position);
+  const follow = useMapUiStore((state) => state.follow);
+  const sheetInset = useMapUiStore((state) => state.sheetInset);
   // 初始相機只在第一次 render 決定（之後由 mapCamera 控制）
   const [initialCamera] = useState(() =>
     resolveInitialCamera(readJson(appStorage, LAST_USER_LOCATION_KEY, isLatLng, null)),
@@ -114,6 +120,7 @@ export default function MapScreen({ layers }: MapScreenProps) {
         logo={false}
         compass={false}
         onPress={(event) => {
+          if (navigationMode) return;
           // 點地圖空白處：以座標開地點面板（反查地址）；點到設施時 FacilityLayer 已 stopPropagation
           const [lng, lat] = event.nativeEvent.lngLat;
           const target = { pathname: '/loc/[coords]', params: { coords: `${lat},${lng}` } } as const;
@@ -127,6 +134,17 @@ export default function MapScreen({ layers }: MapScreenProps) {
             center: [initialCamera.center.lng, initialCamera.center.lat],
             zoom: initialCamera.zoom,
             pitch: is3d ? MAP_PITCH_3D : 0,
+          }}
+          trackUserLocation={follow?.mode}
+          {...(follow
+            ? { zoom: follow.zoom, pitch: follow.pitch, padding: { top: 0, left: 0, right: 0, bottom: sheetInset }, duration: 800 }
+            : {})}
+          onTrackUserLocationChange={(event) => {
+            // 使用者拖曳地圖時原生會解除追蹤：記下「被打斷」，讓導航顯示「回到導航」
+            if (event.nativeEvent.trackUserLocation === null && useMapUiStore.getState().follow) {
+              useMapUiStore.getState().setFollow(null);
+              useMapUiStore.getState().setFollowInterrupted(true);
+            }
           }}
         />
         <Layer
@@ -143,6 +161,8 @@ export default function MapScreen({ layers }: MapScreenProps) {
         {layers}
         {permission === 'granted' ? <NativeUserLocation mode="heading" /> : null}
       </Map>
+      {overlays}
+      {navigationMode ? null : (
       <View style={[styles.controls, { top: insets.top + 56 }]}>
         <MapControls
           actions={[
@@ -163,6 +183,7 @@ export default function MapScreen({ layers }: MapScreenProps) {
           ]}
         />
       </View>
+      )}
     </View>
   );
 }

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { getLocationPort, type Unsubscribe } from '@/shared/location';
+import { getLocationPort, setBackgroundPositionSink, type Unsubscribe } from '@/shared/location';
 import { appStorage } from '@/shared/storage';
 
 import { createGpsPositionHandlers } from '../domain/gpsErrorHandler';
@@ -34,6 +34,16 @@ export function useLocationTracking(): void {
     };
     void check();
   }, [setPermission]);
+
+  // 背景定位任務（只在導航中啟用）寫進同一個 store：導航控制器只認這一個定位來源。
+  useEffect(
+    () =>
+      setBackgroundPositionSink((position) => {
+        setCourse(position.heading);
+        setPosition({ lat: position.lat, lng: position.lng });
+      }),
+    [setCourse, setPosition],
+  );
 
   useEffect(() => {
     if (permission !== 'granted') return;

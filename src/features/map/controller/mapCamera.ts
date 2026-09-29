@@ -1,6 +1,7 @@
 import type { CameraRef, LngLat, LngLatBounds, ViewPadding } from '@maplibre/maplibre-react-native';
 
-import { useMapUiStore } from '../store/mapUiStore';
+import { MAP_PITCH_3D } from '../domain/basemap';
+import { useMapUiStore, type MapFollowMode } from '../store/mapUiStore';
 
 /**
  * MapController port（SDD §4.3）：其他 feature 透過這裡移動相機，不直接拿 CameraRef。
@@ -23,9 +24,9 @@ function currentPadding(extraTop = 0): ViewPadding {
 }
 
 export const mapCamera = {
-  flyTo(center: LngLat, zoom?: number): void {
+  flyTo(center: LngLat, zoom?: number, pitch?: number): void {
     claimed = true;
-    camera?.flyTo({ center, zoom, padding: currentPadding() });
+    camera?.flyTo({ center, zoom, pitch, padding: currentPadding() });
   },
   easeTo(center: LngLat, zoom?: number, duration = 500): void {
     claimed = true;
@@ -45,6 +46,20 @@ export const mapCamera = {
     claimed = true;
     camera.flyTo({ center, zoom, padding: currentPadding() });
     return true;
+  },
+  /**
+   * 導航跟隨：交給 maplibre 原生 `trackUserLocation`（步行 heading＝羅盤、開車 course＝行進方向），
+   * 不在 JS 每幀 jumpTo（Web 做法）——原生追蹤更順、更省電，使用者拖曳地圖時由原生自動解除。
+   */
+  follow(mode: MapFollowMode, zoom: number, pitch: number): void {
+    claimed = true;
+    useMapUiStore.getState().setFollow({ mode, zoom, pitch });
+  },
+  /** 結束跟隨：恢復使用者自己的 2D/3D 俯角並轉回正北（導航的 60° 俯角與航向不留在一般瀏覽）。 */
+  stopFollow(): void {
+    const { is3d, setFollow } = useMapUiStore.getState();
+    setFollow(null);
+    void camera?.setStop({ pitch: is3d ? MAP_PITCH_3D : 0, bearing: 0, duration: 600, easing: 'ease' });
   },
   async setPitch(pitch: number): Promise<void> {
     await camera?.setStop({ pitch, duration: 600, easing: 'ease' });

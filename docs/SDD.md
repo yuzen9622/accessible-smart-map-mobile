@@ -297,7 +297,7 @@ MapScreen
   - `hasRouteSession()`：只有 `destination` 還沒算出路線也算 session；`shouldShowRoutePill()` 是 pill 顯示的唯一判斷（聊天開啟時覆蓋其他例外）。
   - 後端 schema 普遍為 Zod `.strict()`：**request 多帶任何欄位即 400**；`/route/instructions` 只能送 `routeToken`，不得送整個 route 物件。
   - `polylineIndex` 是 **per-leg**，必須搭配 `legIndex` 取 `route.legs[legIndex].polyline[polylineIndex]`；超出範圍要 clamp（Web `src/lib/geo.ts:69,173,194-208`）。
-  - 選擇性登入端點：token 過期回 401、無效回 403，**不得**自動降級為匿名重送，應引導重新登入。
+  - 選擇性登入端點：token 過期回 401、無效回 403，**不得**自動降級為匿名重送，應引導重新登入。（後端 2026-09-29 確認：所有業務 API 都以 `Authorization: Bearer` 認證，cookie 只放 refresh token 給 Web；`/route/instructions` 不適用這組 401／403 語意。Web 目前算路未帶 Bearer，App 同。）
 - **驗收**：WALK→MRT→WALK、WALK→BUS→WALK、DRIVE 三型路線的 leg 詳情與 polyline 分段正確；切到公車／設定再回來，路線與 pill 仍在。
 
 ### 6.4 navigation — 逐步導航

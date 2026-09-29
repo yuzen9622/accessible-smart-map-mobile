@@ -25,9 +25,10 @@ import type {
  * - request body 一律以白名單組出，後端是 Zod `.strict()`，多一個欄位就 400。
  * - `as unknown as` 只出現在本檔的 parse 邊界：輸入是 `unknown`，逐欄收窄整棵路線樹不划算，
  *   所以先驗骨架（含已知 leg type）再斷言；其他檔案不得這樣寫。
- * - **身分**：Web 靠 `credentials: "include"` 帶 cookie，所以登入者的算路是有身分的；本 App 在
- *   Phase 3 auth 完成前一律匿名送出。Phase 3 要改成「有 session 時帶 Bearer、過期 401／無效 403 時
- *   不自動降級匿名重送」（SDD §6.3），且需向後端確認這些端點接受 Bearer。
+ * - **身分**（後端確認，2026-09-29）：後端所有業務 API 都吃 `Authorization: Bearer <access token>`，cookie 只放
+ *   refresh token、僅供 Web refresh／logout。Web 呼叫這三支時沒有帶 `requireAuth`，實際上也是匿名送出，
+ *   本版行為與 Web 相同。若 Phase 3 決定登入者算路要帶身分：有 session 時帶 Bearer，過期 401、無效 403，
+ *   不得自動降級匿名重送（SDD §6.3）；`/route/instructions` 是例外，不適用這組 401／403 語意（以 routeToken 為準）。
  */
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -163,7 +163,7 @@
 - [x] 移植 `lib/transit/{busLegStops,busRouteDetailCache}.ts` 與測試；補「365／26 反向、70 不反」與「整段同一狀態文字」的測試案例（2026-09-29；真實路線資料驗收待 App 可實跑後與 Web 比對）
 - [ ] leg 站點 ETA（`useBusLegStopEtas`）、即時公車位置（輪詢＋內插，AppState 感知）——邏輯層完成（2026-09-29：`shared/polling`、`busWatchers`、`busTween`、hooks）；地圖 LiveBusLayer 與內插動畫待 Mac
 - [ ] 公車面板：附近站牌、路線／站牌搜尋、路線詳情（依方向）——API 與 `useBusSearch` 完成（2026-09-29）；面板 UI 待 Mac
-- [ ] 交通警示（`/transit/alerts`）——Web 沒有直接呼叫此端點，警示夾在路線回應（`metroAlerts`／`transitAlerts`，已在 route store）；待路線面板 UI 一起呈現
+- [ ] 交通警示——照 Web 用路線回應的 `metroAlerts`／`transitAlerts`（已在 route store），隨路線面板 UI 呈現。`/transit/alerts` 只有要做獨立的警示查詢頁時才需要（後端 2026-09-29 確認），v1 不做
 
 **2.3 navigation**
 

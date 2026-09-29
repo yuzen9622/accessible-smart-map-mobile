@@ -2,7 +2,12 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["./**/*.ts"]
+  "include": [
+    "./**/*.ts",
+    "../app.config.ts"
+  ]
 }

@@ -13,3 +13,12 @@ jest.mock('@maplibre/maplibre-react-native', () => {
 jest.mock('expo-widgets', () => ({
   createLiveActivity: () => ({ start: () => ({ update: async () => {}, end: async () => {} }), getInstances: () => [] }),
 }));
+
+// Google 登入 SDK 在 import 時就向 TurboModuleRegistry 要原生模組；feature 公開出口（auth）會帶進來。
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: { configure: () => {}, hasPlayServices: async () => true, signIn: async () => ({ type: 'cancelled', data: null }), signOut: async () => null },
+  isCancelledResponse: (r: { type?: string }) => r.type === 'cancelled',
+  isSuccessResponse: (r: { type?: string }) => r.type === 'success',
+  isErrorWithCode: () => false,
+  statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED', IN_PROGRESS: 'IN_PROGRESS' },
+}));

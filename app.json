@@ -12,7 +12,8 @@
       "bundleIdentifier": "com.accessiblemap.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +28,9 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS"
       ]
     },
     "web": {
@@ -78,6 +81,21 @@
         "expo-widgets",
         {
           "frequentUpdates": true
+        }
+      ],
+      "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "回報障礙物時用相機拍攝現場照片。The camera is used to take a photo of the hazard you are reporting.",
+          "photosPermission": "回報障礙物時從相簿選擇現場照片。Photos are used to attach a picture of the hazard you are reporting.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#208AEF"
         }
       ]
     ],

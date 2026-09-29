@@ -1,4 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Linking, Share } from 'react-native';
 
@@ -94,9 +95,8 @@ export interface PlaceDetailModel {
   checklist: PlaceDetailChecklistRow[];
   links: PlaceDetailLinkRow[];
   reviews: PlaceDetailReviewsModel | null;
-  /** `onRecenter` 的名實相符文案；`planRouteLabel` 保留待路線 feature 落地 */
+  /** 次要動作：把相機帶回該地點 */
   recenterLabel: string;
-  /** 與 `onPlanRoute` 同一個 handler（目前只把相機帶回該地點） */
   onRecenter: () => void;
   infoLabel: string;
   /** coordinate 地點為 [] */
@@ -172,7 +172,13 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     void run();
   };
 
+  // 對齊 Web `PlaceContent.tsx` 的「規劃路線」：把這個地點設為目的地並打開規劃面板。
+  // 只經路由參數傳遞，place 不 import route feature（sheet 路由是兩者之間唯一的介面）。
   const handlePlanRoute = () => {
+    router.push({ pathname: '/plan', params: { destLat: String(lat), destLng: String(lng), destName: title } });
+  };
+
+  const handleRecenter = () => {
     mapCamera.flyTo([entry.position.lng, entry.position.lat], 17);
   };
 
@@ -253,7 +259,7 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     links,
     reviews: reviewsModel,
     recenterLabel: t('recenter'),
-    onRecenter: handlePlanRoute,
+    onRecenter: handleRecenter,
     infoLabel: t('placeInfoLabel'),
     badges: buildPlaceBadges(place, t),
     nearbyTitle: t('nearbyA11y'),

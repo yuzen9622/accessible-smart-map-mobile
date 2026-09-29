@@ -19,8 +19,9 @@ import { PLACE_ACCENT_COLOR, PLACE_ACCENT_COLOR_DARK, PLACE_BORDER_COLOR, PLACE_
  *   收藏地點 → 最近搜尋（對齊 Web `HomeContent.tsx`）；peek 只露出約 15% 高度，
  *   品牌列不渲染，搜尋框保持第一列（SDD §4.5）。代價是 peek ↔ half 切換時搜尋列
  *   位移一個品牌列高度，在不改 detent 的前提下這是唯一做法。
- * - Web 有、但本 App 沒有對應功能的元素（規劃路線入口、麥克風、無障礙篩選、帳號頭像、
- *   快捷功能編輯、回報障礙物／公車到站／無障礙停車 chips）刻意不畫，見 `docs/port-ledger.md`。
+ * - Web 有、但本 App 尚無對應功能的元素（麥克風、無障礙篩選、帳號頭像、快捷功能編輯、
+ *   回報障礙物／無障礙停車 chips）刻意不畫，見 `docs/port-ledger.md`。規劃路線與公車到站
+ *   在 Phase 2 落地後放進快捷功能。
  */
 export default function ExplorePanel({ model }: ExplorePanelProps) {
   const colors = useThemeColors();

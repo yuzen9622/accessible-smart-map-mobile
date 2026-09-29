@@ -54,9 +54,8 @@ const LINK_HIT_SLOP = { top: 6, bottom: 6, left: 0, right: 0 };
  *   仍是原生 `ShareLink`（見 `ShareButton.ios.tsx`）。
  * - 根節點必須是單一 `ScrollView`（iOS formSheet 對多個 sibling 會警告
  *   「expects at most 2 subviews」並造成版面重疊）。
- * - 主要按鈕讀 `recenterLabel`／`onRecenter`：現有 handler 只把相機帶回該地點，
- *   畫面不得寫「規劃路線」。view-model 仍保留「規劃路線」的文案與 handler 欄位，
- *   待路線 feature 落地再改用。
+ * - 主要按鈕是「規劃路線」（Phase 2 路線 feature 落地後啟用，開 `/plan` 並帶入目的地）；
+ *   「回到此地點」改為次要圓形按鈕。
  * - Web 有但本 App 無對應功能的元素（清單「我知道 → 回報」、評價登入卡、附近設施
  *   可點）刻意不畫，見 `docs/port-ledger.md`。
  */
@@ -130,13 +129,20 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
       <View style={[styles.actionsRow, fontScale >= 1.3 && styles.actionsRowLarge]}>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={model.planRouteLabel}
+          onPress={model.onPlanRoute}
+          style={[styles.primaryButton, fontScale >= 1.3 && styles.primaryButtonLarge]}>
+          <Icon name="route" color={PLACE_ON_ACCENT_COLOR} />
+          <Text style={styles.primaryButtonText}>
+            {model.planRouteLabel}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel={model.recenterLabel}
           onPress={model.onRecenter}
-          style={[styles.primaryButton, fontScale >= 1.3 && styles.primaryButtonLarge]}>
-          <Icon name="crosshair" color={PLACE_ON_ACCENT_COLOR} />
-          <Text style={styles.primaryButtonText}>
-            {model.recenterLabel}
-          </Text>
+          style={[styles.circleButton, { borderColor: PLACE_BORDER_COLOR }]}>
+          <Icon name="crosshair" color={colors.text} />
         </Pressable>
         <Pressable
           accessibilityRole="button"

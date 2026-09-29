@@ -17,3 +17,4 @@ export { toPlaceId, isCoordPlaceId } from './domain/placeId';
 
 export type { AutocompleteItem, LatLng, NominatimPlace, PlaceDetail, PlaceResult } from './types/place';
 export type { ReviewItem, ReviewListResult, ReviewSummaryResult } from './types/review';
+export { resolveAutocompleteItem, type ResolvedPlace } from './api/resolveAutocomplete';

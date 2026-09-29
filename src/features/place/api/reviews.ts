@@ -1,4 +1,4 @@
-import { fetchRequest, type ApiResponse } from '@/shared/api';
+import { ApiError, authenticatedRequest, fetchRequest, type ApiResponse } from '@/shared/api';
 import { getAppConfig } from '@/shared/config';
 
 import type { PlaceReviewType, ReviewItem, ReviewListResult, ReviewSummaryResult } from '../types/review';
@@ -90,4 +90,31 @@ export async function getReviewSummary(
   const response = await fetchRequest(url, signal ? { signal } : undefined);
   const data = isReviewSummaryResult(response.data) ? response.data : undefined;
   return { ...response, data } as ApiResponse<ReviewSummaryResult>;
+}
+
+export interface ReviewRatingsInput {
+  passageWidthRating: number;
+  toiletRating: number;
+  elevatorRating: number;
+  serviceRating: number;
+  comment?: string;
+}
+
+/**
+ * 撰寫／修改／刪除評論（需登入），移植自 Web `src/lib/api/review.ts` 的 `createReview`／`updateReview`／`deleteReview`
+ * （commit f82cda8）。同一使用者對同一地點只能有一則有效評論（重複建立 → 400）。
+ */
+export async function createReview(placeId: string, placeType: PlaceReviewType, input: ReviewRatingsInput): Promise<void> {
+  const res = await authenticatedRequest(basePath(), { method: 'POST', body: { placeId, placeType, ...input } });
+  if (!(res.ok === true || res.success === true)) throw new ApiError(res.message, res.code);
+}
+
+export async function updateReview(id: string, input: ReviewRatingsInput): Promise<void> {
+  const res = await authenticatedRequest(`${basePath()}/${encodeURIComponent(id)}`, { method: 'PATCH', body: input });
+  if (!(res.ok === true || res.success === true)) throw new ApiError(res.message, res.code);
+}
+
+export async function deleteReview(id: string): Promise<void> {
+  const res = await authenticatedRequest(`${basePath()}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!(res.ok === true || res.success === true)) throw new ApiError(res.message, res.code);
 }

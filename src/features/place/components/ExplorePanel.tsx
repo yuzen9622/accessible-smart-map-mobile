@@ -70,6 +70,18 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
           returnKeyType="search"
         />
         {model.loading ? <ActivityIndicator size="small" color={colors.textSecondary} /> : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={model.account.label}
+          onPress={model.account.onPress}
+          hitSlop={6}
+          style={[styles.avatar, { backgroundColor: model.account.initial ? accentText : colors.background }]}>
+          {model.account.initial ? (
+            <Text style={styles.avatarText}>{model.account.initial}</Text>
+          ) : (
+            <Icon name="user" size={22} color={colors.textSecondary} />
+          )}
+        </Pressable>
       </View>
 
       {model.mode === 'history' ? (
@@ -200,6 +212,8 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 }
 
 const styles = StyleSheet.create({
+  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 16 },
   flex: { flex: 1 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 40 },

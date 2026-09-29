@@ -10,6 +10,7 @@ import {
   useUserLocationStore,
   type NearbyRow,
 } from '@/features/map';
+import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { useAppTranslation } from '@/shared/i18n';
 
 import { getPlaceDetails } from '../api/placeSearch';
@@ -45,9 +46,9 @@ export interface ExploreNearbyCard {
 }
 
 export interface ExploreQuickAction {
-  key: 'plan' | 'bus' | 'nearby' | 'saved';
+  key: 'plan' | 'bus' | 'nearby' | 'saved' | 'hazard';
   label: string;
-  iconName: 'route' | 'bus' | 'accessibility' | 'bookmark';
+  iconName: 'route' | 'bus' | 'accessibility' | 'bookmark' | 'alert';
   onPress: () => void;
 }
 
@@ -90,6 +91,8 @@ export interface ExploreViewModel {
   /** 收藏地點前 5 筆 */
   savedRows: ExploreRow[];
   savedViewAll: { label: string; onPress: () => void } | null;
+  /** 搜尋框右側的帳號／設定按鈕（Apple 地圖的頭像位置）；已登入顯示名字首字 */
+  account: { label: string; initial: string | null; onPress: () => void };
   labels: {
     searchPlaceholder: string;
     nearbyA11y: string;
@@ -112,6 +115,8 @@ export interface ExploreViewModel {
  */
 export function useExploreViewModel(): ExploreViewModel {
   const { t, i18n } = useAppTranslation();
+  const loggedIn = useAuthStore(selectIsLoggedIn);
+  const userName = useAuthStore((s) => (loggedIn ? (s.user?.name ?? null) : null));
   const [query, setQuery] = useState('');
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const userLocation = useUserLocationStore((state) => state.position);
@@ -226,7 +231,14 @@ export function useExploreViewModel(): ExploreViewModel {
       { key: 'bus', label: t('busInfo'), iconName: 'bus', onPress: () => router.push('/bus') },
       { key: 'nearby', label: t('nearbyA11y'), iconName: 'accessibility', onPress: openNearby },
       { key: 'saved', label: t('savedPlaces'), iconName: 'bookmark', onPress: openSaved },
+      // 危險通報（Phase 3）：root modal，未登入也能送
+      { key: 'hazard', label: t('reportHazard'), iconName: 'alert', onPress: () => router.push('/hazard-report') },
     ],
+    account: {
+      label: userName ? `${t('settingTitle')}，${userName}` : t('settingTitle'),
+      initial: userName ? userName.trim().slice(0, 1).toUpperCase() : null,
+      onPress: () => router.push('/settings'),
+    },
     savedRows,
     savedViewAll: savedPlaces.length > SAVED_VIEW_ALL_THRESHOLD ? { label: t('viewAll'), onPress: openSaved } : null,
     labels: {

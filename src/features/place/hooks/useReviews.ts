@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { getPlaceReviews, getReviewSummary } from '../api/reviews';
+import { useReviewEditorStore } from '../store/reviewEditorStore';
 import type { PlaceReviewType, ReviewItem, ReviewSummaryResult } from '../types/review';
 
 const PAGE_SIZE = 10;
@@ -21,7 +22,7 @@ interface UseReviewsResult {
  * `PAGE_SIZE = 10`；以 `${placeId}|${placeType}` 為 key，切換地點時整組
  * local state 重置；掛載時用 `Promise.all` 平行載入第一頁評論與 AI 摘要；
  * "load more" 用 `activePlaceKeyRef` 擋掉切換地點後仍在飛行中的舊請求。
- * Phase 1.3 只做讀取路徑；撰寫／編輯／刪除評論（需登入）留給之後的功能。
+ * 撰寫／編輯／刪除（Phase 3）在 `useReviewForm`；完成後以 `reviewEditorStore.revision` 觸發重新載入。
  */
 export function useReviews(placeId: string, placeType: PlaceReviewType): UseReviewsResult {
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
@@ -35,6 +36,8 @@ export function useReviews(placeId: string, placeType: PlaceReviewType): UseRevi
 
   const placeKey = `${placeId}|${placeType}`;
   const activePlaceKeyRef = useRef(placeKey);
+  // 撰寫／修改／刪除後遞增 → 重新載入第一頁
+  const revision = useReviewEditorStore((s) => s.revision);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -69,7 +72,7 @@ export function useReviews(placeId: string, placeType: PlaceReviewType): UseRevi
     })();
 
     return () => controller.abort();
-  }, [placeId, placeType, placeKey]);
+  }, [placeId, placeType, placeKey, revision]);
 
   const loadMore = () => {
     if (page >= totalPages || loadingMore) return;

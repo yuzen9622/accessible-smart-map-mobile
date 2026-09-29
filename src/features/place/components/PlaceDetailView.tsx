@@ -64,6 +64,8 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
   const isDark = useColorScheme() === 'dark';
   const { fontScale } = useWindowDimensions();
   const toneColors = TONE_COLORS[isDark ? 'dark' : 'light'];
+  const reviewEditLabel = model.reviews?.editLabel ?? '';
+  const reviewDeleteLabel = model.reviews?.deleteLabel ?? '';
   const accentText = isDark ? PLACE_ACCENT_COLOR_DARK : PLACE_ACCENT_COLOR;
 
   if (loading) {
@@ -273,6 +275,16 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
               <Text style={[styles.bodyText, { color: colors.text }]}>{model.reviews.aiSummary}</Text>
             </View>
           ) : null}
+          {model.reviews.write.hint ? (
+            <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{model.reviews.write.hint}</Text>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={model.reviews.write.label}
+            onPress={model.reviews.write.onPress}
+            style={styles.loadMoreButton}>
+            <Text style={[styles.loadMoreText, { color: accentText }]}>{model.reviews.write.label}</Text>
+          </Pressable>
           {model.reviews.loading ? (
             <ActivityIndicator color={colors.textSecondary} />
           ) : model.reviews.items.length > 0 ? (
@@ -283,7 +295,30 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
                     <Icon name="star" size={14} color={toneColors.warn} />
                     <Text style={{ color: colors.text }}>{review.starsLabel}</Text>
                   </View>
+                  <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{review.metaLabel}</Text>
                   {review.comment ? <Text style={[styles.bodyText, { color: colors.text }]}>{review.comment}</Text> : null}
+                  {review.onEdit || review.onDelete ? (
+                    <View style={styles.sectionHeader}>
+                      {review.onEdit ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={reviewEditLabel}
+                          onPress={review.onEdit}
+                          style={styles.loadMoreButton}>
+                          <Text style={[styles.loadMoreText, { color: accentText }]}>{reviewEditLabel}</Text>
+                        </Pressable>
+                      ) : null}
+                      {review.onDelete ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={reviewDeleteLabel}
+                          onPress={review.onDelete}
+                          style={styles.loadMoreButton}>
+                          <Text style={[styles.loadMoreText, { color: toneColors.no }]}>{reviewDeleteLabel}</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ) : null}
                 </View>
               ))}
               {model.reviews.hasMore ? (

@@ -1,8 +1,9 @@
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Linking, Share } from 'react-native';
+import { Alert, Linking, Share } from 'react-native';
 
+import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { mapCamera } from '@/features/map';
 // formatDistance 經 namespace 取用，讓上一行既有 import 保持原樣（namespace 不觸發 import/no-duplicates）
 import * as mapFeature from '@/features/map';
@@ -14,6 +15,8 @@ import { nearbyFacilityRows, type NearbyFacilityRow } from '../domain/nearbyFaci
 import { buildPlaceBadges, type PlaceBadge } from '../domain/placeBadges';
 import { placeKey, SAVED_PLACE_CATEGORIES, type SavedPlaceCategory } from '../domain/placeKey';
 import { buildPlaceShareUrl } from '../domain/shareUrl';
+import { deleteReview } from '../api/reviews';
+import { bumpReviewRevision, useReviewEditorStore } from '../store/reviewEditorStore';
 import { isSavedPlace, useSavedPlacesStore } from '../store/savedPlacesStore';
 import type { PlaceDetail } from '../types/place';
 import { useReviews } from './useReviews';
@@ -59,6 +62,11 @@ export interface PlaceDetailReviewRow {
   key: string;
   starsLabel: string;
   comment?: string;
+  /** 「您的評價」／「使用者」＋日期 */
+  metaLabel: string;
+  /** 自己的評論才有 */
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 export interface PlaceDetailReviewsModel {
@@ -71,6 +79,10 @@ export interface PlaceDetailReviewsModel {
   onLoadMore: () => void;
   loadMoreLabel: string;
   emptyLabel: string;
+  /** 已登入：撰寫／編輯您的評價；未登入：提示登入 */
+  write: { hint: string | null; label: string; onPress: () => void };
+  editLabel: string;
+  deleteLabel: string;
 }
 
 export interface PlaceDetailModel {
@@ -114,7 +126,9 @@ export interface PlaceDetailModel {
  * 欄位，本版略過該區塊（見 port-ledger 差異說明）。
  */
 export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
-  const { t } = useAppTranslation();
+  const { t, i18n } = useAppTranslation();
+  const loggedIn = useAuthStore(selectIsLoggedIn);
+  const userId = useAuthStore((s) => s.user?._id ?? null);
   const [copied, setCopied] = useState(false);
   const savedPlaces = useSavedPlacesStore((state) => state.savedPlaces);
   const savedPlaceCategories = useSavedPlacesStore((state) => state.savedPlaceCategories);
@@ -218,6 +232,34 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     links.push({ label: t('viewOnGoogleMaps'), onPress: () => void Linking.openURL(googleUrl) });
   }
 
+  const reviewKey = place?.reviewKey ?? null;
+  const ownReview = userId ? (reviews.reviews.find((r) => r.userId === userId) ?? null) : null;
+  const openReviewForm = (review: typeof ownReview) => {
+    if (!reviewKey) return;
+    useReviewEditorStore.setState({ target: { placeId: reviewKey.placeId, placeType: reviewKey.placeType, placeName: title, review } });
+    router.push('/review');
+  };
+  const confirmDeleteReview = (id: string) => {
+    Alert.alert(t('reviewDelete'), t('reviewDeleteConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('reviewDelete'),
+        style: 'destructive',
+        onPress: () => {
+          const run = async () => {
+            try {
+              await deleteReview(id);
+              bumpReviewRevision();
+            } catch (error) {
+              Alert.alert(error instanceof Error && error.message ? error.message : t('reviewSubmitError'));
+            }
+          };
+          void run();
+        },
+      },
+    ]);
+  };
+
   const reviewsModel: PlaceDetailReviewsModel | null =
     hasReviewKey && place?.reviewKey
       ? {
@@ -225,15 +267,25 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
           aiSummaryLabel: reviews.summary?.summary ? t('reviewAiSummary') : null,
           aiSummary: reviews.summary?.summary ?? null,
           loading: reviews.loading,
-          items: reviews.reviews.map((review) => ({
-            key: review._id,
-            starsLabel: '★'.repeat(Math.round(review.rating)),
-            comment: review.comment,
-          })),
+          items: reviews.reviews.map((review) => {
+            const own = review.userId === userId;
+            return {
+              key: review._id,
+              starsLabel: `${'★'.repeat(Math.round(review.rating))} ${review.rating.toFixed(1)}`,
+              comment: review.comment,
+              metaLabel: `${own ? t('reviewYou') : t('reviewUser')} · ${new Date(review.createdAt).toLocaleDateString(i18n.language)}`,
+              ...(own ? { onEdit: () => openReviewForm(review), onDelete: () => confirmDeleteReview(review._id) } : {}),
+            };
+          }),
           hasMore: reviews.hasMore,
           onLoadMore: reviews.loadMore,
           loadMoreLabel: t('reviewLoadMore'),
           emptyLabel: t('noReviews'),
+          write: loggedIn
+            ? { hint: null, label: ownReview ? t('reviewEditYours') : t('writeReview'), onPress: () => openReviewForm(ownReview) }
+            : { hint: t('reviewLoginRequired'), label: t('loginRegisterCta'), onPress: () => router.push('/auth') },
+          editLabel: t('edit'),
+          deleteLabel: t('reviewDelete'),
         }
       : null;
 

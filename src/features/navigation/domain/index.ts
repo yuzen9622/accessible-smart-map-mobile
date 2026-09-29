@@ -7,3 +7,5 @@ export * from './advisorySpeech';
 export * from './navStepIcon';
 export * from './liveNavigation';
 export { requestForegroundLocationFix, type ForegroundFix, type ForegroundLocationDeps } from './foregroundLocation';
+export * from './navCamera';
+export * from './hudProgress';

@@ -1,0 +1,167 @@
+import Constants from 'expo-constants';
+import { router } from 'expo-router';
+import { AccessibilityInfo, Alert, Linking } from 'react-native';
+
+import { deleteAccount, selectIsLoggedIn, signOut, useAuthStore } from '@/features/auth';
+import { requestPushPermission, syncPushToken } from '@/features/notifications';
+import { useOnboardingStore } from '@/features/onboarding';
+import { backendCapabilities } from '@/shared/config';
+import { useAppTranslation } from '@/shared/i18n';
+import {
+  usePreferencesStore,
+  type FontSizeLevel,
+  type LanguagePreference,
+  type ThemeMode,
+} from '@/shared/preferences';
+
+export interface Choice<T extends string> {
+  value: T;
+  label: string;
+}
+
+/**
+ * 設定首頁 view-model。項目對齊 Web 設定對話框五個分頁（commit f82cda8）：外觀、緊急安全、帳號安全、
+ * AI 記憶、資料管理；原生把它們攤平成一個清單，子頁以 push 進入（SDD §6.11）。
+ */
+export function useSettingsViewModel() {
+  const { t } = useAppTranslation();
+  const loggedIn = useAuthStore(selectIsLoggedIn);
+  const user = useAuthStore((s) => s.user);
+  const prefs = usePreferencesStore();
+  const situations = useOnboardingStore((s) => s.profile.situations);
+
+  const requireLogin = (action: () => void) => () => {
+    if (loggedIn) action();
+    else router.push('/auth');
+  };
+
+  const confirmLogout = () => {
+    Alert.alert(t('logout'), t('nativeLogoutConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('logout'),
+        style: 'destructive',
+        onPress: () => {
+          signOut();
+          AccessibilityInfo.announceForAccessibility(t('nativeLoggedOut'));
+        },
+      },
+    ]);
+  };
+
+  const confirmDelete = () => {
+    Alert.alert(t('nativeDeleteAccountTitle'), t('nativeDeleteAccountBody'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('nativeDeleteAccountConfirm'),
+        style: 'destructive',
+        onPress: () => {
+          const run = async () => {
+            try {
+              const ok = await deleteAccount();
+              if (!ok) {
+                Alert.alert(t('nativeDeleteAccountFailed'));
+                return;
+              }
+              signOut();
+              Alert.alert(t('nativeDeleteAccountDone'));
+            } catch (error) {
+              console.warn('[settings] delete account failed', error);
+              Alert.alert(t('nativeDeleteAccountFailed'));
+            }
+          };
+          void run();
+        },
+      },
+    ]);
+  };
+
+  const setNotifications = (enabled: boolean) => {
+    if (!enabled) {
+      prefs.setPreferences({ notifications: false });
+      return;
+    }
+    const run = async () => {
+      try {
+        const status = await requestPushPermission();
+        if (status !== 'granted') {
+          prefs.setPreferences({ notifications: false });
+          Alert.alert(t('notificationBlocked'), undefined, [
+            { text: t('cancel'), style: 'cancel' },
+            { text: t('nativeOpenSettings'), onPress: () => void Linking.openSettings() },
+          ]);
+          return;
+        }
+        prefs.setPreferences({ notifications: true });
+        await syncPushToken(loggedIn);
+      } catch (error) {
+        console.warn('[settings] enable notifications failed', error);
+        prefs.setPreferences({ notifications: false });
+      }
+    };
+    void run();
+  };
+
+  const themeChoices: Choice<ThemeMode>[] = [
+    { value: 'system', label: t('nativeThemeSystem') },
+    { value: 'light', label: t('nativeThemeLight') },
+    { value: 'dark', label: t('nativeThemeDark') },
+  ];
+  const fontChoices: Choice<FontSizeLevel>[] = [
+    { value: 'small', label: t('nativeFontSmall') },
+    { value: 'medium', label: t('nativeFontMedium') },
+    { value: 'large', label: t('nativeFontLarge') },
+    { value: 'mega', label: t('nativeFontMega') },
+  ];
+  const languageChoices: Choice<LanguagePreference>[] = [
+    { value: 'system', label: t('nativeLanguageSystem') },
+    { value: 'zh-TW', label: '中文' },
+    { value: 'en', label: 'English' },
+  ];
+
+  return {
+    account: loggedIn && user
+      ? {
+          name: user.name,
+          email: user.email,
+          lineLinked: Boolean(user.lineUserId),
+          hasPassword: user.authProviders.includes('local'),
+        }
+      : null,
+    openLogin: () => router.push('/auth'),
+    openSecurity: () => router.push('/settings/security'),
+    openLine: () => router.push('/settings/line'),
+    logout: confirmLogout,
+    deleteAccount: backendCapabilities.accountDeletion ? confirmDelete : null,
+
+    themeMode: prefs.themeMode,
+    themeChoices,
+    setThemeMode: (value: ThemeMode) => prefs.setPreferences({ themeMode: value }),
+    highContrast: prefs.highContrast,
+    setHighContrast: (value: boolean) => prefs.setPreferences({ highContrast: value }),
+    fontSize: prefs.fontSize,
+    fontChoices,
+    setFontSize: (value: FontSizeLevel) => prefs.setPreferences({ fontSize: value }),
+    language: prefs.language,
+    languageChoices,
+    setLanguage: (value: LanguagePreference) => prefs.setPreferences({ language: value }),
+    notifications: prefs.notifications,
+    setNotifications,
+    memoryEnabled: prefs.memoryEnabled,
+    setMemoryEnabled: (value: boolean) => prefs.setPreferences({ memoryEnabled: value }),
+
+    needsSummary:
+      situations.length > 0
+        ? situations.map((s) => t(`onboarding.situation.${s}`)).join('、')
+        : t('nativeNeedsNone'),
+    openNeeds: () => router.push('/settings/needs'),
+    openContacts: requireLogin(() => router.push('/settings/contacts')),
+    openReports: requireLogin(() => router.push('/settings/reports')),
+    openData: () => router.push('/settings/data'),
+    // 清掉完成旗標後，地圖主畫面（`app/index.tsx`）的 effect 會自動開 onboarding。
+    resetGuides: () => useOnboardingStore.getState().resetGuides(),
+    version: Constants.expoConfig?.version ?? '',
+  };
+}
+
+export type SettingsViewModel = ReturnType<typeof useSettingsViewModel>;

@@ -33,6 +33,10 @@ interface OnboardingActions {
   toggleSituation: (situation: A11ySituation) => void;
   completeOnboarding: () => void;
   skipOnboarding: () => void;
+  /** 設定頁「重看新手導覽」：清掉完成旗標、保留需求輪廓（對齊 Web `resetGuides`）。 */
+  resetGuides: () => void;
+  /** 登入後從伺服器輪廓帶入（只在本機尚未設定任何需求時使用，見 settings `a11yProfileSync`）。 */
+  replaceProfile: (profile: A11yProfile) => void;
 }
 
 export type OnboardingStore = OnboardingState & OnboardingActions;
@@ -80,6 +84,14 @@ export function createOnboardingStore(storage: KeyValueStorage = appStorage) {
 
       skipOnboarding: () => {
         set({ completedAt: new Date().toISOString(), skipped: true });
+      },
+
+      resetGuides: () => {
+        set({ completedAt: null, skipped: false });
+      },
+
+      replaceProfile: (profile) => {
+        set({ profile: sanitizeProfile(profile) });
       },
     }),
     {

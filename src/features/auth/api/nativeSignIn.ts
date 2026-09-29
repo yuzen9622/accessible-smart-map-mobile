@@ -75,7 +75,7 @@ function isAppleCancel(error: unknown): boolean {
 
 /**
  * Sign in with Apple。Apple 會把 request 的 nonce 原樣放進 identityToken 的 `nonce` claim，所以
- * request 帶 SHA-256(raw)、後端收 raw 再雜湊比對（B-03 草案），可防止 token 被重放。
+ * request 帶 SHA-256(raw)、後端收 raw 再雜湊比對，可防止 token 被重放。
  */
 export async function getAppleCredential(): Promise<AppleLoginInput | null> {
   const rawNonce = Crypto.randomUUID();
@@ -90,7 +90,12 @@ export async function getAppleCredential(): Promise<AppleLoginInput | null> {
     });
     if (!credential.identityToken) throw new Error('Apple sign-in returned no identityToken');
     const name = credential.fullName ? AppleAuthentication.formatFullName(credential.fullName).trim() : '';
-    return { identityToken: credential.identityToken, nonce: rawNonce, name: name || null };
+    return {
+      identityToken: credential.identityToken,
+      nonce: rawNonce,
+      name: name || null,
+      authorizationCode: credential.authorizationCode,
+    };
   } catch (error) {
     if (isAppleCancel(error)) return null;
     throw error;

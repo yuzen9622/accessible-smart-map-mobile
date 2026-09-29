@@ -1,11 +1,10 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { AccessibilityInfo, Alert, Linking } from 'react-native';
+import { AccessibilityInfo, Alert, Linking, Platform } from 'react-native';
 
-import { deleteAccount, selectIsLoggedIn, signOut, useAuthStore } from '@/features/auth';
+import { runAccountDeletion, selectIsLoggedIn, signOut, useAuthStore } from '@/features/auth';
 import { requestPushPermission, syncPushToken } from '@/features/notifications';
 import { useOnboardingStore } from '@/features/onboarding';
-import { backendCapabilities } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
 import {
   usePreferencesStore,
@@ -49,30 +48,57 @@ export function useSettingsViewModel() {
     ]);
   };
 
+  const runDelete = async (password?: string) => {
+    try {
+      const outcome = await runAccountDeletion({ password });
+      switch (outcome) {
+        case 'deleted':
+          Alert.alert(t('nativeDeleteAccountDone'));
+          return;
+        case 'cancelled':
+          return;
+        case 'needsPassword':
+          askPassword(password !== undefined);
+          return;
+        case 'wrongAccount':
+          Alert.alert(t('nativeDeleteAccountWrongAccount'));
+          return;
+        case 'appleAuthorizationInvalid':
+          Alert.alert(t('nativeDeleteAccountAppleInvalid'));
+          return;
+        case 'appleUnavailable':
+          Alert.alert(t('nativeDeleteAccountAppleUnavailable'));
+          return;
+        default:
+          Alert.alert(t('nativeDeleteAccountFailed'));
+      }
+    } catch (error) {
+      console.warn('[settings] delete account failed', error);
+      Alert.alert(t('nativeDeleteAccountFailed'));
+    }
+  };
+
+  // 後端要求「5 分鐘內登入」才能刪：密碼帳號需要再輸入一次密碼。Alert.prompt 只有 iOS；Android 請使用者重新登入。
+  const askPassword = (retry: boolean) => {
+    if (Platform.OS !== 'ios') {
+      Alert.alert(t('nativeDeleteAccountReauth'));
+      return;
+    }
+    Alert.prompt(
+      t('nativeDeleteAccountPasswordTitle'),
+      retry ? t('nativeDeleteAccountPasswordWrong') : t('nativeDeleteAccountPasswordBody'),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        { text: t('nativeDeleteAccountConfirm'), style: 'destructive', onPress: (value?: string) => void runDelete(value?.trim() || undefined) },
+      ],
+      'secure-text',
+    );
+  };
+
   const confirmDelete = () => {
     Alert.alert(t('nativeDeleteAccountTitle'), t('nativeDeleteAccountBody'), [
       { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('nativeDeleteAccountConfirm'),
-        style: 'destructive',
-        onPress: () => {
-          const run = async () => {
-            try {
-              const ok = await deleteAccount();
-              if (!ok) {
-                Alert.alert(t('nativeDeleteAccountFailed'));
-                return;
-              }
-              signOut();
-              Alert.alert(t('nativeDeleteAccountDone'));
-            } catch (error) {
-              console.warn('[settings] delete account failed', error);
-              Alert.alert(t('nativeDeleteAccountFailed'));
-            }
-          };
-          void run();
-        },
-      },
+      { text: t('nativeDeleteAccountConfirm'), style: 'destructive', onPress: () => void runDelete() },
     ]);
   };
 
@@ -132,7 +158,7 @@ export function useSettingsViewModel() {
     openSecurity: () => router.push('/settings/security'),
     openLine: () => router.push('/settings/line'),
     logout: confirmLogout,
-    deleteAccount: backendCapabilities.accountDeletion ? confirmDelete : null,
+    deleteAccount: confirmDelete,
 
     themeMode: prefs.themeMode,
     themeChoices,

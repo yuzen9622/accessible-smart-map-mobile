@@ -13,7 +13,8 @@ export {
   type SessionPayload,
 } from './store/authStore';
 export { signOut } from './signOut';
-export { deleteAccount, getUserInfo } from './api/authApi';
+export { getUserInfo } from './api/authApi';
+export { runAccountDeletion, type DeleteAccountOutcome } from './deleteAccountFlow';
 export type { AuthSession } from './domain/authRefresh';
 export type { AuthMode } from './hooks/useAuthFlow';
 export { pickUserConfig, type LineLinkCodeResult, type UserConfig, type UserDTO } from './domain/types';

@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Alert, Linking } from 'react-native';
 
-import { backendCapabilities } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
 
 import {
@@ -89,7 +88,7 @@ export function useAuthFlow(initialMode: AuthMode = 'login'): AuthFlowModel {
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
-      const available = backendCapabilities.appleSignIn && (await isAppleSignInAvailable());
+      const available = await isAppleSignInAvailable();
       if (!cancelled) setAppleAvailable(available);
     };
     void check();

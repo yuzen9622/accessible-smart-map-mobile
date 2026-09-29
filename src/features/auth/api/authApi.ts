@@ -83,9 +83,11 @@ export interface AppleLoginInput {
   nonce: string;
   /** Apple 只在第一次授權時提供姓名。 */
   name?: string | null;
+  /** 單次有效、5 分鐘內過期；只有刪除帳號時撤銷 Apple 授權用，登入 API 不接受這個欄位。 */
+  authorizationCode?: string | null;
 }
 
-/** B-03（後端開發中，契約依 `POST /api/v1/user/auth/apple` 草案）。 */
+/** `POST /api/v1/user/auth/apple`：body 為 `.strict()`，只送 identityToken／nonce／name。 */
 export async function loginWithApple(input: AppleLoginInput): Promise<LoginResult> {
   try {
     const body: Record<string, string> = { identityToken: input.identityToken, nonce: input.nonce };
@@ -209,10 +211,35 @@ export async function getLineLinkCode(): Promise<LineLinkCodeResult | null> {
   return isSuccess(res) && isLineLinkCode(res.data) ? res.data : null;
 }
 
+export type DeleteAccountResult =
+  | { kind: 'deleted' }
+  | { kind: 'reauthRequired' }
+  | { kind: 'appleAuthorizationRequired' }
+  | { kind: 'appleAuthorizationInvalid' }
+  | { kind: 'appleUnavailable' }
+  | { kind: 'failed'; message?: string };
+
 /**
- * B-08：刪除帳號（`DELETE /api/v1/user`，後端尚未實作；UI 以 `backendCapabilities.accountDeletion` 控制是否顯示）。
+ * 刪除帳號（`DELETE /api/v1/user`，App Store 要求）。Apple 帳號必須帶剛取得的 `appleAuthorizationCode`；
+ * 403 `REAUTH_REQUIRED`＝這個 session 超過 5 分鐘前登入，refresh 不算重新登入，必須走完整登入流程。
+ * 404（帳號已不存在）視同已刪除。後端已自行清 session 與推播 token，不必再呼叫 logout。
  */
-export async function deleteAccount(): Promise<boolean> {
-  const res = await authenticatedRequest(USER, { method: 'DELETE' });
-  return isSuccess(res);
+export async function deleteAccount(appleAuthorizationCode?: string): Promise<DeleteAccountResult> {
+  try {
+    const res = await authenticatedRequest(USER, {
+      method: 'DELETE',
+      body: appleAuthorizationCode ? { appleAuthorizationCode } : {},
+    });
+    return isSuccess(res) ? { kind: 'deleted' } : { kind: 'failed', message: res.message };
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    if (error.code === 404) return { kind: 'deleted' };
+    if (error.code === 403) {
+      if (error.reason === 'REAUTH_REQUIRED') return { kind: 'reauthRequired' };
+      if (error.reason === 'APPLE_AUTHORIZATION_REQUIRED') return { kind: 'appleAuthorizationRequired' };
+      if (error.reason === 'APPLE_AUTHORIZATION_INVALID') return { kind: 'appleAuthorizationInvalid' };
+    }
+    if (error.code === 503 && error.reason === 'APPLE_REVOKE_UNAVAILABLE') return { kind: 'appleUnavailable' };
+    return { kind: 'failed', message: error.message };
+  }
 }

@@ -12,3 +12,6 @@ export type { IconName, IconProps } from './Icon.types';
 
 export { default as LoadingState } from './LoadingState';
 export type { LoadingStateProps } from './LoadingState.types';
+
+export { default as GlassCard } from './GlassCard';
+export type { GlassCardProps } from './GlassCard.types';

@@ -41,12 +41,8 @@ export interface WatchOptions {
 export type Unsubscribe = () => void;
 
 /**
- * 前景定位 port（§4.3 跨 feature port）。
- *
- * TODO(Phase 2)：背景定位（`expo-location` `startLocationUpdatesAsync` + TaskManager，
- * 對應 SDD §4.3 `startBackground(task)`）留到第二期一起做，需要搭配 `app.json` 背景定位權限、
- * iOS `UIBackgroundModes: location` 設定與前景服務通知文案，此處先不加對應方法，
- * 避免呼叫端誤用一個目前一定會失敗的 stub。
+ * 前景定位 port（§4.3 跨 feature port）。背景定位（SDD §4.3 `startBackground`）在
+ * `backgroundLocation.ts`：TaskManager 任務必須定義在 JS 頂層，無法做成可注入的 port 方法。
  */
 export interface LocationPort {
   /** 讀取目前的前景定位權限狀態，不會跳出系統對話框。 */

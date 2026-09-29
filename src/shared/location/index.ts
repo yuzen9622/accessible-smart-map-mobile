@@ -9,3 +9,10 @@ export type {
   Unsubscribe,
   WatchOptions,
 } from './types';
+export {
+  BACKGROUND_LOCATION_TASK,
+  setBackgroundPositionSink,
+  startBackgroundLocation,
+  stopBackgroundLocation,
+  type BackgroundLocationTexts,
+} from './backgroundLocation';

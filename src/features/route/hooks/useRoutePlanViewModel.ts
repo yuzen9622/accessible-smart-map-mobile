@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
 import { useUserLocationStore } from '@/features/map';
@@ -7,8 +7,9 @@ import { useOnboardingStore } from '@/features/onboarding';
 import { resolveAutocompleteItem, useAutocomplete, type AutocompleteItem } from '@/features/place';
 import { useAppTranslation } from '@/shared/i18n';
 
-import { computeRoute } from '../controller/routeSessionPort';
+import { computeRoute, selectRouteAt } from '../controller/routeSessionPort';
 import { ROUTE_FAILURE_I18N } from '../domain/routeRequest';
+import { planRequestKey } from '../domain/routeSession';
 import {
   ROUTE_MODES,
   ROUTE_MODE_LABEL_KEY,
@@ -18,7 +19,7 @@ import {
   isTravelModeAllowed,
 } from '../domain/travelModes';
 import { useRouteSessionStore } from '../store/routeSessionStore';
-import type { RouteMode, TravelMode } from '../types/route';
+import type { AccessibleRoute, RouteMode, TravelMode } from '../types/route';
 
 export type PlanField = 'origin' | 'destination';
 
@@ -53,6 +54,13 @@ export interface RoutePlanModel {
   gatedHint: string | null;
   canStart: boolean;
   loading: boolean;
+  /**
+   * 對應目前條件的路線結果（Apple 地圖的路線卡：選好起訖點就直接列出路線，不必再按「開始規劃」）。
+   * 條件改了、結果還沒回來時為 null。
+   */
+  results: { routes: AccessibleRoute[]; selectedIndex: number | null } | null;
+  onSelectRoute: (index: number) => void;
+  onOpenRouteDetail: (index: number) => void;
   error: string | null;
   onEdit: (field: PlanField) => void;
   onCancelEdit: () => void;
@@ -77,6 +85,8 @@ export interface RoutePlanModel {
     start: string;
     loading: string;
     chooseDestination: string;
+    startNav: string;
+    routeOptions: string;
   };
 }
 
@@ -113,6 +123,9 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const profileAvoidStairs = useOnboardingStore((s) => s.profile.avoidStairs);
   const profileRequireElevator = useOnboardingStore((s) => s.profile.requireElevator);
   const position = useUserLocationStore((s) => s.position);
+  const computeRoutes = useRouteSessionStore((s) => s.computeRoutes);
+  const computedFor = useRouteSessionStore((s) => s.computedFor);
+  const selectedIndex = useRouteSessionStore((s) => s.selectRoute?.index ?? null);
 
   const [editing, setEditing] = useState<PlanField | null>(null);
   const [query, setQuery] = useState('');
@@ -137,6 +150,17 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const originIsMyLocation = origin === null;
   const hasOrigin = originIsMyLocation ? position !== null : true;
   const canStart = hasOrigin && destination !== null && !isLoading && !resolving;
+  const requestKey = planRequestKey({
+    origin,
+    destination,
+    travelMode,
+    routeMode,
+    avoidStairs: profileAvoidStairs,
+    requireElevator: profileRequireElevator,
+  });
+  const resultsFresh = requestKey !== null && computedFor === requestKey && computeRoutes !== null;
+  // 每組條件只自動算一次：失敗時停在錯誤訊息＋重試鈕，不會一直重打 API
+  const autoAttempted = useRef<string | null>(null);
 
   const closeEditor = () => {
     setEditing(null);
@@ -168,6 +192,28 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     }
   };
 
+  /** 算路本身：只寫 route store（外部狀態），自動算路的 effect 也能安全呼叫。 */
+  const runPlan = async (key: string | null) => {
+    if (!destination) return;
+    const result = await computeRoute({
+      origin: originIsMyLocation ? (position ?? undefined) : origin,
+      destination,
+      mode: routeMode,
+      travelMode,
+      avoidStairs: profileAvoidStairs,
+      requireElevator: profileRequireElevator,
+    });
+    if (result.ok) {
+      useRouteSessionStore.setState({ computedFor: key });
+      AccessibilityInfo.announceForAccessibility(t('nativeRoutesFound', { count: result.routes.length }));
+      return;
+    }
+    if (result.failure !== 'superseded' && result.failure !== 'missing-input') {
+      AccessibilityInfo.announceForAccessibility(t(ROUTE_FAILURE_I18N[result.failure].key));
+    }
+  };
+
+  /** 手動「規劃路線」／重試：先檢查輸入並把原因顯示在面板上。 */
   const start = async () => {
     if (!destination) {
       setInputError(t('chooseDestination'));
@@ -178,23 +224,18 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       return;
     }
     setInputError(null);
-    const result = await computeRoute({
-      origin: originIsMyLocation ? (position ?? undefined) : origin,
-      destination,
-      mode: routeMode,
-      travelMode,
-      avoidStairs: profileAvoidStairs,
-      requireElevator: profileRequireElevator,
-    });
-    if (result.ok) {
-      AccessibilityInfo.announceForAccessibility(t('nativeRoutesFound', { count: result.routes.length }));
-      router.push('/routes');
-      return;
-    }
-    if (result.failure !== 'superseded' && result.failure !== 'missing-input') {
-      AccessibilityInfo.announceForAccessibility(t(ROUTE_FAILURE_I18N[result.failure].key));
-    }
+    autoAttempted.current = requestKey;
+    await runPlan(requestKey);
   };
+
+  // 起訖點與模式齊全、而且和現有結果對不上時自動算路（編輯起訖點途中不算）
+  const autoReady = canStart && editing === null && !resultsFresh;
+  const autoPlan = useEffectEvent((key: string | null) => void runPlan(key));
+  useEffect(() => {
+    if (!autoReady || autoAttempted.current === requestKey) return;
+    autoAttempted.current = requestKey;
+    autoPlan(requestKey);
+  }, [autoReady, requestKey]);
 
   const failureText = lastFailure ? t(ROUTE_FAILURE_I18N[lastFailure].key) : null;
   const routeModeLabel = t(ROUTE_MODE_LABEL_KEY[routeMode]);
@@ -240,6 +281,12 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     gatedHint: hasGatedTravelModes(routeMode) ? t('travelModeGatedHint', { a11yMode: routeModeLabel }) : null,
     canStart,
     loading: isLoading,
+    results: resultsFresh && computeRoutes ? { routes: computeRoutes, selectedIndex } : null,
+    onSelectRoute: selectRouteAt,
+    onOpenRouteDetail: (index) => {
+      selectRouteAt(index);
+      router.push({ pathname: '/routes/[index]', params: { index: String(index) } });
+    },
     error: inputError ?? failureText,
     onEdit: (field) => {
       setEditing(field);
@@ -271,6 +318,8 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       start: t('searchRoute'),
       loading: t('loadingRoute'),
       chooseDestination: t('chooseDestination'),
+      startNav: t('startNav'),
+      routeOptions: t('routeResultsTitle'),
     },
   };
 }

@@ -72,3 +72,28 @@ export function sheetModeFromPath(pathname: string): SheetMode {
   if (pathname.startsWith('/place/') || pathname.startsWith('/loc/') || pathname.startsWith('/facility/')) return 'place';
   return 'home';
 }
+
+/**
+ * 規劃條件的指紋：規劃卡用它判斷目前結果是否還對應畫面上的起訖點與模式（Apple 地圖：
+ * 改了起點、終點或交通方式就自動重算；條件沒變就沿用結果）。起點是「我的位置」時不帶座標，
+ * 否則使用者一走動就會一直重算。缺目的地時為 null（不能算）。
+ */
+export function planRequestKey(args: {
+  origin: { lat: number; lng: number } | null;
+  destination: { lat: number; lng: number } | null;
+  travelMode: string;
+  routeMode: string;
+  avoidStairs: boolean;
+  requireElevator: boolean;
+}): string | null {
+  if (!args.destination) return null;
+  const point = (p: { lat: number; lng: number }) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+  return [
+    args.origin ? point(args.origin) : 'me',
+    point(args.destination),
+    args.travelMode,
+    args.routeMode,
+    args.avoidStairs ? 'no-stairs' : 'stairs',
+    args.requireElevator ? 'elevator' : 'any',
+  ].join('|');
+}

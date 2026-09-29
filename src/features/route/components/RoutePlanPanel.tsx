@@ -7,6 +7,8 @@ import { ROUTE_DESTINATION_COLOR, ROUTE_ORIGIN_COLOR } from '../domain/routeLaye
 import type { PlanOption, RoutePlanModel } from '../hooks/useRoutePlanViewModel';
 import type { TravelMode } from '../types/route';
 
+import RouteCard from './RouteCard';
+
 import {
   ROUTE_ACCENT_COLOR,
   ROUTE_BORDER_COLOR,
@@ -25,17 +27,22 @@ const TRAVEL_MODE_ICON: Record<TravelMode, IconName> = {
 
 export interface RoutePlanPanelProps {
   model: RoutePlanModel;
+  /** 由 app 路由注入 navigation feature 的開始導航（route 不 import navigation）。 */
+  onStartNavigation: () => void;
 }
 
 /**
  * 路線規劃面板（`(sheet)/plan`），iOS／Android 共用。對齊 Web `RoutePlanContent.tsx` 的區塊順序：
- * 起訖點卡片（可交換）→ 交通方式 → 無障礙模式 → 開始規劃。
+ * 起訖點卡片（可交換）→ 無障礙模式 → 交通方式 → 路線選擇。無障礙模式是這個 App 的核心條件，
+ * 而且會停用不適用的交通方式，所以排在交通方式之前；路線結果緊接在後（Apple 地圖的路線卡）。
+ * 與 Web 不同：像 Apple 地圖的路線卡，條件齊全就自動算路並把路線直接列在下方（開始導航也在這裡），
+ * 不再經過「開始規劃」→ 另一頁結果清單；失敗時才出現重試按鈕。
  *
  * 為什麼不用 SwiftUI `Picker(segmented)`（SDD §4.5 表格）：ADR-16 要求模式圖示一律 Lucide，
  * `@expo/ui` `Host` 內放不進 RN SVG；依 ADR-15 以 RN pill 實作並補齊無障礙語意（selected／disabled）。
  * 根節點是單一 ScrollView（formSheet 對多個 sibling 會警告並重疊，見 place 面板註解）。
  */
-export default function RoutePlanPanel({ model }: RoutePlanPanelProps) {
+export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPanelProps) {
   const colors = useThemeColors();
   const tones = routeTones(useColorScheme() === 'dark');
 
@@ -195,19 +202,19 @@ export default function RoutePlanPanel({ model }: RoutePlanPanelProps) {
 
       <View style={routeStyles.section}>
         <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
+          {model.labels.a11yMode}
+        </Text>
+        <View style={routeStyles.chipsRow}>{model.routeModes.map((option) => renderOption(option, option.value === 'normal' ? undefined : 'accessibility'))}</View>
+      </View>
+
+      <View style={routeStyles.section}>
+        <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
           {model.labels.travelMode}
         </Text>
         <View style={routeStyles.chipsRow}>{model.travelModes.map((option) => renderOption(option, TRAVEL_MODE_ICON[option.value]))}</View>
         {model.gatedHint ? (
           <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{model.gatedHint}</Text>
         ) : null}
-      </View>
-
-      <View style={routeStyles.section}>
-        <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
-          {model.labels.a11yMode}
-        </Text>
-        <View style={routeStyles.chipsRow}>{model.routeModes.map((option) => renderOption(option, option.value === 'normal' ? undefined : 'accessibility'))}</View>
       </View>
 
       {model.error ? (
@@ -217,16 +224,48 @@ export default function RoutePlanPanel({ model }: RoutePlanPanelProps) {
         </View>
       ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={model.loading ? model.labels.loading : model.labels.start}
-        accessibilityState={{ disabled: !model.canStart, busy: model.loading }}
-        disabled={!model.canStart}
-        onPress={model.onStart}
-        style={[routeStyles.primaryButton, !model.canStart && routeStyles.disabled]}>
-        {model.loading ? <ActivityIndicator color={ROUTE_ON_ACCENT_COLOR} /> : <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />}
-        <Text style={routeStyles.primaryButtonText}>{model.loading ? model.labels.loading : model.labels.start}</Text>
-      </Pressable>
+      {model.results ? (
+        <View style={routeStyles.section}>
+          {model.results.selectedIndex !== null ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={model.labels.startNav}
+              onPress={onStartNavigation}
+              style={routeStyles.primaryButton}>
+              <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
+              <Text style={routeStyles.primaryButtonText}>{model.labels.startNav}</Text>
+            </Pressable>
+          ) : null}
+          <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
+            {model.labels.routeOptions}
+          </Text>
+          {model.results.routes.map((route, index) => (
+            <RouteCard
+              key={route.routeId || String(index)}
+              route={route}
+              selected={model.results?.selectedIndex === index}
+              onSelect={() => model.onSelectRoute(index)}
+              onOpenDetail={() => model.onOpenRouteDetail(index)}
+            />
+          ))}
+        </View>
+      ) : model.loading ? (
+        <View accessible accessibilityLabel={model.labels.loading} style={styles.loadingRow}>
+          <ActivityIndicator color={colors.textSecondary} />
+          <Text style={[routeStyles.bodyText, { color: colors.textSecondary }]}>{model.labels.loading}</Text>
+        </View>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={model.labels.start}
+          accessibilityState={{ disabled: !model.canStart }}
+          disabled={!model.canStart}
+          onPress={model.onStart}
+          style={[routeStyles.primaryButton, !model.canStart && routeStyles.disabled]}>
+          <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
+          <Text style={routeStyles.primaryButtonText}>{model.labels.start}</Text>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
@@ -239,5 +278,6 @@ const styles = StyleSheet.create({
   dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 3, marginHorizontal: 1 },
   dotFilled: { borderWidth: 0 },
   searchInput: { fontSize: 16, minHeight: 44, paddingVertical: 10 },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 56 },
   errorCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,59,48,0.12)' },
 });

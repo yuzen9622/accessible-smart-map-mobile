@@ -1,5 +1,5 @@
 // 移植自 Web `src/lib/route/__tests__/routeSession.test.ts`（commit 5eadc71），案例逐一保留。
-import { hasRouteSession, routeResumeTarget, sheetModeFromPath, shouldShowRoutePill } from '../routeSession';
+import { hasRouteSession, planRequestKey, routeResumeTarget, sheetModeFromPath, shouldShowRoutePill } from '../routeSession';
 
 const EMPTY = {
   computeRoutes: null,
@@ -97,5 +97,31 @@ describe('sheetModeFromPath', () => {
     expect(
       shouldShowRoutePill({ hasSession: true, sheetMode: sheetModeFromPath('/routes/1'), isNavigating: false, chatOpen: false }),
     ).toBe(false);
+  });
+});
+
+describe('planRequestKey', () => {
+  const base = {
+    origin: null,
+    destination: { lat: 25.0418, lng: 121.5654 },
+    travelMode: 'transit',
+    routeMode: 'wheelchair',
+    avoidStairs: true,
+    requireElevator: false,
+  };
+
+  it('沒有目的地時不能算', () => {
+    expect(planRequestKey({ ...base, destination: null })).toBeNull();
+  });
+
+  it('起點是我的位置時與座標無關，條件相同就相同', () => {
+    expect(planRequestKey(base)).toBe(planRequestKey({ ...base }));
+  });
+
+  it('換交通方式、起點或偏好都會改變指紋', () => {
+    const key = planRequestKey(base);
+    expect(planRequestKey({ ...base, travelMode: 'walk' })).not.toBe(key);
+    expect(planRequestKey({ ...base, origin: { lat: 25.03, lng: 121.5 } })).not.toBe(key);
+    expect(planRequestKey({ ...base, requireElevator: true })).not.toBe(key);
   });
 });

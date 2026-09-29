@@ -34,6 +34,11 @@ export interface RouteSessionState {
   slopeConstraint: SlopeConstraint | null;
   isLoading: boolean;
   lastFailure: RouteFailureKind | null;
+  /**
+   * 目前結果是用哪組規劃條件算的（`planRequestKey`）。規劃卡據此決定要不要自動重算：
+   * 條件沒變就沿用結果（保留使用者選的那條），變了才重算。其他來源（AI、SOS）寫入的結果為 null。
+   */
+  computedFor: string | null;
   /** 每次開始算路或結束 session 都 +1；晚到的回應比對不上就丟掉。 */
   requestSeq: number;
   /**
@@ -73,6 +78,7 @@ const CLEARED_SESSION = {
   slopeConstraint: null,
   isLoading: false,
   lastFailure: null,
+  computedFor: null,
 } satisfies Partial<RouteSessionState>;
 
 export const useRouteSessionStore = create<RouteSessionState>()((set, get) => ({

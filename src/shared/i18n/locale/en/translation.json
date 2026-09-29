@@ -1079,5 +1079,7 @@
   "nativeHazardExpired": "Expired",
   "nativeHazardConfirmCount": "{{count}} confirmed",
   "nativeReviewComment": "Comment (optional)",
-  "nativeReviewTooLong": "Comments must be 500 characters or fewer"
+  "nativeReviewTooLong": "Comments must be 500 characters or fewer",
+  "nativeMoreHighlights": "{{count}} more",
+  "nativeProcessing": "Processing"
 }

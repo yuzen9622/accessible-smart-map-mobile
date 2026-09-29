@@ -1,18 +1,11 @@
-import { HStack, Host, RNHostView, ShareLink, Text } from '@expo/ui/swift-ui';
-import {
-  accessibilityLabel,
-  contentShape,
-  font,
-  foregroundStyle,
-  frame,
-  padding,
-  shapes,
-} from '@expo/ui/swift-ui/modifiers';
+import { HStack, Host, RNHostView, ShareLink } from '@expo/ui/swift-ui';
+import { accessibilityLabel, contentShape, frame, shapes } from '@expo/ui/swift-ui/modifiers';
 import { StyleSheet, useColorScheme, View } from 'react-native';
+
+import { RADIUS, semanticColors } from '@/shared/theme';
 
 import { Icon } from '@/shared/ui';
 
-import { PLACE_ACCENT_COLOR, PLACE_ACCENT_COLOR_DARK, PLACE_BORDER_COLOR } from './palette';
 import type { ShareButtonProps } from './ShareButton.types';
 
 /**
@@ -26,23 +19,17 @@ import type { ShareButtonProps } from './ShareButton.types';
  * 外框（hairline 邊框、圓角）由外層 RN `View` 提供。
  */
 export default function ShareButton({ url, title, label }: ShareButtonProps) {
-  const accentText = useColorScheme() === 'dark' ? PLACE_ACCENT_COLOR_DARK : PLACE_ACCENT_COLOR;
+  const tones = semanticColors(useColorScheme() === 'dark');
+  const accentText = tones.accent;
   return (
-    <View style={styles.pill}>
+    <View style={[styles.circle, { backgroundColor: tones.surface }]}>
       <Host matchContents>
         <ShareLink item={url} subject={title}>
-          <HStack
-            spacing={6}
-            modifiers={[
-              padding({ horizontal: 14 }),
-              frame({ minHeight: 44 }),
-              contentShape(shapes.rectangle()),
-              accessibilityLabel(label),
-            ]}>
+          {/* 圖示圓鈕，與旁邊的收藏、複製同一種樣式；文字只放在無障礙標籤（VoiceOver 仍念「分享」） */}
+          <HStack modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle()), accessibilityLabel(label)]}>
             <RNHostView matchContents>
               <Icon name="share" color={accentText} />
             </RNHostView>
-            <Text modifiers={[foregroundStyle(accentText), font({ textStyle: 'body', weight: 'semibold' })]}>{label}</Text>
           </HStack>
         </ShareLink>
       </Host>
@@ -51,11 +38,11 @@ export default function ShareButton({ url, title, label }: ShareButtonProps) {
 }
 
 const styles = StyleSheet.create({
-  pill: {
-    minHeight: 44,
-    borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: PLACE_BORDER_COLOR,
+  circle: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.pill,
+    alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },

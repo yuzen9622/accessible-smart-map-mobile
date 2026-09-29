@@ -1064,5 +1064,7 @@
   "nativeHazardExpired": "已過期",
   "nativeHazardConfirmCount": "{{count}} 人確認",
   "nativeReviewComment": "評語（選填）",
-  "nativeReviewTooLong": "評語不得超過 500 字"
+  "nativeReviewTooLong": "評語不得超過 500 字",
+  "nativeMoreHighlights": "還有 {{count}} 項",
+  "nativeProcessing": "處理中"
 }

@@ -2,6 +2,7 @@ import { Button, Form, Host, HStack, LabeledContent, ProgressView, Section, Spac
 import { buttonStyle, disabled, font, foregroundStyle, onSubmit, submitLabel, textContentType } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { FormPrimaryButton } from '@/shared/ui';
 
 import type { EmergencyContactsPanelProps } from './EmergencyContactsPanel.types';
 
@@ -47,15 +48,14 @@ export default function EmergencyContactsPanel({ model }: EmergencyContactsPanel
             maxLength={50}
             modifiers={[textContentType('name'), submitLabel('done'), onSubmit(model.add), disabled(model.atLimit || model.submitting)]}
           />
-          {model.submitting ? (
-            <ProgressView />
-          ) : (
-            <Button
-              label={t('sosContactsAddSubmit')}
-              onPress={model.add}
-              modifiers={[buttonStyle('borderedProminent'), disabled(model.atLimit || !model.name.trim())]}
-            />
-          )}
+        </Section>
+        <Section>
+          <FormPrimaryButton
+            label={t('sosContactsAddSubmit')}
+            onPress={model.add}
+            disabled={model.atLimit || !model.name.trim()}
+            loading={model.submitting}
+          />
         </Section>
       </Form>
     </Host>

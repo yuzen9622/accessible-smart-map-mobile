@@ -1,7 +1,8 @@
-import { Button, Form, Host, LabeledContent, ProgressView, Section, Text } from '@expo/ui/swift-ui';
-import { buttonStyle, font } from '@expo/ui/swift-ui/modifiers';
+import { Button, Form, Host, LabeledContent, Section, Text } from '@expo/ui/swift-ui';
+import { font } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { FormPrimaryButton } from '@/shared/ui';
 
 import type { LineBindPanelProps } from './LineBindPanel.types';
 
@@ -10,7 +11,8 @@ export default function LineBindPanel({ model }: LineBindPanelProps) {
   return (
     <Host style={{ flex: 1 }}>
       <Form>
-        <Section title={t('nativeLineTitle')} footer={<Text>{t('nativeLineExpiry')}</Text>}>
+        {/* 已產生綁定碼時，時效說明跟著綁定碼那一段；還沒產生時跟著「立即綁定」按鈕 */}
+        <Section title={t('nativeLineTitle')} footer={model.code ? <Text>{t('nativeLineExpiry')}</Text> : undefined}>
           <Text>{model.linked ? t('nativeLineAlreadyLinked') : t('nativeLineDesc')}</Text>
           {model.code ? (
             <>
@@ -21,12 +23,13 @@ export default function LineBindPanel({ model }: LineBindPanelProps) {
               <Button label={t('copyLink')} onPress={model.copy} />
               <Button label={t('nativeLineReopen')} onPress={model.reopen} />
             </>
-          ) : model.loading ? (
-            <ProgressView />
-          ) : (
-            <Button label={t('nativeLineBindNow')} onPress={model.bind} modifiers={[buttonStyle('borderedProminent')]} />
-          )}
+          ) : null}
         </Section>
+        {model.code ? null : (
+          <Section footer={<Text>{t('nativeLineExpiry')}</Text>}>
+            <FormPrimaryButton label={t('nativeLineBindNow')} onPress={model.bind} loading={model.loading} />
+          </Section>
+        )}
       </Form>
     </Host>
   );

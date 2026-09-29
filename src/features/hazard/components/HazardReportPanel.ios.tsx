@@ -1,9 +1,10 @@
-import { Button, Form, Host, Picker, ProgressView, RNHostView, Section, Text, TextField, useNativeState } from '@expo/ui/swift-ui';
-import { buttonStyle, disabled, font, foregroundStyle, lineLimit, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
+import { Button, Form, Host, Picker, RNHostView, Section, Text, TextField, useNativeState } from '@expo/ui/swift-ui';
+import { font, foregroundStyle, lineLimit, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { Image } from 'expo-image';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { FormPrimaryButton } from '@/shared/ui';
 
 import type { HazardReportPanelProps } from './HazardReportPanel.types';
 
@@ -94,15 +95,7 @@ export default function HazardReportPanel({ model }: HazardReportPanelProps) {
         </Section>
 
         <Section>
-          {model.submitting ? (
-            <ProgressView />
-          ) : (
-            <Button
-              label={t('submitReport')}
-              onPress={model.submit}
-              modifiers={[buttonStyle('borderedProminent'), disabled(!model.canSubmit)]}
-            />
-          )}
+          <FormPrimaryButton label={t('submitReport')} onPress={model.submit} disabled={!model.canSubmit} loading={model.submitting} />
         </Section>
       </Form>
     </Host>

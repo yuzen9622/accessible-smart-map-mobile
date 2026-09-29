@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { RADIUS, semanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { PlaceDetailBadge, PlaceDetailViewProps } from './PlaceDetailView.types';
@@ -26,17 +26,32 @@ interface ToneColors {
   ok: string;
   warn: string;
   no: string;
+  neutral: string;
+  neutralSurface: string;
 }
 
 const TONE_COLORS: Record<'light' | 'dark', ToneColors> = {
-  light: { ok: PLACE_OK_COLOR, warn: PLACE_WARN_COLOR, no: PLACE_NO_COLOR },
-  dark: { ok: PLACE_OK_COLOR_DARK, warn: PLACE_WARN_COLOR_DARK, no: PLACE_NO_COLOR_DARK },
+  light: {
+    ok: PLACE_OK_COLOR,
+    warn: PLACE_WARN_COLOR,
+    no: PLACE_NO_COLOR,
+    neutral: semanticColors(false).neutral.fg,
+    neutralSurface: semanticColors(false).neutral.bg,
+  },
+  dark: {
+    ok: PLACE_OK_COLOR_DARK,
+    warn: PLACE_WARN_COLOR_DARK,
+    no: PLACE_NO_COLOR_DARK,
+    neutral: semanticColors(true).neutral.fg,
+    neutralSurface: semanticColors(true).neutral.bg,
+  },
 };
 
 function checklistTone(tone: 'yes' | 'no' | 'unknown', colors: ToneColors): { color: string; surface: string; icon: IconName } {
   if (tone === 'yes') return { color: colors.ok, surface: PLACE_OK_SURFACE, icon: 'check' };
   if (tone === 'no') return { color: colors.no, surface: PLACE_NO_SURFACE, icon: 'close' };
-  return { color: colors.warn, surface: PLACE_WARN_SURFACE, icon: 'help' };
+  // 「未確認」是資料缺口，不是警告：用中性灰，不要整片橘色搶過真正的「有／沒有」。
+  return { color: colors.neutral, surface: colors.neutralSurface, icon: 'help' };
 }
 
 function badgeTone(tone: Exclude<PlaceDetailBadge['tone'], 'neutral'>, colors: ToneColors): { color: string; surface: string } {
@@ -63,6 +78,8 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
   const colors = useThemeColors();
   const isDark = useColorScheme() === 'dark';
   const { fontScale } = useWindowDimensions();
+  // 四顆圓鈕（回到此地點、收藏、分享、複製）同一種底色；分享鈕在 ShareButton 內用同一個 token
+  const circleSurface = semanticColors(isDark).surface;
   const toneColors = TONE_COLORS[isDark ? 'dark' : 'light'];
   const reviewEditLabel = model.reviews?.editLabel ?? '';
   const reviewDeleteLabel = model.reviews?.deleteLabel ?? '';
@@ -143,7 +160,7 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
           accessibilityRole="button"
           accessibilityLabel={model.recenterLabel}
           onPress={model.onRecenter}
-          style={[styles.circleButton, { borderColor: PLACE_BORDER_COLOR }]}>
+          style={({ pressed }) => [styles.circleButton, { backgroundColor: circleSurface }, pressed && styles.pressed]}>
           <Icon name="crosshair" color={colors.text} />
         </Pressable>
         <Pressable
@@ -151,7 +168,7 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
           accessibilityLabel={model.saveLabel}
           accessibilityState={{ selected: model.saved }}
           onPress={model.onToggleSave}
-          style={[styles.circleButton, { borderColor: PLACE_BORDER_COLOR }]}>
+          style={({ pressed }) => [styles.circleButton, { backgroundColor: circleSurface }, pressed && styles.pressed]}>
           <Icon name={model.saved ? 'bookmarkFilled' : 'bookmark'} color={model.saved ? accentText : colors.text} />
         </Pressable>
         <ShareButton url={model.shareUrl} title={model.title} label={model.shareLabel} onShare={model.onShare} />
@@ -159,7 +176,7 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
           accessibilityRole="button"
           accessibilityLabel={model.copyLabel}
           onPress={model.onCopy}
-          style={[styles.circleButton, { borderColor: PLACE_BORDER_COLOR }]}>
+          style={({ pressed }) => [styles.circleButton, { backgroundColor: circleSurface }, pressed && styles.pressed]}>
           <Icon name={model.copied ? 'check' : 'copy'} color={model.copied ? toneColors.ok : colors.text} />
         </Pressable>
       </View>
@@ -366,7 +383,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     minHeight: 48,
-    borderRadius: 24,
+    borderRadius: RADIUS.pill,
     paddingHorizontal: 12,
     backgroundColor: PLACE_ACCENT_COLOR,
   },
@@ -375,11 +392,11 @@ const styles = StyleSheet.create({
   circleButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADIUS.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  pressed: { opacity: 0.6 },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -390,7 +407,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   categoryChipText: { fontSize: 13, fontWeight: '500' },
-  card: { borderRadius: 14, padding: 12, gap: 8 },
+  card: { borderRadius: RADIUS.card, padding: 14, gap: 8 },
   section: { gap: 8 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontSize: 15, fontWeight: '600' },

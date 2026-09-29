@@ -1,7 +1,8 @@
-import { Button, Form, Host, Picker, ProgressView, Section, Text, TextField, useNativeState } from '@expo/ui/swift-ui';
-import { buttonStyle, lineLimit, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
+import { Form, Host, Picker, Section, Text, TextField, VStack, useNativeState } from '@expo/ui/swift-ui';
+import { font, labelsHidden, lineLimit, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { FormPrimaryButton } from '@/shared/ui';
 
 import type { ReviewFormPanelProps } from './ReviewFormPanel.types';
 
@@ -15,19 +16,22 @@ export default function ReviewFormPanel({ model }: ReviewFormPanelProps) {
     <Host style={{ flex: 1 }}>
       <Form>
         <Section title={model.placeName} footer={<Text>{t('reviewRatingRequired')}</Text>}>
+          {/* segmented Picker 在 Form 裡不會顯示 label（截圖只剩四排 1–5，看不出在評什麼）：標題另外畫在上方 */}
           {model.ratings.map((rating) => (
-            <Picker<number>
-              key={rating.key}
-              label={rating.label}
-              selection={rating.value}
-              onSelectionChange={rating.onChange}
-              modifiers={[pickerStyle('segmented')]}>
-              {SCORES.map((score) => (
-                <Text key={score} modifiers={[tag(score)]}>
-                  {`${score}`}
-                </Text>
-              ))}
-            </Picker>
+            <VStack key={rating.key} alignment="leading" spacing={8}>
+              <Text modifiers={[font({ textStyle: 'subheadline', weight: 'semibold' })]}>{rating.label}</Text>
+              <Picker<number>
+                label={rating.label}
+                selection={rating.value}
+                onSelectionChange={rating.onChange}
+                modifiers={[pickerStyle('segmented'), labelsHidden()]}>
+                {SCORES.map((score) => (
+                  <Text key={score} modifiers={[tag(score)]}>
+                    {`${score}`}
+                  </Text>
+                ))}
+              </Picker>
+            </VStack>
           ))}
         </Section>
         <Section title={t('nativeReviewComment')}>
@@ -41,11 +45,7 @@ export default function ReviewFormPanel({ model }: ReviewFormPanelProps) {
           />
         </Section>
         <Section>
-          {model.submitting ? (
-            <ProgressView />
-          ) : (
-            <Button label={model.submitLabel} onPress={model.submit} modifiers={[buttonStyle('borderedProminent')]} />
-          )}
+          <FormPrimaryButton label={model.submitLabel} onPress={model.submit} loading={model.submitting} />
         </Section>
       </Form>
     </Host>

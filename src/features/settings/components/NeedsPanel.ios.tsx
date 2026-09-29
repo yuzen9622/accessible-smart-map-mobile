@@ -9,7 +9,10 @@ export default function NeedsPanel({ model }: NeedsPanelProps) {
       <Form>
         <Section title={model.title} footer={<Text>{model.hint}</Text>}>
           {model.options.map((option) => (
-            <Toggle key={option.id} label={`${option.label} — ${option.description}`} isOn={option.selected} onIsOnChange={option.onToggle} />
+            <Toggle key={option.id} isOn={option.selected} onIsOnChange={option.onToggle}>
+              <Text>{option.label}</Text>
+              <Text>{option.description}</Text>
+            </Toggle>
           ))}
         </Section>
         <Section>

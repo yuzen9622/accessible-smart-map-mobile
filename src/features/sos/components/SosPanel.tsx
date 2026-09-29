@@ -1,10 +1,10 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { scaledSize, useThemeColors } from '@/shared/theme';
+import { scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { SosFlowModel } from '../hooks/useSosFlow';
@@ -19,6 +19,7 @@ const SOS_RED = '#C62828';
 const SOS_RED_DARK = '#8E0000';
 const WHITE = '#FFFFFF';
 const BIG_TARGET = 64;
+
 
 interface BigButtonProps {
   label: string;
@@ -97,6 +98,8 @@ function Body({ children, bold }: { children: React.ReactNode; bold?: boolean })
 export default function SosPanel({ model }: { model: SosFlowModel }) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
+  // 連結文字用規範的主色文字色（深色模式為亮藍，#0065C8 在黑底只有約 3.7:1）
+  const linkColor = semanticColors(useColorScheme() === 'dark').accent;
   const insets = useSafeAreaInsets();
   const scale = useFontScale();
   const pad = { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 };
@@ -104,14 +107,25 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
   if (!model.loggedIn) {
     return (
       <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={[styles.content, pad]}>
-        <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
-          SOS
-        </Text>
-        <Body>{t('nativeSosLoginRequired')}</Body>
+        {/* 置中的警示標頭：以前左上角只有一個小小的「SOS」字，看不出這是緊急畫面 */}
+        <View style={styles.hero}>
+          <View style={styles.heroIcon}>
+            <Icon name="alert" size={40} color={SOS_RED} />
+          </View>
+          <Text accessibilityRole="header" style={[styles.title, styles.centerText, { color: colors.text }]}>
+            SOS
+          </Text>
+          <Text style={[styles.centerText, { color: colors.textSecondary, fontSize: scaledSize(16, scale), lineHeight: scaledSize(23, scale) }]}>
+            {t('nativeSosLoginRequired')}
+          </Text>
+        </View>
         <BigButton label={t('sosCall110')} icon="phone" tone="danger" onPress={model.call110} />
         <BigButton label={t('sosCall119')} icon="phone" tone="danger" onPress={model.call119} />
+        <View style={styles.spacer} />
         <BigButton label={t('loginRegisterCta')} tone="outline" onPress={model.login} />
-        <BigButton label={t('close')} tone="outline" onPress={model.minimize} />
+        <Pressable accessibilityRole="button" accessibilityLabel={t('close')} onPress={model.minimize} style={styles.textButton}>
+          <Text style={[styles.textButtonText, { color: colors.textSecondary, fontSize: scaledSize(16, scale) }]}>{t('close')}</Text>
+        </Pressable>
       </ScrollView>
     );
   }
@@ -207,7 +221,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
         <Body>{model.notifiedText}</Body>
         {!model.hasBoundContacts ? (
           <Pressable accessibilityRole="button" accessibilityLabel={t('sosManageContactsLink')} onPress={model.manageContacts} style={styles.link}>
-            <Text style={styles.linkText}>{t('sosManageContactsLink')}</Text>
+            <Text style={[styles.linkText, { color: linkColor }]}>{t('sosManageContactsLink')}</Text>
           </Pressable>
         ) : null}
       </Card>
@@ -270,11 +284,24 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
   row: { flexDirection: 'row', gap: 12 },
-  title: { fontSize: 28, fontWeight: '800' },
+  title: { fontSize: 32, fontWeight: '800' },
+  centerText: { textAlign: 'center' },
+  hero: { alignItems: 'center', gap: 10, paddingTop: 24, paddingBottom: 16 },
+  heroIcon: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(198,40,40,0.12)',
+  },
+  spacer: { height: 8 },
+  textButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  textButtonText: { fontWeight: '600' },
   bigButton: {
     minHeight: BIG_TARGET,
-    borderRadius: 16,
-    borderWidth: 2,
+    borderRadius: BIG_TARGET / 2,
+    borderWidth: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -298,7 +325,7 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: { minHeight: 44, borderRadius: 22, borderWidth: 1.5, paddingHorizontal: 14, justifyContent: 'center' },
   link: { minHeight: 44, justifyContent: 'center' },
-  linkText: { color: '#1565C0', fontSize: 16, fontWeight: '600' },
+  linkText: { fontSize: 16, fontWeight: '600' },
   disclosure: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   timelineRow: { flexDirection: 'row', gap: 10, paddingVertical: 4 },
 });

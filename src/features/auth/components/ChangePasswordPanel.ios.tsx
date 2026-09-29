@@ -1,7 +1,8 @@
-import { Button, Form, Host, ProgressView, SecureField, Section, Text } from '@expo/ui/swift-ui';
-import { buttonStyle, font, foregroundStyle, onSubmit, submitLabel, textContentType } from '@expo/ui/swift-ui/modifiers';
+import { Form, Host, SecureField, Section, Text } from '@expo/ui/swift-ui';
+import { font, foregroundStyle, onSubmit, submitLabel, textContentType } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { FormPrimaryButton } from '@/shared/ui';
 
 import type { ChangePasswordPanelProps } from './ChangePasswordPanel.types';
 
@@ -10,7 +11,7 @@ export default function ChangePasswordPanel({ model }: ChangePasswordPanelProps)
   return (
     <Host style={{ flex: 1 }}>
       <Form>
-        <Section title={model.title} footer={<Text>{model.description}</Text>}>
+        <Section title={model.title}>
           {model.hasPassword ? (
             <SecureField
               placeholder={t('nativeSecurityCurrent')}
@@ -24,11 +25,9 @@ export default function ChangePasswordPanel({ model }: ChangePasswordPanelProps)
             modifiers={[textContentType('newPassword'), submitLabel('done'), onSubmit(model.submit)]}
           />
           {model.error ? <Text modifiers={[font({ textStyle: 'footnote' }), foregroundStyle('red')]}>{model.error}</Text> : null}
-          {model.loading ? (
-            <ProgressView />
-          ) : (
-            <Button label={model.submitLabel} onPress={model.submit} modifiers={[buttonStyle('borderedProminent')]} />
-          )}
+        </Section>
+        <Section footer={<Text>{model.description}</Text>}>
+          <FormPrimaryButton label={model.submitLabel} onPress={model.submit} loading={model.loading} />
         </Section>
       </Form>
     </Host>

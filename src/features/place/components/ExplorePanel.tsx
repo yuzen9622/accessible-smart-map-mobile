@@ -1,10 +1,10 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, RADIUS, SPACE, TYPE, semanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { ExplorePanelProps, ExploreRow } from './ExplorePanel.types';
-import { PLACE_ACCENT_COLOR, PLACE_ACCENT_COLOR_DARK, PLACE_BORDER_COLOR, PLACE_SURFACE_COLOR } from './palette';
+import { PLACE_BORDER_COLOR } from './palette';
 
 /**
  * 首頁／搜尋面板（`(sheet)/explore`），iOS／Android 共用同一實作。
@@ -25,7 +25,8 @@ import { PLACE_ACCENT_COLOR, PLACE_ACCENT_COLOR_DARK, PLACE_BORDER_COLOR, PLACE_
  */
 export default function ExplorePanel({ model }: ExplorePanelProps) {
   const colors = useThemeColors();
-  const accentText = useColorScheme() === 'dark' ? PLACE_ACCENT_COLOR_DARK : PLACE_ACCENT_COLOR;
+  const tones = semanticColors(useColorScheme() === 'dark');
+  const accentText = tones.accent;
 
   const renderRow = (row: ExploreRow, icon: 'clock' | 'bookmark') => (
     <Pressable
@@ -75,7 +76,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
           accessibilityLabel={model.account.label}
           onPress={model.account.onPress}
           hitSlop={6}
-          style={[styles.avatar, { backgroundColor: model.account.initial ? accentText : colors.background }]}>
+          style={[styles.avatar, { backgroundColor: model.account.initial ? ACCENT_FILL : colors.background }]}>
           {model.account.initial ? (
             <Text style={styles.avatarText}>{model.account.initial}</Text>
           ) : (
@@ -88,12 +89,9 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
         <>
           {model.nearby.cards.length > 0 ? (
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Icon name="mapPin" size={16} color={colors.textSecondary} />
-                <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-                  {model.nearby.title}
-                </Text>
-              </View>
+              <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
+                {model.nearby.title}
+              </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
                 {model.nearby.cards.map((card) => (
                   <Pressable
@@ -101,11 +99,12 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                     accessibilityRole="button"
                     accessibilityLabel={card.accessibilityLabel}
                     onPress={card.onPress}
-                    style={[styles.nearbyCard, { backgroundColor: PLACE_SURFACE_COLOR }]}>
-                    <View style={[styles.nearbyIcon, { backgroundColor: colors.background }]}>
-                      <Icon name={card.iconName} size={18} color={accentText} />
+                    style={({ pressed }) => [styles.nearbyCard, { backgroundColor: tones.surface }, pressed && styles.pressed]}>
+                    <View style={[styles.nearbyIcon, { backgroundColor: tones.accentSoft }]}>
+                      <Icon name={card.iconName} size={18} color={tones.accent} />
                     </View>
-                    <Text style={[styles.nearbyTitle, { color: colors.text }]} numberOfLines={1}>
+                    {/* 兩行：站名常是「國父紀念館站 2 號出口電梯」這種長名，一行只剩「國父紀念館站…」 */}
+                    <Text style={[styles.nearbyTitle, { color: colors.text }]} numberOfLines={2}>
                       {card.title}
                     </Text>
                     <Text style={[styles.nearbyDistance, { color: colors.textSecondary }]}>{card.distanceText}</Text>
@@ -115,20 +114,27 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             </View>
           ) : null}
 
+          {/* 快捷功能：一排等寬的圓形圖示＋下方標籤（Apple 地圖的做法）。以前是會換行的 chip，
+              五個長短不一的膠囊排成 2＋2＋1，最後一顆落單。 */}
           <View style={styles.section}>
-            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
               {model.labels.quickActions}
             </Text>
-            <View style={styles.chipsRow}>
+            {/* 等寬欄、不捲動：5 × 72pt 在 iPhone 15/16（可用 361pt）剛好放得下；放大字級時標籤換行而不是被切掉 */}
+            <View style={styles.actionsRow}>
               {model.quickActions.map((action) => (
                 <Pressable
                   key={action.key}
                   accessibilityRole="button"
                   accessibilityLabel={action.label}
                   onPress={action.onPress}
-                  style={[styles.chip, { borderColor: PLACE_BORDER_COLOR, backgroundColor: colors.background }]}>
-                  <Icon name={action.iconName} color={accentText} />
-                  <Text style={[styles.chipText, { color: colors.text }]}>{action.label}</Text>
+                  style={({ pressed }) => [styles.actionTile, pressed && styles.pressed]}>
+                  <View style={[styles.actionIcon, { backgroundColor: tones.accentSoft }]}>
+                    <Icon name={action.iconName} size={22} color={tones.accent} />
+                  </View>
+                  <Text style={[styles.actionLabel, { color: colors.text }]} numberOfLines={3} maxFontSizeMultiplier={1.4}>
+                    {action.label}
+                  </Text>
                 </Pressable>
               ))}
             </View>
@@ -137,8 +143,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
           {model.savedRows.length > 0 ? (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Icon name="bookmark" size={16} color={colors.textSecondary} />
-                <Text accessibilityRole="header" style={[styles.sectionTitle, styles.flex, { color: colors.textSecondary }]}>
+                <Text accessibilityRole="header" style={[styles.sectionTitle, styles.flex, { color: colors.text }]}>
                   {model.labels.savedPlacesTitle}
                 </Text>
                 {model.savedViewAll ? (
@@ -157,12 +162,9 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 
           {model.historyRows.length > 0 ? (
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Icon name="clock" size={16} color={colors.textSecondary} />
-                <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-                  {model.labels.recentSearches}
-                </Text>
-              </View>
+              <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
+                {model.labels.recentSearches}
+              </Text>
               {model.historyRows.map((row) => renderRow(row, 'clock'))}
             </View>
           ) : null}
@@ -214,38 +216,33 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 const styles = StyleSheet.create({
   avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 16 },
+  content: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, paddingBottom: 32, gap: 20 },
   flex: { flex: 1 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 40 },
   brandText: { fontSize: 20, fontWeight: '700', flexShrink: 1 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    borderRadius: 22,
-    paddingHorizontal: 14,
-    minHeight: 44,
+    gap: SPACE.sm,
+    borderRadius: RADIUS.pill,
+    paddingLeft: 14,
+    paddingRight: 4,
+    minHeight: 48,
   },
   searchInput: { flex: 1, fontSize: 16, paddingVertical: 10 },
   section: { gap: 8 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitle: { fontSize: 14, fontWeight: '600' },
-  cardsRow: { gap: 10, paddingRight: 16 },
-  nearbyCard: { width: 132, minHeight: 88, borderRadius: 14, padding: 12, gap: 4 },
-  nearbyIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  nearbyTitle: { fontSize: 14, fontWeight: '600' },
-  nearbyDistance: { fontSize: 12 },
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minHeight: 44,
-    borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-  },
-  chipText: { fontSize: 14, fontWeight: '600' },
+  sectionTitle: { fontSize: TYPE.body, fontWeight: '700' },
+  cardsRow: { gap: 10, paddingRight: SPACE.lg },
+  nearbyCard: { width: 148, minHeight: 112, borderRadius: RADIUS.card, padding: SPACE.md, gap: SPACE.xs },
+  nearbyIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginBottom: SPACE.xs },
+  nearbyTitle: { fontSize: 14, fontWeight: '600', lineHeight: 19 },
+  nearbyDistance: { fontSize: TYPE.caption, marginTop: 'auto' },
+  actionsRow: { flexDirection: 'row', gap: SPACE.xs },
+  actionTile: { flex: 1, minWidth: 0, alignItems: 'center', gap: 6 },
+  actionIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  actionLabel: { fontSize: TYPE.caption, fontWeight: '500', textAlign: 'center', lineHeight: 16 },
+  pressed: { opacity: 0.6 },
   viewAll: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
   viewAllText: { fontSize: 14, fontWeight: '500' },
   listRow: {

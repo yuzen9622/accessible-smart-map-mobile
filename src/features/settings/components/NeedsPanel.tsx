@@ -7,7 +7,13 @@ export default function NeedsPanel({ model }: NeedsPanelProps) {
     <FormScreen>
       <FormSection title={model.title} footer={model.hint}>
         {model.options.map((option) => (
-          <FormSwitch key={option.id} label={`${option.label} — ${option.description}`} value={option.selected} onValueChange={option.onToggle} />
+          <FormSwitch
+            key={option.id}
+            label={option.label}
+            description={option.description}
+            value={option.selected}
+            onValueChange={option.onToggle}
+          />
         ))}
       </FormSection>
       <FormText tone="secondary">{model.derivedModeText}</FormText>

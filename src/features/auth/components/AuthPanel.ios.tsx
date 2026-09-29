@@ -3,7 +3,6 @@ import {
   Form,
   Host,
   Picker,
-  ProgressView,
   RNHostView,
   SecureField,
   Section,
@@ -27,6 +26,7 @@ import {
 import { View, useWindowDimensions } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { FormPrimaryButton, FormSecondaryButton } from '@/shared/ui';
 
 import AppleSignInButton from './AppleSignInButton';
 import type { AuthPanelProps } from './AuthPanel.types';
@@ -110,7 +110,7 @@ export default function AuthPanel({ model }: AuthPanelProps) {
           </Section>
         ) : null}
 
-        <Section title={title} footer={<Text>{model.mode === 'forgot' ? t('nativeAuthForgotHint') : t('auth.guestPath')}</Text>}>
+        <Section title={title}>
           {model.mode === 'register' ? (
             <TextField
               placeholder={t('auth.nickname')}
@@ -144,13 +144,13 @@ export default function AuthPanel({ model }: AuthPanelProps) {
           ) : null}
           {model.passwordHint ? <Text modifiers={secondary}>{model.passwordHint}</Text> : null}
           {model.error ? <Text modifiers={errorStyle}>{model.error}</Text> : null}
-          {model.loading ? (
-            <ProgressView />
-          ) : (
-            <Button label={submitLabelText} onPress={model.submit} modifiers={[buttonStyle('borderedProminent')]} />
-          )}
+        </Section>
+
+        {/* 主要動作獨立成一段：整列寬的膠囊按鈕，不和輸入框擠在同一張卡片裡 */}
+        <Section footer={<Text>{model.mode === 'forgot' ? t('nativeAuthForgotHint') : t('auth.guestPath')}</Text>}>
+          <FormPrimaryButton label={submitLabelText} onPress={model.submit} loading={model.loading} />
           {model.needsVerification ? (
-            <Button label={t('auth.resendVerification')} onPress={model.resendVerification} />
+            <FormSecondaryButton label={t('auth.resendVerification')} onPress={model.resendVerification} disabled={model.loading} />
           ) : null}
         </Section>
 

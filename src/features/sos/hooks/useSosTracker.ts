@@ -5,6 +5,7 @@ import { Alert } from 'react-native';
 import { useUserLocationStore } from '@/features/map';
 import { computeRoute } from '@/features/route';
 import { useAppTranslation } from '@/shared/i18n';
+import { useCloseScreen } from '@/shared/navigation';
 
 import { centerOnRequester, closeSosTracker, openSosTracker, useSosTrackerStore } from '../controller/trackerController';
 import { parseShareToken, SOS_TYPE_LABEL_KEY } from '../domain/sosDisplay';
@@ -15,6 +16,7 @@ import { parseShareToken, SOS_TYPE_LABEL_KEY } from '../domain/sosDisplay';
  */
 export function useSosTracker(rawToken: string | undefined) {
   const { t, i18n } = useAppTranslation();
+  const closeScreen = useCloseScreen();
   const token = parseShareToken(rawToken);
   const { phase, session } = useSosTrackerStore();
 
@@ -55,7 +57,7 @@ export function useSosTracker(rawToken: string | undefined) {
     locate: centerOnRequester,
     close: () => {
       closeSosTracker();
-      router.back();
+      closeScreen();
     },
   };
 }

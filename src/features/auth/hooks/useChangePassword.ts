@@ -1,8 +1,8 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { AccessibilityInfo, Alert } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { useCloseScreen } from '@/shared/navigation';
 
 import { changePassword } from '../api/authApi';
 import { validatePassword } from '../domain/passwordValidation';
@@ -14,6 +14,7 @@ import { useAuthStore } from '../store/authStore';
  */
 export function useChangePassword() {
   const { t } = useAppTranslation();
+  const closeScreen = useCloseScreen();
   const user = useAuthStore((s) => s.user);
   const hasPassword = user?.authProviders.includes('local') ?? false;
   const [currentPassword, setCurrentPassword] = useState('');
@@ -46,7 +47,7 @@ export function useChangePassword() {
           useAuthStore.getState().setSession({ accessToken: result.accessToken, refreshToken: result.refreshToken });
           useAuthStore.getState().setUser(result.user);
           Alert.alert(hasPassword ? t('nativeSecurityUpdated') : t('nativeSecurityAdded'));
-          router.back();
+          closeScreen();
           break;
         case 'wrongCurrentPassword':
           fail(t('nativeSecurityWrongCurrent'));

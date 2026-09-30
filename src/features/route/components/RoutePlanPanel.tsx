@@ -1,6 +1,6 @@
-import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 
+import { useCloseScreen } from '@/shared/navigation';
 import { TYPE, semanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
 
@@ -40,6 +40,7 @@ export interface RoutePlanPanelProps {
  */
 export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPanelProps) {
   const colors = useThemeColors();
+  const closeScreen = useCloseScreen();
   const isDark = useColorScheme() === 'dark';
   const tones = routeTones(isDark);
   const surface = semanticColors(isDark).surface;
@@ -137,7 +138,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
           accessibilityRole="button"
           accessibilityLabel={model.labels.close}
           hitSlop={8}
-          onPress={() => router.back()}
+          onPress={closeScreen}
           style={[styles.closeButton, { backgroundColor: surface }]}>
           <Icon name="close" size={16} color={colors.textSecondary} />
         </Pressable>

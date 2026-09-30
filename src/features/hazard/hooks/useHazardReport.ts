@@ -8,6 +8,7 @@ import { reverseGeocodeLabel } from '@/features/place';
 import { ApiError } from '@/shared/api';
 import { haversineMeters, type LatLng } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
+import { useCloseScreen } from '@/shared/navigation';
 
 import { createHazardReport } from '../api/hazardApi';
 import { pickHazardPhoto, type HazardPhoto } from '../controller/photoPicker';
@@ -30,6 +31,7 @@ const ADDRESS_REQUERY_METERS = 30;
  */
 export function useHazardReport(params: HazardReportParams) {
   const { t, i18n } = useAppTranslation();
+  const closeScreen = useCloseScreen();
   const loggedIn = useAuthStore(selectIsLoggedIn);
   const gps = useUserLocationStore((s) => s.position);
   const handoff = params.lat !== undefined && params.lng !== undefined ? { lat: params.lat, lng: params.lng } : null;
@@ -107,7 +109,7 @@ export function useHazardReport(params: HazardReportParams) {
       AccessibilityInfo.announceForAccessibility(t('reportSuccess'));
       Alert.alert(t('reportSuccess'), result.merged ? t('nativeHazardMerged') : t('nativeHazardPendingReview'));
       void refreshNearbyHazards(true);
-      router.back();
+      closeScreen();
     } catch (error) {
       const key = error instanceof ApiError ? submitErrorKey(error.reason, error.code) : 'reportFailed';
       Alert.alert(t(key));
@@ -136,7 +138,7 @@ export function useHazardReport(params: HazardReportParams) {
     submitting,
     canSubmit: Boolean(location && photo) && !submitting,
     submit: () => void submit(),
-    cancel: () => router.back(),
+    cancel: closeScreen,
   };
 }
 

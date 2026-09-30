@@ -5,6 +5,7 @@ import { AccessibilityInfo } from 'react-native';
 import { applyDefaultFacilityCategories, useUserLocationStore } from '@/features/map';
 import { useAppTranslation } from '@/shared/i18n';
 import { getLocationPort } from '@/shared/location';
+import { useCloseScreen } from '@/shared/navigation';
 
 import {
   A11Y_SITUATIONS,
@@ -43,6 +44,7 @@ export interface SituationOption {
  */
 export function useOnboardingFlow() {
   const { t } = useAppTranslation();
+  const closeScreen = useCloseScreen();
   const [stepIndex, setStepIndex] = useState(0);
   const [locationState, setLocationState] = useState<LocationRequestState>('idle');
 
@@ -68,7 +70,7 @@ export function useOnboardingFlow() {
     // 不需要另外有人監看 store 再幫忙關閉（對齊 Web 版 OnboardingHost 靠 record 觸發卸載
     // 的邏輯，只是本 App 用 router 取代條件渲染）。
     skipOnboarding();
-    router.back();
+    closeScreen();
   };
 
   /**
@@ -83,7 +85,7 @@ export function useOnboardingFlow() {
   const finish = () => {
     applyDefaultFilter();
     completeOnboarding();
-    router.back();
+    closeScreen();
   };
 
   /** 完成引導並直接打開附近設施清單（Web DoneStep 的「找附近的無障礙廁所」；路線與 AI 建議待 Phase 2／4） */

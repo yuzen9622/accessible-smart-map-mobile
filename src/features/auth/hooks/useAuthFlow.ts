@@ -1,8 +1,8 @@
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Alert, Linking } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { useCloseScreen } from '@/shared/navigation';
 
 import {
   forgotPassword,
@@ -73,6 +73,7 @@ export interface AuthFlowModel {
 
 export function useAuthFlow(initialMode: AuthMode = 'login'): AuthFlowModel {
   const { t } = useAppTranslation();
+  const closeScreen = useCloseScreen();
   const commitSession = useAuthStore((s) => s.commitSession);
   const [mode, setModeState] = useState<AuthMode>(initialMode);
   const [name, setName] = useState('');
@@ -110,7 +111,7 @@ export function useAuthFlow(initialMode: AuthMode = 'login'): AuthFlowModel {
       case 'ok':
         commitSession(result.session);
         AccessibilityInfo.announceForAccessibility(t('welcome', { name: result.session.user.name }));
-        router.back();
+        closeScreen();
         return;
       case 'invalidCredentials':
         fail(t('auth.loginErrorCreds'));
@@ -255,6 +256,6 @@ export function useAuthFlow(initialMode: AuthMode = 'login'): AuthFlowModel {
       };
       void open();
     },
-    close: () => router.back(),
+    close: closeScreen,
   };
 }

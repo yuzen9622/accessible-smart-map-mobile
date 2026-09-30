@@ -1,8 +1,8 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { AccessibilityInfo, Alert } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { useCloseScreen } from '@/shared/navigation';
 
 import { createReview, updateReview } from '../api/reviews';
 import { BOOLEAN_EVIDENCE_KEYS, ENTRANCE_VALUES, UNSET, booleanToChoice, toEvidencePayload, type BooleanEvidenceKey } from '../domain/reviewEvidence';
@@ -25,6 +25,7 @@ const RATING_KEYS: RatingKey[] = ['passageWidthRating', 'toiletRating', 'elevato
  */
 export function useReviewForm() {
   const { t } = useAppTranslation();
+  const closeScreen = useCloseScreen();
   const target = useReviewEditorStore((s) => s.target);
   const existing = target?.review ?? null;
   const [ratings, setRatings] = useState<Record<RatingKey, number>>({
@@ -61,7 +62,7 @@ export function useReviewForm() {
       else await createReview(target.placeId, target.placeType, input);
       bumpReviewRevision();
       AccessibilityInfo.announceForAccessibility(existing ? t('reviewUpdated') : t('reviewSubmitted'));
-      router.back();
+      closeScreen();
     } catch (error) {
       Alert.alert(error instanceof Error && error.message ? error.message : t('reviewSubmitError'));
     } finally {

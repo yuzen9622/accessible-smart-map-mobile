@@ -6,6 +6,7 @@ import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { useUserLocationStore } from '@/features/map';
 import { getAppConfig } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
+import { useCloseScreen } from '@/shared/navigation';
 
 import {
   SOS_COUNTDOWN_MS,
@@ -28,6 +29,7 @@ import { useSosStore } from '../store/sosStore';
  */
 export function useSosFlow() {
   const { t, i18n } = useAppTranslation();
+  const closeScreen = useCloseScreen();
   const loggedIn = useAuthStore(selectIsLoggedIn);
   const state = useSosStore();
   const position = useUserLocationStore((s) => s.position);
@@ -138,19 +140,19 @@ export function useSosFlow() {
     sendNow: sendSosNow,
     cancelCountdown: () => {
       cancelSosCountdown();
-      router.back();
+      closeScreen();
     },
     cancelCreating: () => {
       abortSosCreation();
-      router.back();
+      closeScreen();
     },
     resolve: confirmResolve,
     manageContacts: () => router.push('/settings/contacts'),
     login: () => router.push('/auth'),
-    minimize: () => router.back(),
+    minimize: closeScreen,
     closeResolved: () => {
       dismissResolvedSos();
-      router.back();
+      closeScreen();
     },
   };
 }

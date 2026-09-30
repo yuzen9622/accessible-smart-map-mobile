@@ -58,3 +58,24 @@ export function rerouteStripText(args: {
   }
   return { key: 'offRoute' };
 }
+
+// 「約 110 公尺」「for about 110 m」這類距離片語；橫幅已用大字顯示即時距離，指示文字再寫一次會打架。
+const ZH_NUM = String.raw`約?\s*[\d.,]+\s*(?:公尺|公里|米)`;
+const EN_NUM = String.raw`(?:for\s+)?(?:about\s+|approximately\s+|approx\.\s+)?[\d.,]+\s*(?:m|meters?|metres?|km|kilometers?|kilometres?)\b`;
+// 整個子句只是「動詞＋距離」（「，續行約 130 公尺」「, then continue for 40 m」）：連逗號一起拿掉，不留半截動詞。
+const ZH_CLAUSE = new RegExp(String.raw`[，,]\s*[^，,。]{0,3}?${ZH_NUM}\s*(?=[，,。]|$)`, 'g');
+const EN_CLAUSE = new RegExp(String.raw`,\s*(?:then\s+)?(?:continue|walk|go|keep going)\s+${EN_NUM}\s*(?=[,.]|$)`, 'gi');
+const ZH_DISTANCE = new RegExp(ZH_NUM, 'g');
+const EN_DISTANCE = new RegExp(String.raw`\s*\b${EN_NUM}`, 'gi');
+
+/** 指示文字：拿掉步驟文字裡寫死的距離（橫幅大字距離會隨定位即時更新，「接著」卡另有距離欄）。 */
+export function stripStepDistance(text: string): string {
+  const stripped = text
+    .replace(ZH_CLAUSE, '')
+    .replace(EN_CLAUSE, '')
+    .replace(ZH_DISTANCE, '')
+    .replace(EN_DISTANCE, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return stripped || text;
+}

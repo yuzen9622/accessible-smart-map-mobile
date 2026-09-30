@@ -10,7 +10,7 @@ import { AnimatedNumberText, GlassCard, Icon } from '@/shared/ui';
 
 import { localRerouteCoordinator } from '../controller/localRerouteCoordinator';
 import { endNavigation } from '../controller/navigationSession';
-import { rerouteStripText } from '../domain/hudProgress';
+import { rerouteStripText, stripStepDistance } from '../domain/hudProgress';
 import { findLegHandoffIndex, isVehicleLegType, resolveActiveLegType } from '../domain/legMode';
 import { stepIcon } from '../domain/navStepIcon';
 import { useNavStore } from '../store/navStore';
@@ -22,13 +22,15 @@ const WARN_DARK = '#FF9F2E';
 const DANGER = '#C02020';
 const DANGER_DARK = '#FF6961';
 const ACCENT = ACCENT_FILL;
+/** 橫幅內「接著」列：比主指示淡一階的白。 */
+const THEN_TEXT = 'rgba(255,255,255,0.72)';
 
 /**
  * 導航 HUD（SDD §4.5「導航 HUD」、Web `NavigationHUD.tsx`；設計 1c 大字色塊）：疊在地圖上。
- * - 頂部：貼齊螢幕頂端（延伸到狀態列後方）的實心主色橫幅——64pt 轉向圖示、48pt 距離、22pt 指示文字（live region）、
- *   步驟進度／開車→步行交接提示；抵達時換成抵達橫幅。
- * - 橫幅下方：白色「接著」卡（下一步；資料沒有設施狀態就不編造，只顯示下一步的街名與距離）；
- *   偏航／重算時再加重算列（重新規劃／重試）；主動警報。
+ * - 頂部：貼齊螢幕頂端（延伸到狀態列後方）的實心主色橫幅——64pt 轉向圖示、60pt 即時距離（數字滾動）、24pt 指示文字（live region，去掉寫死的距離）、
+ *   開車 chip／開車→步行交接提示；抵達時換成抵達橫幅。
+ * - 橫幅底部：分隔線下的「接著」列（下一步的指示與距離，較小較淡的字）。
+ * - 橫幅下方：偏航／重算時的重算列（重新規劃／重試）；主動警報。
  * - 使用者拖曳地圖後出現「回到導航」。
  * 剩餘時間／預計抵達與語音、2D/3D、結束按鈕是 sheet 的收合列（`NavigationTripBar`），步驟清單在其下方，HUD 不重複。
  */
@@ -54,6 +56,8 @@ export default function NavigationHUD() {
   const followPaused = useNavStore((s) => s.followPaused);
 
   const step = instructions[currentStepIndex];
+  // 第一個定位樣本進來前引擎還沒算出距離：先用這一步的規劃距離，大字不會空著。
+  const distanceM = distanceToNextM ?? step?.distanceM ?? null;
   const next = instructions[currentStepIndex + 1];
   const vehicle = isVehicleLegType(resolveActiveLegType(instructions, currentStepIndex));
   const handoff = findLegHandoffIndex(instructions, currentStepIndex) !== null;
@@ -73,7 +77,6 @@ export default function NavigationHUD() {
     else void localRerouteCoordinator.triggerManualReroute('MANUAL', position);
   };
 
-  const nextIsFacility = next?.type === 'facility';
   const nextDetail = next ? [next.streetName, next.distanceM != null ? formatDistance(next.distanceM) : null].filter(Boolean).join(' · ') : '';
 
   return (
@@ -97,26 +100,25 @@ export default function NavigationHUD() {
         ) : (
           <View style={[styles.banner, { paddingTop: insets.top + 8 }]}>
             <View style={styles.bannerRow}>
-              <Icon name={stepIcon(step)} size={64} color={ON_ACCENT_FILL} strokeWidth={2.4} />
+              <Icon name={stepIcon(step)} size={64} color={ON_ACCENT_FILL} strokeWidth={2.2} />
               <View style={styles.flex}>
-                {distanceToNextM != null && step ? (
-                  <AnimatedNumberText text={formatDistance(distanceToNextM)} value={distanceToNextM} fontSize={48} fontWeight="heavy" color={ON_ACCENT_FILL} />
+                {distanceM != null && step ? (
+                  <AnimatedNumberText text={formatDistance(distanceM)} value={distanceM} fontSize={45} fontWeight="heavy" color={ON_ACCENT_FILL} />
                 ) : null}
-                <Text accessibilityLiveRegion="assertive" style={styles.bannerInstruction} numberOfLines={3}>
-                  {step?.text ?? t('preparingNav')}
+                <Text
+                  accessibilityLiveRegion="assertive"
+                  accessibilityLabel={step?.text}
+                  style={step ? styles.bannerInstruction : styles.bannerTitle}
+                  numberOfLines={3}>
+                  {step ? stripStepDistance(step.text) : t('preparingNav')}
                 </Text>
               </View>
             </View>
-            {instructions.length > 0 ? (
+            {vehicle ? (
               <View style={styles.chips}>
-                {vehicle ? (
-                  <View style={styles.bannerChip}>
-                    <Icon name={step?.legType === 'MOTORCYCLE' ? 'bike' : 'car'} size={14} color={ON_ACCENT_FILL} />
-                    <Text style={styles.bannerChipText}>{t(step?.legType === 'MOTORCYCLE' ? 'motorcycle' : 'drive')}</Text>
-                  </View>
-                ) : null}
                 <View style={styles.bannerChip}>
-                  <Text style={styles.bannerChipText}>{t('stepOf', { current: currentStepIndex + 1, total: instructions.length })}</Text>
+                  <Icon name={step?.legType === 'MOTORCYCLE' ? 'bike' : 'car'} size={14} color={ON_ACCENT_FILL} />
+                  <Text style={styles.bannerChipText}>{t(step?.legType === 'MOTORCYCLE' ? 'motorcycle' : 'drive')}</Text>
                 </View>
               </View>
             ) : null}
@@ -127,29 +129,22 @@ export default function NavigationHUD() {
               </View>
             ) : null}
             {stepWarning ? <Text style={styles.bannerMeta}>{stepWarning}</Text> : null}
+            {next ? (
+              <View
+                accessible
+                accessibilityLabel={[t('then'), next.text, nextDetail].filter(Boolean).join('，')}
+                style={styles.thenRow}>
+                <Text style={styles.thenLabel}>{t('then')}</Text>
+                <Icon name={stepIcon(next)} size={18} color={THEN_TEXT} strokeWidth={2.4} />
+                <Text style={[styles.thenText, styles.flex]} numberOfLines={1}>
+                  {[stripStepDistance(next.text), next.distanceM != null ? formatDistance(next.distanceM) : null].filter(Boolean).join(' ')}
+                </Text>
+              </View>
+            ) : null}
           </View>
         )}
 
         <View pointerEvents="box-none" style={styles.stack}>
-        {!arrived && next ? (
-          <View
-            accessible
-            accessibilityLabel={[t('then'), next.text, nextDetail].filter(Boolean).join('，')}
-            style={[styles.nextCard, { backgroundColor: colors.background }]}>
-            <View style={[styles.nextIcon, { backgroundColor: nextIsFacility ? OK : ACCENT }]}>
-              <Icon name={stepIcon(next)} size={20} color={ON_ACCENT_FILL} strokeWidth={2.4} />
-            </View>
-            <View style={styles.flex}>
-              <Text style={[styles.nextTitle, { color: colors.text }]} numberOfLines={2}>
-                {next.text}
-              </Text>
-              <Text style={[styles.nextSub, { color: nextIsFacility ? tones.ok : colors.textSecondary }]} numberOfLines={1}>
-                {nextDetail || t('then')}
-              </Text>
-            </View>
-          </View>
-        ) : null}
-
         {showReroute ? (
           <GlassCard style={[styles.card, styles.strip]}>
             <View accessible accessibilityLiveRegion="polite" style={[styles.row, styles.flex]}>
@@ -257,28 +252,23 @@ const styles = StyleSheet.create({
   },
   bannerRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   bannerTitle: { color: ON_ACCENT_FILL, fontSize: 34, fontWeight: '800' },
-  bannerInstruction: { color: ON_ACCENT_FILL, fontSize: 22, fontWeight: '700', marginTop: 6 },
+  bannerInstruction: { color: ON_ACCENT_FILL, fontSize: 24, fontWeight: '700', marginTop: 2 },
   bannerMeta: { color: ON_ACCENT_FILL, fontSize: 15, fontWeight: '600' },
   bannerChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 14, paddingHorizontal: 10, minHeight: 28, backgroundColor: 'rgba(255,255,255,0.2)' },
   bannerChipText: { color: ON_ACCENT_FILL, fontSize: 14, fontWeight: '600' },
   arrivedButton: { minHeight: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: ON_ACCENT_FILL },
   arrivedButtonText: { color: ACCENT_FILL, fontSize: 19, fontWeight: '700' },
-  nextCard: {
+  thenRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    borderRadius: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    shadowColor: '#000000',
-    shadowOpacity: 0.14,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    gap: 8,
+    marginTop: 4,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.35)',
   },
-  nextIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  nextTitle: { fontSize: 17, fontWeight: '700' },
-  nextSub: { fontSize: 13, fontWeight: '600' },
+  thenLabel: { color: THEN_TEXT, fontSize: 17, fontWeight: '600' },
+  thenText: { color: THEN_TEXT, fontSize: 17, fontWeight: '500' },
   card: { padding: 14, gap: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   flex: { flex: 1 },

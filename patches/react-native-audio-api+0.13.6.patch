@@ -1,0 +1,39 @@
+diff --git a/node_modules/react-native-audio-api/ios/audioapi/ios/system/AudioEngine.mm b/node_modules/react-native-audio-api/ios/audioapi/ios/system/AudioEngine.mm
+index d0e77d8..dde9788 100644
+--- a/node_modules/react-native-audio-api/ios/audioapi/ios/system/AudioEngine.mm
++++ b/node_modules/react-native-audio-api/ios/audioapi/ios/system/AudioEngine.mm
+@@ -219,6 +219,34 @@ static AudioEngine *_sharedInstance = nil;
+     return NO;
+   }
+ 
++  // accessible-smart-map patch: enable system acoustic echo cancellation for voice chat.
++  // Capture and playback share this engine, but voice processing was never turned on, so the
++  // assistant's own speech leaked back into the microphone and the model kept answering itself.
++  // Only applies when the app configured the session as voiceChat; other users are unaffected.
++  if (@available(iOS 13.0, *)) {
++    AVAudioInputNode *engineInputNode = self.audioEngine.inputNode;
++    if (engineInputNode != nil && !engineInputNode.isVoiceProcessingEnabled &&
++        [[AVAudioSession sharedInstance].mode isEqualToString:AVAudioSessionModeVoiceChat]) {
++      BOOL wasRunning = [self.audioEngine isRunning];
++      if (wasRunning) {
++        [self.audioEngine stop];
++      }
++      NSError *voiceProcessingError = nil;
++      if (![engineInputNode setVoiceProcessingEnabled:YES error:&voiceProcessingError]) {
++        NSLog(@"Error while enabling voice processing: %@", [voiceProcessingError debugDescription]);
++      }
++      if (wasRunning) {
++        [self.audioEngine prepare];
++        NSError *restartError = nil;
++        [self.audioEngine startAndReturnError:&restartError];
++        if (restartError != nil) {
++          NSLog(@"Error while restarting the audio engine after voice processing: %@",
++              [restartError debugDescription]);
++        }
++      }
++    }
++  }
++
+   AVAudioFormat *inputFormat = [self currentInputConnectionFormat];
+ 
+   if (inputFormat == nil) {

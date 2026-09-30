@@ -64,8 +64,6 @@ interface NavState {
   /** 最近一次改道的原因，供 HUD 顯示明確說明。 */
   lastRerouteReason: NavRerouteReason | null;
   arrived: boolean;
-  /** Timestamp of the last manual step change; brief lock against auto-advance. */
-  lastManualTs: number;
   /** True after the user drags the map mid-navigation; camera-follow pauses. */
   followPaused: boolean;
   /** Meters left along the whole route (written by the engine). */
@@ -112,8 +110,6 @@ interface NavAction {
     instruction: string,
     remainingM: number | null,
   ) => void;
-  /** Manual override from the prev/next buttons. */
-  setStepIndex: (index: number) => void;
   setDistanceToNextM: (m: number | null) => void;
   setUserHeading: (deg: number | null, source: HeadingSource) => void;
   setGpsHeading: (deg: number | null) => void;
@@ -160,7 +156,6 @@ const initialState: NavState = {
   advisories: [],
   lastRerouteReason: null,
   arrived: false,
-  lastManualTs: 0,
   followPaused: false,
   remainingM: null,
   remainingDurationSec: null,
@@ -208,8 +203,6 @@ export const useNavStore = create<NavStore>()((set) => ({
       remainingM,
       isOffRoute: false,
     })),
-  setStepIndex: (currentStepIndex) =>
-    set({ currentStepIndex, lastManualTs: Date.now() }),
   setDistanceToNextM: (distanceToNextM) => set({ distanceToNextM }),
   setUserHeading: (userHeading, headingSource) =>
     set({ userHeading, headingSource }),

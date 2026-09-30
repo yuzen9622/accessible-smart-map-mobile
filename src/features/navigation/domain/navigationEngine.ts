@@ -17,8 +17,6 @@ import {
 
 /** 連續幾個偏離樣本才判定偏航（單一飄移的 GPS 點不算）。 */
 export const OFF_ROUTE_HITS = 3;
-/** 手動切換步驟後，這段時間內不自動前進。 */
-export const MANUAL_LOCK_MS = 8000;
 /** 離路線超過這個距離，GPS 不再驅動進度與鏡頭（投影已無意義）。 */
 export const FOLLOW_GPS_MAX_M = 500;
 
@@ -64,7 +62,6 @@ export function gpsNearRoute(loc: LatLng | null, cp: CumulativePath | null): boo
 
 export interface EngineState {
   currentStepIndex: number;
-  lastManualTs: number;
   isOffRoute: boolean;
   arrived: boolean;
   /** 連續偏離樣本數（Web `offHitsRef`）。 */
@@ -115,7 +112,7 @@ export interface ProgressResult {
 
 /**
  * 一個定位樣本對導航的影響。回傳 null 代表這個樣本不能驅動進度（離路線太遠、幾何還沒就緒），
- * 呼叫端什麼都不改，讓上一步／下一步按鈕保有控制權。
+ * 呼叫端什麼都不改（步驟停在原處，等偏航重算或定位回到路線附近）。
  */
 export function advanceNavigation(input: ProgressInput): ProgressResult | null {
   const { position, geometry, instructions, now } = input;
@@ -148,10 +145,9 @@ export function advanceNavigation(input: ProgressInput): ProgressResult | null {
 
   // 下一個轉向點＝沿路線第一個仍在前方的 waypoint，各自以所屬 leg 的抵達半徑判斷。
   const nextIdx = selectNextStepIndex(instructions, wps, proj.alongM);
-  // 只自動往前；尊重最近的手動切換。
-  const manualActive = now - state.lastManualTs < MANUAL_LOCK_MS;
-  const displayIdx = !manualActive && nextIdx > state.currentStepIndex ? nextIdx : state.currentStepIndex;
-  state.currentStepIndex = displayIdx;
+  // 步驟只由定位驅動、且只往前（對齊 Google／Apple Maps、Mapbox RouteProgress）：往回走不會倒退步驟，
+  // 真的離開路線交給偏航→重算處理。刻意不接受手動切換，避免 HUD 與使用者實際位置脫節。
+  if (nextIdx > state.currentStepIndex) state.currentStepIndex = nextIdx;
 
   let legHandoff = false;
   if (
@@ -173,7 +169,7 @@ export function advanceNavigation(input: ProgressInput): ProgressResult | null {
   const remainingM = Math.max(0, totalM - proj.alongM);
   const totalSec = input.routeTotalMinutes != null ? input.routeTotalMinutes * 60 : null;
   const remainingDurationSec = totalSec != null && totalM > 0 ? Math.round(totalSec * (remainingM / totalM)) : null;
-  const target = wps[Math.min(displayIdx, wps.length - 1)];
+  const target = wps[Math.min(state.currentStepIndex, wps.length - 1)];
 
   // 抵達：靠近最後一個轉向點，以最後一段 leg 的半徑判斷（純開車路線終點是停車格，不是門口）。
   // 不得以放寬門檻處理「一按導航就抵達」——根因是 per-leg 索引錯配（SDD §6.4）。

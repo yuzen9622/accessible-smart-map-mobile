@@ -3,7 +3,6 @@ import { buildCumulativePath, resolveWaypoints, type NavInstruction, type RouteL
 
 import {
   FOLLOW_GPS_MAX_M,
-  MANUAL_LOCK_MS,
   OFF_ROUTE_HITS,
   advanceNavigation,
   angularDistanceDeg,
@@ -42,7 +41,6 @@ function step(legIndex: number, polylineIndex: number, overrides: Partial<NavIns
 
 const INITIAL: EngineState = {
   currentStepIndex: 0,
-  lastManualTs: 0,
   isOffRoute: false,
   arrived: false,
   offRouteHits: 0,
@@ -93,12 +91,9 @@ describe('advanceNavigation', () => {
     expect(r?.state.currentStepIndex).toBe(2);
   });
 
-  it('honours a recent manual step change', () => {
-    const now = 1_000_000;
-    const locked = sample(25.05, 121.5035, { ...INITIAL, lastManualTs: now - MANUAL_LOCK_MS + 1 }, now);
-    expect(locked?.state.currentStepIndex).toBe(0);
-    const released = sample(25.05, 121.5035, { ...INITIAL, lastManualTs: now - MANUAL_LOCK_MS }, now);
-    expect(released?.state.currentStepIndex).toBe(2);
+  it('advances from position alone, whatever step it starts on', () => {
+    const r = sample(25.05, 121.5035, { ...INITIAL, currentStepIndex: 1 });
+    expect(r?.state.currentStepIndex).toBe(2);
   });
 
   it(`needs ${OFF_ROUTE_HITS} consecutive off-route samples before confirming`, () => {

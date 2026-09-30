@@ -194,7 +194,6 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       instructions: nav.instructions,
       state: {
         currentStepIndex: nav.currentStepIndex,
-        lastManualTs: nav.lastManualTs,
         isOffRoute: nav.isOffRoute,
         arrived: nav.arrived,
         ...engine,

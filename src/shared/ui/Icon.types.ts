@@ -74,7 +74,12 @@ export type IconName =
   | 'heart'
   | 'hospital'
   | 'mic'
-  | 'utensils';
+  | 'utensils'
+  | 'sparkles'
+  | 'wind'
+  | 'trees'
+  | 'brain'
+  | 'audioLines';
 
 export interface IconProps {
   name: IconName;

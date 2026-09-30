@@ -75,6 +75,11 @@ import Heart from 'lucide-react-native/icons/heart';
 import Hospital from 'lucide-react-native/icons/hospital';
 import Mic from 'lucide-react-native/icons/mic';
 import Utensils from 'lucide-react-native/icons/utensils';
+import Sparkles from 'lucide-react-native/icons/sparkles';
+import Wind from 'lucide-react-native/icons/wind';
+import Trees from 'lucide-react-native/icons/trees';
+import Brain from 'lucide-react-native/icons/brain';
+import AudioLines from 'lucide-react-native/icons/audio-lines';
 import { View } from 'react-native';
 
 import type { IconName, IconProps } from './Icon.types';
@@ -156,6 +161,11 @@ const ICONS: Record<IconName, LucideIcon> = {
   hospital: Hospital,
   mic: Mic,
   utensils: Utensils,
+  sparkles: Sparkles,
+  wind: Wind,
+  trees: Trees,
+  brain: Brain,
+  audioLines: AudioLines,
 };
 
 /**

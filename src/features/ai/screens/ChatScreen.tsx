@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,11 +19,15 @@ import { useChatStore } from '../store/chatStore';
  * 清除對話在導覽列（`app/chat.tsx`）。
  */
 export interface ChatScreenProps {
+  /** 語音模式畫面（voice feature，由 app 路由注入；ai 不 import voice，voice 依賴 ai）。有值時取代文字對話。 */
+  voicePanel?: ReactNode;
+  /** 輸入列的附加按鈕（語音麥克風）。 */
+  composerAccessory?: ReactNode;
   /** 預填到輸入框的問題（不自動送出：外部連結不能代替使用者發問）。 */
   initialPrompt?: string;
 }
 
-export default function ChatScreen({ initialPrompt }: ChatScreenProps) {
+export default function ChatScreen({ initialPrompt, voicePanel, composerAccessory }: ChatScreenProps) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   const isDark = useColorScheme() === 'dark';
@@ -36,6 +41,8 @@ export default function ChatScreen({ initialPrompt }: ChatScreenProps) {
   const suggestions = entries.length === 0 ? [t('nativeAiSuggestion1'), t('nativeAiSuggestion2'), t('nativeAiSuggestion3')] : [];
 
   const send = (text: string) => void sendChatMessage(text, t);
+
+  if (voicePanel) return voicePanel;
 
   return (
     <KeyboardAvoidingView
@@ -78,6 +85,7 @@ export default function ChatScreen({ initialPrompt }: ChatScreenProps) {
           stopLabel={t('nativeAiStop')}
           suggestions={suggestions}
           initialText={initialPrompt}
+          accessory={composerAccessory}
           onSend={send}
           onStop={stopChatStreaming}
         />

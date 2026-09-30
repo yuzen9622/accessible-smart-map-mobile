@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useFontScale } from '@/shared/preferences';
@@ -14,6 +14,8 @@ export interface ChatComposerProps {
   suggestions: string[];
   /** 預填的問題（深層連結 `chat?q=`、首頁問句轉交）；只填入不送出。 */
   initialText?: string;
+  /** 輸入框右側、送出鈕左側的附加按鈕（語音 feature 的麥克風，由 app 路由注入）；串流中與已輸入文字時隱藏。 */
+  accessory?: ReactNode;
   onSend: (text: string) => void;
   onStop: () => void;
 }
@@ -30,6 +32,7 @@ export default function ChatComposer({
   stopLabel,
   suggestions,
   initialText = '',
+  accessory,
   onSend,
   onStop,
 }: ChatComposerProps) {
@@ -76,6 +79,7 @@ export default function ChatComposer({
           returnKeyType="send"
           style={[styles.input, { color: colors.text, fontSize: scaledSize(TYPE.body, fontScale) }]}
         />
+        {accessory && !isLoading && text.length === 0 ? accessory : null}
         {isLoading ? (
           <Pressable
             accessibilityRole="button"

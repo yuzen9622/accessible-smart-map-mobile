@@ -65,10 +65,12 @@ export default function BusStopLayer() {
   if (stops.length === 0) return null;
 
   const data = buildCollection(stops, selectedId, mineId);
+  // 每個 source 都帶 key＝id：路線模式與清單模式切換時 React 會照位置重用元件，
+  // 而 MapLibre 的 source `id` 一旦建立就不能改（會丟 "`id` cannot be changed"）。
 
   if (!routeLine) {
     return (
-      <GeoJSONSource id="bus-stops" data={data}>
+      <GeoJSONSource key="bus-stops" id="bus-stops" data={data}>
         <Layer
           id="bus-stops-circle"
           type="circle"
@@ -86,7 +88,7 @@ export default function BusStopLayer() {
   return (
     <>
       {stops.length > 1 ? (
-        <GeoJSONSource id="bus-route-line" data={buildLine(stops)}>
+        <GeoJSONSource key="bus-route-line" id="bus-route-line" data={buildLine(stops)}>
           <Layer
             id="bus-route-line-casing"
             type="line"
@@ -101,7 +103,7 @@ export default function BusStopLayer() {
           />
         </GeoJSONSource>
       ) : null}
-      <GeoJSONSource id="bus-stops" data={data}>
+      <GeoJSONSource key="bus-stops" id="bus-stops" data={data}>
         <Layer
           id="bus-stops-circle"
           type="circle"

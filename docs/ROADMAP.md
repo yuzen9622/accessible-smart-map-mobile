@@ -66,7 +66,7 @@
 
 **0.4 Spike B — 語音（R1）**
 
-- [ ] 閱讀後端 `docs/specs/VOICE_WS_PROTOCOL.md` 全文（Phase 4 開頭連線前做；Spike B 只依 SDD §6.7 摘要的格式驗證）
+- [x] 閱讀後端 `docs/specs/VOICE_WS_PROTOCOL.md` 全文（2026-09-30；`nav.resume` 不在該文件、定義在後端 `voice.ws.schema.ts`）
 - [x] 兩個候選各做一次 16 kHz mono 擷取：`expo-audio` `useAudioStream`（官方，先試）與 `react-native-audio-api` `AudioRecorder.onAudioReady`；確認資料格式（兩者文件皆為 Float32）與實際取樣率
 - [ ] 確認重取樣具抗混疊（原始碼已確認 iOS 用 `AVAudioConverter` 最高品質、Android 用 miniaudio 線性＋低通；頻譜實測需真機）（44.1 kHz／48 kHz 裝置錄音後頻譜檢查，或用已知頻率測試音）
 - [x] 24 kHz PCM16 佇列播放、打斷清空
@@ -245,17 +245,17 @@
 
 **4.1 AI 聊天**
 
-- [ ] 移植 `lib/ai/{thinkingTrace,streamingText,toolLabels,toolActionMapper,uiAction,orbState}.ts`、`lib/aiResults.ts`、`lib/toolResultCards.ts` 與測試（`streamingText`、`thinkingTrace`、`toolResultCards`）
-- [ ] `actionExecutor` 改走 `MapController`／`SheetController`／`RouteSessionPort`；以 `AuthPort` 切斷 Web 的 import cycle
-- [ ] Markdown 渲染小 spike（JS 渲染器 vs `'use dom'`，判準見 SDD §6.6）
-- [ ] 聊天 modal：串流訊息、markdown、ThinkingTrace（主案 RN＋Lucide icons（`Sparkles`、`Loader2`、`Check`）＋`GlassView`，備案 `DisclosureGroup`，見 SDD §6.6）、快速動作、取消
-- [ ] **async action（`compute-route`）在聊天路徑 await 並回報結果**
-- [ ] AI 記憶管理頁（`/ai/memories`、`/ai/memories/settings`）
-- [ ] AI 路線說明（`/ai/explain`）接進路線面板
+- [x] 移植 `lib/ai/{thinkingTrace,streamingText,toolLabels,toolActionMapper,uiAction,orbState}.ts`、`lib/aiResults.ts`、`lib/toolResultCards.ts` 與測試（`streamingText`、`thinkingTrace`、`toolResultCards`）（2026-09-30，`features/ai/domain`；另補 `toolActionMapper`、`chatStream` 測試）
+- [x] `actionExecutor` 改走 `MapController`／`SheetController`／`RouteSessionPort`；以 `AuthPort` 切斷 Web 的 import cycle（2026-09-30，`features/ai/controller/actionExecutor.ts`）
+- [x] Markdown 渲染小 spike（JS 渲染器 vs `'use dom'`，判準見 SDD §6.6）——使用者 2026-09-30 選 `react-native-enriched-markdown`（原生）＋`remend`；`react-native-streamdown` 需 worklets Bundle Mode（改全域 babel／metro），不採用
+- [x] 聊天 modal：串流訊息、markdown、ThinkingTrace（主案 RN＋Lucide icons（`Sparkles`、`Loader2`、`Check`）＋`GlassView`，備案 `DisclosureGroup`，見 SDD §6.6）、快速動作、取消（2026-09-30 iOS 模擬器實跑；UI 自建，panelui.dev 只當設計參考）
+- [x] **async action（`compute-route`）在聊天路徑 await 並回報結果**（2026-09-30 模擬器：「規劃從目前位置到台北車站的無障礙路線」→ 關聊天、路線面板顯示、不卡轉圈）
+- [x] AI 記憶管理頁（`/ai/memories`、`/ai/memories/settings`）（2026-09-30，`settings/memory`；模擬器只驗未登入狀態，登入後 CRUD 未實跑）
+- [x] AI 路線說明（`/ai/explain`）接進路線面板（2026-09-30，路線明細「AI 路線分析」，按下才呼叫）
 
 **4.2 語音**
 
-- [ ] 近原樣移植 `lib/voice/voiceSession.ts`、`voiceSessionBindings.ts`、`transcriptAggregator.ts`、`audioLevel.ts`、`navProgress.ts`、`voiceNavigationExit.ts` 與測試（9 個）
+- [x] 近原樣移植 `lib/voice/voiceSession.ts`、`voiceSessionBindings.ts`、`transcriptAggregator.ts`、`audioLevel.ts`、`navProgress.ts`、`voiceNavigationExit.ts` 與測試（9 個）（2026-09-30，`features/voice/domain`，157 tests；重連時拆掉 utteranceId 對照（Web 缺陷修正））
 - [ ] `AudioCapturePort`／`AudioPlaybackPort` 原生實作（依 spike B）；iOS audio session `playAndRecord` + `voiceChat`
 - [ ] `WebSocket`（`binaryType = "arraybuffer"`）transport port
 - [ ] 語音模式 UI：浮動指示器、音量、逐字稿、工具呼叫狀態

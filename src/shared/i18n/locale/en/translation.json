@@ -1356,5 +1356,7 @@
   "nativeAiExplainAction": "Ask AI to analyse this route",
   "nativeAiExplainRetry": "Retry",
   "nativeAiExplainFailed": "Couldn't get the route analysis. Please try again later.",
-  "nativeAiIncomplete": "The connection was interrupted; this answer may be incomplete."
+  "nativeAiIncomplete": "The connection was interrupted; this answer may be incomplete.",
+  "nativeVoiceMute": "Mute",
+  "nativeVoiceUnmute": "Unmute"
 }

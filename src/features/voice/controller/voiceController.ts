@@ -8,12 +8,21 @@ import { getAuthPort } from '@/shared/api';
 import { createCapture } from '../audio/audioCapture';
 import { createPlayback } from '../audio/audioPlayback';
 import { beginVoiceAudio, releaseVoiceAudio } from '../audio/audioSession';
+import { createEchoGate } from '../domain/echoGate';
 import { createVoiceBindings, type VoiceBindings } from '../domain/voiceSessionBindings';
-import { VoiceSessionController, type VoiceNavigationEvent, type VoiceStatus } from '../domain/voiceSession';
+import { VoiceSessionController, type VoiceStatus } from '../domain/voiceSession';
 import { getVoiceStatusLabel } from '../domain/voiceStatus';
 import { reduceSessionBoundary, reduceStatus, reduceToggleMute } from '../domain/voiceViewState';
 import { useVoiceStore } from '../store/voiceStore';
 import { createVoiceSocket, voiceWsUrl } from '../transport/voiceSocket';
+import {
+  armCurrentRoute,
+  getVoiceNavigationResumeState,
+  handleVoiceNavigationEvent,
+  installVoiceNavigationBridge,
+  onVoiceSessionTerminal,
+  setBridgeTranslate,
+} from './voiceNavigationBridge';
 
 /**
  * 語音對話的 controller（對應 Web `src/hook/useVoiceSession.ts`＋`VoiceSessionHost` 的 session 部分）。
@@ -24,8 +33,7 @@ import { createVoiceSocket, voiceWsUrl } from '../transport/voiceSocket';
  * - 登出或換帳號時結束 session（Web `useAuthStore.subscribe`）。
  * - 結束（ended／error／needs-login）時釋放 audio session，把喇叭交還導航 TTS。
  *
- * 未做（ROADMAP 4.2 後續）：`nav.*` 事件交接給 navigation（`adoptVoiceNavigation`）與 `nav.resume`；
- * 目前 `getNavigationResumeState` 回傳 null，`nav.*` 事件只記錄不驅動導航。
+ * - 語音導航交接（`nav.*` 事件、路線 arm、位置上行、`nav.resume`、喇叭仲裁）在 `voiceNavigationBridge.ts`。
  */
 
 let controller: VoiceSessionController | null = null;
@@ -33,6 +41,12 @@ let bindings: VoiceBindings | null = null;
 let translate: Translate = (key) => key;
 let identityAtStart: string | null = null;
 let lastAnnounced = '';
+/**
+ * 回音閘門（domain/echoGate.ts）：助理語音播放中不把麥克風收到的回音送回後端，否則 Gemini 會把自己的話當成
+ * 使用者發言而不停重複回答。播放端回報排程時長／清空，擷取端每個 frame 先過閘門。
+ */
+let gateForward: (frame: ArrayBuffer) => void = () => {};
+const echoGate = createEchoGate({ now: () => Date.now(), forward: (frame) => gateForward(frame) });
 
 function currentIdentity(): string | null {
   return useAuthStore.getState().user?._id ?? null;
@@ -51,12 +65,8 @@ function onStatus(status: VoiceStatus): void {
   if (['connecting', 'reconnecting', 'needs-login', 'ended', 'error'].includes(status.status)) announce(status);
   if (status.status === 'ended' || status.status === 'error' || status.status === 'needs-login') {
     releaseVoiceAudio();
+    onVoiceSessionTerminal();
   }
-}
-
-function onNavigationEvent(event: VoiceNavigationEvent): void {
-  // 導航交接尚未接線（見檔頭）；先留紀錄方便真機除錯
-  console.info('[voice] navigation event (not handled yet)', event.type);
 }
 
 function ensureController(): { controller: VoiceSessionController; bindings: VoiceBindings } {
@@ -90,19 +100,31 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
       const position = useUserLocationStore.getState().position;
       return position ? { latitude: position.lat, longitude: position.lng } : null;
     },
-    createCapture: (onFrame) => createCapture(b.wrapCaptureFrame(onFrame)),
-    createPlayback,
+    createCapture: (onFrame) => {
+      echoGate.clear();
+      gateForward = onFrame;
+      return createCapture(b.wrapCaptureFrame((frame) => echoGate.push(frame)));
+    },
+    createPlayback: () =>
+      createPlayback({ onScheduled: (ms) => echoGate.notePlayback(ms), onCleared: () => echoGate.clear() }),
     onStatusChange: b.onStatusChange,
     onTranscript: b.onTranscript,
     onTranscriptCorrection: b.onTranscriptCorrection,
     onTurnComplete: b.onTurnComplete,
     onInterrupted: b.onInterrupted,
     onToolEvent: b.onToolEvent,
-    onNavigationEvent,
-    getNavigationResumeState: () => null,
+    onNavigationEvent: (event) => handleVoiceNavigationEvent(event, c.getStatus().status),
+    getNavigationResumeState: getVoiceNavigationResumeState,
   });
   controller = c;
   bindings = b;
+  installVoiceNavigationBridge({
+    setNavigationRoute: (token) => c.setNavigationRoute(token),
+    sendNavigationPosition: (position) => c.sendNavigationPosition(position),
+    cancelNavigation: () => c.cancelNavigation(),
+    setMuted: setVoiceMuted,
+    getStatus: () => c.getStatus().status,
+  });
   return { controller: c, bindings: b };
 }
 
@@ -116,12 +138,14 @@ useAuthStore.subscribe((state) => {
 
 export function startVoiceSession(t: Translate): void {
   translate = t;
+  setBridgeTranslate(t);
   lastAnnounced = '';
   const { controller: c, bindings: b } = ensureController();
   identityAtStart = currentIdentity();
   beginVoiceAudio();
   b.reset();
   useVoiceStore.setState((state) => ({ ...reduceSessionBoundary(state), activeTool: null, viewMode: 'panel' }));
+  armCurrentRoute();
   c.start();
 }
 
@@ -136,11 +160,14 @@ export function dismissVoiceSession(): void {
   useVoiceStore.setState((state) => ({ ...reduceSessionBoundary(state), status: { status: 'idle' }, activeTool: null }));
 }
 
+function setVoiceMuted(muted: boolean): void {
+  useVoiceStore.setState({ isMuted: muted });
+  controller?.setMuted(muted);
+  bindings?.setMuted(muted);
+}
+
 export function toggleVoiceMute(): void {
-  const next = reduceToggleMute(useVoiceStore.getState());
-  useVoiceStore.setState({ isMuted: next.isMuted });
-  controller?.setMuted(next.isMuted);
-  bindings?.setMuted(next.isMuted);
+  setVoiceMuted(reduceToggleMute(useVoiceStore.getState()).isMuted);
 }
 
 export function resumeVoicePlayback(): void {

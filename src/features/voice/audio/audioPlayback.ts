@@ -12,7 +12,14 @@ const PLAYBACK_RATE = 24000;
  * 打斷（`interrupted`）時 `clear()` 丟掉整條佇列，下一段音訊到時重建（協定 §5；對應 poc-client `clearPlayback()`）。
  * 原生沒有瀏覽器 autoplay 限制，`onBlocked` 不會觸發。
  */
-export function createPlayback(): VoicePlayback {
+export interface PlaybackObserver {
+  /** 一段音訊排進佇列（毫秒）；回音閘門用它推算喇叭何時還在出聲。 */
+  onScheduled?(durationMs: number): void;
+  /** 佇列被清空（打斷、靜音、結束）。 */
+  onCleared?(): void;
+}
+
+export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
   let context: AudioContext | null = null;
   let queue: AudioBufferQueueSourceNode | null = null;
   let muted = false;
@@ -30,6 +37,7 @@ export function createPlayback(): VoicePlayback {
   };
 
   const clear = () => {
+    observer.onCleared?.();
     const node = queue;
     queue = null;
     if (!node) return;
@@ -50,6 +58,7 @@ export function createPlayback(): VoicePlayback {
         const buffer = ctx.createBuffer(1, samples.length, PLAYBACK_RATE);
         buffer.copyToChannel(samples, 0);
         node.enqueueBuffer(buffer);
+        observer.onScheduled?.((samples.length / PLAYBACK_RATE) * 1000);
       } catch (error) {
         console.warn('[voice] play frame failed', error);
       }

@@ -9,3 +9,5 @@ export * from './voiceNavigationExit';
 export * from './voiceStatus';
 export * from './voiceViewState';
 export * from './pcm';
+export * from './voiceNavInstruction';
+export * from './echoGate';

@@ -2,15 +2,13 @@ import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 
 import { TYPE, semanticColors, useThemeColors } from '@/shared/theme';
-import { Icon, type IconName } from '@/shared/ui';
+import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
 
 import { ROUTE_DESTINATION_COLOR, ROUTE_ORIGIN_COLOR } from '../domain/routeLayerData';
 import type { PlanOption, RoutePlanModel } from '../hooks/useRoutePlanViewModel';
 import type { TravelMode } from '../types/route';
 
 import RouteCard from './RouteCard';
-import SegmentedControl from './SegmentedControl';
-
 import {
   ROUTE_ACCENT_COLOR,
   ROUTE_BORDER_COLOR,

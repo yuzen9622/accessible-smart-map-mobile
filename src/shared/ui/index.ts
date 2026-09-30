@@ -13,6 +13,9 @@ export type { ErrorStateProps, ErrorStateRetryAction } from './ErrorState.types'
 export { default as Icon } from './Icon';
 export type { IconName, IconProps } from './Icon.types';
 
+export { default as SegmentedControl } from './SegmentedControl';
+export type { SegmentedControlOption, SegmentedControlProps } from './SegmentedControl.types';
+
 export { default as LoadingState } from './LoadingState';
 export type { LoadingStateProps } from './LoadingState.types';
 

@@ -69,7 +69,12 @@ export type IconName =
   | 'thumbsDown'
   | 'trash'
   | 'pencil'
-  | 'megaphone';
+  | 'megaphone'
+  | 'ellipsis'
+  | 'heart'
+  | 'hospital'
+  | 'mic'
+  | 'utensils';
 
 export interface IconProps {
   name: IconName;

@@ -70,6 +70,11 @@ import ThumbsDown from 'lucide-react-native/icons/thumbs-down';
 import Trash from 'lucide-react-native/icons/trash';
 import Pencil from 'lucide-react-native/icons/pencil';
 import Megaphone from 'lucide-react-native/icons/megaphone';
+import Ellipsis from 'lucide-react-native/icons/ellipsis';
+import Heart from 'lucide-react-native/icons/heart';
+import Hospital from 'lucide-react-native/icons/hospital';
+import Mic from 'lucide-react-native/icons/mic';
+import Utensils from 'lucide-react-native/icons/utensils';
 import { View } from 'react-native';
 
 import type { IconName, IconProps } from './Icon.types';
@@ -146,6 +151,11 @@ const ICONS: Record<IconName, LucideIcon> = {
   trash: Trash,
   pencil: Pencil,
   megaphone: Megaphone,
+  ellipsis: Ellipsis,
+  heart: Heart,
+  hospital: Hospital,
+  mic: Mic,
+  utensils: Utensils,
 };
 
 /**

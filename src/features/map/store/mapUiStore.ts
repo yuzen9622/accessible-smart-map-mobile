@@ -19,6 +19,8 @@ interface MapUiState {
   sheetInset: number;
   /** sheet 目前落在第幾個 detent（使用者拖曳由 root layout 更新；程式切換由 `sheetController` 更新）。 */
   sheetDetentIndex: number;
+  /** 地圖目前縮放等級（相機停下時更新，非持久化）；距離 pill 標記依此決定是否顯示。 */
+  zoom: number;
   /** 相機正在跟隨使用者（非持久化）。 */
   follow: MapFollowState | null;
   /** 使用者拖曳地圖打斷了跟隨（native 追蹤自動解除）；由呼叫端決定是否顯示「回到導航」。 */
@@ -26,6 +28,7 @@ interface MapUiState {
   toggle3d: () => void;
   setSheetInset: (inset: number) => void;
   setSheetDetentIndex: (index: number) => void;
+  setZoom: (zoom: number) => void;
   setFollow: (follow: MapFollowState | null) => void;
   setFollowInterrupted: (interrupted: boolean) => void;
 }
@@ -36,11 +39,13 @@ export const useMapUiStore = create<MapUiState>()(
       is3d: false,
       sheetInset: 0,
       sheetDetentIndex: 0,
+      zoom: 0,
       follow: null,
       followInterrupted: false,
       toggle3d: () => set((state) => ({ is3d: !state.is3d })),
       setSheetInset: (sheetInset) => set({ sheetInset }),
       setSheetDetentIndex: (sheetDetentIndex) => set({ sheetDetentIndex }),
+      setZoom: (zoom) => set({ zoom }),
       setFollow: (follow) => set({ follow, followInterrupted: false }),
       setFollowInterrupted: (followInterrupted) => set({ followInterrupted }),
     }),

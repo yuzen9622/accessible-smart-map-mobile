@@ -11,10 +11,13 @@ interface FacilityState {
   loadError: string | null;
   /** 地圖上要顯示的類別；預設空（對齊 Web），使用者選擇會跨重啟保留 */
   selected: PinnedFacilityCategory[];
+  /** 首頁圖層 chip「停車」：開啟時地圖載入並顯示附近無障礙停車（跨重啟保留） */
+  showParking: boolean;
   setFacilities: (facilities: Facility[]) => void;
   setLoadError: (error: string | null) => void;
   toggleCategory: (category: PinnedFacilityCategory) => void;
   setSelected: (selected: PinnedFacilityCategory[]) => void;
+  toggleParking: () => void;
 }
 
 function isPinnedCategory(value: string): value is PinnedFacilityCategory {
@@ -27,9 +30,11 @@ export const useFacilityStore = create<FacilityState>()(
       facilities: null,
       loadError: null,
       selected: [],
+      showParking: false,
       setFacilities: (facilities) => set({ facilities, loadError: null }),
       setLoadError: (loadError) => set({ loadError }),
       setSelected: (selected) => set({ selected }),
+      toggleParking: () => set((state) => ({ showParking: !state.showParking })),
       toggleCategory: (category) =>
         set((state) => ({
           selected: state.selected.includes(category)
@@ -39,14 +44,16 @@ export const useFacilityStore = create<FacilityState>()(
     }),
     {
       name: 'map.facilities',
-      storage: createPersistStorage<Pick<FacilityState, 'selected'>>(),
-      partialize: (state) => ({ selected: state.selected }),
+      storage: createPersistStorage<Pick<FacilityState, 'selected' | 'showParking'>>(),
+      partialize: (state) => ({ selected: state.selected, showParking: state.showParking }),
       merge: (persisted, current) => {
         const selected =
           typeof persisted === 'object' && persisted !== null && 'selected' in persisted && Array.isArray(persisted.selected)
             ? persisted.selected.filter((item): item is PinnedFacilityCategory => typeof item === 'string' && isPinnedCategory(item))
             : current.selected;
-        return { ...current, selected };
+        const showParking =
+          typeof persisted === 'object' && persisted !== null && 'showParking' in persisted && persisted.showParking === true;
+        return { ...current, selected, showParking };
       },
     },
   ),

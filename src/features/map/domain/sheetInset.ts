@@ -8,7 +8,7 @@ export const SHEET_UNDIMMED_DETENT_INDEX = 1;
  * 導航中的 peek：只露出收合列（剩餘時間＋語音／2D3D／結束），步驟清單要往上滑才出現（對齊 Google Maps）。
  * 比一般 peek 低；地圖 inset 仍沿用 `SHEET_DETENTS[0]`，多留一點底部 padding 無妨。
  */
-export const NAV_PEEK_DETENT = 0.1;
+export const NAV_PEEK_DETENT = 0.115;
 
 /**
  * 依 sheet 目前 detent 算出地圖底部 padding（pt）。

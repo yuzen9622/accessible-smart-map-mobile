@@ -6,6 +6,7 @@ import { mapCamera } from '../controller/mapCamera';
 import { toFacilityCollection } from '../domain/facilities';
 import { isPlaceDetailPath } from '../domain/sheetInset';
 import { FACILITY_CLUSTER_COLOR, FACILITY_COLORS } from '../domain/facilityStyle';
+import { useFacilityPills } from '../hooks/useFacilityPills';
 import { useFacilityStore } from '../store/facilityStore';
 
 /** Lucide 白色圖示（elevator＝arrow-up-down、ramp＝accessibility、toilet＝toilet），疊在類別色圓底上。 */
@@ -25,9 +26,14 @@ export default function FacilityLayer() {
   const selected = useFacilityStore((state) => state.selected);
   const sourceRef = useRef<GeoJSONSourceRef>(null);
   const pathname = usePathname();
+  // 首頁已用距離 pill 標出的最近設施，不再畫圓點（見 FacilityPills）
+  const pillIds = new Set(useFacilityPills().map((pill) => pill.id));
 
   if (!facilities || selected.length === 0) return null;
-  const collection = toFacilityCollection(facilities, new Set(selected));
+  const collection = toFacilityCollection(
+    pillIds.size > 0 ? facilities.filter((facility) => !pillIds.has(facility.id)) : facilities,
+    new Set(selected),
+  );
 
   const handleClusterPress = async (clusterId: number, center: [number, number]) => {
     try {

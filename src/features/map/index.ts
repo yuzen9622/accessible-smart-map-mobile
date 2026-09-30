@@ -16,5 +16,7 @@ export { useUserLocationStore } from './store/userLocationStore';
 export { applyDefaultFacilityCategories } from './store/facilityStore';
 export { PINNED_FACILITY_CATEGORIES, type PinnedFacilityCategory } from './domain/facilities';
 export { useNearbyViewModel, type NearbyRow, type NearbyStatus } from './hooks/useNearbyViewModel';
+export { useNearbySummary, type NearbySummary } from './hooks/useNearbySummary';
+export { FACILITY_COLORS } from './domain/facilityStyle';
 export { formatDistance } from './domain/parking';
 export { clearLastUserLocation, hasLastUserLocation } from './store/lastLocation';

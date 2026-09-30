@@ -9,6 +9,7 @@ import { getLocationPort } from '@/shared/location';
 import { appStorage, readJson } from '@/shared/storage';
 import { ErrorState, LoadingState } from '@/shared/ui';
 
+import { SheetEdgeFollower } from '../../../../modules/sheet-detent';
 import { mapCamera, registerMapCamera } from '../controller/mapCamera';
 import { sheetController } from '../controller/sheetController';
 import {
@@ -27,13 +28,23 @@ import {
 import { useBasemapStyle } from '../hooks/useBasemapStyle';
 import { useFacilitiesLoader } from '../hooks/useFacilitiesLoader';
 import { useLocationTracking } from '../hooks/useLocationTracking';
+import { useNearbyParking } from '../hooks/useNearbyParking';
 import { shouldCollapseForPan, type ViewportSample } from '../domain/panCollapse';
 import { isPlaceDetailPath } from '../domain/sheetInset';
+import { useFacilityStore } from '../store/facilityStore';
 import { useMapUiStore } from '../store/mapUiStore';
 import { useUserLocationStore } from '../store/userLocationStore';
 import FacilityLayer from './FacilityLayer';
+import FacilityPills from './FacilityPills';
+import LayerChips from './LayerChips';
 import ParkingLayer from './ParkingLayer';
 import MapControls from './MapControls';
+
+/** 首頁「停車」圖層開啟時才依位置查附近無障礙停車（`NearbyScreen` 也會各自載入）。 */
+function ParkingLoader() {
+  useNearbyParking();
+  return null;
+}
 
 export interface MapScreenProps {
   /** 其他 feature 的地圖圖層（設施點、搜尋 pin…），由 app 路由組裝 */
@@ -57,6 +68,11 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
   const position = useUserLocationStore((state) => state.position);
   const follow = useMapUiStore((state) => state.follow);
   const sheetInset = useMapUiStore((state) => state.sheetInset);
+  const sheetDetentIndex = useMapUiStore((state) => state.sheetDetentIndex);
+  const selectedCategories = useFacilityStore((state) => state.selected);
+  const toggleCategory = useFacilityStore((state) => state.toggleCategory);
+  const showParking = useFacilityStore((state) => state.showParking);
+  const toggleParking = useFacilityStore((state) => state.toggleParking);
   // 初始相機只在第一次 render 決定（之後由 mapCamera 控制）
   const [initialCamera] = useState(() =>
     resolveInitialCamera(readJson(appStorage, LAST_USER_LOCATION_KEY, isLatLng, null)),
@@ -100,6 +116,21 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
     }
   };
 
+  const layerChips = (
+    <LayerChips
+      label={t('nativeMapLayers')}
+      chips={[
+        ...(['elevator', 'toilet', 'ramp'] as const).map((category) => ({
+          key: category,
+          label: t(LAYER_LABEL_KEY[category]),
+          selected: selectedCategories.includes(category),
+          onToggle: () => toggleCategory(category),
+        })),
+        { key: 'parking', label: t('railParking'), selected: showParking, onToggle: toggleParking },
+      ]}
+    />
+  );
+
   if (basemap.status === 'loading') {
     return <LoadingState />;
   }
@@ -134,8 +165,9 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
           Keyboard.dismiss();
           sheetController.collapse();
         }}
-        onRegionDidChange={() => {
+        onRegionDidChange={(event) => {
           panStart.current = null;
+          useMapUiStore.getState().setZoom(event.nativeEvent.zoom);
         }}
         onPress={(event) => {
           if (navigationMode) return;
@@ -175,10 +207,25 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
           paint={buildingExtrusionPaint(theme, is3d)}
         />
         <FacilityLayer />
-        <ParkingLayer />
+        {navigationMode ? null : <FacilityPills />}
+        {showParking || pathname === '/nearby' ? <ParkingLayer /> : null}
         {layers}
         {permission === 'granted' ? <NativeUserLocation mode="heading" /> : null}
       </Map>
+      {showParking ? <ParkingLoader /> : null}
+      {/* 圖層 chips 貼在 sheet 上緣（設計 1b）：iOS 由 native view 逐格跟著 sheet（拖曳中也不會跳）並在
+          sheet 過半時淡出；Android／舊 dev client 退回依 detent 算出的 inset。只在首頁出現。 */}
+      {!navigationMode && pathname === '/explore' ? (
+        SheetEdgeFollower ? (
+          <SheetEdgeFollower pointerEvents="box-none" gap={4} style={styles.chipsFollower}>
+            {layerChips}
+          </SheetEdgeFollower>
+        ) : sheetDetentIndex <= 1 ? (
+          <View pointerEvents="box-none" style={[styles.chips, { bottom: sheetInset + 4 }]}>
+            {layerChips}
+          </View>
+        ) : null
+      ) : null}
       {overlays}
       {navigationMode ? null : (
       <View style={[styles.controls, { top: insets.top + 56 }]}>
@@ -206,8 +253,12 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
   );
 }
 
+const LAYER_LABEL_KEY = { elevator: 'elevator', toilet: 'toilet', ramp: 'a11yFeatureRamp' } as const;
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  chips: { position: 'absolute', left: 0, right: 0 },
+  chipsFollower: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   map: { flex: 1 },
   controls: { position: 'absolute', right: 16 },
 });

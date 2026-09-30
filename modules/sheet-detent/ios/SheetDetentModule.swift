@@ -20,11 +20,18 @@ public class SheetDetentModule: Module {
       }
       return true
     }.runOnQueue(.main)
+
+    /// 貼著常駐 sheet 上緣的容器（首頁圖層 chips）：拖曳、detent 動畫中都逐格跟著 sheet 走。
+    View(SheetEdgeFollowerView.self) {
+      Prop("gap") { (view, gap: Double?) in
+        view.gap = CGFloat(gap ?? 4)
+      }
+    }
   }
 
   /// 沿著每個 window 的 presented 鏈找第一個有多個 detent 的 sheet（地圖 sheet）；
   /// 疊在上面的 modal（設定、登入）只有一個 large detent，會被略過。
-  private static func findPersistentSheet() -> UISheetPresentationController? {
+  static func findPersistentSheet() -> UISheetPresentationController? {
     let windows = UIApplication.shared.connectedScenes
       .compactMap { $0 as? UIWindowScene }
       .flatMap { $0.windows }

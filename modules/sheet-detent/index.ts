@@ -16,3 +16,5 @@ export async function selectSheetDetent(index: number): Promise<boolean> {
   if (!native) return false;
   return native.select(index);
 }
+
+export { default as SheetEdgeFollower, type SheetEdgeFollowerProps } from './SheetEdgeFollower';

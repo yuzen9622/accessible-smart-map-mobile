@@ -39,9 +39,9 @@ final class SheetEdgeFollowerView: ExpoView {
     if transform.ty != offset {
       transform = CGAffineTransform(translationX: 0, y: offset)
     }
-    // sheet 上緣在畫面 55%～40% 之間線性淡出
+    // sheet 上緣在畫面 45%～30% 之間線性淡出（50% detent 時仍完全不透明）
     let height = window.bounds.height
-    let fade = (sheetTop - height * 0.4) / (height * 0.15)
+    let fade = (sheetTop - height * 0.3) / (height * 0.15)
     alpha = max(0, min(1, fade))
   }
 }

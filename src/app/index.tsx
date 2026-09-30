@@ -51,7 +51,7 @@ export default function Index() {
             </View>
           )}
           {/* SOS 在導航中也要按得到（行動不便者最可能在路上需要求助）：導航時移到 HUD 下方 */}
-          <View pointerEvents="box-none" style={[styles.sos, { top: insets.top + (isNavigating ? 210 : 190) }]}>
+          <View pointerEvents="box-none" style={[styles.sos, { top: insets.top + (isNavigating ? 250 : 190) }]}>
             <SosButton />
           </View>
         </>

@@ -89,7 +89,7 @@ export default function NavigationStepsScreen() {
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingBottom: 32, gap: 4 },
   contentTop: { paddingTop: 22 },
-  tripBar: { marginHorizontal: -16, paddingHorizontal: 16, paddingTop: 22, paddingBottom: 12 },
+  tripBar: { marginHorizontal: -16, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 },
   sectionTitle: { fontSize: 13, fontWeight: '600', paddingHorizontal: 8, paddingTop: 8, paddingBottom: 4 },
   flex: { flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingVertical: 8, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderRadius: 10 },

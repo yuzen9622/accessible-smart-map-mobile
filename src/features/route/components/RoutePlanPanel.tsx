@@ -1,6 +1,7 @@
+import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { TYPE, semanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import { ROUTE_DESTINATION_COLOR, ROUTE_ORIGIN_COLOR } from '../domain/routeLayerData';
@@ -8,12 +9,12 @@ import type { PlanOption, RoutePlanModel } from '../hooks/useRoutePlanViewModel'
 import type { TravelMode } from '../types/route';
 
 import RouteCard from './RouteCard';
+import SegmentedControl from './SegmentedControl';
 
 import {
   ROUTE_ACCENT_COLOR,
   ROUTE_BORDER_COLOR,
   ROUTE_ON_ACCENT_COLOR,
-  ROUTE_SURFACE_COLOR,
   routeStyles,
   routeTones,
 } from './palette';
@@ -32,19 +33,18 @@ export interface RoutePlanPanelProps {
 }
 
 /**
- * 路線規劃面板（`(sheet)/plan`），iOS／Android 共用。對齊 Web `RoutePlanContent.tsx` 的區塊順序：
- * 起訖點卡片（可交換）→ 無障礙模式 → 交通方式 → 路線選擇。無障礙模式是這個 App 的核心條件，
- * 而且會停用不適用的交通方式，所以排在交通方式之前；路線結果緊接在後（Apple 地圖的路線卡）。
- * 與 Web 不同：像 Apple 地圖的路線卡，條件齊全就自動算路並把路線直接列在下方（開始導航也在這裡），
- * 不再經過「開始規劃」→ 另一頁結果清單；失敗時才出現重試按鈕。
- *
- * 為什麼不用 SwiftUI `Picker(segmented)`（SDD §4.5 表格）：ADR-16 要求模式圖示一律 Lucide，
- * `@expo/ui` `Host` 內放不進 RN SVG；依 ADR-15 以 RN pill 實作並補齊無障礙語意（selected／disabled）。
+ * 路線規劃面板（`(sheet)/plan`），iOS／Android 共用（設計方向 1a「原生精修」）：
+ * 標題列（路線＋關閉）→ 起訖點卡片（可交換）→ 無障礙模式分段控制 → 交通方式 → 路線卡。
+ * 無障礙模式是這個 App 的核心條件，而且會停用不適用的交通方式，所以永遠排在結果之前。
+ * 選中的路線卡內含理由（階梯、坡度、電梯）與「開始導航」；條件齊全時自動算路，失敗才出現重試按鈕。
+ * 分段控制用 RN 實作（`SegmentedControl`）：`@expo/ui` Host 的 matchContents 會讓 100% 寬度塌成 0。
  * 根節點是單一 ScrollView（formSheet 對多個 sibling 會警告並重疊，見 place 面板註解）。
  */
 export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPanelProps) {
   const colors = useThemeColors();
-  const tones = routeTones(useColorScheme() === 'dark');
+  const isDark = useColorScheme() === 'dark';
+  const tones = routeTones(isDark);
+  const surface = semanticColors(isDark).surface;
 
   const renderOption = <T extends string>(option: PlanOption<T>, icon?: IconName) => (
     <Pressable
@@ -131,7 +131,21 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag">
-      <View style={[routeStyles.card, styles.endpoints, { backgroundColor: ROUTE_SURFACE_COLOR }]}>
+      <View style={styles.header}>
+        <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
+          {model.labels.title}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={model.labels.close}
+          hitSlop={8}
+          onPress={() => router.back()}
+          style={[styles.closeButton, { backgroundColor: surface }]}>
+          <Icon name="close" size={16} color={colors.textSecondary} />
+        </Pressable>
+      </View>
+
+      <View style={[routeStyles.card, styles.endpoints, { backgroundColor: surface }]}>
         <View style={routeStyles.flex}>
           <View style={styles.endpointRow}>
             {model.originIsMyLocation && model.editing !== 'origin' ? (
@@ -193,19 +207,15 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
           accessibilityRole="button"
           accessibilityLabel={model.labels.swap}
           onPress={model.onSwap}
-          style={[routeStyles.circleButton, { borderColor: ROUTE_BORDER_COLOR }]}>
+          hitSlop={4}
+          style={[routeStyles.circleButton, styles.swapButton, { borderColor: ROUTE_BORDER_COLOR }]}>
           <Icon name="arrowUpDown" color={colors.text} />
         </Pressable>
       </View>
 
       {model.editing ? renderEditor() : null}
 
-      <View style={routeStyles.section}>
-        <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
-          {model.labels.a11yMode}
-        </Text>
-        <View style={routeStyles.chipsRow}>{model.routeModes.map((option) => renderOption(option, option.value === 'normal' ? undefined : 'accessibility'))}</View>
-      </View>
+      <SegmentedControl label={model.labels.a11yMode} options={model.routeModes} onSelect={model.onSelectRouteMode} />
 
       <View style={routeStyles.section}>
         <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
@@ -226,19 +236,6 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
 
       {model.results ? (
         <View style={routeStyles.section}>
-          {model.results.selectedIndex !== null ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={model.labels.startNav}
-              onPress={onStartNavigation}
-              style={routeStyles.primaryButton}>
-              <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
-              <Text style={routeStyles.primaryButtonText}>{model.labels.startNav}</Text>
-            </Pressable>
-          ) : null}
-          <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
-            {model.labels.routeOptions}
-          </Text>
           {model.results.routes.map((route, index) => (
             <RouteCard
               key={route.routeId || String(index)}
@@ -246,6 +243,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
               selected={model.results?.selectedIndex === index}
               onSelect={() => model.onSelectRoute(index)}
               onOpenDetail={() => model.onOpenRouteDetail(index)}
+              onStartNavigation={onStartNavigation}
             />
           ))}
         </View>
@@ -271,7 +269,11 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
 }
 
 const styles = StyleSheet.create({
-  endpoints: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  title: { fontSize: TYPE.title, fontWeight: '700' },
+  closeButton: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  swapButton: { width: 36, height: 36, borderRadius: 18 },
+  endpoints: { borderRadius: 16, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 8 },
   endpointRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
   endpointPress: { minHeight: 44, justifyContent: 'center' },
   divider: { height: StyleSheet.hairlineWidth, marginLeft: 26 },

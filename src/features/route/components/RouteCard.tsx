@@ -10,14 +10,16 @@ import {
   getConfidenceLabelKey,
   getRouteAlertsCount,
   legChainSegments,
+  routeFacts,
   routeSummary,
   type Translate,
 } from '../domain/routeCard';
-import { LEG_LABEL_FILL, formatDuration, scoreToStars } from '../domain/routeDisplay';
+import { LEG_LABEL_FILL, scoreToStars } from '../domain/routeDisplay';
 import type { AccessibleRoute, RouteLeg } from '../types/route';
 import {
   ROUTE_ACCENT_COLOR,
   ROUTE_BORDER_COLOR,
+  ROUTE_ON_ACCENT_COLOR,
   ROUTE_DANGER_SURFACE,
   ROUTE_SURFACE_COLOR,
   ROUTE_WARN_SURFACE,
@@ -40,6 +42,8 @@ export interface RouteCardProps {
   selected: boolean;
   onSelect: () => void;
   onOpenDetail: () => void;
+  /** 選中卡內的「開始導航」（由 app 路由注入 navigation feature）。 */
+  onStartNavigation: () => void;
 }
 
 const STAR_TONE: Record<number, 'ok' | 'warn' | 'danger'> = { 5: 'ok', 4: 'ok', 3: 'warn', 2: 'warn', 1: 'danger' };
@@ -50,7 +54,7 @@ const MAX_HIGHLIGHTS = 3;
  * 路線卡（Web `RouteCard.tsx`）：總時間、運具串、星等；選中時展開轉乘、步行距離、資料可信度、
  * 無障礙亮點與警告，並提供「路線詳情」入口。整張卡一個 `accessibilityLabel` 念出完整摘要（SDD §4.5）。
  */
-export default function RouteCard({ route, selected, onSelect, onOpenDetail }: RouteCardProps) {
+export default function RouteCard({ route, selected, onSelect, onOpenDetail, onStartNavigation }: RouteCardProps) {
   const colors = useThemeColors();
   const tones = routeTones(useColorScheme() === 'dark');
   const { t } = useAppTranslation();
@@ -65,7 +69,12 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail }: R
   if (advisory?.avoided.length) hazardLines.push(t('nativeRouteHazardsAvoided', { count: advisory.avoided.length }));
   const translate = t as Translate;
 
-  const duration = formatDuration(route.totalMinutes);
+  const totalMinutes = Math.round(route.totalMinutes);
+  const duration =
+    totalMinutes >= 60
+      ? t('nativeRouteHoursMinutes', { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 })
+      : t('nativeRouteMinutes', { count: totalMinutes });
+  const detail = routeFacts(route);
   const summary = routeSummary(route.legs, translate);
   const alerts = getRouteAlertsCount(route);
   const score = effectiveAccessibilityScore(route);
@@ -78,16 +87,21 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail }: R
   const ordered = [...route.accessibilityHighlights].sort((a, b) => Number(isCaution(b)) - Number(isCaution(a)));
   const highlights = ordered.slice(0, MAX_HIGHLIGHTS);
   const hiddenHighlights = route.accessibilityHighlights.length - highlights.length;
+  // 只列資料真的有的事實：階梯／坡度後端沒給就不顯示（不能當成 0）
   const facts = [
+    route.totalWalkDistanceM != null ? t('nativeRouteFactWalk', { distance: formatDistance(route.totalWalkDistanceM) }) : null,
+    detail.stairs !== null ? t('nativeRouteFactStairs', { count: detail.stairs }) : null,
+    detail.maxSlopePercent !== null ? t('nativeRouteFactSlope', { value: Math.round(detail.maxSlopePercent * 10) / 10 }) : null,
     route.transferCount > 0 ? t('transferCount', { count: route.transferCount }) : null,
-    route.totalWalkDistanceM != null ? t('totalWalkDistance', { distance: formatDistance(route.totalWalkDistanceM) }) : null,
     confidenceKey ? `${t('dataConfidence')}：${t(confidenceKey)}` : null,
   ].filter(Boolean);
+  const lineBadge = chain.find((segment) => segment.label);
 
   const a11ySummary = [
     route.routeName,
     duration,
     summary,
+    selected ? facts.join('，') : null,
     starText,
     alerts > 0 ? t('routeTransitAlertsBadge', { count: alerts }) : null,
     selected ? t('selectedRoute') : null,
@@ -98,7 +112,6 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail }: R
   return (
     <View
       style={[
-        routeStyles.card,
         styles.card,
         { borderColor: selected ? ROUTE_ACCENT_COLOR : ROUTE_BORDER_COLOR, backgroundColor: colors.background },
         selected && styles.cardSelected,
@@ -106,54 +119,80 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail }: R
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={a11ySummary}
+        accessibilityHint={selected ? undefined : t('nativeRouteSelectHint')}
         accessibilityState={{ selected }}
         onPress={onSelect}
         style={styles.summary}>
-        <Text style={[styles.duration, { color: colors.text }]}>{duration}</Text>
-        {/* 運具串：步行 › 🚌 28 › 步行（連續步行合併，大眾運輸帶路線號） */}
-        <View style={styles.legChain} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-          {chain.map((segment, index) => (
-            <View key={`${segment.type}-${index}`} style={styles.legChainItem}>
-              {index > 0 ? <Icon name="chevronRight" size={14} color={colors.textSecondary} /> : null}
-              {segment.label ? (
-                <View style={[styles.legPill, { backgroundColor: LEG_LABEL_FILL[segment.type] }]}>
-                  <Icon name={LEG_ICON[segment.type]} size={13} color="#FFFFFF" />
-                  <Text style={styles.legPillText} numberOfLines={1}>
-                    {segment.label}
+        {selected ? (
+          <>
+            <View style={styles.titleRow}>
+              <Text style={[styles.duration, { color: colors.text }]}>{duration}</Text>
+              {/* 運具串：步行 › 🚌 28 › 步行（連續步行合併，大眾運輸帶路線號） */}
+              <View style={styles.legChain} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+                {chain.map((segment, index) => (
+                  <View key={`${segment.type}-${index}`} style={styles.legChainItem}>
+                    {index > 0 ? <Icon name="chevronRight" size={14} color={colors.textSecondary} /> : null}
+                    {segment.label ? (
+                      <View style={[styles.legPill, { backgroundColor: LEG_LABEL_FILL[segment.type] }]}>
+                        <Icon name={LEG_ICON[segment.type]} size={13} color="#FFFFFF" />
+                        <Text style={styles.legPillText} numberOfLines={1}>
+                          {segment.label}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Icon name={LEG_ICON[segment.type]} size={18} color={colors.textSecondary} />
+                    )}
+                  </View>
+                ))}
+              </View>
+            </View>
+            {facts.length > 0 ? (
+              <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{facts.join(' · ')}</Text>
+            ) : null}
+            <View style={routeStyles.chipsRow}>
+              {starText && stars !== null ? (
+                <View style={[routeStyles.badge, { backgroundColor: ROUTE_SURFACE_COLOR }]}>
+                  <Icon name="star" size={12} color={tones[STAR_TONE[stars] ?? 'warn']} />
+                  <Text style={[routeStyles.badgeText, { color: tones[STAR_TONE[stars] ?? 'warn'] }]}>{starText}</Text>
+                </View>
+              ) : null}
+              {detail.elevators > 0 ? (
+                <View style={[routeStyles.badge, { backgroundColor: ROUTE_SURFACE_COLOR }]}>
+                  <Text style={[routeStyles.badgeText, { color: colors.textSecondary }]}>
+                    {t('nativeRouteChipElevators', { count: detail.elevators })}
                   </Text>
                 </View>
-              ) : (
-                <Icon name={LEG_ICON[segment.type]} size={18} color={colors.textSecondary} />
-              )}
+              ) : null}
+              {alerts > 0 ? (
+                <View style={[routeStyles.badge, { backgroundColor: ROUTE_WARN_SURFACE }]}>
+                  <Icon name="alert" size={12} color={tones.warn} />
+                  <Text style={[routeStyles.badgeText, { color: tones.warn }]}>{t('routeTransitAlertsBadge', { count: alerts })}</Text>
+                </View>
+              ) : null}
             </View>
-          ))}
-        </View>
-        {summary && summary !== route.routeName && chain.every((segment) => !segment.label) ? (
-          <Text style={[routeStyles.metaText, { color: colors.textSecondary }]} numberOfLines={2}>
-            {summary}
-          </Text>
-        ) : null}
-        <View style={routeStyles.chipsRow}>
-          {starText && stars !== null ? (
-            <View style={[routeStyles.badge, { backgroundColor: ROUTE_SURFACE_COLOR }]}>
-              <Icon name="star" size={12} color={tones[STAR_TONE[stars] ?? 'warn']} />
-              <Text style={[routeStyles.badgeText, { color: tones[STAR_TONE[stars] ?? 'warn'] }]}>{starText}</Text>
+          </>
+        ) : (
+          <View style={styles.titleRow}>
+            <View style={routeStyles.flex}>
+              <Text style={[styles.durationSmall, { color: colors.text }]}>{duration}</Text>
+              <Text style={[routeStyles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
+                {[summary || null, facts[0] ?? null, starText].filter(Boolean).join(' · ')}
+              </Text>
             </View>
-          ) : null}
-          {alerts > 0 ? (
-            <View style={[routeStyles.badge, { backgroundColor: ROUTE_WARN_SURFACE }]}>
-              <Icon name="alert" size={12} color={tones.warn} />
-              <Text style={[routeStyles.badgeText, { color: tones.warn }]}>{t('routeTransitAlertsBadge', { count: alerts })}</Text>
-            </View>
-          ) : null}
-        </View>
+            {lineBadge?.label ? (
+              <View style={[styles.legPill, { backgroundColor: LEG_LABEL_FILL[lineBadge.type] }]}>
+                <Icon name={LEG_ICON[lineBadge.type]} size={13} color="#FFFFFF" />
+                <Text style={styles.legPillText} numberOfLines={1}>
+                  {lineBadge.label}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        )}
       </Pressable>
 
       {selected ? (
         <View style={styles.expanded}>
-          {facts.length > 0 ? (
-            <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{facts.join(' · ')}</Text>
-          ) : null}
           {/* 亮點改成安靜的勾選清單：以前是一整片綠色 chip，重要的警告反而淹沒在裡面 */}
           {highlights.length > 0 ? (
             <View style={styles.highlights}>
@@ -199,6 +238,14 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail }: R
           ) : null}
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={t('startNav')}
+            onPress={onStartNavigation}
+            style={routeStyles.primaryButton}>
+            <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
+            <Text style={routeStyles.primaryButtonText}>{t('startNav')}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
             accessibilityLabel={t('nativeRouteDetails')}
             onPress={onOpenDetail}
             style={[routeStyles.listRow, styles.detailRow, { borderColor: ROUTE_BORDER_COLOR }]}>
@@ -213,11 +260,13 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail }: R
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: RADIUS.card, padding: 14 },
+  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: RADIUS.card, padding: 14, gap: 8 },
   cardSelected: { borderWidth: 2 },
   summary: { gap: 8 },
-  duration: { fontSize: TYPE.headline + 2, fontWeight: '700' },
-  legChain: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', rowGap: 6 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  duration: { fontSize: TYPE.title, fontWeight: '700' },
+  durationSmall: { fontSize: TYPE.headline, fontWeight: '700' },
+  legChain: { flexShrink: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', rowGap: 6 },
   legChainItem: { flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 4 },
   // minHeight 而非固定高度：字級放大時膠囊跟著長高，不截字
   legPill: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 24, paddingVertical: 2, borderRadius: 6, paddingHorizontal: 7, maxWidth: 140 },

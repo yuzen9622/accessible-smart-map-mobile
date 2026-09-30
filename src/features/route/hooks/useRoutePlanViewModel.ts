@@ -51,6 +51,7 @@ export interface RoutePlanModel {
   resolving: boolean;
   travelModes: PlanOption<TravelMode>[];
   routeModes: PlanOption<RouteMode>[];
+  onSelectRouteMode: (mode: RouteMode) => void;
   gatedHint: string | null;
   canStart: boolean;
   loading: boolean;
@@ -87,6 +88,7 @@ export interface RoutePlanModel {
     chooseDestination: string;
     startNav: string;
     routeOptions: string;
+    close: string;
   };
 }
 
@@ -278,6 +280,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       accessibilityLabel: t(ROUTE_MODE_LABEL_KEY[mode]),
       onSelect: () => useRouteSessionStore.getState().setRouteMode(mode),
     })),
+    onSelectRouteMode: (mode) => useRouteSessionStore.getState().setRouteMode(mode),
     gatedHint: hasGatedTravelModes(routeMode) ? t('travelModeGatedHint', { a11yMode: routeModeLabel }) : null,
     canStart,
     loading: isLoading,
@@ -320,6 +323,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       chooseDestination: t('chooseDestination'),
       startNav: t('startNav'),
       routeOptions: t('routeResultsTitle'),
+      close: t('close'),
     },
   };
 }

@@ -11,6 +11,7 @@ import {
   gradeSlope,
   gradeUnconfirmedCrossings,
   gradeWidth,
+  routeFacts,
   routeSummary,
   shouldAppendExitNumber,
   walkA11yMetrics,
@@ -361,5 +362,39 @@ describe('walk a11y grading (Web WalkA11ySummary)', () => {
 
   it('returns null when the leg carries no accessibility data', () => {
     expect(walkA11yMetrics(buildRoute().legs[0] as WalkLeg)).toBeNull();
+  });
+});
+
+describe('routeFacts', () => {
+  it('counts stairs, elevators and max slope from walk legs', () => {
+    const walk = (overrides: Partial<WalkLeg>): WalkLeg => ({
+      type: 'WALK',
+      from: 'a',
+      to: 'b',
+      distanceM: 100,
+      minutesEst: 2,
+      polyline: [],
+      a11yFacilities: [],
+      ...overrides,
+    });
+    const route: AccessibleRoute = {
+      ...buildRoute(),
+      legs: [
+        walk({
+          maxSlopePercent: 4,
+          a11ySegments: [
+            { feature: 'elevator', startIndex: 0, endIndex: 0, indoor: true, distanceM: null, maxSlopePercent: null, minWidthCm: null },
+            { feature: 'stairs', startIndex: 1, endIndex: 2, indoor: false, distanceM: 5, maxSlopePercent: null, minWidthCm: null },
+          ],
+        }),
+        walk({ maxSlopePercent: 6, a11ySegments: [] }),
+      ],
+    };
+    expect(routeFacts(route)).toEqual({ stairs: 1, maxSlopePercent: 6, elevators: 1 });
+  });
+
+  it('reports unknown stairs when the backend gave no detail', () => {
+    const route: AccessibleRoute = { ...buildRoute(), legs: [] };
+    expect(routeFacts(route).stairs).toBeNull();
   });
 });

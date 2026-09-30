@@ -18,7 +18,7 @@ export default function RoutePlanScreen({ onStartNavigation }: RoutePlanScreenPr
   const model = useRoutePlanViewModel(planParams);
   return (
     <>
-      <Stack.Screen options={{ title: model.labels.title }} />
+      <Stack.Screen options={{ title: model.labels.title, headerShown: false }} />
       <RoutePlanPanel model={model} onStartNavigation={onStartNavigation} />
     </>
   );

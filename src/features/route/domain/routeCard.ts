@@ -278,3 +278,49 @@ export function legChainSegments(legs: readonly RouteLeg[]): LegChainSegment[] {
   }
   return out;
 }
+
+export interface RouteFacts {
+  /** 階梯處數；後端沒有提供階梯資訊（沒有 a11ySegments 也沒有步驟）時為 null，不能當成 0。 */
+  stairs: number | null;
+  /** 步行段中最大的可信坡度百分比；沒有資料為 null。 */
+  maxSlopePercent: number | null;
+  elevators: number;
+}
+
+/**
+ * 路線卡「理由」用的事實：階梯數、最大坡度、電梯數，只統計資料裡真的有的欄位。
+ * 優先用 `a11ySegments`（pedestrian-a11y 引擎），沒有時退回步行步驟的 `stairs`／`ELEVATOR` 標記。
+ */
+export function routeFacts(route: AccessibleRoute): RouteFacts {
+  let stairs = 0;
+  let stairsKnown = false;
+  let elevators = 0;
+  let maxSlope: number | null = null;
+  for (const leg of route.legs) {
+    if (leg.type !== 'WALK') continue;
+    let legHasStairs = false;
+    if (leg.a11ySegments) {
+      stairsKnown = true;
+      for (const segment of leg.a11ySegments) {
+        if (segment.feature === 'stairs') {
+          stairs++;
+          legHasStairs = true;
+        } else if (segment.feature === 'elevator') {
+          elevators++;
+        }
+      }
+    } else if (leg.steps) {
+      stairsKnown = true;
+      for (const step of leg.steps) {
+        if (step.stairs) {
+          stairs++;
+          legHasStairs = true;
+        }
+        if (step.relativeDirection === 'ELEVATOR') elevators++;
+      }
+    }
+    const slope = plausibleSlopePercent(leg.maxSlopePercent, legHasStairs);
+    if (slope !== null && (maxSlope === null || slope > maxSlope)) maxSlope = slope;
+  }
+  return { stairs: stairsKnown ? stairs : null, maxSlopePercent: maxSlope, elevators };
+}

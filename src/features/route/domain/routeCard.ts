@@ -247,6 +247,35 @@ export function walkA11yMetrics(leg: WalkLeg): WalkA11yMetrics | null {
   return { legend, slope, width, unconfirmedCrossings: unconfirmed, crossings: leg.crossings ?? null };
 }
 
+/**
+ * 捷運膠囊的短名。後端的 `lineName` 常是「南港展覽館－亞東醫院」這種起訖站串，膠囊只剩「南港展覽館－亞東…」；
+ * 起訖站串時：臺北捷運先換成大家認得的線名（BL → 板南線），其他短 `lineId` 直接用，都沒有就只留第一個站名。
+ */
+export function shortMetroLabel(lineName: string, lineId?: string, railSystem?: string): string {
+  const name = lineName.trim();
+  const isTerminusPair = /[－—–-]/.test(name) && name.length > 6;
+  if (!isTerminusPair) return name;
+  const id = lineId?.trim() ?? '';
+  // 台北人認得「板南線」不一定認得「BL」。railSystem 實際值未定（Web 轉接層給的是泛用的 'metro'），
+  // 所以預設套臺北捷運對照，只在明確是其他營運單位時跳過（高雄捷運的 R／O 是別條線）
+  const otherSystem = !!railSystem && OTHER_METRO_SYSTEMS.test(railSystem);
+  const taipeiName = !otherSystem && id ? TRTC_LINE_NAMES[id.replace(/^TRTC[-_]?/i, '')] : undefined;
+  if (taipeiName) return taipeiName;
+  if (id && id.length <= 6) return id;
+  return name.split(/[－—–-]/)[0].trim() || name;
+}
+
+const OTHER_METRO_SYSTEMS = /KRTC|KLRT|TMRT|TYMC/i;
+
+const TRTC_LINE_NAMES: Record<string, string> = {
+  BL: '板南線',
+  R: '淡水信義線',
+  G: '松山新店線',
+  O: '中和新蘆線',
+  BR: '文湖線',
+  Y: '環狀線',
+};
+
 export interface LegChainSegment {
   type: RouteLeg['type'];
   /** 運具上要印的短標籤：公車路線號、捷運線名、火車車次；步行與開車沒有。 */
@@ -266,7 +295,7 @@ export function legChainSegments(legs: readonly RouteLeg[]): LegChainSegment[] {
         out.push({ type: leg.type, label: leg.routeName });
         break;
       case 'METRO':
-        out.push({ type: leg.type, label: leg.lineName });
+        out.push({ type: leg.type, label: shortMetroLabel(leg.lineName, leg.lineId, leg.railSystem) });
         break;
       case 'THSR':
       case 'TRA':

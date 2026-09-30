@@ -10,6 +10,8 @@ import { hasRouteSession, routeResumeTarget, sheetModeFromPath, shouldShowRouteP
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import { routeTones } from './palette';
 
+const PILL_MAX_FONT_SCALE = 1.3;
+
 export interface RouteSessionPillProps {
   /** 由 app 組裝注入 navigation 的狀態（route 不 import navigation）。 */
   isNavigating: boolean;
@@ -56,11 +58,14 @@ export default function RouteSessionPill({ isNavigating, chatOpen = false }: Rou
         onPress={resume}
         style={styles.body}>
         <Icon name="navigation" size={16} color={tones.accent} />
-        <Text style={[styles.label, { color: colors.text }]} numberOfLines={1}>
+        {/* 浮在地圖上的膠囊：字級上限 1.3 倍。最大字級時目的地被擠成「前…」、分鐘數佔滿整顆膠囊（截圖實測） */}
+        <Text style={[styles.label, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={PILL_MAX_FONT_SCALE}>
           {label}
         </Text>
         {minutes !== null ? (
-          <Text style={[styles.minutes, { color: tones.ok }]}>{t('minutesLeft', { count: minutes })}</Text>
+          <Text style={[styles.minutes, { color: tones.ok }]} maxFontSizeMultiplier={PILL_MAX_FONT_SCALE}>
+            {t('minutesLeft', { count: minutes })}
+          </Text>
         ) : null}
       </Pressable>
       <View style={[styles.separator, { backgroundColor: colors.textSecondary }]} />

@@ -126,7 +126,9 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
         {selected ? (
           <>
             <View style={styles.titleRow}>
-              <Text style={[styles.duration, { color: colors.text }]}>{duration}</Text>
+              <Text style={[styles.duration, { color: colors.text }]} maxFontSizeMultiplier={1.6}>
+                {duration}
+              </Text>
               {/* 運具串：步行 › 🚌 28 › 步行（連續步行合併，大眾運輸帶路線號） */}
               <View style={styles.legChain} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
                 {chain.map((segment, index) => (
@@ -135,7 +137,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
                     {segment.label ? (
                       <View style={[styles.legPill, { backgroundColor: LEG_LABEL_FILL[segment.type] }]}>
                         <Icon name={LEG_ICON[segment.type]} size={13} color="#FFFFFF" />
-                        <Text style={styles.legPillText} numberOfLines={1}>
+                        <Text style={styles.legPillText} numberOfLines={1} maxFontSizeMultiplier={1.6}>
                           {segment.label}
                         </Text>
                       </View>
@@ -174,7 +176,9 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
         ) : (
           <View style={styles.titleRow}>
             <View style={routeStyles.flex}>
-              <Text style={[styles.durationSmall, { color: colors.text }]}>{duration}</Text>
+              <Text style={[styles.durationSmall, { color: colors.text }]} maxFontSizeMultiplier={1.6}>
+                {duration}
+              </Text>
               <Text style={[routeStyles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
                 {[summary || null, facts[0] ?? null, starText].filter(Boolean).join(' · ')}
               </Text>
@@ -182,7 +186,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
             {lineBadge?.label ? (
               <View style={[styles.legPill, { backgroundColor: LEG_LABEL_FILL[lineBadge.type] }]}>
                 <Icon name={LEG_ICON[lineBadge.type]} size={13} color="#FFFFFF" />
-                <Text style={styles.legPillText} numberOfLines={1}>
+                <Text style={styles.legPillText} numberOfLines={1} maxFontSizeMultiplier={1.6}>
                   {lineBadge.label}
                 </Text>
               </View>

@@ -48,7 +48,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
       keyboardDismissMode="on-drag">
       {model.showBrand ? (
         <View style={styles.headerRow}>
-          <Text accessibilityRole="header" style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
+          <Text accessibilityRole="header" style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
             {model.header.title}
           </Text>
           <Pressable

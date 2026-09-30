@@ -11,14 +11,18 @@ import {
 } from '@expo/ui/swift-ui';
 import {
   autocorrectionDisabled,
+  bold,
+  buttonBorderShape,
   buttonStyle,
+  controlSize,
   disabled,
   font,
   foregroundStyle,
+  frame,
   keyboardType,
+  onSubmit,
   pickerStyle,
   submitLabel,
-  onSubmit,
   tag,
   textContentType,
   textInputAutocapitalization,
@@ -101,11 +105,17 @@ export default function AuthPanel({ model }: AuthPanelProps) {
               </RNHostView>
             ) : null}
             {model.showGoogle ? (
+              // 與上面的 Apple 按鈕同寬、同高、同圓角（Apple 規範的 8pt）；以前是靠左的一顆小藥丸，像次要連結
               <Button
-                label={t('nativeAuthContinueWithGoogle')}
                 onPress={model.signInWithGoogle}
-                modifiers={[buttonStyle('bordered'), disabled(model.loading)]}
-              />
+                modifiers={[
+                  buttonStyle('bordered'),
+                  controlSize('large'),
+                  buttonBorderShape('roundedRectangle', 8),
+                  disabled(model.loading),
+                ]}>
+                <Text modifiers={[frame({ maxWidth: 10000 }), bold()]}>{t('nativeAuthContinueWithGoogle')}</Text>
+              </Button>
             ) : null}
           </Section>
         ) : null}

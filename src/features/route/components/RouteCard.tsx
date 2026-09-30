@@ -109,7 +109,9 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail }: R
         accessibilityState={{ selected }}
         onPress={onSelect}
         style={styles.summary}>
-        <Text style={[styles.duration, { color: colors.text }]}>{duration}</Text>
+        <Text style={[styles.duration, { color: colors.text }]} maxFontSizeMultiplier={1.6}>
+          {duration}
+        </Text>
         {/* 運具串：步行 › 🚌 28 › 步行（連續步行合併，大眾運輸帶路線號） */}
         <View style={styles.legChain} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
           {chain.map((segment, index) => (
@@ -118,7 +120,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail }: R
               {segment.label ? (
                 <View style={[styles.legPill, { backgroundColor: LEG_LABEL_FILL[segment.type] }]}>
                   <Icon name={LEG_ICON[segment.type]} size={13} color="#FFFFFF" />
-                  <Text style={styles.legPillText} numberOfLines={1}>
+                  <Text style={styles.legPillText} numberOfLines={1} maxFontSizeMultiplier={1.6}>
                     {segment.label}
                   </Text>
                 </View>

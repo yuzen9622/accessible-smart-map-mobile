@@ -52,7 +52,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
       {model.showBrand ? (
         <View style={styles.brandRow}>
           <Icon name="accessibility" size={22} color={accentText} />
-          <Text accessibilityRole="header" style={[styles.brandText, { color: colors.text }]}>
+          <Text accessibilityRole="header" style={[styles.brandText, { color: colors.text }]} maxFontSizeMultiplier={1.3}>
             {model.labels.appTitle}
           </Text>
         </View>

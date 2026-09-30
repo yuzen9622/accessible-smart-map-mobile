@@ -22,7 +22,10 @@ export default function SosButton() {
       onPress={() => router.push('/sos')}
       style={({ pressed }) => [styles.button, active && styles.active, pressed && styles.pressed]}>
       <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-        <Text style={styles.text}>SOS</Text>
+        {/* 固定 64pt 圓鈕：字級上限 1.2，放大字級時「SOS」不會超出圓形 */}
+        <Text style={styles.text} maxFontSizeMultiplier={1.2}>
+          SOS
+        </Text>
       </View>
     </Pressable>
   );

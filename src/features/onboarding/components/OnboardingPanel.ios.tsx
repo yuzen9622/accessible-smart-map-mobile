@@ -1,9 +1,11 @@
 import { Button, Form, Host, HStack, Section, Spacer, Text, Toggle } from '@expo/ui/swift-ui';
-import { font, foregroundStyle } from '@expo/ui/swift-ui/modifiers';
+import { font, foregroundStyle, listRowBackground, listRowInsets } from '@expo/ui/swift-ui/modifiers';
 
 import { FormPrimaryButton, FormSecondaryButton } from '@/shared/ui';
 
 import type { OnboardingPanelProps } from './OnboardingPanel.types';
+
+const BARE_TITLE_ROW = [listRowBackground('clear'), listRowInsets({ top: 8, leading: 20, bottom: 8, trailing: 20 })];
 
 const secondaryText = [
   font({ textStyle: 'footnote' }),
@@ -50,12 +52,8 @@ export default function OnboardingPanel({ model, backLabel, skipLabel }: Onboard
                 </Toggle>
               ))}
             </Section>
-            {model.needs.derivedModeText ? (
-              <Section>
-                <Text modifiers={secondaryText}>{model.needs.derivedModeText}</Text>
-              </Section>
-            ) : null}
-            <Section>
+            {/* 推導出的路線模式放在「下一步」下方的說明：以前自己一張白卡、裡面只有一行灰字（截圖實測） */}
+            <Section footer={model.needs.derivedModeText ? <Text>{model.needs.derivedModeText}</Text> : undefined}>
               <FormPrimaryButton label={model.needs.nextLabel} onPress={model.needs.onNext} />
             </Section>
           </>
@@ -95,8 +93,9 @@ export default function OnboardingPanel({ model, backLabel, skipLabel }: Onboard
 
         {model.stepId === 'done' ? (
           <>
+            {/* 大標題直接放在背景上，不包白卡（以前「設定完成」自己一張卡片） */}
             <Section>
-              <Text modifiers={[font({ textStyle: 'title2', weight: 'bold' })]}>{model.done.title}</Text>
+              <Text modifiers={[font({ textStyle: 'largeTitle', weight: 'bold' }), ...BARE_TITLE_ROW]}>{model.done.title}</Text>
             </Section>
             <Section>
               <FormPrimaryButton label={model.done.startLabel} onPress={model.done.onStart} />

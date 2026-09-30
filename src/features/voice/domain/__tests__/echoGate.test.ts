@@ -49,34 +49,25 @@ describe('echoGate（播放助理語音時不把回音送回後端）', () => {
     expect(forwarded).toHaveLength(0);
   });
 
-  it('播放中使用者大聲插話：連續三個大聲 frame 後放行，並補送這三個開頭 frame', () => {
+  it('回歸（2026-10-01 實測數據）：播放中回音音量達 0.36–0.44，跟人聲一樣大，也不可以送出', () => {
+    const { gate, forwarded, advance } = setup();
+    gate.notePlayback(2500);
+    // 模擬器 MacBook 喇叭→麥克風實測的 frame 音量序列（debug log 58905–59888）
+    for (const amplitude of [60, 1400, 3600, 3000, 3200, 2100, 250, 80, 80]) {
+      gate.push(frame(amplitude));
+      advance(100);
+    }
+    expect(forwarded).toHaveLength(0);
+  });
+
+  it('被打斷（clear）後仍保留尾音：喇叭與殘響還在，過了尾音才放行', () => {
     const { gate, forwarded, advance } = setup();
     gate.notePlayback(5000);
-    gate.push(LOUD);
-    gate.push(LOUD);
-    expect(forwarded).toHaveLength(0);
-    gate.push(LOUD);
-    expect(forwarded).toHaveLength(3);
-    advance(100);
-    gate.push(QUIET); // 插話中的小聲部分照送
-    expect(forwarded).toHaveLength(4);
-  });
-
-  it('大聲 frame 中斷就重新計算，不會被零星雜音觸發', () => {
-    const { gate, forwarded } = setup();
-    gate.notePlayback(5000);
-    gate.push(LOUD);
-    gate.push(LOUD);
-    gate.push(QUIET);
-    gate.push(LOUD);
-    expect(forwarded).toHaveLength(0);
-  });
-
-  it('被打斷（clear）後立刻放行', () => {
-    const { gate, forwarded } = setup();
-    gate.notePlayback(5000);
-    gate.push(QUIET);
+    advance(1000);
     gate.clear();
+    gate.push(LOUD);
+    expect(forwarded).toHaveLength(0);
+    advance(450);
     gate.push(QUIET);
     expect(forwarded).toHaveLength(1);
   });

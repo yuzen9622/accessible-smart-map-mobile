@@ -1,5 +1,5 @@
 import { Camera, Layer, Map, NativeUserLocation } from '@maplibre/maplibre-react-native';
-import { router, usePathname } from 'expo-router';
+import { router, useFocusEffect, usePathname } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Keyboard, StyleSheet, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -88,10 +88,11 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
     if (position) mapCamera.autoCenterOnce([position.lng, position.lat], LOCATED_ZOOM);
   }, [position]);
 
-  // 常駐 sheet：進到地圖就把 sheet 帶出來（深層連結已帶 sheet 路由時 router 會保留它）
-  useEffect(() => {
-    router.push('/explore');
-  }, []);
+  // 常駐 sheet：地圖一露出（上面沒有 sheet）就把首頁 sheet 帶出來。用 focus 而非只在掛載時推一次：
+  // 萬一 sheet 被關掉也會自動補回；深層連結已帶 sheet 路由時地圖不在最上層，不會重複推。
+  useFocusEffect(() => {
+    router.navigate('/explore');
+  });
 
   const handleToggle3d = async () => {
     const next = !is3d;
@@ -176,7 +177,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
           const target = { pathname: '/loc/[coords]', params: { coords: `${lat},${lng}` } } as const;
           // 已在看地點／設施詳情時換成新的點（像 Apple 地圖換卡片），不要一路疊頁面
           if (isPlaceDetailPath(pathname)) router.replace(target);
-          else router.push(target);
+          else router.navigate(target);
         }}>
         <Camera
           ref={registerMapCamera}

@@ -54,7 +54,7 @@ export function useMyReports() {
       title: t(HAZARD_TYPE_LABEL_KEY[r.hazardType]),
       subtitle: `${t(STATUS_KEY[r.status])}${r.createdAt ? ` · ${new Date(r.createdAt).toLocaleDateString(i18n.language)}` : ''}`,
       description: r.description ?? null,
-      onPress: () => router.push({ pathname: '/hazard/[id]', params: { id: r._id } }),
+      onPress: () => router.navigate({ pathname: '/hazard/[id]', params: { id: r._id } }),
     })),
     hasMore: Boolean(state.nextCursor),
     loadMore: () => void load(false),

@@ -21,8 +21,8 @@ Notifications.setNotificationHandler({
 
 function openTarget(data: unknown): void {
   const target = parsePushTarget(data);
-  if (target.kind === 'sos') router.push('/sos');
-  else if (target.kind === 'hazard') router.push('/settings/reports');
+  if (target.kind === 'sos') router.navigate('/sos');
+  else if (target.kind === 'hazard') router.navigate('/settings/reports');
 }
 
 /**

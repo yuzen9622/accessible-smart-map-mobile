@@ -147,8 +147,8 @@ export function useSosFlow() {
       closeScreen();
     },
     resolve: confirmResolve,
-    manageContacts: () => router.push('/settings/contacts'),
-    login: () => router.push('/auth'),
+    manageContacts: () => router.navigate('/settings/contacts'),
+    login: () => router.navigate('/auth'),
     minimize: closeScreen,
     closeResolved: () => {
       dismissResolvedSos();

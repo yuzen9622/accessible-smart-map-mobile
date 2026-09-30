@@ -1,7 +1,7 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { useColorScheme, useWindowDimensions } from 'react-native';
+import { BackHandler, Platform, useColorScheme, useWindowDimensions } from 'react-native';
 
 import { useAiBootstrap } from '@/features/ai';
 import { useAuthBootstrap } from '@/features/auth';
@@ -86,6 +86,13 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
           gestureEnabled: false,
         }}
         listeners={{
+          // 首頁 sheet 常駐：任何「退到底」的返回（連點關閉、非同步完成後的返回、sheet 最底層按返回）都不能把它移除，
+          // 否則 sheet 與其底層的探索頁一起消失，之後的面板會變成新 sheet 的第一頁、回不到首頁。
+          // Android 在首頁按返回鍵照系統慣例離開 App。
+          beforeRemove: (event) => {
+            event.preventDefault();
+            if (Platform.OS === 'android' && event.data.action.type === 'GO_BACK') BackHandler.exitApp();
+          },
           sheetDetentChange: (event) => {
             setSheetInset(sheetBottomInset(event.data.index, height));
             useMapUiStore.getState().setSheetDetentIndex(event.data.index);

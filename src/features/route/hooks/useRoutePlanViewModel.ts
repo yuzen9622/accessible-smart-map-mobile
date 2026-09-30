@@ -288,7 +288,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     onSelectRoute: selectRouteAt,
     onOpenRouteDetail: (index) => {
       selectRouteAt(index);
-      router.push({ pathname: '/routes/[index]', params: { index: String(index) } });
+      router.navigate({ pathname: '/routes/[index]', params: { index: String(index) } });
     },
     error: inputError ?? failureText,
     onEdit: (field) => {

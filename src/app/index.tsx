@@ -27,7 +27,7 @@ export default function Index() {
   useLiveBusTracking();
 
   useEffect(() => {
-    if (shouldOnboard) router.push('/onboarding');
+    if (shouldOnboard) router.navigate('/onboarding');
   }, [shouldOnboard]);
 
   return (

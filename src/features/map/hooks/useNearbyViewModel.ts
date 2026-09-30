@@ -106,7 +106,7 @@ export function useNearbyViewModel(initialFilter: NearbyFilter = 'all'): NearbyV
         distanceText,
         category: item.facility.category,
         accessibilityLabel: `${item.facility.name}，${t(item.facility.category)}，${subtitle}，${distanceText}`,
-        onPress: () => router.push({ pathname: '/facility/[id]', params: { id: item.id } }),
+        onPress: () => router.navigate({ pathname: '/facility/[id]', params: { id: item.id } }),
       };
     }
     sources.add('parking');

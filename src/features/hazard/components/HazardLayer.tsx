@@ -50,7 +50,7 @@ export default function HazardLayer() {
         event.stopPropagation();
         const target = { pathname: '/hazard/[id]', params: { id } } as const;
         if (['/loc/', '/place/', '/facility/', '/hazard/'].some((prefix) => pathname.startsWith(prefix))) router.replace(target);
-        else router.push(target);
+        else router.navigate(target);
       }}>
       <Layer
         id="hazard-points"

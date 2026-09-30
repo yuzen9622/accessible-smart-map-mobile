@@ -44,9 +44,22 @@ function fitMarkers(markers: AiMarker[]): void {
   mapCamera.fitBounds([west, south, east, north], MARKER_EDGE);
 }
 
-/** 關掉聊天 modal（在 modal 內才有效；語音路徑沒有 modal 時不動）。 */
+/** 開著的聊天畫面登記的「關掉自己」；沒登記＝聊天沒開（語音路徑）。 */
+let dismissChatScreen: (() => void) | null = null;
+
+export function registerChatDismiss(dismiss: () => void): () => void {
+  dismissChatScreen = dismiss;
+  return () => {
+    if (dismissChatScreen === dismiss) dismissChatScreen = null;
+  };
+}
+
+/**
+ * 關掉聊天 modal；聊天沒開時不動。不能用 `router.canDismiss()`＋`dismiss()`：root stack 底下永遠有
+ * 首頁 sheet，canDismiss 恆為 true，聊天沒開時會改成退掉 sheet 面板（或整個首頁 sheet）。
+ */
 export function closeChat(): void {
-  if (router.canDismiss()) router.dismiss();
+  dismissChatScreen?.();
 }
 
 export function openRoutePanel(): void {

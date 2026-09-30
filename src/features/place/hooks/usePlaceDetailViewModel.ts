@@ -209,7 +209,7 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   // 對齊 Web `PlaceContent.tsx` 的「規劃路線」：把這個地點設為目的地並打開規劃面板。
   // 只經路由參數傳遞，place 不 import route feature（sheet 路由是兩者之間唯一的介面）。
   const handlePlanRoute = () => {
-    router.push({ pathname: '/plan', params: { destLat: String(lat), destLng: String(lng), destName: title } });
+    router.navigate({ pathname: '/plan', params: { destLat: String(lat), destLng: String(lng), destName: title } });
   };
 
   const handleRecenter = () => {
@@ -252,7 +252,7 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   const openReviewForm = (review: typeof ownReview) => {
     if (!reviewKey) return;
     useReviewEditorStore.setState({ target: { placeId: reviewKey.placeId, placeType: reviewKey.placeType, placeName: title, review } });
-    router.push('/review');
+    router.navigate('/review');
   };
   const confirmDeleteReview = (id: string) => {
     Alert.alert(t('reviewDelete'), t('reviewDeleteConfirm'), [
@@ -304,7 +304,7 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
           emptyLabel: t('noReviews'),
           write: loggedIn
             ? { hint: null, label: ownReview ? t('reviewEditYours') : t('writeReview'), onPress: () => openReviewForm(ownReview) }
-            : { hint: t('reviewLoginRequired'), label: t('loginRegisterCta'), onPress: () => router.push('/auth') },
+            : { hint: t('reviewLoginRequired'), label: t('loginRegisterCta'), onPress: () => router.navigate('/auth') },
           editLabel: t('edit'),
           deleteLabel: t('reviewDelete'),
         }

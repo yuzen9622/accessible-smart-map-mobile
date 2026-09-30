@@ -81,7 +81,7 @@ export function useFacilityDetail(id: string): FacilityDetailModel {
     rows,
     planRouteLabel: t('planRoute'),
     onPlanRoute: () =>
-      router.push({
+      router.navigate({
         pathname: '/plan',
         params: { destLat: String(facility.lat), destLng: String(facility.lng), destName: facility.name },
       }),
@@ -91,7 +91,7 @@ export function useFacilityDetail(id: string): FacilityDetailModel {
     reportLabel: t('nativeFacilityReport'),
     reportAccessibilityLabel: t('nativeFacilityReportLabel', { name: facility.name }),
     onReport: () =>
-      router.push({
+      router.navigate({
         pathname: '/hazard-report',
         params: {
           lat: String(facility.lat),

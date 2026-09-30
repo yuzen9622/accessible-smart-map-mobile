@@ -88,12 +88,12 @@ export default function BusStopScreen() {
   const stopParams = stopPosition ? { stopLat: String(stopPosition.lat), stopLng: String(stopPosition.lng) } : {};
 
   const openRoute = (a: StopArrival) =>
-    router.push({
+    router.navigate({
       pathname: '/bus/route',
       params: { routeName: a.routeName, city, stopName, direction: String(a.direction), ...stopParams },
     });
   const openRouteByName = (routeName: string) =>
-    router.push({ pathname: '/bus/route', params: { routeName, city, stopName, ...stopParams } });
+    router.navigate({ pathname: '/bus/route', params: { routeName, city, stopName, ...stopParams } });
 
   const distanceText =
     userPosition && stopPosition

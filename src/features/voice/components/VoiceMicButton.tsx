@@ -29,7 +29,7 @@ export default function VoiceMicButton() {
     if (!loggedIn) {
       Alert.alert(t('chatbot.voice.loginRequired'), undefined, [
         { text: t('cancel'), style: 'cancel' },
-        { text: t('auth.login'), onPress: () => router.push('/auth') },
+        { text: t('auth.login'), onPress: () => router.navigate('/auth') },
       ]);
       return;
     }

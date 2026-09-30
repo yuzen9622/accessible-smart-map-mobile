@@ -19,7 +19,7 @@ export default function SosButton() {
       accessibilityRole="button"
       accessibilityLabel={active ? t('sosActiveTitle') : t('nativeSosButtonLabel')}
       accessibilityHint={active ? undefined : t('nativeSosButtonHint')}
-      onPress={() => router.push('/sos')}
+      onPress={() => router.navigate('/sos')}
       style={({ pressed }) => [styles.button, active && styles.active, pressed && styles.pressed]}>
       <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
         {/* 固定 64pt 圓鈕：字級上限 1.2，放大字級時「SOS」不會超出圓形 */}

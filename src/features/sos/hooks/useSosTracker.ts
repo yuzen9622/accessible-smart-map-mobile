@@ -41,7 +41,7 @@ export function useSosTracker(rawToken: string | undefined) {
       return;
     }
     const result = await computeRoute({ destination: { lat: session.lat, lng: session.lng }, travelMode: 'drive' });
-    if (result.ok) router.push('/routes');
+    if (result.ok) router.navigate('/routes');
     else if (result.failure !== 'superseded') Alert.alert(t('nativeRouteErrorFailed'));
   };
 

@@ -91,7 +91,7 @@ export function useOnboardingFlow() {
   /** 完成引導並直接打開附近設施清單（Web DoneStep 的「找附近的無障礙廁所」；路線與 AI 建議待 Phase 2／4） */
   const finishToNearby = () => {
     finish();
-    router.push('/nearby');
+    router.navigate('/nearby');
   };
 
   const requestLocation = () => {

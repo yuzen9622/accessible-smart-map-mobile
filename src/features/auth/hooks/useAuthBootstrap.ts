@@ -30,7 +30,7 @@ export function useAuthBootstrap(): void {
     useAuthStore.getState().clearExpiredNotice();
     Alert.alert(t('nativeSessionExpiredTitle'), t('nativeSessionExpiredBody'), [
       { text: t('cancel'), style: 'cancel' },
-      { text: t('auth.login'), onPress: () => router.push('/auth') },
+      { text: t('auth.login'), onPress: () => router.navigate('/auth') },
     ]);
   }, [sessionExpired, t]);
 }

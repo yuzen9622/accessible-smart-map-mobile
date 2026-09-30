@@ -66,7 +66,7 @@ export function useSavedPlacesViewModel(): SavedPlacesViewModel {
   const handleNavigate = (item: PlaceDetail) => {
     setSelectedPlace(item);
     mapCamera.flyTo([item.position.lng, item.position.lat], 17);
-    router.push(placeDetailHref(item));
+    router.navigate(placeDetailHref(item));
   };
 
   if (savedPlaces.length === 0) {

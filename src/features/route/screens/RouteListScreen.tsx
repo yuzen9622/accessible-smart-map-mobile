@@ -56,7 +56,7 @@ export default function RouteListScreen({ onStartNavigation }: RouteListScreenPr
                 onStartNavigation={onStartNavigation}
                 onOpenDetail={() => {
                   selectRouteAt(index);
-                  router.push({ pathname: '/routes/[index]', params: { index: String(index) } });
+                  router.navigate({ pathname: '/routes/[index]', params: { index: String(index) } });
                 }}
               />
             ))}

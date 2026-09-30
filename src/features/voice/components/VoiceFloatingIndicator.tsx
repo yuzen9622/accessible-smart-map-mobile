@@ -38,7 +38,7 @@ export default function VoiceFloatingIndicator() {
 
   const expand = () => {
     setViewMode('panel');
-    if (!chatOpen) router.push('/chat');
+    if (!chatOpen) router.navigate('/chat');
   };
 
   return (

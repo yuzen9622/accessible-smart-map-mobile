@@ -142,7 +142,7 @@ export function useExploreViewModel(): ExploreViewModel {
     setSelectedPlace(entry);
     mapCamera.flyTo([entry.position.lng, entry.position.lat], 17);
     Keyboard.dismiss();
-    router.push(placeDetailHref(entry));
+    router.navigate(placeDetailHref(entry));
   };
 
   const handlePickSuggestion = async (item: AutocompleteItem) => {
@@ -178,11 +178,11 @@ export function useExploreViewModel(): ExploreViewModel {
     setSelectedPlace(entry);
     mapCamera.flyTo([entry.position.lng, entry.position.lat], 17);
     Keyboard.dismiss();
-    router.push(placeDetailHref(entry));
+    router.navigate(placeDetailHref(entry));
   };
 
-  const openNearby = () => router.push('/nearby');
-  const openSaved = () => router.push('/saved');
+  const openNearby = () => router.navigate('/nearby');
+  const openSaved = () => router.navigate('/saved');
 
   const historyRows: ExploreRow[] = searchHistory.map((entry, index) => ({
     key: `${placeDisplayName(entry)}-${index}`,
@@ -249,7 +249,7 @@ export function useExploreViewModel(): ExploreViewModel {
       needs: {
         label: routeModeLabel,
         accessibilityLabel: t('nativeHomeNeedsA11y', { mode: routeModeLabel }),
-        onPress: () => router.push('/settings/needs'),
+        onPress: () => router.navigate('/settings/needs'),
       },
     },
     shortcuts,
@@ -258,16 +258,16 @@ export function useExploreViewModel(): ExploreViewModel {
     quickActions: [
       // 路線規劃與公車（Phase 2）：只經 sheet 路由切換面板，place 不 import 那兩個 feature。
       // AI 助理（Phase 4）：root modal；place 不 import ai feature
-      { key: 'assistant', label: t('assistShort'), iconName: 'sparkles', onPress: () => router.push('/chat') },
-      { key: 'plan', label: t('planRoute'), iconName: 'navigation', onPress: () => router.push('/plan') },
-      { key: 'bus', label: t('busInfo'), iconName: 'bus', onPress: () => router.push('/bus') },
+      { key: 'assistant', label: t('assistShort'), iconName: 'sparkles', onPress: () => router.navigate('/chat') },
+      { key: 'plan', label: t('planRoute'), iconName: 'navigation', onPress: () => router.navigate('/plan') },
+      { key: 'bus', label: t('busInfo'), iconName: 'bus', onPress: () => router.navigate('/bus') },
       // 危險通報（Phase 3）：root modal，未登入也能送
-      { key: 'hazard', label: t('reportHazard'), iconName: 'alert', onPress: () => router.push('/hazard-report') },
+      { key: 'hazard', label: t('reportHazard'), iconName: 'alert', onPress: () => router.navigate('/hazard-report') },
     ],
     account: {
       label: userName ? `${t('settingTitle')}，${userName}` : t('settingTitle'),
       initial: userName ? userName.trim().slice(0, 1).toUpperCase() : null,
-      onPress: () => router.push('/settings'),
+      onPress: () => router.navigate('/settings'),
     },
     labels: {
       searchPlaceholder: t('searchPlaceHolder'),

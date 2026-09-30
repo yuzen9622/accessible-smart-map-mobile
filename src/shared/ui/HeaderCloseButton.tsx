@@ -1,7 +1,7 @@
-import { router } from 'expo-router';
 import { Pressable, StyleSheet, useColorScheme } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { useCloseScreen } from '@/shared/navigation';
 import { semanticColors } from '@/shared/theme';
 
 import Icon from './Icon';
@@ -12,6 +12,7 @@ import Icon from './Icon';
  */
 export default function HeaderCloseButton({ onPress }: { onPress?: () => void }) {
   const { t } = useAppTranslation();
+  const closeScreen = useCloseScreen();
   // 深色導覽列上 #1565C0 只有約 2.9:1；改用規範的主色文字色（深色模式為亮藍）
   const color = semanticColors(useColorScheme() === 'dark').accent;
   return (
@@ -19,7 +20,7 @@ export default function HeaderCloseButton({ onPress }: { onPress?: () => void })
       accessibilityRole="button"
       accessibilityLabel={t('close')}
       hitSlop={8}
-      onPress={onPress ?? (() => router.back())}
+      onPress={onPress ?? closeScreen}
       style={styles.button}>
       <Icon name="close" size={22} color={color} />
     </Pressable>

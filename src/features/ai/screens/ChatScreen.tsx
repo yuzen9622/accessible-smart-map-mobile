@@ -1,15 +1,16 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { useCloseScreen } from '@/shared/navigation';
 import { useFontScale } from '@/shared/preferences';
 import { TYPE, scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import ChatComposer from '../components/ChatComposer';
 import ChatMessageItem from '../components/ChatMessageItem';
-import { openAiResult } from '../controller/actionExecutor';
+import { openAiResult, registerChatDismiss } from '../controller/actionExecutor';
 import { sendChatMessage, stopChatStreaming } from '../controller/chatController';
 import { useChatStore } from '../store/chatStore';
 
@@ -39,6 +40,10 @@ export default function ChatScreen({ initialPrompt, voicePanel, composerAccessor
   // inverted：最新一則在資料頭、畫在最下面，串流長高時不必手動捲動
   const data = [...entries].reverse();
   const suggestions = entries.length === 0 ? [t('nativeAiSuggestion1'), t('nativeAiSuggestion2'), t('nativeAiSuggestion3')] : [];
+
+  const closeScreen = useCloseScreen();
+  // AI action（開路線面板、點結果卡）要關掉的是這個 modal，不是當下最上層的任何畫面
+  useEffect(() => registerChatDismiss(closeScreen), [closeScreen]);
 
   const send = (text: string) => void sendChatMessage(text, t);
 

@@ -120,7 +120,7 @@ export function useHazardReport(params: HazardReportParams) {
 
   return {
     loggedIn,
-    login: () => router.push('/auth'),
+    login: () => router.navigate('/auth'),
     hazardType,
     typeChoices: HAZARD_TYPES.map((value) => ({ value, label: t(HAZARD_TYPE_LABEL_KEY[value]) })),
     setHazardType,

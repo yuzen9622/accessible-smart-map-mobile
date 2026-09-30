@@ -156,7 +156,7 @@ export function useAiMemory() {
 
   return {
     loggedIn,
-    openLogin: () => router.push('/auth'),
+    openLogin: () => router.navigate('/auth'),
     enabled,
     toggle,
     loading,

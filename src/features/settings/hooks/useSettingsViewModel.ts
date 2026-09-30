@@ -31,7 +31,7 @@ export function useSettingsViewModel() {
 
   const requireLogin = (action: () => void) => () => {
     if (loggedIn) action();
-    else router.push('/auth');
+    else router.navigate('/auth');
   };
 
   const confirmLogout = () => {
@@ -154,9 +154,9 @@ export function useSettingsViewModel() {
           hasPassword: user.authProviders.includes('local'),
         }
       : null,
-    openLogin: () => router.push('/auth'),
-    openSecurity: () => router.push('/settings/security'),
-    openLine: () => router.push('/settings/line'),
+    openLogin: () => router.navigate('/auth'),
+    openSecurity: () => router.navigate('/settings/security'),
+    openLine: () => router.navigate('/settings/line'),
     logout: confirmLogout,
     deleteAccount: confirmDelete,
 
@@ -179,11 +179,11 @@ export function useSettingsViewModel() {
       situations.length > 0
         ? situations.map((s) => t(`onboarding.situation.${s}`)).join('、')
         : t('nativeNeedsNone'),
-    openNeeds: () => router.push('/settings/needs'),
-    openContacts: requireLogin(() => router.push('/settings/contacts')),
-    openMemory: () => router.push('/settings/memory'),
-    openReports: requireLogin(() => router.push('/settings/reports')),
-    openData: () => router.push('/settings/data'),
+    openNeeds: () => router.navigate('/settings/needs'),
+    openContacts: requireLogin(() => router.navigate('/settings/contacts')),
+    openMemory: () => router.navigate('/settings/memory'),
+    openReports: requireLogin(() => router.navigate('/settings/reports')),
+    openData: () => router.navigate('/settings/data'),
     // 清掉完成旗標後，地圖主畫面（`app/index.tsx`）的 effect 會自動開 onboarding。
     resetGuides: () => useOnboardingStore.getState().resetGuides(),
     version: Constants.expoConfig?.version ?? '',

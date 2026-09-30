@@ -14,7 +14,7 @@ export function useSosBootstrap(): void {
     if (!restored || !loggedIn) return;
     const run = async () => {
       try {
-        if (await recoverActiveSos()) router.push('/sos');
+        if (await recoverActiveSos()) router.navigate('/sos');
       } catch (error) {
         console.warn('[sos] recovery failed', error);
       }

@@ -69,7 +69,7 @@ export default function FacilityLayer() {
           // 已經在看設施詳情時換成新的設施（像 Apple 地圖換卡片），不要一路疊頁面
           const target = { pathname: '/facility/[id]', params: { id } } as const;
           if (isPlaceDetailPath(pathname)) router.replace(target);
-          else router.push(target);
+          else router.navigate(target);
         }}>
         <Layer
           id="facility-clusters"

@@ -54,7 +54,7 @@ export default function BusPanelScreen() {
   const errorText = (error: BusSearchError) => (error === 'NO_DATA' ? t('noBusData') : t('networkError'));
 
   const openStop = (stop: BusStopSearchResult) =>
-    router.push({
+    router.navigate({
       pathname: '/bus/stop',
       params: {
         stopName: stop.stopName,
@@ -136,7 +136,7 @@ export default function BusPanelScreen() {
                 city: group.label,
               })}
               onPress={() =>
-                router.push({
+                router.navigate({
                   pathname: '/bus/route',
                   params: { routeName: route.routeName, city: route.city, departure: route.departure, destination: route.destination },
                 })

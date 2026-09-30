@@ -5,8 +5,7 @@ export interface NearbyPanelProps {
   /** 無定位時的「開啟定位」動作 */
   onRequestLocation: () => void;
   labels: {
-    filterHint: string;
-    nearbyTitle: string;
+    filterLabel: string;
     empty: string;
     noLocation: string;
     locate: string;

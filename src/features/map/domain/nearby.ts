@@ -36,3 +36,35 @@ export function buildNearbyItems(
   }
   return items.sort((a, b) => a.distance - b.distance).slice(0, NEARBY_LIMIT);
 }
+
+/** 設施清單的分類篩選（設計 2a 的 segmented control）。 */
+export type NearbyFilter = 'all' | PinnedFacilityCategory | 'parking';
+
+/** 依篩選列出附近項目：「全部」含停車；選設施類別時只列該類別；選停車時只列停車。 */
+export function buildFilteredNearbyItems(
+  origin: LatLng,
+  facilities: readonly Facility[],
+  parking: readonly ParkingNearbyItem[],
+  filter: NearbyFilter,
+): NearbyItem[] {
+  if (filter === 'all') return buildNearbyItems(origin, facilities, parking, new Set());
+  if (filter === 'parking') return buildNearbyItems(origin, [], parking, new Set());
+  return buildNearbyItems(origin, facilities, [], new Set([filter]));
+}
+
+/** 半徑內各類別的數量（不受 {@link NEARBY_LIMIT} 限制），給分類標籤顯示「電梯 3」。 */
+export function countNearby(
+  origin: LatLng,
+  facilities: readonly Facility[],
+  parking: readonly ParkingNearbyItem[],
+): Record<PinnedFacilityCategory | 'parking', number> {
+  const counts: Record<PinnedFacilityCategory | 'parking', number> = { elevator: 0, ramp: 0, toilet: 0, parking: 0 };
+  for (const facility of facilities) {
+    if (haversineMeters(origin, { lat: facility.lat, lng: facility.lng }) < NEARBY_RADIUS_M) counts[facility.category] += 1;
+  }
+  for (const item of parking) {
+    const position = parkingItemLngLat(item);
+    if (position && haversineMeters(origin, position) < NEARBY_RADIUS_M) counts.parking += 1;
+  }
+  return counts;
+}

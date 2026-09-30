@@ -1,8 +1,5 @@
-import type { FacilityDetailRow } from '../hooks/useFacilityDetail';
+import type { FacilityDetailModel } from '../hooks/useFacilityDetail';
 
 export interface FacilityDetailPanelProps {
-  title: string;
-  rows: FacilityDetailRow[];
-  showOnMapLabel: string;
-  onShowOnMap: () => void;
+  model: Extract<FacilityDetailModel, { status: 'ready' }>;
 }

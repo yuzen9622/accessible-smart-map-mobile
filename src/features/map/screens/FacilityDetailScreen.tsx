@@ -19,12 +19,7 @@ export default function FacilityDetailScreen() {
         <EmptyState title={t('nativeFacilityNotFound')} systemImage="mappin.slash" />
       ) : null}
       {model.status === 'ready' ? (
-        <FacilityDetailPanel
-          title={model.title}
-          rows={model.rows}
-          showOnMapLabel={t('nativeShowOnMap')}
-          onShowOnMap={model.onShowOnMap}
-        />
+<FacilityDetailPanel model={model} />
       ) : null}
     </>
   );

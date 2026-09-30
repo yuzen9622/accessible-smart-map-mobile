@@ -1,5 +1,5 @@
 import { parseFacilities } from '../facilities';
-import { NEARBY_LIMIT, buildNearbyItems } from '../nearby';
+import { NEARBY_LIMIT, buildFilteredNearbyItems, buildNearbyItems, countNearby } from '../nearby';
 import { parseParkingItems } from '../parking';
 
 const origin = { lat: 25.05, lng: 121.5 };
@@ -51,5 +51,24 @@ describe('buildNearbyItems', () => {
     const items = buildNearbyItems(origin, facilities, parking, new Set());
     expect(items[0]?.kind).toBe('parking');
     expect(items[0]?.id).toBe('p50');
+  });
+});
+
+describe('buildFilteredNearbyItems / countNearby', () => {
+  const facilities = parseFacilities([
+    facility('far', 'toilet', 2500),
+    facility('t300', 'toilet', 300),
+    facility('e100', 'elevator', 100),
+    facility('e200', 'elevator', 200),
+  ]);
+
+  it('類別篩選只列該類設施，不含停車', () => {
+    expect(buildFilteredNearbyItems(origin, facilities, [], 'elevator').map((item) => item.id)).toEqual(['e100', 'e200']);
+    expect(buildFilteredNearbyItems(origin, facilities, [], 'parking')).toEqual([]);
+    expect(buildFilteredNearbyItems(origin, facilities, [], 'all').map((item) => item.id)).toEqual(['e100', 'e200', 't300']);
+  });
+
+  it('數量只算半徑內', () => {
+    expect(countNearby(origin, facilities, [])).toEqual({ elevator: 2, ramp: 0, toilet: 1, parking: 0 });
   });
 });

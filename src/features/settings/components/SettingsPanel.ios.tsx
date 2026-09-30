@@ -97,8 +97,8 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
           <Button label={t('nativeMyReports')} onPress={model.openReports} />
         </Section>
 
-        <Section title={t('aiMemoryTitle')} footer={<Text>{t('nativeAiMemoryLater')}</Text>}>
-          <Toggle label={t('aiMemoryTitle')} isOn={model.memoryEnabled} onIsOnChange={model.setMemoryEnabled} />
+        <Section title={t('aiMemoryTitle')} footer={<Text>{t('aiMemoryDesc')}</Text>}>
+          <Button label={t('aiMemoryTitle')} onPress={model.openMemory} />
         </Section>
 
         <Section title={t('settingsDataTitle')}>

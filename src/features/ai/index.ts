@@ -1,5 +1,6 @@
 // AI 助理（SDD §6.6）的公開出口。聊天與語音共用 action executor（雙路徑不變量）。
 export { default as ChatScreen } from './screens/ChatScreen';
+export { default as AiMemoryScreen } from './screens/AiMemoryScreen';
 export { default as AIResultLayer } from './components/AIResultLayer';
 export { default as RouteExplanationCard } from './components/RouteExplanationCard';
 export { clearChat, sendChatMessage, stopChatStreaming } from './controller/chatController';

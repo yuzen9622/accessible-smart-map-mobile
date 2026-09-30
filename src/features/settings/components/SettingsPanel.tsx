@@ -50,8 +50,8 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
         <FormRow label={t('nativeMyReports')} onPress={model.openReports} />
       </FormSection>
 
-      <FormSection title={t('aiMemoryTitle')} footer={t('nativeAiMemoryLater')}>
-        <FormSwitch label={t('aiMemoryTitle')} value={model.memoryEnabled} onValueChange={model.setMemoryEnabled} />
+      <FormSection title={t('aiMemoryTitle')} footer={t('aiMemoryDesc')}>
+        <FormRow label={t('aiMemoryTitle')} value={model.memoryEnabled ? t('aiMemoryEnabled') : t('aiMemoryDisabled')} onPress={model.openMemory} />
       </FormSection>
 
       <FormSection title={t('settingsDataTitle')}>

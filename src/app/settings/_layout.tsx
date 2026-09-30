@@ -15,6 +15,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="line" options={{ title: t('nativeLineTitle') }} />
       <Stack.Screen name="contacts" options={{ title: t('sosContactsManageTitle') }} />
       <Stack.Screen name="needs" options={{ title: t('nativeSettingsNeeds') }} />
+      <Stack.Screen name="memory" options={{ title: t('aiMemoryTitle') }} />
       <Stack.Screen name="data" options={{ title: t('settingsDataTitle') }} />
       <Stack.Screen name="reports" options={{ title: t('nativeMyReports') }} />
     </Stack>

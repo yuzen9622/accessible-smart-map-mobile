@@ -174,7 +174,6 @@ export function useSettingsViewModel() {
     notifications: prefs.notifications,
     setNotifications,
     memoryEnabled: prefs.memoryEnabled,
-    setMemoryEnabled: (value: boolean) => prefs.setPreferences({ memoryEnabled: value }),
 
     needsSummary:
       situations.length > 0
@@ -182,6 +181,7 @@ export function useSettingsViewModel() {
         : t('nativeNeedsNone'),
     openNeeds: () => router.push('/settings/needs'),
     openContacts: requireLogin(() => router.push('/settings/contacts')),
+    openMemory: () => router.push('/settings/memory'),
     openReports: requireLogin(() => router.push('/settings/reports')),
     openData: () => router.push('/settings/data'),
     // 清掉完成旗標後，地圖主畫面（`app/index.tsx`）的 effect 會自動開 onboarding。

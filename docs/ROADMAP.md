@@ -256,10 +256,10 @@
 **4.2 語音**
 
 - [x] 近原樣移植 `lib/voice/voiceSession.ts`、`voiceSessionBindings.ts`、`transcriptAggregator.ts`、`audioLevel.ts`、`navProgress.ts`、`voiceNavigationExit.ts` 與測試（9 個）（2026-09-30，`features/voice/domain`，157 tests；重連時拆掉 utteranceId 對照（Web 缺陷修正））
-- [ ] `AudioCapturePort`／`AudioPlaybackPort` 原生實作（依 spike B）；iOS audio session `playAndRecord` + `voiceChat`
-- [ ] `WebSocket`（`binaryType = "arraybuffer"`）transport port
-- [ ] 語音模式 UI：浮動指示器、音量、逐字稿、工具呼叫狀態
-- [ ] **async action（`compute-route`）在語音路徑各自接線**
+- [x] `AudioCapturePort`／`AudioPlaybackPort` 原生實作（依 spike B）；iOS audio session `playAndRecord` + `voiceChat`（2026-09-30，`features/voice/audio`；模擬器實連後端：session.ready→聆聽→逐字稿→模型語音回覆；音質、5 分鐘穩定度待真機）
+- [x] `WebSocket`（`binaryType = "arraybuffer"`）transport port（2026-09-30，`transport/voiceSocket.ts`）
+- [x] 語音模式 UI：浮動指示器、音量、逐字稿、工具呼叫狀態（2026-09-30 模擬器：語音面板、切回文字→地圖膠囊→點膠囊回面板）
+- [x] **async action（`compute-route`）在語音路徑各自接線**（2026-09-30，`voiceController` 的 `computeRoute` sink await；語音叫路線的實測待真機）
 - [ ] 語音導航交接（`NavigationPort.adoptVoiceNavigation`）、斷線重連＋`nav.resume`（只在重連時送）
 - [ ] 與本機 TTS 的喇叭仲裁
 

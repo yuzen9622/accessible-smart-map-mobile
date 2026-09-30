@@ -15,27 +15,24 @@ import { PLACE_BORDER_COLOR } from './palette';
  * - 根節點只能有單一捲動容器：舊版 `View`（搜尋框）+ `FlatList` 兩個 sibling 在
  *   iOS 原生 formSheet 內被 `RNScreens` 警告「expects at most 2 subviews」並造成
  *   版面重疊，所以所有區塊都是這個 `ScrollView` 的子孫，不包外層 `View`、不加 sibling。
- * - detent 感知排序：展開（half/full）時順序為品牌 → 搜尋 → 你附近 → 快捷功能 →
- *   收藏地點 → 最近搜尋（對齊 Web `HomeContent.tsx`）；peek 只露出約 15% 高度，
- *   品牌列不渲染，搜尋框保持第一列（SDD §4.5）。代價是 peek ↔ half 切換時搜尋列
- *   位移一個品牌列高度，在不改 detent 的前提下這是唯一做法。
- * - Web 有、但本 App 尚無對應功能的元素（麥克風、無障礙篩選、帳號頭像、快捷功能編輯、
- *   回報障礙物／無障礙停車 chips）刻意不畫，見 `docs/port-ledger.md`。規劃路線與公車到站
- *   在 Phase 2 落地後放進快捷功能。
+ * - 版型依設計 1b「需求優先」（2026-09-30）：展開（half/full）時為「去哪裡？」＋行動需求 pill →
+ *   搜尋 → 常去地點圓鈕（收藏前三筆＋新增）→ 一句話附近摘要 → 更多（規劃路線／公車／回報）→
+ *   最近搜尋。peek 只露出約 15% 高度，大標列不渲染，搜尋框保持第一列（SDD §4.5）。
+ *   地圖圖層開關是 `features/map` 的 `LayerChips`，貼在 sheet 上緣，不在這個面板內。
  */
 export default function ExplorePanel({ model }: ExplorePanelProps) {
   const colors = useThemeColors();
   const tones = semanticColors(useColorScheme() === 'dark');
   const accentText = tones.accent;
 
-  const renderRow = (row: ExploreRow, icon: 'clock' | 'bookmark') => (
+  const renderRow = (row: ExploreRow) => (
     <Pressable
       key={row.key}
       accessibilityRole="button"
       accessibilityLabel={row.title}
       onPress={row.onPress}
       style={[styles.listRow, { borderColor: PLACE_BORDER_COLOR }]}>
-      <Icon name={icon} size={16} color={icon === 'bookmark' ? accentText : colors.textSecondary} />
+      <Icon name="clock" size={16} color={colors.textSecondary} />
       <Text style={[styles.listRowText, { color: colors.text }]} numberOfLines={1}>
         {row.title}
       </Text>
@@ -50,11 +47,22 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag">
       {model.showBrand ? (
-        <View style={styles.brandRow}>
-          <Icon name="accessibility" size={22} color={accentText} />
-          <Text accessibilityRole="header" style={[styles.brandText, { color: colors.text }]}>
-            {model.labels.appTitle}
+        <View style={styles.headerRow}>
+          <Text accessibilityRole="header" style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
+            {model.header.title}
           </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={model.header.needs.accessibilityLabel}
+            onPress={model.header.needs.onPress}
+            hitSlop={4}
+            style={({ pressed }) => [styles.needsPill, { backgroundColor: tones.accentSoft }, pressed && styles.pressed]}>
+            <Icon name="accessibility" size={17} color={accentText} />
+            <Text style={[styles.needsText, { color: accentText }]} numberOfLines={1}>
+              {model.header.needs.label}
+            </Text>
+            <Icon name="chevronDown" size={14} color={accentText} />
+          </Pressable>
         </View>
       ) : null}
 
@@ -88,85 +96,102 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 
       {model.mode === 'history' ? (
         <>
-          {model.nearby.cards.length > 0 ? (
-            <View style={styles.section}>
-              <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
-                {model.nearby.title}
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow}>
-                {model.nearby.cards.map((card) => (
-                  <Pressable
-                    key={card.key}
-                    accessibilityRole="button"
-                    accessibilityLabel={card.accessibilityLabel}
-                    onPress={card.onPress}
-                    style={({ pressed }) => [styles.nearbyCard, { backgroundColor: tones.surface }, pressed && styles.pressed]}>
-                    <View style={[styles.nearbyIcon, { backgroundColor: tones.accentSoft }]}>
-                      <Icon name={card.iconName} size={18} color={tones.accent} />
-                    </View>
-                    {/* 兩行：站名常是「國父紀念館站 2 號出口電梯」這種長名，一行只剩「國父紀念館站…」 */}
-                    <Text style={[styles.nearbyTitle, { color: colors.text }]} numberOfLines={2}>
-                      {card.title}
-                    </Text>
-                    <Text style={[styles.nearbyDistance, { color: colors.textSecondary }]}>{card.distanceText}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          ) : null}
-
-          {/* 快捷功能：一排等寬的圓形圖示＋下方標籤（Apple 地圖的做法）。以前是會換行的 chip，
-              五個長短不一的膠囊排成 2＋2＋1，最後一顆落單。 */}
-          <View style={styles.section}>
-            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
-              {model.labels.quickActions}
-            </Text>
-            {/* 等寬欄、不捲動：5 × 72pt 在 iPhone 15/16（可用 361pt）剛好放得下；放大字級時標籤換行而不是被切掉 */}
-            <View style={styles.actionsRow}>
-              {model.quickActions.map((action) => (
-                <Pressable
-                  key={action.key}
-                  accessibilityRole="button"
-                  accessibilityLabel={action.label}
-                  onPress={action.onPress}
-                  style={({ pressed }) => [styles.actionTile, pressed && styles.pressed]}>
-                  <View style={[styles.actionIcon, { backgroundColor: tones.accentSoft }]}>
-                    <Icon name={action.iconName} size={22} color={tones.accent} />
-                  </View>
-                  <Text style={[styles.actionLabel, { color: colors.text }]} numberOfLines={3} maxFontSizeMultiplier={1.4}>
-                    {action.label}
+          {/* 常去地點：收藏前三筆＋「新增」，一排等寬圓鈕（設計 1b）；放大字級時標籤換行不裁切 */}
+          <View style={styles.shortcutsRow}>
+            {model.shortcuts.map((shortcut) => (
+              <Pressable
+                key={shortcut.key}
+                accessibilityRole="button"
+                accessibilityLabel={shortcut.meta ? `${shortcut.title}，${shortcut.meta}` : shortcut.title}
+                onPress={shortcut.onPress}
+                style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
+                <View style={[styles.shortcutIcon, { backgroundColor: tones.accentSoft }]}>
+                  <Icon name={shortcut.iconName} size={24} color={accentText} />
+                </View>
+                <Text style={[styles.shortcutTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
+                  {shortcut.title}
+                </Text>
+                {shortcut.meta ? (
+                  <Text style={[styles.shortcutMeta, { color: colors.textSecondary }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
+                    {shortcut.meta}
                   </Text>
-                </Pressable>
-              ))}
-            </View>
+                ) : null}
+              </Pressable>
+            ))}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={model.addShortcut.label}
+              onPress={model.addShortcut.onPress}
+              style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
+              <View style={[styles.shortcutIcon, { backgroundColor: colors.backgroundElement }]}>
+                <Icon name="plus" size={24} color={colors.textSecondary} />
+              </View>
+              <Text style={[styles.shortcutTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
+                {model.addShortcut.label}
+              </Text>
+            </Pressable>
+            {/* 補空位：收藏不足三筆時仍維持四欄寬度，圓鈕不會被撐大 */}
+            {Array.from({ length: Math.max(0, 3 - model.shortcuts.length) }, (_, index) => (
+              <View key={`spacer-${index}`} style={styles.shortcut} />
+            ))}
           </View>
 
-          {model.savedRows.length > 0 ? (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text accessibilityRole="header" style={[styles.sectionTitle, styles.flex, { color: colors.text }]}>
-                  {model.labels.savedPlacesTitle}
-                </Text>
-                {model.savedViewAll ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={model.savedViewAll.label}
-                    onPress={model.savedViewAll.onPress}
-                    style={styles.viewAll}>
-                    <Text style={[styles.viewAllText, { color: accentText }]}>{model.savedViewAll.label}</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-              {model.savedRows.map((row) => renderRow(row, 'bookmark'))}
-            </View>
+          {model.nearbySummary ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={model.nearbySummary.text}
+              onPress={model.nearbySummary.onPress}
+              style={({ pressed }) => [styles.summaryCard, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
+              {model.nearbySummary.dots.length > 0 ? (
+                <View style={styles.summaryDots}>
+                  {model.nearbySummary.dots.map((dot, index) => (
+                    <View
+                      key={dot.key}
+                      style={[
+                        styles.summaryDot,
+                        { backgroundColor: dot.color, borderColor: colors.backgroundElement },
+                        index > 0 && styles.summaryDotOverlap,
+                      ]}>
+                      <Icon name={dot.iconName} size={15} color="#FFFFFF" />
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Icon name="accessibility" size={22} color={colors.textSecondary} />
+              )}
+              <Text style={[styles.summaryText, { color: colors.text }]}>{model.nearbySummary.text}</Text>
+              <Icon name="chevronRight" size={16} color={colors.textSecondary} />
+            </Pressable>
           ) : null}
+
+          <View style={styles.section}>
+            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
+              {model.labels.moreActions}
+            </Text>
+            {model.quickActions.map((action) => (
+              <Pressable
+                key={action.key}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
+                onPress={action.onPress}
+                style={({ pressed }) => [styles.listRow, { borderColor: PLACE_BORDER_COLOR }, pressed && styles.pressed]}>
+                <View style={[styles.actionIcon, { backgroundColor: tones.accentSoft }]}>
+                  <Icon name={action.iconName} size={17} color={accentText} />
+                </View>
+                <Text style={[styles.listRowText, { color: colors.text }]} numberOfLines={2}>
+                  {action.label}
+                </Text>
+                <Icon name="chevronRight" size={16} color={colors.textSecondary} />
+              </Pressable>
+            ))}
+          </View>
 
           {model.historyRows.length > 0 ? (
             <View style={styles.section}>
               <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
                 {model.labels.recentSearches}
               </Text>
-              {model.historyRows.map((row) => renderRow(row, 'clock'))}
+              {model.historyRows.map((row) => renderRow(row))}
             </View>
           ) : null}
         </>
@@ -217,10 +242,38 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 const styles = StyleSheet.create({
   avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  content: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, paddingBottom: 32, gap: 20 },
+  content: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, paddingBottom: 32, gap: 18 },
   flex: { flex: 1 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 40 },
-  brandText: { fontSize: 20, fontWeight: '700', flexShrink: 1 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, minHeight: 40 },
+  headerTitle: { flex: 1, fontSize: 28, fontWeight: '700' },
+  needsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 36,
+    maxWidth: 180,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.pill,
+  },
+  needsText: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
+  shortcutsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 },
+  shortcut: { width: 76, alignItems: 'center', gap: 4 },
+  shortcutIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  shortcutTitle: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  shortcutMeta: { fontSize: 12, textAlign: 'center' },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: RADIUS.card, padding: 14, minHeight: 58 },
+  summaryDots: { flexDirection: 'row' },
+  summaryDot: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryDotOverlap: { marginLeft: -10 },
+  summaryText: { flex: 1, fontSize: 15, lineHeight: 21 },
+  actionIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -232,20 +285,8 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 16, paddingVertical: 10 },
   section: { gap: 8 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontSize: TYPE.body, fontWeight: '700' },
-  cardsRow: { gap: 10, paddingRight: SPACE.lg },
-  nearbyCard: { width: 148, minHeight: 112, borderRadius: RADIUS.card, padding: SPACE.md, gap: SPACE.xs },
-  nearbyIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginBottom: SPACE.xs },
-  nearbyTitle: { fontSize: 14, fontWeight: '600', lineHeight: 19 },
-  nearbyDistance: { fontSize: TYPE.caption, marginTop: 'auto' },
-  actionsRow: { flexDirection: 'row', gap: SPACE.xs },
-  actionTile: { flex: 1, minWidth: 0, alignItems: 'center', gap: 6 },
-  actionIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  actionLabel: { fontSize: TYPE.caption, fontWeight: '500', textAlign: 'center', lineHeight: 16 },
   pressed: { opacity: 0.6 },
-  viewAll: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
-  viewAllText: { fontSize: 14, fontWeight: '500' },
   listRow: {
     flexDirection: 'row',
     alignItems: 'center',

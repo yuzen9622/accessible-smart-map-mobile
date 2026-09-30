@@ -57,7 +57,8 @@ describe('nearbyFacilityRows', () => {
       format,
     );
     expect(rows.map((r) => r.name)).toEqual(['n-t2', 'n-m1', 'n-t1']);
-    expect(rows[0]).toEqual({ key: 'toilet-t2', name: 'n-t2', address: null, typeLabel: 'type-toilet', distanceText: '50 m' });
+    expect(rows[0]).toEqual({ key: 'toilet-t2', name: 'n-t2', address: null, typeLabel: 'type-toilet', distanceText: '50 m', kind: 'toilet' });
+    expect(rows[1]?.kind).toBe('metro');
   });
 
   it('keeps only the nearest 5', () => {

@@ -1,9 +1,11 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 
+import { FACILITY_COLORS } from '@/features/map';
 import { RADIUS, semanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
-import type { PlaceDetailBadge, PlaceDetailViewProps } from './PlaceDetailView.types';
+import MoreActionsButton from './MoreActionsButton';
+import type { PlaceDetailBadge, PlaceDetailNearbyRow, PlaceDetailViewProps } from './PlaceDetailView.types';
 import {
   PLACE_ACCENT_COLOR,
   PLACE_ACCENT_COLOR_DARK,
@@ -58,6 +60,23 @@ function badgeTone(tone: Exclude<PlaceDetailBadge['tone'], 'neutral'>, colors: T
   return tone === 'ok' ? { color: colors.ok, surface: PLACE_OK_SURFACE } : { color: colors.warn, surface: PLACE_WARN_SURFACE };
 }
 
+const CHECKLIST_ICON: Partial<Record<string, IconName>> = {
+  wheelchair: 'accessibility',
+  elevator: 'elevator',
+  ramp: 'ramp',
+  toilet: 'toilet',
+};
+
+// render 時才讀 `FACILITY_COLORS`：map ↔ place 之間有 require cycle，模組頂層讀取時 map 可能尚未初始化
+function nearbyKindStyle(kind: PlaceDetailNearbyRow['kind']): { color: string; icon: IconName } {
+  return kind === 'toilet'
+    ? { color: FACILITY_COLORS.toilet, icon: 'toilet' }
+    : { color: FACILITY_COLORS.elevator, icon: 'elevator' };
+}
+
+/** 「我知道 ›」文字只有 16pt 高，hitSlop 補到 44pt 觸控目標 */
+const REPORT_HIT_SLOP = { top: 14, bottom: 14, left: 8, right: 8 };
+
 /** 外部連結 chip 視覺高度 32，hitSlop 補到 44pt 觸控目標 */
 const LINK_HIT_SLOP = { top: 6, bottom: 6, left: 0, right: 0 };
 
@@ -69,17 +88,16 @@ const LINK_HIT_SLOP = { top: 6, bottom: 6, left: 0, right: 0 };
  *   仍是原生 `ShareLink`（見 `ShareButton.ios.tsx`）。
  * - 根節點必須是單一 `ScrollView`（iOS formSheet 對多個 sibling 會警告
  *   「expects at most 2 subviews」並造成版面重疊）。
- * - 主要按鈕是「規劃路線」（Phase 2 路線 feature 落地後啟用，開 `/plan` 並帶入目的地）；
- *   「回到此地點」改為次要圓形按鈕。
- * - Web 有但本 App 無對應功能的元素（清單「我知道 → 回報」、評價登入卡、附近設施
- *   可點）刻意不畫，見 `docs/port-ledger.md`。
+ * - 版型依設計 1a「原生精修」（2026-09-30）：標題＋「類別 · 距離 · 地址」→ 主按鈕「規劃路線」與
+ *   同高 50pt 圓鈕（收藏、分享、「⋯」收納回到此地點／複製連結）→ 無障礙資訊卡（四項一列、
+ *   「n / 4 已確認」，未確認給「我知道 ›」開撰寫評價）→ badges → 附近無障礙設施 → 地址 → 評價。
  */
 export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps) {
   const colors = useThemeColors();
   const isDark = useColorScheme() === 'dark';
   const { fontScale } = useWindowDimensions();
   // 四顆圓鈕（回到此地點、收藏、分享、複製）同一種底色；分享鈕在 ShareButton 內用同一個 token
-  const circleSurface = semanticColors(isDark).surface;
+  const circleSurface = semanticColors(isDark).accentSoft;
   const toneColors = TONE_COLORS[isDark ? 'dark' : 'light'];
   const reviewEditLabel = model.reviews?.editLabel ?? '';
   const reviewDeleteLabel = model.reviews?.deleteLabel ?? '';
@@ -100,10 +118,6 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic">
       <View style={styles.header}>
-        <View style={styles.eyebrow}>
-          <Icon name="mapPin" size={14} color={accentText} />
-          <Text style={[styles.eyebrowText, { color: accentText }]}>{model.infoLabel}</Text>
-        </View>
         <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]} numberOfLines={2}>
           {model.title}
         </Text>
@@ -113,6 +127,119 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
           </Text>
         ) : null}
       </View>
+
+      {/* 設計 1a：主按鈕是「路線」，次要動作收成同高 50pt 的圓鈕；回到此地點／複製連結收進「⋯」 */}
+      <View style={[styles.actionsRow, fontScale >= 1.3 && styles.actionsRowLarge]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={model.planRouteLabel}
+          onPress={model.onPlanRoute}
+          style={({ pressed }) => [styles.primaryButton, fontScale >= 1.3 && styles.primaryButtonLarge, pressed && styles.pressed]}>
+          <Icon name="navigation" color={PLACE_ON_ACCENT_COLOR} />
+          <Text style={styles.primaryButtonText}>
+            {model.planRouteLabel}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={model.saveLabel}
+          accessibilityState={{ selected: model.saved }}
+          onPress={model.onToggleSave}
+          style={({ pressed }) => [styles.circleButton, { backgroundColor: circleSurface }, pressed && styles.pressed]}>
+          <Icon name={model.saved ? 'bookmarkFilled' : 'bookmark'} size={20} color={accentText} />
+        </Pressable>
+        <ShareButton url={model.shareUrl} title={model.title} label={model.shareLabel} onShare={model.onShare} />
+        <MoreActionsButton
+          label={model.moreLabel}
+          cancelLabel={model.cancelLabel}
+          backgroundColor={circleSurface}
+          color={accentText}
+          actions={[
+            { label: model.recenterLabel, onPress: model.onRecenter },
+            { label: model.copyLabel, onPress: model.onCopy },
+          ]}
+        />
+      </View>
+
+      {model.categories ? (
+        <View style={styles.chipsRow}>
+          {model.categories.map((cat) => (
+            <Pressable
+              key={cat.value}
+              accessibilityRole="button"
+              accessibilityState={{ selected: cat.isSelected }}
+              onPress={cat.onSelect}
+              style={[
+                styles.categoryChip,
+                { borderColor: PLACE_BORDER_COLOR },
+                cat.isSelected && { backgroundColor: PLACE_ACCENT_COLOR, borderColor: PLACE_ACCENT_COLOR },
+              ]}>
+              {cat.isSelected ? <Icon name="check" size={14} color={PLACE_ON_ACCENT_COLOR} /> : null}
+              <Text style={[styles.categoryChipText, { color: cat.isSelected ? PLACE_ON_ACCENT_COLOR : colors.text }]}>
+                {cat.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
+      {model.checklist.length > 0 ? (
+        <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
+          <View style={styles.cardHeader}>
+            <Text accessibilityRole="header" style={[styles.sectionTitle, styles.flex, { color: colors.text }]}>
+              {model.checklistTitle}
+            </Text>
+            {model.checklistConfirmedLabel ? (
+              <Text
+                style={[
+                  styles.confirmedText,
+                  { color: model.checklist.some((item) => item.tone !== 'unknown') ? toneColors.ok : colors.textSecondary },
+                ]}>
+                {model.checklistConfirmedLabel}
+              </Text>
+            ) : null}
+          </View>
+          {/* 四項設施壓成一列圖示（設計 1a）；未確認直接給「我知道 ›」回報出口 */}
+          <View style={styles.checklistRow}>
+            {model.checklist.map((item) => {
+              const tone = checklistTone(item.tone, toneColors);
+              const report = item.onReport;
+              return (
+                <View key={item.key} style={styles.checklistItem}>
+                  <View
+                    accessible
+                    accessibilityLabel={`${item.label}：${item.statusLabel}`}
+                    style={styles.checklistBody}>
+                    <View style={[styles.checklistIcon, { backgroundColor: tone.surface }]}>
+                      <Icon
+                        name={item.tone === 'unknown' ? 'help' : CHECKLIST_ICON[item.key] ?? tone.icon}
+                        size={22}
+                        color={tone.color}
+                      />
+                    </View>
+                    <Text style={[styles.checklistLabel, { color: colors.text }]} numberOfLines={2}>
+                      {item.label}
+                    </Text>
+                  </View>
+                  {report ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${item.label}，${model.reportLabel}`}
+                      onPress={report}
+                      hitSlop={REPORT_HIT_SLOP}>
+                      <Text style={[styles.checklistStatus, { color: accentText }]}>{`${model.reportLabel} ›`}</Text>
+                    </Pressable>
+                  ) : (
+                    <Text style={[styles.checklistStatus, { color: tone.color }]} importantForAccessibility="no">
+                      {item.statusLabel}
+                    </Text>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
 
       {model.badges.length > 0 || model.links.length > 0 ? (
         <View style={styles.chipsRow}>
@@ -145,63 +272,38 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
         </View>
       ) : null}
 
-      <View style={[styles.actionsRow, fontScale >= 1.3 && styles.actionsRowLarge]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={model.planRouteLabel}
-          onPress={model.onPlanRoute}
-          style={[styles.primaryButton, fontScale >= 1.3 && styles.primaryButtonLarge]}>
-          <Icon name="navigation" color={PLACE_ON_ACCENT_COLOR} />
-          <Text style={styles.primaryButtonText}>
-            {model.planRouteLabel}
-          </Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={model.recenterLabel}
-          onPress={model.onRecenter}
-          style={({ pressed }) => [styles.circleButton, { backgroundColor: circleSurface }, pressed && styles.pressed]}>
-          <Icon name="crosshair" color={colors.text} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={model.saveLabel}
-          accessibilityState={{ selected: model.saved }}
-          onPress={model.onToggleSave}
-          style={({ pressed }) => [styles.circleButton, { backgroundColor: circleSurface }, pressed && styles.pressed]}>
-          <Icon name={model.saved ? 'bookmarkFilled' : 'bookmark'} color={model.saved ? accentText : colors.text} />
-        </Pressable>
-        <ShareButton url={model.shareUrl} title={model.title} label={model.shareLabel} onShare={model.onShare} />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={model.copyLabel}
-          onPress={model.onCopy}
-          style={({ pressed }) => [styles.circleButton, { backgroundColor: circleSurface }, pressed && styles.pressed]}>
-          <Icon name={model.copied ? 'check' : 'copy'} color={model.copied ? toneColors.ok : colors.text} />
-        </Pressable>
-      </View>
-
-      {model.categories ? (
-        <View style={styles.chipsRow}>
-          {model.categories.map((cat) => (
-            <Pressable
-              key={cat.value}
-              accessibilityRole="button"
-              accessibilityState={{ selected: cat.isSelected }}
-              onPress={cat.onSelect}
+      <View>
+        <Text accessibilityRole="header" style={[styles.largeTitle, { color: colors.text }]}>
+          {model.nearbyTitle}
+        </Text>
+        {model.nearbyRows.length > 0 ? (
+          model.nearbyRows.map((row, index) => (
+            <View
+              key={row.key}
+              accessible
+              accessibilityLabel={`${row.name}，${row.typeLabel}，${row.distanceText}`}
               style={[
-                styles.categoryChip,
-                { borderColor: PLACE_BORDER_COLOR },
-                cat.isSelected && { backgroundColor: PLACE_ACCENT_COLOR, borderColor: PLACE_ACCENT_COLOR },
+                styles.nearbyRow,
+                index < model.nearbyRows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: PLACE_BORDER_COLOR },
               ]}>
-              {cat.isSelected ? <Icon name="check" size={14} color={PLACE_ON_ACCENT_COLOR} /> : null}
-              <Text style={[styles.categoryChipText, { color: cat.isSelected ? PLACE_ON_ACCENT_COLOR : colors.text }]}>
-                {cat.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
+              <View style={[styles.nearbyIcon, { backgroundColor: nearbyKindStyle(row.kind).color }]}>
+                <Icon name={nearbyKindStyle(row.kind).icon} size={18} color="#FFFFFF" />
+              </View>
+              <View style={styles.flex}>
+                <Text style={[styles.nearbyName, { color: colors.text }]} numberOfLines={1}>
+                  {row.name}
+                </Text>
+                <Text style={[styles.nearbyMeta, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {row.address ? `${row.typeLabel} · ${row.address}` : row.typeLabel}
+                </Text>
+              </View>
+              <Text style={[styles.nearbyDistance, { color: colors.textSecondary }]}>{row.distanceText}</Text>
+            </View>
+          ))
+        ) : (
+          <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{model.nearbyEmptyLabel}</Text>
+        )}
+      </View>
 
       {model.addressRows.length > 0 ? (
         <View style={[styles.card, { backgroundColor: PLACE_SURFACE_COLOR }]}>
@@ -219,61 +321,6 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
                 </Text>
               </View>
             ))}
-          </View>
-        </View>
-      ) : null}
-
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Icon name="accessibility" size={16} color={colors.text} />
-          <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
-            {model.nearbyTitle}
-          </Text>
-        </View>
-        {model.nearbyRows.length > 0 ? (
-          model.nearbyRows.map((row) => (
-            <View key={row.key} style={[styles.nearbyRow, { borderColor: PLACE_BORDER_COLOR }]}>
-              <View style={styles.flex}>
-                <Text style={[styles.nearbyName, { color: colors.text }]} numberOfLines={1}>
-                  {row.name}
-                </Text>
-                <Text style={[styles.nearbyMeta, { color: colors.textSecondary }]} numberOfLines={1}>
-                  {row.address ? `${row.typeLabel} · ${row.address}` : row.typeLabel}
-                </Text>
-              </View>
-              <Text style={[styles.nearbyMeta, { color: colors.textSecondary }]}>{row.distanceText}</Text>
-            </View>
-          ))
-        ) : (
-          <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{model.nearbyEmptyLabel}</Text>
-        )}
-      </View>
-
-      {model.checklist.length > 0 ? (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Icon name="accessibility" size={16} color={colors.text} />
-            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
-              {model.checklistTitle}
-            </Text>
-          </View>
-          <View style={styles.checklistGrid}>
-            {model.checklist.map((item) => {
-              const tone = checklistTone(item.tone, toneColors);
-              return (
-                <View
-                  key={item.key}
-                  accessible
-                  accessibilityLabel={`${item.label}：${item.statusLabel}`}
-                  style={[styles.checklistItem, { backgroundColor: tone.surface }]}>
-                  <View style={styles.checklistLabelRow}>
-                    <Icon name={tone.icon} size={16} color={tone.color} />
-                    <Text style={[styles.checklistLabel, { color: tone.color }]}>{item.label}</Text>
-                  </View>
-                  <Text style={[styles.checklistStatus, { color: tone.color }]}>{item.statusLabel}</Text>
-                </View>
-              );
-            })}
           </View>
         </View>
       ) : null}
@@ -364,10 +411,8 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
   header: { gap: 4 },
-  eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  eyebrowText: { fontSize: 12, fontWeight: '600' },
-  title: { fontSize: 20, fontWeight: '700' },
-  subtitle: { fontSize: 13 },
+  title: { fontSize: 24, fontWeight: '700' },
+  subtitle: { fontSize: 15 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   badge: {
     flexDirection: 'row',
@@ -379,7 +424,7 @@ const styles = StyleSheet.create({
   },
   linkChip: { borderWidth: StyleSheet.hairlineWidth },
   badgeText: { fontSize: 13, fontWeight: '500' },
-  actionsRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  actionsRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   actionsRowLarge: { flexWrap: 'wrap' },
   primaryButton: {
     flex: 1,
@@ -387,16 +432,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    minHeight: 48,
+    minHeight: 50,
     borderRadius: RADIUS.pill,
     paddingHorizontal: 12,
     backgroundColor: PLACE_ACCENT_COLOR,
   },
   primaryButtonLarge: { flexGrow: 0, flexBasis: '100%', paddingVertical: 10 },
-  primaryButtonText: { color: PLACE_ON_ACCENT_COLOR, fontSize: 15, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
+  primaryButtonText: { color: PLACE_ON_ACCENT_COLOR, fontSize: 17, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
   circleButton: {
-    width: 44,
-    height: 44,
+    width: 50,
+    height: 50,
     borderRadius: RADIUS.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -412,7 +457,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   categoryChipText: { fontSize: 13, fontWeight: '500' },
-  card: { borderRadius: RADIUS.card, padding: 14, gap: 8 },
+  card: { borderRadius: RADIUS.card, paddingVertical: 14, paddingHorizontal: 12, gap: 8 },
   section: { gap: 8 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontSize: 15, fontWeight: '600' },
@@ -424,17 +469,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    minHeight: 48,
+    minHeight: 60,
     paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  nearbyName: { fontSize: 15, fontWeight: '500' },
-  nearbyMeta: { fontSize: 12 },
-  checklistGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 8 },
-  checklistItem: { width: '48%', borderRadius: 14, padding: 12, gap: 4 },
-  checklistLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  checklistLabel: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
-  checklistStatus: { fontSize: 13 },
+  nearbyName: { fontSize: 17 },
+  nearbyMeta: { fontSize: 13 },
+  nearbyDistance: { fontSize: 15 },
+  nearbyIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  largeTitle: { fontSize: 20, fontWeight: '700', marginBottom: 2 },
+  cardHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingHorizontal: 2 },
+  confirmedText: { fontSize: 13, fontWeight: '600' },
+  checklistRow: { flexDirection: 'row', gap: 4, marginTop: 4 },
+  checklistItem: { flex: 1, minWidth: 0, alignItems: 'center', gap: 4 },
+  checklistBody: { alignItems: 'center', gap: 4 },
+  checklistIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  checklistLabel: { fontSize: 13, textAlign: 'center' },
+  checklistStatus: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
   reviewRow: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 8, gap: 4 },
   loadMoreButton: { minHeight: 44, justifyContent: 'center' },
   loadMoreText: { textAlign: 'center', fontSize: 15, fontWeight: '500' },

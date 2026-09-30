@@ -1,11 +1,12 @@
 import type {
-  ExploreNearbyCard,
+  ExploreNearbySummary,
   ExploreQuickAction,
   ExploreRow,
+  ExploreShortcut,
   ExploreViewModel,
 } from '../hooks/useExploreViewModel';
 
-export type { ExploreNearbyCard, ExploreQuickAction, ExploreRow };
+export type { ExploreNearbySummary, ExploreQuickAction, ExploreRow, ExploreShortcut };
 
 export interface ExplorePanelProps {
   model: ExploreViewModel;

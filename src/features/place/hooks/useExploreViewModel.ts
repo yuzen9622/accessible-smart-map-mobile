@@ -3,21 +3,24 @@ import { useState } from 'react';
 import { Keyboard, useWindowDimensions } from 'react-native';
 
 import {
+  FACILITY_COLORS,
   SHEET_DETENTS,
   mapCamera,
   sheetBottomInset,
   sheetController,
   useMapUiStore,
-  useNearbyViewModel,
+  useNearbySummary,
   useUserLocationStore,
-  type NearbyRow,
 } from '@/features/map';
 import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
+import { ROUTE_MODE_LABEL_KEY, useOnboardingStore } from '@/features/onboarding';
+import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
+import type { IconName } from '@/shared/ui';
 
 import { getPlaceDetails } from '../api/placeSearch';
 import { toApiLang } from '../domain/lang';
-import { placeKey } from '../domain/placeKey';
+import { isSavedPlaceCategory, placeKey, type SavedPlaceCategory } from '../domain/placeKey';
 import { placeDisplayName } from '../domain/searchHistory';
 import { usePlaceUiStore } from '../store/placeUiStore';
 import { useSavedPlacesStore } from '../store/savedPlacesStore';
@@ -38,41 +41,40 @@ export interface ExploreRow {
 
 export type ExploreMode = 'history' | 'results';
 
-export interface ExploreNearbyCard {
+export interface ExploreQuickAction {
+  key: 'plan' | 'bus' | 'hazard';
+  label: string;
+  iconName: 'navigation' | 'bus' | 'alert';
+  onPress: () => void;
+}
+
+/** 「去哪裡」下方的常去地點圓鈕（收藏前幾筆） */
+export interface ExploreShortcut {
   key: string;
   title: string;
-  distanceText: string;
-  iconName: 'elevator' | 'ramp' | 'toilet' | 'parking' | 'mapPin';
-  accessibilityLabel: string;
+  /** 與使用者的直線距離；沒有定位時為 null */
+  meta: string | null;
+  iconName: IconName;
   onPress: () => void;
 }
 
-export interface ExploreQuickAction {
-  key: 'plan' | 'bus' | 'nearby' | 'saved' | 'hazard';
-  label: string;
-  iconName: 'navigation' | 'bus' | 'accessibility' | 'bookmark' | 'alert';
+/** 一句話附近摘要：「步行 5 分鐘內：3 部電梯、2 間無障礙廁所」 */
+export interface ExploreNearbySummary {
+  text: string;
+  /** 摘要左側疊在一起的類別色圓點（最多兩個） */
+  dots: { key: string; iconName: IconName; color: string }[];
   onPress: () => void;
 }
 
-const NEARBY_CARD_LIMIT = 6;
-const SAVED_ROW_LIMIT = 5;
-/** 對齊 Web `HomeContent.tsx`：收藏超過 3 筆才顯示「查看全部」 */
-const SAVED_VIEW_ALL_THRESHOLD = 3;
+const SHORTCUT_LIMIT = 3;
 
-function nearbyIconName(category: NearbyRow['category']): ExploreNearbyCard['iconName'] {
-  switch (category) {
-    case 'parking':
-      return 'parking';
-    case 'elevator':
-      return 'elevator';
-    case 'ramp':
-      return 'ramp';
-    case 'toilet':
-      return 'toilet';
-    default:
-      return 'mapPin';
-  }
-}
+const SAVED_CATEGORY_ICON: Record<SavedPlaceCategory, IconName> = {
+  favorite: 'heart',
+  food: 'utensils',
+  transport: 'tramFront',
+  medical: 'hospital',
+  other: 'mapPin',
+};
 
 export interface ExploreViewModel {
   query: string;
@@ -88,13 +90,14 @@ export interface ExploreViewModel {
   onOpenSaved: () => void;
   /** sheet 展開（half/full）時才顯示品牌列；peek 只露搜尋框（SDD §4.5）。 */
   showBrand: boolean;
-  /** 非 ready 或為空 → `cards = []` */
-  nearby: { title: string; cards: ExploreNearbyCard[] };
-  /** 恰兩項，`onPress` 與 `onOpenNearby`／`onOpenSaved` 是同一函式 */
+  /** 大標「去哪裡？」與右側的行動需求 pill（點了到設定的需求頁） */
+  header: { title: string; needs: { label: string; accessibilityLabel: string; onPress: () => void } };
+  /** 收藏前 3 筆；最後固定一顆「新增」開收藏清單 */
+  shortcuts: ExploreShortcut[];
+  addShortcut: { label: string; onPress: () => void };
+  /** 沒有定位或設施未載入時為 null */
+  nearbySummary: ExploreNearbySummary | null;
   quickActions: ExploreQuickAction[];
-  /** 收藏地點前 5 筆 */
-  savedRows: ExploreRow[];
-  savedViewAll: { label: string; onPress: () => void } | null;
   /** 搜尋框右側的帳號／設定按鈕（Apple 地圖的頭像位置）；已登入顯示名字首字 */
   account: { label: string; initial: string | null; onPress: () => void };
   labels: {
@@ -104,10 +107,8 @@ export interface ExploreViewModel {
     searchHistory: string;
     searchResults: string;
     noResults: string;
-    appTitle: string;
     recentSearches: string;
-    quickActions: string;
-    savedPlacesTitle: string;
+    moreActions: string;
   };
 }
 
@@ -129,7 +130,9 @@ export function useExploreViewModel(): ExploreViewModel {
   const { height } = useWindowDimensions();
   // 唯讀：`sheetBottomInset` 把 detent index clamp 到 ≤ 1，所以只有 peek 會等於 index 0 的值
   const sheetInset = useMapUiStore((state) => state.sheetInset);
-  const nearbyModel = useNearbyViewModel();
+  const nearbySummary = useNearbySummary();
+  const savedPlaceCategories = useSavedPlacesStore((state) => state.savedPlaceCategories);
+  const routeMode = useOnboardingStore((state) => state.profile.routeMode);
   const addSearchHistory = useSavedPlacesStore((state) => state.addSearchHistory);
   const setSelectedPlace = usePlaceUiStore((state) => state.setSelectedPlace);
   const { suggestions, loading, sessionToken, resetSession } = useAutocomplete(query, userLocation ?? undefined);
@@ -198,25 +201,37 @@ export function useExploreViewModel(): ExploreViewModel {
     onPress: () => void handlePickSuggestion(item),
   }));
 
-  const nearbyCards: ExploreNearbyCard[] =
-    nearbyModel.status === 'ready'
-      ? nearbyModel.rows.slice(0, NEARBY_CARD_LIMIT).map((row) => ({
-          key: row.key,
-          title: row.title,
-          distanceText: row.distanceText,
-          iconName: nearbyIconName(row.category),
-          accessibilityLabel: row.accessibilityLabel,
-          onPress: row.onPress,
-        }))
-      : [];
+  const shortcuts: ExploreShortcut[] = savedPlaces.slice(0, SHORTCUT_LIMIT).map((entry) => {
+    const key = placeKey(entry);
+    const category = savedPlaceCategories[key];
+    return {
+      key,
+      title: placeDisplayName(entry),
+      meta: userLocation ? formatDistance(haversineMeters(userLocation, entry.position)) : null,
+      iconName: isSavedPlaceCategory(category) ? SAVED_CATEGORY_ICON[category] : 'bookmark',
+      onPress: () => handlePickSaved(entry),
+    };
+  });
 
-  const savedRows: ExploreRow[] = savedPlaces.slice(0, SAVED_ROW_LIMIT).map((entry) => ({
-    key: placeKey(entry),
-    title: placeDisplayName(entry),
-    resolving: false,
-    disabled: false,
-    onPress: () => handlePickSaved(entry),
-  }));
+  const summaryParts = nearbySummary
+    ? [
+        { key: 'elevator', count: nearbySummary.elevator, label: 'nativeHomeNearbyElevators', icon: 'elevator' },
+        { key: 'toilet', count: nearbySummary.toilet, label: 'nativeHomeNearbyToilets', icon: 'toilet' },
+        { key: 'ramp', count: nearbySummary.ramp, label: 'nativeHomeNearbyRamps', icon: 'ramp' },
+      ] as const
+    : [];
+  const presentParts = summaryParts.filter((part) => part.count > 0);
+  const summary: ExploreNearbySummary | null = nearbySummary
+    ? {
+        text:
+          presentParts.length > 0
+            ? t('nativeHomeNearbySummary', { parts: presentParts.map((part) => t(part.label, { count: part.count })).join(t('nativeHomeListSeparator')) })
+            : t('nativeHomeNearbyNone'),
+        dots: presentParts.slice(0, 2).map((part) => ({ key: part.key, iconName: part.icon, color: FACILITY_COLORS[part.key] })),
+        onPress: openNearby,
+      }
+    : null;
+  const routeModeLabel = t(ROUTE_MODE_LABEL_KEY[routeMode]);
 
   return {
     query,
@@ -229,13 +244,21 @@ export function useExploreViewModel(): ExploreViewModel {
     onOpenNearby: openNearby,
     onOpenSaved: openSaved,
     showBrand: sheetInset > sheetBottomInset(0, height),
-    nearby: { title: t('nearbyContextTitle'), cards: nearbyCards },
+    header: {
+      title: t('nativeWhereTo'),
+      needs: {
+        label: routeModeLabel,
+        accessibilityLabel: t('nativeHomeNeedsA11y', { mode: routeModeLabel }),
+        onPress: () => router.push('/settings/needs'),
+      },
+    },
+    shortcuts,
+    addShortcut: { label: t('nativeHomeAddShortcut'), onPress: openSaved },
+    nearbySummary: summary,
     quickActions: [
       // 路線規劃與公車（Phase 2）：只經 sheet 路由切換面板，place 不 import 那兩個 feature。
       { key: 'plan', label: t('planRoute'), iconName: 'navigation', onPress: () => router.push('/plan') },
       { key: 'bus', label: t('busInfo'), iconName: 'bus', onPress: () => router.push('/bus') },
-      { key: 'nearby', label: t('nearbyA11y'), iconName: 'accessibility', onPress: openNearby },
-      { key: 'saved', label: t('savedPlaces'), iconName: 'bookmark', onPress: openSaved },
       // 危險通報（Phase 3）：root modal，未登入也能送
       { key: 'hazard', label: t('reportHazard'), iconName: 'alert', onPress: () => router.push('/hazard-report') },
     ],
@@ -244,8 +267,6 @@ export function useExploreViewModel(): ExploreViewModel {
       initial: userName ? userName.trim().slice(0, 1).toUpperCase() : null,
       onPress: () => router.push('/settings'),
     },
-    savedRows,
-    savedViewAll: savedPlaces.length > SAVED_VIEW_ALL_THRESHOLD ? { label: t('viewAll'), onPress: openSaved } : null,
     labels: {
       searchPlaceholder: t('searchPlaceHolder'),
       nearbyA11y: t('nearbyA11y'),
@@ -253,10 +274,8 @@ export function useExploreViewModel(): ExploreViewModel {
       searchHistory: t('searchHistory'),
       searchResults: t('searchResults'),
       noResults: t('nativeNoSearchResults'),
-      appTitle: t('title'),
       recentSearches: t('recentSearches'),
-      quickActions: t('quickActions'),
-      savedPlacesTitle: t('savedPlaces'),
+      moreActions: t('nativeHomeMoreActions'),
     },
   };
 }

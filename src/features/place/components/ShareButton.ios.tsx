@@ -22,13 +22,13 @@ export default function ShareButton({ url, title, label }: ShareButtonProps) {
   const tones = semanticColors(useColorScheme() === 'dark');
   const accentText = tones.accent;
   return (
-    <View style={[styles.circle, { backgroundColor: tones.surface }]}>
+    <View style={[styles.circle, { backgroundColor: tones.accentSoft }]}>
       <Host matchContents>
         <ShareLink item={url} subject={title}>
           {/* 圖示圓鈕，與旁邊的收藏、複製同一種樣式；文字只放在無障礙標籤（VoiceOver 仍念「分享」） */}
-          <HStack modifiers={[frame({ width: 44, height: 44 }), contentShape(shapes.rectangle()), accessibilityLabel(label)]}>
+          <HStack modifiers={[frame({ width: 50, height: 50 }), contentShape(shapes.rectangle()), accessibilityLabel(label)]}>
             <RNHostView matchContents>
-              <Icon name="share" color={accentText} />
+              <Icon name="share" size={20} color={accentText} />
             </RNHostView>
           </HStack>
         </ShareLink>
@@ -39,8 +39,8 @@ export default function ShareButton({ url, title, label }: ShareButtonProps) {
 
 const styles = StyleSheet.create({
   circle: {
-    width: 44,
-    height: 44,
+    width: 50,
+    height: 50,
     borderRadius: RADIUS.pill,
     alignItems: 'center',
     justifyContent: 'center',

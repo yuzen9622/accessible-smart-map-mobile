@@ -6,6 +6,8 @@ export interface NearbyFacilityRow {
   address: string | null;
   typeLabel: string;
   distanceText: string;
+  /** 來源清單：`toilets` → 無障礙廁所、`metro` → 捷運無障礙設施（多為電梯），供列表挑類別色與圖示 */
+  kind: 'toilet' | 'metro';
 }
 
 export const NEARBY_FACILITY_ROW_LIMIT = 5;
@@ -32,18 +34,18 @@ export function nearbyFacilityRows(
   const nearby: unknown = place?.nearbyFacilities;
   if (!nearby || typeof nearby !== 'object') return [];
   const { toilets, metro } = nearby as Record<string, unknown>;
-  const items: NearbyFacilityBrief[] = [
-    ...(Array.isArray(toilets) ? toilets : []),
-    ...(Array.isArray(metro) ? metro : []),
-  ].filter(isBrief);
+  const tagged = (list: unknown, kind: NearbyFacilityRow['kind']) =>
+    (Array.isArray(list) ? list : []).filter(isBrief).map((item: NearbyFacilityBrief) => ({ item, kind }));
+  const items = [...tagged(toilets, 'toilet'), ...tagged(metro, 'metro')];
   return items
-    .sort((a, b) => a.distanceMeters - b.distanceMeters)
+    .sort((a, b) => a.item.distanceMeters - b.item.distanceMeters)
     .slice(0, NEARBY_FACILITY_ROW_LIMIT)
-    .map((item) => ({
+    .map(({ item, kind }) => ({
       key: `${item.category}-${item.id}`,
       name: item.name,
       address: item.address,
       typeLabel: item.typeLabel,
       distanceText: formatDistance(item.distanceMeters),
+      kind,
     }));
 }

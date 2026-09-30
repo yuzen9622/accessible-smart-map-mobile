@@ -8,6 +8,7 @@ import { mapCamera } from '@/features/map';
 // formatDistance 經 namespace 取用，讓上一行既有 import 保持原樣（namespace 不觸發 import/no-duplicates）
 import * as mapFeature from '@/features/map';
 import { getAppConfig } from '@/shared/config';
+import { haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 
 import { buildAccessibilityChecklist, type ChecklistItem } from '../domain/accessibilityChecklist';
@@ -38,6 +39,8 @@ export interface PlaceDetailChecklistRow {
   key: string;
   label: string;
   statusLabel: string;
+  /** 未確認項目的回報出口（「我知道 ›」→ 撰寫評價）；沒有評論 key 的地點為 undefined */
+  onReport?: () => void;
   /** `available === false` 目前只有 `wheelchair` 這一項會出現（見 `domain/accessibilityChecklist.ts` 的不變量：
    * elevator／ramp／toilet 只能是 `true`／`null`，永遠不能是確定的 `false`）。 */
   tone: 'yes' | 'no' | 'unknown';
@@ -108,6 +111,12 @@ export interface PlaceDetailModel {
   addressRows: PlaceDetailRow[];
   checklistTitle: string;
   checklist: PlaceDetailChecklistRow[];
+  /** 「3 / 4 已確認」；清單為空時為 null */
+  checklistConfirmedLabel: string | null;
+  reportLabel: string;
+  /** 「⋯」選單（回到此地點、複製連結） */
+  moreLabel: string;
+  cancelLabel: string;
   links: PlaceDetailLinkRow[];
   reviews: PlaceDetailReviewsModel | null;
   /** 次要動作：把相機帶回該地點 */
@@ -146,7 +155,15 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   const place = entry.kind === 'place' ? entry.place : null;
   const title = entry.kind === 'place' ? entry.place.name || entry.place.fullAddress || '' : entry.address;
   const address = entry.kind === 'place' ? entry.place.fullAddress : entry.address;
-  const subtitle = address && address !== title ? address : null;
+  const userPosition = mapFeature.useUserLocationStore((state) => state.position);
+  // 設計 1a：「類別 · 距離 · 地址」一行交代這是什麼、多遠
+  const distanceText = userPosition ? mapFeature.formatDistance(haversineMeters(userPosition, entry.position)) : null;
+  // Nominatim 的 fullAddress 常以地點名稱開頭（「安侯建業…, 7, 信義路五段…」），副標題不重複名稱
+  const addressWithoutTitle = address && title && address.startsWith(title) ? address.slice(title.length).replace(/^[\s,，、]+/, '') : address;
+  const subtitle =
+    [place?.typeLabel ?? null, distanceText, addressWithoutTitle && addressWithoutTitle !== title ? addressWithoutTitle : null]
+      .filter((part): part is string => Boolean(part))
+      .join(' · ') || null;
 
   const checklistItems = place ? buildAccessibilityChecklist(place) : [];
   const reviews = useReviews(place?.reviewKey?.placeId ?? '', place?.reviewKey?.placeType ?? 'osm');
@@ -219,11 +236,6 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
       ).filter((row): row is PlaceDetailRow => row !== null)
     : [];
 
-  const checklist: PlaceDetailChecklistRow[] = checklistItems.map((item) => {
-    const tone: PlaceDetailChecklistRow['tone'] = item.available === true ? 'yes' : item.available === false ? 'no' : 'unknown';
-    const statusLabel = tone === 'yes' ? t('a11yStatusYes') : tone === 'no' ? t('a11yStatusNo') : t('a11yStatusUnknown');
-    return { key: item.key, label: t(CHECKLIST_LABEL_KEY[item.key]), statusLabel, tone };
-  });
 
   const links: PlaceDetailLinkRow[] = [];
   if (place?.externalLinks.osm) {
@@ -298,6 +310,19 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
         }
       : null;
 
+  const checklist: PlaceDetailChecklistRow[] = checklistItems.map((item) => {
+    const tone: PlaceDetailChecklistRow['tone'] = item.available === true ? 'yes' : item.available === false ? 'no' : 'unknown';
+    const statusLabel = tone === 'yes' ? t('a11yStatusYes') : tone === 'no' ? t('a11yStatusNo') : t('a11yStatusUnknown');
+    return {
+      key: item.key,
+      label: t(CHECKLIST_LABEL_KEY[item.key]),
+      statusLabel,
+      tone,
+      onReport: tone === 'unknown' ? reviewsModel?.write.onPress : undefined,
+    };
+  });
+  const confirmedCount = checklist.filter((row) => row.tone !== 'unknown').length;
+
   return {
     title,
     subtitle,
@@ -315,8 +340,13 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     categories,
     addressTitle: t('addressInfo'),
     addressRows,
-    checklistTitle: t('a11yChecklist'),
+    checklistTitle: t('nativePlaceA11yInfo'),
     checklist,
+    checklistConfirmedLabel:
+      checklist.length > 0 ? t('nativePlaceA11yConfirmed', { confirmed: confirmedCount, total: checklist.length }) : null,
+    reportLabel: t('nativePlaceIKnow'),
+    moreLabel: t('nativePlaceMoreActions'),
+    cancelLabel: t('cancel'),
     links,
     reviews: reviewsModel,
     recenterLabel: t('recenter'),

@@ -13,13 +13,13 @@ export default function ShareButton({ label, onShare }: ShareButtonProps) {
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onShare}
-      style={({ pressed }) => [styles.circle, { backgroundColor: tones.surface }, pressed && styles.pressed]}>
-      <Icon name="share" color={tones.accent} />
+      style={({ pressed }) => [styles.circle, { backgroundColor: tones.accentSoft }, pressed && styles.pressed]}>
+      <Icon name="share" size={20} color={tones.accent} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  circle: { width: 44, height: 44, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
+  circle: { width: 50, height: 50, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6 },
 });

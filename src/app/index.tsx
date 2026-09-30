@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AIResultLayer } from '@/features/ai';
 import { BusStopLayer, LiveBusLayer, useLiveBusTracking } from '@/features/bus';
 import { HazardLayer } from '@/features/hazard';
 import { MapScreen } from '@/features/map';
@@ -37,6 +38,7 @@ export default function Index() {
           <PlacePinLayer />
           <BusStopLayer />
           <RouteLayer />
+          <AIResultLayer />
           <LiveBusLayer />
           <SosTrackerLayer />
         </>

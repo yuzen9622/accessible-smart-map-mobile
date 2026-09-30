@@ -42,9 +42,9 @@ export interface ExploreRow {
 export type ExploreMode = 'history' | 'results';
 
 export interface ExploreQuickAction {
-  key: 'plan' | 'bus' | 'hazard';
+  key: 'assistant' | 'plan' | 'bus' | 'hazard';
   label: string;
-  iconName: 'navigation' | 'bus' | 'alert';
+  iconName: 'sparkles' | 'navigation' | 'bus' | 'alert';
   onPress: () => void;
 }
 
@@ -257,6 +257,8 @@ export function useExploreViewModel(): ExploreViewModel {
     nearbySummary: summary,
     quickActions: [
       // 路線規劃與公車（Phase 2）：只經 sheet 路由切換面板，place 不 import 那兩個 feature。
+      // AI 助理（Phase 4）：root modal；place 不 import ai feature
+      { key: 'assistant', label: t('assistShort'), iconName: 'sparkles', onPress: () => router.push('/chat') },
       { key: 'plan', label: t('planRoute'), iconName: 'navigation', onPress: () => router.push('/plan') },
       { key: 'bus', label: t('busInfo'), iconName: 'bus', onPress: () => router.push('/bus') },
       // 危險通報（Phase 3）：root modal，未登入也能送

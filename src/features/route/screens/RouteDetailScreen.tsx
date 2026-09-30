@@ -23,13 +23,15 @@ export interface RouteDetailScreenProps {
   onStartNavigation: () => void;
   /** 公車 leg 站點／即時 ETA（bus feature 的 `BusLegStops`），由 app 路由組裝注入。 */
   renderBusLeg?: (args: BusLegRenderArgs) => ReactNode;
+  /** 「AI 路線說明」（ai feature 的 `RouteExplanationCard`），由 app 路由組裝注入；route 不 import ai（ai 依賴 route）。 */
+  renderExplanation?: (route: AccessibleRoute) => ReactNode;
 }
 
 /**
  * `(sheet)/routes/[index]` — 路線明細：每段 leg 一張卡（SDD §4.5），底部「開始導航」。
  * 這頁同時是路線的文字替代路徑（SDD §10）：所有步驟與站點都以可讀文字列出。
  */
-export default function RouteDetailScreen({ onStartNavigation, renderBusLeg }: RouteDetailScreenProps) {
+export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, renderExplanation }: RouteDetailScreenProps) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   const { index } = useLocalSearchParams<{ index: string }>();
@@ -50,6 +52,7 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg }: R
             <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
             <Text style={routeStyles.primaryButtonText}>{t('startNav')}</Text>
           </Pressable>
+          {renderExplanation ? renderExplanation(route) : null}
           <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.text }]}>
             {route.routeName}
           </Text>

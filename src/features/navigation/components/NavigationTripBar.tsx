@@ -8,6 +8,8 @@ import { DANGER_FILL, ON_ACCENT_FILL, semanticColors, useThemeColors } from '@/s
 import { AnimatedNumberText, Icon } from '@/shared/ui';
 
 import { endNavigation } from '../controller/navigationSession';
+import { getNavigationSpeechOwner, useNavigationSpeechOwnerState } from '../controller/speechOwnerPort';
+import { isNavigationAudioActive, resolveNavigationAudioToggle } from '../domain/navigationAudio';
 import { hudProgress } from '../domain/hudProgress';
 import { useNavStore } from '../store/navStore';
 
@@ -35,6 +37,15 @@ export default function NavigationTripBar() {
   const remainingDurationSec = useNavStore((s) => s.remainingDurationSec);
   const estimatedArrivalAt = useNavStore((s) => s.estimatedArrivalAt);
   const voiceEnabled = useNavStore((s) => s.voiceEnabled);
+  // 喇叭鈕對應「目前實際在說話的那一方」：語音助理擁有播報時切它的靜音，否則切本機 TTS（Web useNavigationAudio）
+  const speechOwner = useNavigationSpeechOwnerState();
+  const audioState = { ...speechOwner, localVoiceEnabled: voiceEnabled };
+  const audioActive = isNavigationAudioActive(audioState);
+  const toggleAudio = () => {
+    const toggle = resolveNavigationAudioToggle(audioState);
+    if (toggle.target === 'gemini') getNavigationSpeechOwner().toggleGeminiMute();
+    else useNavStore.getState().setVoiceEnabled(toggle.nextActive);
+  };
   const viewMode = useNavStore((s) => s.viewMode);
   const routeTotalMinutes = useRouteSession((s) => s.selectRoute?.route.totalMinutes ?? null);
 
@@ -93,11 +104,11 @@ export default function NavigationTripBar() {
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={voiceEnabled ? t('voiceOff') : t('voiceOn')}
-        accessibilityState={{ selected: voiceEnabled }}
-        onPress={() => useNavStore.getState().setVoiceEnabled(!voiceEnabled)}
+        accessibilityLabel={audioActive ? t('voiceOff') : t('voiceOn')}
+        accessibilityState={{ selected: audioActive }}
+        onPress={toggleAudio}
         style={[styles.roundButton, { backgroundColor: neutral.bg }]}>
-        <Icon name={voiceEnabled ? 'volumeOn' : 'volumeOff'} size={24} color={colors.text} />
+        <Icon name={audioActive ? 'volumeOn' : 'volumeOff'} size={24} color={colors.text} />
       </Pressable>
       <Pressable
         accessibilityRole="button"

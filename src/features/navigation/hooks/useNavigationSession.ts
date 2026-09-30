@@ -11,6 +11,7 @@ import {
   type NavigationController,
   type SpeechPort,
 } from '../controller/navigationController';
+import { getNavigationSpeechOwner, subscribeSpeechOwner } from '../controller/speechOwnerPort';
 import { useNavStore } from '../store/navStore';
 
 /**
@@ -39,6 +40,9 @@ export function useNavigationSession(speech: SpeechPort = silentSpeech): void {
       },
       language: () => (env.current.language === 'en' ? 'en' : 'zh-TW'),
       arrivedText: () => env.current.arrived,
+      // 喇叭仲裁：語音助理擁有播報時本機 TTS 不發聲（port 由語音 feature 注入，見 speechOwnerPort.ts）
+      geminiOwnsSpeech: () => getNavigationSpeechOwner().geminiOwnsSpeech(),
+      subscribeSpeechOwner,
     });
     controller.start();
     return () => controller.stop();

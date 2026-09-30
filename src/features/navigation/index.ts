@@ -9,6 +9,7 @@ export { expoSpeechPort, hasVoiceFor } from './controller/expoSpeechPort';
 export { useNavigationSession } from './hooks/useNavigationSession';
 export { useNavigationEffects } from './hooks/useNavigationEffects';
 export { useNavStore } from './store/navStore';
+export { configureNavigationSpeechOwner, type NavigationSpeechOwner } from './controller/speechOwnerPort';
 export { default as NavigationHUD } from './components/NavigationHUD';
 export { default as NavigationStepsScreen } from './screens/NavigationStepsScreen';
 export * from './domain';

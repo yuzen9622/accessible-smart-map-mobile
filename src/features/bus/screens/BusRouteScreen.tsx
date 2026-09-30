@@ -2,7 +2,7 @@ import { Stack, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
-import { mapCamera } from '@/features/map';
+import { mapCamera, useMapUiStore } from '@/features/map';
 import { useAppTranslation } from '@/shared/i18n';
 import { TYPE, semanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
@@ -40,6 +40,8 @@ import { useRouteLiveBuses } from '../hooks/useRouteLiveBuses';
 import { useBusPanelStore, type PanelStop } from '../store/busPanelStore';
 
 const STOP_ZOOM = 17;
+/** 對焦時避開頂部狀態列與右側浮動控制（定位、3D、SOS 約 70pt 寬）；左右同路線規劃至少 40。 */
+const FIT_EDGE_PADDING = { top: 70, left: 40, right: 90 };
 
 function stopId(stop: RouteDetailStop): string {
   return `${stop.seq}:${stop.name}`;
@@ -85,7 +87,7 @@ export default function BusRouteScreen() {
   const direction = picked !== null && directions.some((d) => d.direction === picked) ? picked : defaultDirection(directions);
   const stops = stopsOfDirection(directions, direction);
   const labels = resolveDirectionLabels(directions, route);
-  const buses = useRouteLiveBuses(routeName, city, direction);
+  const { buses, settled: busesSettled } = useRouteLiveBuses(routeName, city, direction);
   const placed = direction === null ? [] : placeBuses(stops, buses, direction);
   // 只給 useFocusEffect 用的一份站序參照：`stops` 會被傳進其他函式，React Compiler 會把它視為可能被改動而放棄 memo
   const focusStops = stopsOfDirection(directions, direction);
@@ -179,17 +181,21 @@ export default function BusRouteScreen() {
   const trackedFrom = match ? Math.min(approaching?.bus.index ?? match.index, match.index) : 0;
   const collapsedCount = expandedFor !== null && expandedFor === direction ? 0 : Math.max(0, trackedFrom - 1);
 
-  // 每個方向第一次有站序時把鏡頭對到「車子 → 你這站」這一段（沒有你的站就是整條路線）。
-  const fittedFor = useRef<0 | 1 | null>(null);
+  // 鏡頭對到「車子 → 你這站」這一段（沒有你的站就是整條路線）。等站序與車輛位置都回來才對焦，
+  // 之後 sheet 高度（地圖底部 inset）改變時再對一次：相機 padding 跟著 sheet 走，高 sheet 時對的焦在 sheet 降下後會偏出畫面。
+  // 使用者點了某一站（地圖飛到那站）就不再搶鏡頭。
   const fitFrom = match ? trackedFrom - 1 : 0;
   const fitTo = match ? match.index + 2 : Number.POSITIVE_INFINITY;
-  const readyDirection = focusStops.length > 0 ? direction : null;
+  const readyDirection = focusStops.length > 0 && busesSettled ? direction : null;
+  const sheetInset = Math.round(useMapUiStore((st) => st.sheetInset));
+  const fittedFor = useRef<string | null>(null);
+  const fitKey = readyDirection === null || selectedStopId !== null || !focused ? null : `${readyDirection}:${sheetInset}`;
   useEffect(() => {
-    if (readyDirection === null || fittedFor.current === readyDirection) return;
-    fittedFor.current = readyDirection;
+    if (fitKey === null || fittedFor.current === fitKey) return;
+    fittedFor.current = fitKey;
     const bounds = stopsBounds(focusStops, fitFrom, Math.min(fitTo, focusStops.length - 1));
-    if (bounds) mapCamera.fitBounds(bounds);
-  }, [readyDirection, focusStops, fitFrom, fitTo]);
+    if (bounds) mapCamera.fitBounds(bounds, FIT_EDGE_PADDING);
+  }, [fitKey, focusStops, fitFrom, fitTo]);
 
   const onSelectStop = (stop: RouteDetailStop) => {
     selectStop(stopId(stop));

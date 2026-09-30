@@ -40,6 +40,8 @@ export {
   type LiveBusPositionsData,
   type RouteDetailDirection,
   type RouteDetailStop,
+  type StopArrival,
+  type StopArrivalsData,
 } from '../types/transit';
 export { BUS_CITY_NAMES, busCityLabel, groupByCity, type BusCityGroup } from './busCities';
 export { resolveStopBadge, type BusStopBadge, type BusStopBadgeKind, type BusStopBadgeTone } from './busStopBadge';
@@ -53,3 +55,17 @@ export {
   type LiveBusProps,
 } from './liveBusGeoJson';
 export { resolveLiveEta, resolveWaitText, type LegText, type LiveEta, type LiveEtaTone } from './legBadges';
+export {
+  BUS_AT_STOP_RADIUS_M,
+  isAccessibleArrival,
+  matchStopInRoute,
+  nextBusToStop,
+  pickFeaturedArrival,
+  placeBuses,
+  routesWithoutArrivals,
+  sortArrivals,
+  stopsBounds,
+  type ApproachingBus,
+  type PlacedBus,
+  type StopMatch,
+} from './stopBoard';

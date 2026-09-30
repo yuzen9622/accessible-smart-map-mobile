@@ -11,6 +11,8 @@ import type {
   LiveBusPositionsData,
   RouteDetailDirection,
   RouteDetailStop,
+  StopArrival,
+  StopArrivalsData,
 } from '../types/transit';
 
 /**
@@ -170,6 +172,35 @@ function parseStopList(value: unknown): { stops: BusStopSearchResult[] } | undef
   return { stops };
 }
 
+function booleanOrNull(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null;
+}
+
+function parseStopArrival(value: unknown): StopArrival | null {
+  if (!isRecord(value) || typeof value.routeName !== 'string' || !isDirection(value.direction)) return null;
+  return {
+    routeName: value.routeName,
+    subRouteUid: optionalString(value.subRouteUid),
+    subRouteName: optionalString(value.subRouteName),
+    direction: value.direction,
+    headsign: typeof value.headsign === 'string' && value.headsign ? value.headsign : null,
+    estimateMinutes: finiteOrNull(value.estimateMinutes),
+    statusLabel: stringOr(value.statusLabel),
+    plateNumb: optionalString(value.plateNumb),
+    isLowFloor: booleanOrNull(value.isLowFloor),
+    hasLiftOrRamp: booleanOrNull(value.hasLiftOrRamp),
+  };
+}
+
+function parseStopArrivals(value: unknown): StopArrivalsData | undefined {
+  if (!isRecord(value) || !Array.isArray(value.arrivals)) return undefined;
+  return {
+    stopName: stringOr(value.stopName),
+    city: stringOr(value.city),
+    arrivals: value.arrivals.map(parseStopArrival).filter((a): a is StopArrival => a !== null),
+  };
+}
+
 function narrow<T>(response: ApiResponse<unknown>, parse: (value: unknown) => T | undefined): ApiResponse<T> {
   const data: T | undefined = parse(response.data);
   return { ...response, data };
@@ -206,6 +237,23 @@ export async function getBusArrival(
   if (query.direction !== undefined) params.set('direction', String(query.direction));
   if (query.city) params.set('city', query.city);
   return narrow(await withTimeout(`/api/v1/transit/bus/arrival?${params.toString()}`, signal), parseArrival);
+}
+
+/**
+ * 一個站牌所有行經路線的下一班（後端一次 TDX 呼叫＋20 秒共用快取）。
+ * 站牌畫面只能用這支：逐路線打 route-detail／positions 會在大站牌上耗光共用的 TDX 額度。
+ */
+export async function getStopArrivals(
+  query: { stopName: string; city: string; position: LatLng },
+  signal?: AbortSignal,
+): Promise<ApiResponse<StopArrivalsData>> {
+  const params = new URLSearchParams({
+    stopName: query.stopName,
+    city: query.city,
+    lat: String(query.position.lat),
+    lng: String(query.position.lng),
+  });
+  return narrow(await withTimeout(`/api/v1/transit/bus/stop-arrivals?${params.toString()}`, signal), parseStopArrivals);
 }
 
 /** 一條路線（可限定方向）所有車輛的即時位置；後端已正規化成 camelCase／lat,lng。 */

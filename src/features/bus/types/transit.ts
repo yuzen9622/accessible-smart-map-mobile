@@ -107,3 +107,26 @@ export interface BusStopSearchResult {
   /** 只有 nearby-stops 會帶（公尺）。 */
   distance?: number;
 }
+
+/** `/bus/stop-arrivals` 的一列：某條路線（子路線＋方向）下一班到這個站牌的時間與車輛。 */
+export interface StopArrival {
+  routeName: string;
+  subRouteUid?: string;
+  subRouteName?: string;
+  direction: 0 | 1;
+  /** 該子路線該方向的終點站（「往 X」）；後端查不到時為 null。 */
+  headsign: string | null;
+  estimateMinutes: number | null;
+  /** TDX StopStatus 原文（正常、尚未發車、末班車已過…）。 */
+  statusLabel: string;
+  plateNumb?: string;
+  /** null＝車牌未知或車輛不在資料庫：不能當成「不是無障礙車」。 */
+  isLowFloor: boolean | null;
+  hasLiftOrRamp: boolean | null;
+}
+
+export interface StopArrivalsData {
+  stopName: string;
+  city: string;
+  arrivals: StopArrival[];
+}

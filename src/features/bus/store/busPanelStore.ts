@@ -8,18 +8,38 @@ export interface PanelStop {
   lng: number;
 }
 
+/** 路線詳情畫在地圖上的車輛（該方向的即時位置）。 */
+export interface PanelBus {
+  plateNumb: string;
+  lat: number;
+  lng: number;
+  accessible: boolean;
+}
+
 interface BusPanelState {
   displayedStops: PanelStop[];
   selectedStopId: string | null;
+  /** true：`displayedStops` 是一條路線的站序，地圖要把它們連成線（路線詳情）。 */
+  routeLine: boolean;
+  /** 使用者要上車的站（路線詳情從站牌進入時）。 */
+  mineStopId: string | null;
+  buses: PanelBus[];
   setDisplayedStops: (stops: PanelStop[]) => void;
   selectStop: (id: string | null) => void;
+  setRouteOverlay: (overlay: { routeLine: boolean; mineStopId: string | null }) => void;
+  setBuses: (buses: PanelBus[]) => void;
   clear: () => void;
 }
 
 export const useBusPanelStore = create<BusPanelState>()((set) => ({
   displayedStops: [],
   selectedStopId: null,
+  routeLine: false,
+  mineStopId: null,
+  buses: [],
   setDisplayedStops: (displayedStops) => set({ displayedStops }),
   selectStop: (selectedStopId) => set({ selectedStopId }),
-  clear: () => set({ displayedStops: [], selectedStopId: null }),
+  setRouteOverlay: ({ routeLine, mineStopId }) => set({ routeLine, mineStopId }),
+  setBuses: (buses) => set({ buses }),
+  clear: () => set({ displayedStops: [], selectedStopId: null, routeLine: false, mineStopId: null, buses: [] }),
 }));

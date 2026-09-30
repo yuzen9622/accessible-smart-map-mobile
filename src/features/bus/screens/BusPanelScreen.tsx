@@ -1,17 +1,15 @@
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 
 import { useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
-import { Icon } from '@/shared/ui';
+import { RADIUS, SPACE, TYPE, semanticColors, useThemeColors } from '@/shared/theme';
+import { Icon, SegmentedControl } from '@/shared/ui';
 
-import BusRow from '../components/BusRow';
-import { BUS_ACCENT_COLOR, BUS_ACCENT_COLOR_DARK, BUS_BORDER_COLOR } from '../components/palette';
-import SegmentedPills from '../components/SegmentedPills';
-import { groupByCity, type BusStopSearchResult } from '../domain';
+import RouteBadge from '../components/RouteBadge';
+import { groupByCity, type BusSearchResult, type BusStopSearchResult } from '../domain';
 import { useBusSearch, type BusSearchError, type BusSearchMode } from '../hooks/useBusSearch';
 import { useNearbyBusStops } from '../hooks/useNearbyBusStops';
 import { useBusPanelStore, type PanelStop } from '../store/busPanelStore';
@@ -20,7 +18,13 @@ function toPanelStops(stops: BusStopSearchResult[]): PanelStop[] {
   return stops.map((s) => ({ id: s.stopUid || s.stopName, name: s.stopName, lat: s.coordinates[1], lng: s.coordinates[0] }));
 }
 
-/** 公車面板：找路線／找站牌；沒輸入關鍵字時顯示附近站牌。 */
+/** 站牌列只露出前幾條路線，其餘收成「+N」——大站牌有近 40 條路線，全列出來會把一列撐成一整面。 */
+const STOP_ROUTE_PREVIEW = 4;
+
+/**
+ * 公車面板：找路線／找站牌；沒輸入關鍵字時顯示附近站牌。
+ * 版型與站牌（2b）、路線（2a）同一套：segmented 切換、膠囊搜尋框、透明底分隔線列表、路線號碼膠囊。
+ */
 export default function BusPanelScreen() {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
@@ -46,7 +50,7 @@ export default function BusPanelScreen() {
   }, [searching, searchStops, nearbyStops, setDisplayedStops]);
   useEffect(() => clearPanel, [clearPanel]);
 
-  const accent = isDark ? BUS_ACCENT_COLOR_DARK : BUS_ACCENT_COLOR;
+  const semantic = semanticColors(isDark);
   const errorText = (error: BusSearchError) => (error === 'NO_DATA' ? t('noBusData') : t('networkError'));
 
   const openStop = (stop: BusStopSearchResult) =>
@@ -61,33 +65,95 @@ export default function BusPanelScreen() {
       },
     });
 
+  const separator = (index: number) =>
+    index > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: semantic.separator } : null;
+
   const renderStopGroups = (stops: BusStopSearchResult[]) =>
     groupByCity(stops).map((group) => (
       <View key={group.city} style={styles.group}>
         <Text accessibilityRole="header" style={[styles.groupTitle, { color: colors.textSecondary }]}>
           {group.label}
         </Text>
-        {group.items.map((stop) => {
-          const distance = stop.distance !== undefined ? formatDistance(stop.distance) : '';
-          const routesText = stop.routes.join('、');
-          return (
-            <BusRow
-              key={`${stop.stopUid}-${stop.stopName}-${stop.coordinates.join(',')}`}
-              icon="mapPin"
-              title={stop.stopName}
-              subtitle={routesText}
-              showChevron
-              trailing={distance ? <Text style={[styles.distance, { color: colors.textSecondary }]}>{distance}</Text> : undefined}
-              accessibilityLabel={t('nativeBusStopRowLabel', {
-                name: stop.stopName,
+        <View>
+          {group.items.map((stop, index) => {
+            const distance = stop.distance !== undefined ? formatDistance(stop.distance) : '';
+            const preview = stop.routes.slice(0, STOP_ROUTE_PREVIEW);
+            const more = stop.routes.length - preview.length;
+            return (
+              <Pressable
+                key={`${stop.stopUid}-${stop.stopName}-${stop.coordinates.join(',')}`}
+                accessibilityRole="button"
+                accessibilityLabel={t('nativeBusStopRowLabel', {
+                  name: stop.stopName,
+                  city: group.label,
+                  distance: distance || t('nativeBusDistanceUnknown'),
+                  count: stop.routes.length,
+                })}
+                onPress={() => openStop(stop)}
+                style={({ pressed }) => [styles.row, separator(index), pressed && styles.pressed]}>
+                <View style={[styles.iconCircle, { backgroundColor: semantic.accentSoft }]}>
+                  <Icon name="bus" size={18} color={semantic.accent} />
+                </View>
+                <View style={styles.rowTexts}>
+                  <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
+                    {stop.stopName}
+                  </Text>
+                  {stop.routes.length > 0 ? (
+                    <View style={styles.chips} importantForAccessibility="no-hide-descendants">
+                      {preview.map((route) => (
+                        <RouteBadge key={route} name={route} small />
+                      ))}
+                      {more > 0 ? (
+                        <Text style={[styles.moreText, { color: colors.textSecondary }]}>{t('nativeBusMoreRoutes', { count: more })}</Text>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </View>
+                {distance ? <Text style={[styles.distance, { color: colors.textSecondary }]}>{distance}</Text> : null}
+                <Icon name="chevronRight" size={16} color={colors.textSecondary} />
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    ));
+
+  const renderRouteGroups = (routes: BusSearchResult[]) =>
+    groupByCity(routes).map((group) => (
+      <View key={group.city} style={styles.group}>
+        <Text accessibilityRole="header" style={[styles.groupTitle, { color: colors.textSecondary }]}>
+          {group.label}
+        </Text>
+        <View>
+          {group.items.map((route, index) => (
+            <Pressable
+              key={`${route.city}-${route.routeName}-${route.departure}-${route.destination}`}
+              accessibilityRole="button"
+              accessibilityLabel={t('nativeBusRouteRowLabel', {
+                route: route.routeName,
+                departure: route.departure,
+                destination: route.destination,
                 city: group.label,
-                distance: distance || t('nativeBusDistanceUnknown'),
-                count: stop.routes.length,
               })}
-              onPress={() => openStop(stop)}
-            />
-          );
-        })}
+              onPress={() =>
+                router.push({
+                  pathname: '/bus/route',
+                  params: { routeName: route.routeName, city: route.city, departure: route.departure, destination: route.destination },
+                })
+              }
+              style={({ pressed }) => [styles.row, separator(index), pressed && styles.pressed]}>
+              <RouteBadge name={route.routeName} />
+              <View style={styles.rowTexts}>
+                {route.departure || route.destination ? (
+                  <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
+                    {`${route.departure} – ${route.destination}`}
+                  </Text>
+                ) : null}
+              </View>
+              <Icon name="chevronRight" size={16} color={colors.textSecondary} />
+            </Pressable>
+          ))}
+        </View>
       </View>
     ));
 
@@ -96,12 +162,9 @@ export default function BusPanelScreen() {
       if (!position) return <Message text={t('nativeBusNearbyNoLocation')} color={colors.textSecondary} />;
       return (
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Icon name="mapPin" size={16} color={accent} />
-            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
-              {t('nativeBusNearbyStops')}
-            </Text>
-          </View>
+          <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
+            {t('nativeBusNearbyStops')}
+          </Text>
           {nearby.loading && nearby.stops.length === 0 ? (
             <Loading label={t('loading')} color={colors.textSecondary} />
           ) : nearby.error && nearby.stops.length === 0 ? (
@@ -117,37 +180,9 @@ export default function BusPanelScreen() {
     if (search.loading) return <Loading label={t('loading')} color={colors.textSecondary} />;
     if (search.error) return <Message text={errorText(search.error)} color={colors.textSecondary} />;
     if (search.results.length === 0) return <Message text={t('nativeNoSearchResults')} color={colors.textSecondary} />;
-    if (search.mode === 'stop') return <View style={styles.section}>{renderStopGroups(search.results)}</View>;
     return (
       <View style={styles.section}>
-        {groupByCity(search.results).map((group) => (
-          <View key={group.city} style={styles.group}>
-            <Text accessibilityRole="header" style={[styles.groupTitle, { color: colors.textSecondary }]}>
-              {group.label}
-            </Text>
-            {group.items.map((route) => (
-              <BusRow
-                key={`${route.city}-${route.routeName}-${route.departure}-${route.destination}`}
-                icon="bus"
-                title={route.routeName}
-                subtitle={route.departure || route.destination ? `${route.departure} - ${route.destination}` : undefined}
-                showChevron
-                accessibilityLabel={t('nativeBusRouteRowLabel', {
-                  route: route.routeName,
-                  departure: route.departure,
-                  destination: route.destination,
-                  city: group.label,
-                })}
-                onPress={() =>
-                  router.push({
-                    pathname: '/bus/route',
-                    params: { routeName: route.routeName, city: route.city, departure: route.departure, destination: route.destination },
-                  })
-                }
-              />
-            ))}
-          </View>
-        ))}
+        {search.mode === 'stop' ? renderStopGroups(search.results) : renderRouteGroups(search.results)}
       </View>
     );
   };
@@ -161,16 +196,16 @@ export default function BusPanelScreen() {
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag">
-        <SegmentedPills
+        <SegmentedControl
+          label={t('nativeBusSearchMode')}
           options={[
-            { value: 'route', label: t('nativeBusModeRoute') },
-            { value: 'stop', label: t('nativeBusModeStop') },
+            { value: 'route' as const, label: t('nativeBusModeRoute'), selected: mode === 'route' },
+            { value: 'stop' as const, label: t('nativeBusModeStop'), selected: mode === 'stop' },
           ]}
-          value={mode}
-          onChange={setMode}
+          onSelect={setMode}
         />
-        <View style={[styles.searchBox, { borderColor: BUS_BORDER_COLOR }]}>
-          <Icon name="search" size={18} color={colors.textSecondary} />
+        <View style={[styles.searchBar, { backgroundColor: colors.backgroundElement }]}>
+          <Icon name="search" color={colors.textSecondary} />
           <TextInput
             value={keyword}
             onChangeText={setKeyword}
@@ -209,15 +244,21 @@ function Message({ text, color }: { text: string; color: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, gap: 12 },
-  searchBox: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: 12, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth },
-  input: { flex: 1, fontSize: 16, minHeight: 44 },
+  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 14 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, minHeight: 48, paddingHorizontal: 14, borderRadius: RADIUS.pill },
+  input: { flex: 1, fontSize: TYPE.body, paddingVertical: 10 },
   section: { gap: 12 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitle: { fontSize: 17, fontWeight: '700' },
-  group: { gap: 8 },
-  groupTitle: { fontSize: 13, fontWeight: '600' },
-  distance: { fontSize: 13, fontVariant: ['tabular-nums'] },
+  sectionTitle: { fontSize: TYPE.headline, fontWeight: '700' },
+  group: { gap: 4 },
+  groupTitle: { fontSize: TYPE.subhead, fontWeight: '600' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 },
+  pressed: { opacity: 0.6 },
+  iconCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  rowTexts: { flex: 1, gap: 6 },
+  rowTitle: { fontSize: TYPE.body, fontWeight: '600' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 },
+  moreText: { fontSize: TYPE.caption, fontWeight: '600' },
+  distance: { fontSize: TYPE.callout, fontVariant: ['tabular-nums'] },
   message: { alignItems: 'center', paddingVertical: 24 },
-  messageText: { fontSize: 15, textAlign: 'center' },
+  messageText: { fontSize: TYPE.callout, textAlign: 'center' },
 });

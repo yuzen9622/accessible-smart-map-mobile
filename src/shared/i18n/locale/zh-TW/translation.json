@@ -1133,6 +1133,8 @@
   "nativeFacilitySourceBathroom": "公廁資料",
   "nativeFacilitySourceParking": "無障礙停車資料",
   "nativeFacilityLocation": "位置",
+  "nativeFacilityOutage": "停用公告",
+  "nativeFacilityOutageNote": "公告只標示車站，不一定是這座電梯。",
   "nativeFacilityMismatch": "現場跟資訊不一樣？",
   "nativeFacilityReport": "回報",
   "nativeFacilityReportLabel": "回報{{name}}的現場狀況",

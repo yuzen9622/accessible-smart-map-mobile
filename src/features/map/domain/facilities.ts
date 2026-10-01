@@ -20,6 +20,13 @@ export interface Facility {
   wheelchair: 'yes' | 'limited' | 'no' | null;
   /** 校園名稱（source = campus） */
   schoolName: string | null;
+  /** 捷運電梯停用公告；公告只標示車站，無法指出是哪一座電梯。 */
+  outageNotice: FacilityOutageNotice | null;
+}
+
+export interface FacilityOutageNotice {
+  description: string;
+  postedAt: string | null;
 }
 
 export interface FacilityFeatureProperties {
@@ -46,6 +53,11 @@ function isWheelchair(value: unknown): value is 'yes' | 'limited' | 'no' {
   return value === 'yes' || value === 'limited' || value === 'no';
 }
 
+function parseOutageNotice(value: unknown): FacilityOutageNotice | null {
+  if (!isRecord(value) || typeof value.description !== 'string' || value.description.trim() === '') return null;
+  return { description: value.description, postedAt: typeof value.postedAt === 'string' ? value.postedAt : null };
+}
+
 /** API 單筆 → Facility；非 pin 類別、缺欄位或座標非有限值時回傳 null（丟棄）。 */
 export function parseFacility(item: unknown): Facility | null {
   if (!isRecord(item) || !isRecord(item.location)) return null;
@@ -67,6 +79,7 @@ export function parseFacility(item: unknown): Facility | null {
     exitName: typeof item.exitName === 'string' ? item.exitName : null,
     wheelchair: isWheelchair(item.wheelchair) ? item.wheelchair : null,
     schoolName: typeof item.schoolName === 'string' ? item.schoolName : null,
+    outageNotice: parseOutageNotice(item.outageNotice),
   };
 }
 

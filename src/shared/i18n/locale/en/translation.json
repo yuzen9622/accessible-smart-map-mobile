@@ -1148,6 +1148,8 @@
   "nativeFacilitySourceBathroom": "Public toilet data",
   "nativeFacilitySourceParking": "Accessible parking data",
   "nativeFacilityLocation": "Location",
+  "nativeFacilityOutage": "Outage notice",
+  "nativeFacilityOutageNote": "The notice names the station only — it may not be this elevator.",
   "nativeFacilityMismatch": "Not what you see on site?",
   "nativeFacilityReport": "Report",
   "nativeFacilityReportLabel": "Report the on-site condition of {{name}}",

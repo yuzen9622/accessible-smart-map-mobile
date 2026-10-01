@@ -21,7 +21,14 @@ describe('parseFacility', () => {
       exitName: 'M8',
       wheelchair: null,
       schoolName: null,
+      outageNotice: null,
     });
+  });
+
+  it('保留捷運電梯停用公告，空白描述視為沒有公告', () => {
+    const notice = { description: 'M8 電梯維修', postedAt: '2026-10-01T08:00:00+08:00' };
+    expect(parseFacility({ ...metro, outageNotice: notice })?.outageNotice).toEqual(notice);
+    expect(parseFacility({ ...metro, outageNotice: { description: ' ' } })?.outageNotice).toBeNull();
   });
 
   it('parking／other 類別不畫 pin，丟棄', () => {

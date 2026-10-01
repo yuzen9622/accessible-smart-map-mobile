@@ -52,6 +52,10 @@ function wheelchairRow(value: Facility['wheelchair']): Pick<FacilityDetailRow, '
   return null;
 }
 
+function outageValue(notice: NonNullable<Facility['outageNotice']>, note: string): string {
+  return `${notice.description}\n${note}`;
+}
+
 /**
  * 設施詳情（設計 2a）。只列資料真的有的欄位——後端設施資料沒有運作狀態、樓層與開放時間，
  * 不顯示設計稿上的「運作中」膠囊，改由「現場跟資訊不一樣？回報」收集現場狀況。
@@ -69,6 +73,9 @@ export function useFacilityDetail(id: string): FacilityDetailModel {
   if (place) rows.push({ icon: 'mapPin', label: t(facility.exitName ? 'exitInfo' : 'nativeFacilityLocation'), value: place });
   const wheelchair = wheelchairRow(facility.wheelchair);
   if (wheelchair) rows.push({ icon: 'accessibility', label: t('wheelchairAccess'), value: t(wheelchair.value), tone: wheelchair.tone });
+  if (facility.outageNotice) {
+    rows.push({ icon: 'alert', label: t('nativeFacilityOutage'), value: outageValue(facility.outageNotice, t('nativeFacilityOutageNote')), tone: 'warn' });
+  }
   const distanceText = position
     ? formatDistance(haversineMeters(position, { lat: facility.lat, lng: facility.lng }))
     : null;

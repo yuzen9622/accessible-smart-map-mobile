@@ -80,6 +80,7 @@ import Wind from 'lucide-react-native/icons/wind';
 import Trees from 'lucide-react-native/icons/trees';
 import Brain from 'lucide-react-native/icons/brain';
 import AudioLines from 'lucide-react-native/icons/audio-lines';
+import Keyboard from 'lucide-react-native/icons/keyboard';
 import { View } from 'react-native';
 
 import type { IconName, IconProps } from './Icon.types';
@@ -166,6 +167,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   trees: Trees,
   brain: Brain,
   audioLines: AudioLines,
+  keyboard: Keyboard,
 };
 
 /**

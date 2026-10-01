@@ -106,7 +106,7 @@
       "listeningHint": "請開始說話",
       "connectingHint": "連線中，請稍候…",
       "endShort": "結束",
-      "typeShort": "打字",
+      "fromVoice": "語音",
       "youSaid": "你說"
     },
     "thinking": "思考中…",

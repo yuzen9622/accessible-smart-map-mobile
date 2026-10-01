@@ -10,7 +10,7 @@ import type { ChatBubble, ToolActivity } from './types';
 export type ChatStreamSignal =
   | { type: 'token'; text: string }
   | { type: 'tool-call'; name: string; args: string }
-  | { type: 'tool-result'; name: string; result: unknown }
+  | { type: 'tool-result'; name: string; result: unknown; summary?: string }
   | { type: 'error'; code: number | null; message: string }
   | { type: 'done' };
 
@@ -81,7 +81,12 @@ export function interpretChatSseEvent(event: SseEventLike): ChatStreamSignal | n
     case 'tool_result': {
       const payload = parseJson(event.data);
       if (!isRec(payload) || typeof payload.name !== 'string' || !payload.name) return null;
-      return { type: 'tool-result', name: payload.name, result: payload.result };
+      return {
+        type: 'tool-result',
+        name: payload.name,
+        result: payload.result,
+        ...(typeof payload.summary === 'string' && payload.summary ? { summary: payload.summary } : {}),
+      };
     }
 
     case 'error': {
@@ -129,18 +134,19 @@ function upsertActivity(
   args: unknown,
   result: unknown,
   isDone: boolean,
+  summary?: string,
 ): ChatBubble {
   const existing = bubble.toolActivities ? [...bubble.toolActivities] : [];
   const idx = existing.findIndex((a) => a.name === name && a.status === 'running');
   const status: ToolActivity['status'] = isDone ? 'done' : 'running';
 
   if (idx !== -1) {
-    existing[idx] = { ...existing[idx], args, result, status };
+    existing[idx] = { ...existing[idx], args, result, status, ...(summary ? { summary } : {}) };
     return { ...bubble, toolActivities: existing };
   }
   return {
     ...bubble,
-    toolActivities: [...(markDone(existing) ?? []), { name, args, result, status }],
+    toolActivities: [...(markDone(existing) ?? []), { name, args, result, status, ...(summary ? { summary } : {}) }],
   };
 }
 
@@ -153,12 +159,12 @@ export function applyToolCall(bubble: ChatBubble, name: string, args: string): C
  * 工具結果：對到同名 running 的活動就補上 result 並標完成（args 沿用呼叫時的）；對不到（例如 tool_call 漏掉，
  * 或已被 token 標為完成）就照 Web 的行為新增一筆已完成活動，args 取同名最近一次呼叫的 args（Web 的 customToolArgsMap），沒有則空字串。
  */
-export function applyToolResult(bubble: ChatBubble, name: string, result: unknown): ChatBubble {
+export function applyToolResult(bubble: ChatBubble, name: string, result: unknown, summary?: string): ChatBubble {
   const activities = bubble.toolActivities ?? [];
   const running = activities.find((a) => a.name === name && a.status === 'running');
   const lastSameName = [...activities].reverse().find((a) => a.name === name);
   const args = running?.args ?? lastSameName?.args ?? '';
-  return upsertActivity(bubble, name, args, result, true);
+  return upsertActivity(bubble, name, args, result, true, summary);
 }
 
 /** 串流結束（含中止／出錯）：不再串流、所有工具視為完成、記錄耗時。`content` 給出錯時的預設文案。 */
@@ -185,7 +191,7 @@ export function applyStreamSignal(bubble: ChatBubble, signal: ChatStreamSignal):
     case 'tool-call':
       return applyToolCall(bubble, signal.name, signal.args);
     case 'tool-result':
-      return applyToolResult(bubble, signal.name, signal.result);
+      return applyToolResult(bubble, signal.name, signal.result, signal.summary);
     default:
       return bubble;
   }

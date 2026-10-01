@@ -4,8 +4,9 @@ import { useUserLocationStore } from '@/features/map';
 
 import { streamChat } from '../api/aiApi';
 import { applyStreamSignal, settleBubble, type ChatStreamSignal } from '../domain/chatStream';
+import { toChatHistory, toPriorTurns } from '../domain/conversationHistory';
 import { mapToolToActions } from '../domain/toolActionMapper';
-import type { ChatMessage, Translate } from '../domain/types';
+import type { PriorTurn, Translate, VoiceTurn } from '../domain/types';
 import { useChatStore, type ChatEntry } from '../store/chatStore';
 import { computeRouteAction, executeAction, openRoutePanel } from './actionExecutor';
 
@@ -40,13 +41,6 @@ function findEntry(id: string): ChatEntry | undefined {
   return useChatStore.getState().entries.find((entry) => entry.id === id);
 }
 
-/** 對話歷史只送純文字的 user／assistant（Web 同樣不回傳工具訊息；工具由後端執行）。 */
-function historyOf(entries: ChatEntry[]): ChatMessage[] {
-  return entries
-    // 錯誤訊息是 App 自己的文案，不是 AI 說的話，不送回後端當歷史
-    .filter((entry) => !entry.isError && entry.content.trim().length > 0)
-    .map((entry) => ({ role: entry.role, content: entry.content }));
-}
 
 async function runComputeRoute(
   entryId: string,
@@ -101,7 +95,8 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
   executeAction({ type: 'clear-markers' });
   const userEntry: ChatEntry = { id: newId(), role: 'user', content: text };
   const assistant: ChatEntry = { id: newId(), role: 'assistant', content: '', isStreaming: true, toolActivities: [] };
-  const messages = historyOf([...entries, userEntry]);
+  // 純文字的 user／assistant，assistant 附工具摘要（工具由後端執行，原始結果不回傳）
+  const messages = toChatHistory([...entries, userEntry]);
   useChatStore.setState({ entries: [...entries, userEntry, assistant], isLoading: true });
 
   const controller = new AbortController();
@@ -161,6 +156,41 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
     // 清除對話會換掉整個列表；只有這次請求仍是目前的才解除載入狀態
     if (inflight === null) useChatStore.setState({ isLoading: false });
   }
+}
+
+/**
+ * 語音對話結束：把這段逐字稿接到文字對話後面，之後打字時 AI 接得上剛才講的內容（文字請求會帶整段歷史）。
+ * 工具摘要掛在助理那一輪的 `toolActivities`，列表上顯示成已完成的查詢。
+ */
+export function appendVoiceTurns(turns: VoiceTurn[]): void {
+  const added = turns
+    .filter((turn) => turn.content.trim().length > 0 || turn.tools.length > 0)
+    .map(
+      (turn): ChatEntry => ({
+        id: newId(),
+        role: turn.role,
+        content: turn.content,
+        source: 'voice',
+        ...(turn.tools.length > 0
+          ? {
+              toolActivities: turn.tools.map((tool) => ({
+                name: tool.name,
+                args: tool.args,
+                result: tool.result,
+                summary: tool.summary,
+                status: 'done' as const,
+              })),
+            }
+          : {}),
+      }),
+    );
+  if (added.length === 0) return;
+  useChatStore.setState((state) => ({ entries: [...state.entries, ...added] }));
+}
+
+/** 開語音前的對話脈絡（`session.start.history`）：使用者剛才打字聊過的內容。 */
+export function getVoiceHistory(): PriorTurn[] {
+  return toPriorTurns(useChatStore.getState().entries);
 }
 
 /** 停止產生：保留已顯示的部分（Web `stopStreaming`）。 */

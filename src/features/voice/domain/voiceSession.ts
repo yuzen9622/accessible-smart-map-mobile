@@ -1,3 +1,4 @@
+import type { PriorTurn } from '@/features/ai/domain';
 import type { AccessibleRoute, NavInstruction } from '@/features/route/domain';
 
 // 移植自 Web `src/lib/voice/voiceSession.ts`（commit f5027af），近原樣。與 Web 的差異：
@@ -27,6 +28,8 @@ interface SessionStartMessage {
   type: 'session.start';
   token: string;
   userLocation?: { latitude: number; longitude: number };
+  /** 先前的對話（使用者從打字切到語音、或語音重連）；後端放進 Live 的系統提示。 */
+  history?: PriorTurn[];
 }
 
 /** Client -> server: graceful end, server acks with close(1000, "client-end"). */
@@ -110,6 +113,7 @@ interface ToolResultMessage {
   durationMs: number;
   result?: unknown;
   args?: unknown;
+  summary?: string;
 }
 
 interface InterruptedMessage {
@@ -418,6 +422,8 @@ export interface VoiceToolEvent {
   durationMs?: number;
   result?: unknown;
   args?: unknown;
+  /** 後端給的精簡摘要（併回文字對話時只回傳這個）。 */
+  summary?: string;
 }
 
 export interface VoiceTranscript {
@@ -440,6 +446,8 @@ export interface VoiceSessionDeps {
   getToken(): string | undefined;
   getAuthIdentity(): string | null;
   getUserLocation(): { latitude: number; longitude: number } | null;
+  /** 每次送 `session.start`（含重連）時讀一次：目前為止的共用對話。 */
+  getHistory?(): PriorTurn[];
   createCapture(onFrame: (frame: ArrayBuffer) => void): Promise<VoiceCapture>;
   createPlayback(): VoicePlayback;
   onStatusChange(status: VoiceStatus): void;
@@ -700,6 +708,8 @@ export class VoiceSessionController {
       if (gen !== this.generation) return; // stale
       const message: SessionStartMessage = { type: 'session.start', token };
       if (location) message.userLocation = location;
+      const history = this.deps.getHistory?.() ?? [];
+      if (history.length > 0) message.history = history;
       socket.send(JSON.stringify(message));
     };
     socket.onmessage = (event) => this.handleMessage(gen, event.data);
@@ -804,6 +814,7 @@ export class VoiceSessionController {
           durationMs: m.durationMs,
           result: m.result,
           args: m.args,
+          ...(typeof m.summary === 'string' ? { summary: m.summary } : {}),
         });
         return;
       }

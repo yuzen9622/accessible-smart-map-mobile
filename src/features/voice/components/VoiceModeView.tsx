@@ -86,7 +86,8 @@ function ControlButton({
 
 /**
  * 聊天 modal 裡的語音模式（對應 Web `components/Voice/VoiceModeView.tsx`，版面依設計稿 3b「即時大字幕」）：
- * 上方狀態＋目前工具、中間逐字稿（助理最新一句用大字幕，較早的縮小變淡）、下方一整排音波與三顆 72pt 控制鈕。
+ * 上方狀態＋目前工具、中間逐字稿（助理最新一句用大字幕，較早的縮小變淡）、下方一整排音波與靜音／結束兩顆 72pt 控制鈕。
+ * 結束＝回到打字：這段逐字稿與工具結果會併進文字對話（controller `mergeIntoChat`），接著打字 AI 接得上。
  * 音波聆聽時跟麥克風音量、助理說話時跟實際播放音量。
  *
  * 從輸入列的語音按鈕進來時（`launchOrigin`），按鈕先飛到音波中央、再攤平成整排直條，文字聊天在底下淡出。
@@ -106,7 +107,6 @@ export default function VoiceModeView() {
   const micLevel = useVoiceStore((s) => s.micLevel);
   const modelLevel = useVoiceStore((s) => s.modelLevel);
   const isMuted = useVoiceStore((s) => s.isMuted);
-  const setViewMode = useVoiceStore((s) => s.setViewMode);
   const scrollRef = useRef<ScrollView>(null);
   const rootRef = useRef<View>(null);
   const waveRef = useRef<View>(null);
@@ -324,14 +324,6 @@ export default function VoiceModeView() {
               background={DANGER_FILL}
               foreground={ON_ACCENT_FILL}
             />
-            <ControlButton
-              icon="keyboard"
-              label={t('chatbot.voice.typeShort')}
-              accessibilityLabel={t('chatbot.voice.backToText')}
-              onPress={() => setViewMode('pill')}
-              background={tones.neutral.bg}
-              foreground={colors.text}
-            />
           </>
         )}
       </Animated.View>
@@ -366,7 +358,7 @@ const styles = StyleSheet.create({
   captionLatest: { fontWeight: '700' },
   captionOld: { fontWeight: '600' },
   wave: { height: WAVE_HEIGHT + 24, alignItems: 'center', justifyContent: 'center' },
-  controls: { flexDirection: 'row', justifyContent: 'space-evenly', paddingHorizontal: 16, paddingTop: 12 },
+  controls: { flexDirection: 'row', justifyContent: 'center', gap: 56, paddingHorizontal: 16, paddingTop: 12 },
   control: { alignItems: 'center', gap: 8, minWidth: CONTROL_SIZE + 16 },
   controlCircle: { width: CONTROL_SIZE, height: CONTROL_SIZE, borderRadius: CONTROL_SIZE / 2, alignItems: 'center', justifyContent: 'center' },
   controlLabel: { fontWeight: '600', textAlign: 'center' },

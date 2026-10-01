@@ -47,7 +47,7 @@
       "listeningHint": "Start speaking",
       "connectingHint": "Connecting, please wait…",
       "endShort": "End",
-      "typeShort": "Type",
+      "fromVoice": "Voice",
       "youSaid": "You said"
     },
     "thinking": "Thinking…",

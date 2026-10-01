@@ -29,13 +29,24 @@ export default function ChatMessageItem({ entry, isDark, onOpenResult }: ChatMes
   const fontScale = useFontScale();
   const reduceMotion = useReducedMotion();
   const entering = reduceMotion ? undefined : FadeInDown.duration(240);
+  const fromVoice = entry.source === 'voice';
+  const voiceTag = fromVoice ? (
+    <View style={styles.voiceTag} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <Icon name="audioLines" size={12} color={tones.neutral.fg} />
+      <Text style={{ color: tones.neutral.fg, fontSize: scaledSize(TYPE.caption, fontScale), fontWeight: '600' }}>
+        {t('chatbot.voice.fromVoice')}
+      </Text>
+    </View>
+  ) : null;
+  const voicePrefix = fromVoice ? `${t('chatbot.voice.fromVoice')}，` : '';
 
   if (entry.role === 'user') {
     return (
       <Animated.View entering={entering} style={styles.userRow}>
+        {voiceTag}
         <View
           accessible
-          accessibilityLabel={`${t('nativeAiYou')}：${entry.content}`}
+          accessibilityLabel={`${voicePrefix}${t('nativeAiYou')}：${entry.content}`}
           style={[styles.userBubble, { backgroundColor: ACCENT_FILL }]}>
           <Text selectable style={{ color: ON_ACCENT_FILL, fontSize: scaledSize(TYPE.body, fontScale), lineHeight: scaledSize(22, fontScale) }}>
             {entry.content}
@@ -58,6 +69,7 @@ export default function ChatMessageItem({ entry, isDark, onOpenResult }: ChatMes
 
   return (
     <Animated.View entering={entering} style={styles.assistantRow}>
+      {voiceTag}
       {shouldShowTrace({ activities, header }) ? (
         <ThinkingTrace rows={buildTraceRows(activities, t)} header={header} isDark={isDark} />
       ) : null}
@@ -86,6 +98,7 @@ const styles = StyleSheet.create({
   userRow: { alignItems: 'flex-end', paddingLeft: 48 },
   userBubble: { borderRadius: 20, borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 9 },
   assistantRow: { alignItems: 'stretch', paddingRight: 8 },
+  voiceTag: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: RADIUS.small, padding: 10 },
   notice: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: RADIUS.small, padding: 10, marginTop: 8 },
   errorText: { flex: 1, fontWeight: '500' },

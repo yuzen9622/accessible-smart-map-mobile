@@ -1,3 +1,4 @@
+import type { PriorTurn } from '@/features/ai/domain';
 import {
   type VoiceCapture,
   type VoiceNavigationResumeState,
@@ -65,6 +66,7 @@ function createHarness(opts?: {
   token?: string | undefined;
   location?: { latitude: number; longitude: number } | null;
   resumeState?: VoiceNavigationResumeState | null;
+  history?: () => PriorTurn[];
 }) {
   const sockets: FakeSocket[] = [];
   const captureCalls: CaptureCall[] = [];
@@ -135,6 +137,7 @@ function createHarness(opts?: {
     getToken: () => token,
     getAuthIdentity: () => identity,
     getUserLocation: () => location,
+    ...(opts?.history ? { getHistory: opts.history } : {}),
     createCapture,
     createPlayback,
     onStatusChange,
@@ -261,6 +264,25 @@ describe('VoiceSessionController', () => {
       token: 'tok-A',
       userLocation: { latitude: 1, longitude: 2 },
     });
+  });
+
+  it('session.start 帶共用對話；沒有歷史時不送欄位；重連時重新讀取', async () => {
+    let history: PriorTurn[] = [{ role: 'user', text: '附近廁所' }];
+    const h = createHarness({ history: () => history });
+    h.controller.start();
+    h.sockets[0].triggerOpen();
+    expect(JSON.parse(h.sockets[0].sent[0] as string).history).toEqual([{ role: 'user', text: '附近廁所' }]);
+
+    history = [...history, { role: 'assistant', text: '臺北車站 B1' }];
+    h.sockets[0].triggerClose(1006, '');
+    await jest.advanceTimersByTimeAsync(1000);
+    h.sockets[1].triggerOpen();
+    expect(JSON.parse(h.sockets[1].sent[0] as string).history).toHaveLength(2);
+
+    const empty = createHarness({ history: () => [] });
+    empty.controller.start();
+    empty.sockets[0].triggerOpen();
+    expect(JSON.parse(empty.sockets[0].sent[0] as string)).not.toHaveProperty('history');
   });
 
   it('case 3: 1006 backoff is 1s,2s,4s,8s,16s,capped at 30s', async () => {

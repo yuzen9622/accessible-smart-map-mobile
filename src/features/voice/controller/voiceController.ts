@@ -1,6 +1,14 @@
 import { AccessibilityInfo } from 'react-native';
 
-import { computeRouteAction, executeAction, openRoutePanel, type Translate } from '@/features/ai';
+import {
+  appendVoiceTurns,
+  computeRouteAction,
+  executeAction,
+  getVoiceHistory,
+  openRoutePanel,
+  type Translate,
+} from '@/features/ai';
+import { VOICE_HISTORY_LIMIT } from '@/features/ai/domain';
 import { useAuthStore } from '@/features/auth';
 import { useUserLocationStore } from '@/features/map';
 import { getAuthPort } from '@/shared/api';
@@ -9,6 +17,7 @@ import { createCapture } from '../audio/audioCapture';
 import { createPlayback } from '../audio/audioPlayback';
 import { beginVoiceAudio, releaseVoiceAudio } from '../audio/audioSession';
 import { createEchoGate } from '../domain/echoGate';
+import { buildVoiceTurns, toolMarkOf, voiceTurnsToPriorTurns, type VoiceToolMark } from '../domain/voiceConversation';
 import { createVoiceBindings, type VoiceBindings } from '../domain/voiceSessionBindings';
 import { VoiceSessionController, type VoiceStatus } from '../domain/voiceSession';
 import { getVoiceStatusLabel } from '../domain/voiceStatus';
@@ -41,6 +50,9 @@ let bindings: VoiceBindings | null = null;
 let translate: Translate = (key) => key;
 let identityAtStart: string | null = null;
 let lastAnnounced = '';
+/** 這段語音的工具結果（併回文字對話用）；`merged` 確保一段 session 只併一次。 */
+let toolMarks: VoiceToolMark[] = [];
+let merged = true;
 /**
  * 回音閘門（domain/echoGate.ts）：助理語音播放中不把麥克風收到的回音送回後端，否則 Gemini 會把自己的話當成
  * 使用者發言而不停重複回答。播放端回報排程時長／清空，擷取端每個 frame 先過閘門。
@@ -59,11 +71,29 @@ function announce(status: VoiceStatus): void {
   AccessibilityInfo.announceForAccessibility(label);
 }
 
+function currentVoiceTurns() {
+  return buildVoiceTurns(useVoiceStore.getState().transcripts, toolMarks);
+}
+
+/** 語音結束：逐字稿與工具結果接到文字對話後面，之後打字時 AI 接得上剛才講的。 */
+function mergeIntoChat(): void {
+  if (merged) return;
+  merged = true;
+  appendVoiceTurns(currentVoiceTurns());
+  toolMarks = [];
+}
+
+/** 送 `session.start`（含重連）時的對話脈絡：先前打字的內容＋這段語音已經講過的。 */
+function sharedHistory() {
+  return [...getVoiceHistory(), ...voiceTurnsToPriorTurns(currentVoiceTurns())].slice(-VOICE_HISTORY_LIMIT);
+}
+
 function onStatus(status: VoiceStatus): void {
   useVoiceStore.setState((state) => reduceStatus(state, status));
   // 只播報使用者需要知道的轉折，不逐一念 listening／model-speaking（會蓋過模型語音）
   if (['connecting', 'reconnecting', 'needs-login', 'ended', 'error'].includes(status.status)) announce(status);
   if (status.status === 'ended' || status.status === 'error' || status.status === 'needs-login') {
+    mergeIntoChat();
     releaseVoiceAudio();
     onVoiceSessionTerminal();
   }
@@ -74,7 +104,11 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
   const b = createVoiceBindings({
     publishTranscripts: (entries) => useVoiceStore.setState({ transcripts: entries }),
     publishStatus: onStatus,
-    publishTool: (event) => useVoiceStore.setState({ activeTool: event }),
+    publishTool: (event) => {
+      const mark = toolMarkOf(event, useVoiceStore.getState().transcripts.length);
+      if (mark) toolMarks.push(mark);
+      useVoiceStore.setState({ activeTool: event });
+    },
     setMicLevel: (level) => useVoiceStore.setState({ micLevel: level }),
     executeAction,
     computeRoute: async (origin, destination) => {
@@ -100,6 +134,7 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
       const position = useUserLocationStore.getState().position;
       return position ? { latitude: position.lat, longitude: position.lng } : null;
     },
+    getHistory: sharedHistory,
     createCapture: (onFrame) => {
       echoGate.clear();
       gateForward = onFrame;
@@ -147,7 +182,11 @@ export function startVoiceSession(t: Translate): void {
   const { controller: c, bindings: b } = ensureController();
   identityAtStart = currentIdentity();
   beginVoiceAudio();
+  // 上一段若沒走到結束狀態（例如 App 直接關掉 modal）也先併回去，再從乾淨的逐字稿開始
+  mergeIntoChat();
   b.reset();
+  toolMarks = [];
+  merged = false;
   useVoiceStore.setState((state) => ({ ...reduceSessionBoundary(state), activeTool: null, viewMode: 'panel' }));
   armCurrentRoute();
   c.start();

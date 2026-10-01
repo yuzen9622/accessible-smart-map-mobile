@@ -11,3 +11,4 @@ export * from './voiceViewState';
 export * from './pcm';
 export * from './voiceNavInstruction';
 export * from './echoGate';
+export * from './voiceConversation';

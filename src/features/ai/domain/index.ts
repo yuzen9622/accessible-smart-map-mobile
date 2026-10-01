@@ -10,3 +10,4 @@ export * from './aiResults';
 export * from './toolResultCards';
 export * from './toolActionMapper';
 export * from './chatStream';
+export * from './conversationHistory';

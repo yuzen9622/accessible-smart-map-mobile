@@ -79,8 +79,7 @@ export type IconName =
   | 'wind'
   | 'trees'
   | 'brain'
-  | 'audioLines'
-  | 'keyboard';
+  | 'audioLines';
 
 export interface IconProps {
   name: IconName;

@@ -3,8 +3,14 @@ export { default as ChatScreen } from './screens/ChatScreen';
 export { default as AiMemoryScreen } from './screens/AiMemoryScreen';
 export { default as AIResultLayer } from './components/AIResultLayer';
 export { default as RouteExplanationCard } from './components/RouteExplanationCard';
-export { clearChat, sendChatMessage, stopChatStreaming } from './controller/chatController';
-export { computeRouteAction, executeAction, openRoutePanel } from './controller/actionExecutor';
+export {
+  appendVoiceTurns,
+  clearChat,
+  getVoiceHistory,
+  sendChatMessage,
+  stopChatStreaming,
+} from './controller/chatController';
+export { closeChat, computeRouteAction, executeAction, openRoutePanel } from './controller/actionExecutor';
 export { useChatStore, type ChatEntry } from './store/chatStore';
 export { useAiBootstrap } from './hooks/useAiBootstrap';
 

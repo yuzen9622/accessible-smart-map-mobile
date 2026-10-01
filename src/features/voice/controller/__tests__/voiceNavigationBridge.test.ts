@@ -50,6 +50,12 @@ jest.mock('@/features/route', () => jest.requireActual('../testing/fakeRouteSess
 
 jest.mock('@/shared/polling', () => ({ appStateVisibility: { subscribe: () => () => {} } }));
 
+const mockCloseChat = jest.fn();
+jest.mock('@/features/ai', () => ({
+  closeChat: () => mockCloseChat(),
+}));
+
+
 
 
 const uplink = {
@@ -96,6 +102,7 @@ describe('voiceNavigationBridge', () => {
     expect(nav.instructions.map((i) => i.text)).toEqual(['向北出發', '右轉']);
     expect(nav.routeTotalM).toBe(100);
     expect(mockBegin).toHaveBeenCalledTimes(1);
+    expect(mockCloseChat).toHaveBeenCalledTimes(1);
     expect(nav.voiceEnabled).toBe(false);
     expect(uplink.sendNavigationPosition).toHaveBeenCalledWith({ latitude: 25.04, longitude: 121.52 });
   });

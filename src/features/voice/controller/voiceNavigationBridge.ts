@@ -1,6 +1,6 @@
 import { AccessibilityInfo } from 'react-native';
 
-import type { Translate } from '@/features/ai';
+import { closeChat, type Translate } from '@/features/ai';
 import { useUserLocationStore } from '@/features/map';
 import {
   beginNavigation,
@@ -119,6 +119,8 @@ function startVoiceNavigation(event: Extract<VoiceNavigationEvent, { type: 'nav.
   nav.setRemainingM(totalM || null);
   lastSent = null;
   serverStopped = false;
+  // 與語音規劃路線（openRoutePanel）一致：關掉聊天 modal 讓使用者看到導航，語音改由浮動 pill 延續
+  closeChat();
   if (nav.isNavigating) {
     startNavigation();
   } else {

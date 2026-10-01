@@ -62,6 +62,21 @@ function parseRouteDetailStop(value: unknown): RouteDetailStop | null {
   return { seq, name, lat, lng, estimateMinutes: finiteOrNull(value.estimateMinutes), statusLabel: stringOr(value.statusLabel) };
 }
 
+function parseLngLat(value: unknown): [number, number] | null {
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const [lng, lat] = value;
+  return typeof lng === 'number' && typeof lat === 'number' && Number.isFinite(lng) && Number.isFinite(lat)
+    ? [lng, lat]
+    : null;
+}
+
+/** 壞掉的點丟掉；剩不到兩點畫不成線，當作沒給（地圖退回站序連線）。 */
+function parsePolyline(value: unknown): [number, number][] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const points = value.map(parseLngLat).filter((p): p is [number, number] => p !== null);
+  return points.length >= 2 ? points : undefined;
+}
+
 function parseRouteDetail(value: unknown): { directions: RouteDetailDirection[] } | undefined {
   if (!isRecord(value) || !Array.isArray(value.directions)) return undefined;
   const directions: RouteDetailDirection[] = [];
@@ -75,6 +90,7 @@ function parseRouteDetail(value: unknown): { directions: RouteDetailDirection[] 
       stops: stops.filter((stop): stop is RouteDetailStop => stop !== null),
       subRouteUid: optionalString(d.subRouteUid),
       subRouteName: optionalString(d.subRouteName),
+      polyline: parsePolyline(d.polyline),
     });
   }
   return { directions };

@@ -38,6 +38,28 @@ describe('transit api', () => {
     expect(res.data?.directions.map((d) => d.direction)).toEqual([0]);
   });
 
+  it('keeps a valid route polyline and drops unusable ones', async () => {
+    const stop = { seq: 0, name: 'A', lat: 1, lng: 2, estimateMinutes: null, statusLabel: '' };
+    mockFetchRequest.mockResolvedValue(
+      envelope({
+        directions: [
+          { direction: 0, stops: [stop], polyline: [[121.5, 25], ['x', 25], [121.6, 25.1], [121.7]] },
+          { direction: 1, stops: [stop], polyline: null },
+          { direction: 0, stops: [stop], polyline: [[121.5, 25], [Number.NaN, 25]] },
+        ],
+      }),
+    );
+    const res = await getBusRouteDetail('307', 'Taipei');
+    expect(res.data?.directions.map((d) => d.polyline)).toEqual([
+      [
+        [121.5, 25],
+        [121.6, 25.1],
+      ],
+      undefined,
+      undefined,
+    ]);
+  });
+
   it('drops vehicles without a usable position or direction', async () => {
     mockFetchRequest.mockResolvedValue(
       envelope({

@@ -31,3 +31,18 @@ export function stopsOfDirection(directions: readonly RouteDetailDirection[], di
   if (direction === null) return [];
   return directions.find((d) => d.direction === direction)?.stops ?? [];
 }
+
+/**
+ * 地圖上這個方向的路線線形（`[lng, lat]`）：優先用後端的 TDX 線形；沒有時退回站序直線連接。
+ * 與 `stopsOfDirection` 取同一個方向物件，線形和站點才會屬於同一個子路線。
+ */
+export function routePathOfDirection(
+  directions: readonly RouteDetailDirection[],
+  direction: 0 | 1 | null,
+): [number, number][] {
+  if (direction === null) return [];
+  const picked = directions.find((d) => d.direction === direction);
+  if (!picked) return [];
+  if (picked.polyline && picked.polyline.length >= 2) return picked.polyline;
+  return picked.stops.map((s) => [s.lng, s.lat]);
+}

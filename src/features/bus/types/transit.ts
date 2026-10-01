@@ -32,6 +32,11 @@ export interface RouteDetailDirection {
   /** 這組站序屬於哪個子路線（99 vs 99延）。 */
   subRouteUid?: string;
   subRouteName?: string;
+  /**
+   * 路線幾何（TDX Bus Shape），`[lng, lat]`（GeoJSON 順序）。後端找不到可歸屬此子路線方向的
+   * 線形時不給（回應為 `null`），地圖改以站序連線繪製。
+   */
+  polyline?: [number, number][];
 }
 
 export interface BusArrivalItem {

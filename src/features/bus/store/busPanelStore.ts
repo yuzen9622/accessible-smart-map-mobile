@@ -21,10 +21,13 @@ interface BusPanelState {
   selectedStopId: string | null;
   /** true：`displayedStops` 是一條路線的站序，地圖要把它們連成線（路線詳情）。 */
   routeLine: boolean;
+  /** 路線詳情的線形（`[lng, lat]`）：TDX 線形，沒有時是站序連線；空陣列表示不畫線。 */
+  routePath: [number, number][];
   /** 使用者要上車的站（路線詳情從站牌進入時）。 */
   mineStopId: string | null;
   buses: PanelBus[];
   setDisplayedStops: (stops: PanelStop[]) => void;
+  setRoutePath: (path: [number, number][]) => void;
   selectStop: (id: string | null) => void;
   setRouteOverlay: (overlay: { routeLine: boolean; mineStopId: string | null }) => void;
   setBuses: (buses: PanelBus[]) => void;
@@ -35,11 +38,14 @@ export const useBusPanelStore = create<BusPanelState>()((set) => ({
   displayedStops: [],
   selectedStopId: null,
   routeLine: false,
+  routePath: [],
   mineStopId: null,
   buses: [],
   setDisplayedStops: (displayedStops) => set({ displayedStops }),
+  setRoutePath: (routePath) => set({ routePath }),
   selectStop: (selectedStopId) => set({ selectedStopId }),
   setRouteOverlay: ({ routeLine, mineStopId }) => set({ routeLine, mineStopId }),
   setBuses: (buses) => set({ buses }),
-  clear: () => set({ displayedStops: [], selectedStopId: null, routeLine: false, mineStopId: null, buses: [] }),
+  clear: () =>
+    set({ displayedStops: [], selectedStopId: null, routeLine: false, routePath: [], mineStopId: null, buses: [] }),
 }));

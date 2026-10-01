@@ -30,6 +30,7 @@ import {
   placeBuses,
   resolveDirectionLabels,
   resolveStopBadge,
+  routePathOfDirection,
   isAccessibleBus,
   stopsBounds,
   stopsOfDirection,
@@ -91,6 +92,7 @@ export default function BusRouteScreen() {
   const placed = direction === null ? [] : placeBuses(stops, buses, direction);
   // 只給 useFocusEffect 用的一份站序參照：`stops` 會被傳進其他函式，React Compiler 會把它視為可能被改動而放棄 memo
   const focusStops = stopsOfDirection(directions, direction);
+  const focusPath = routePathOfDirection(directions, direction);
 
   const match = myStopName && direction !== null ? matchStopInRoute(directions, myStopName, stopPosition, direction) : null;
   const approaching = match ? nextBusToStop(placed, match.index, match.stop.estimateMinutes) : null;
@@ -100,6 +102,7 @@ export default function BusRouteScreen() {
 
   const selectedStopId = useBusPanelStore((s) => s.selectedStopId);
   const setDisplayedStops = useBusPanelStore((s) => s.setDisplayedStops);
+  const setRoutePath = useBusPanelStore((s) => s.setRoutePath);
   const selectStop = useBusPanelStore((s) => s.selectStop);
   const clearPanel = useBusPanelStore((s) => s.clear);
 
@@ -108,15 +111,19 @@ export default function BusRouteScreen() {
     useCallback(() => {
       const panelStops: PanelStop[] = focusStops.map((s) => ({ id: stopId(s), name: s.name, lat: s.lat, lng: s.lng }));
       setDisplayedStops(panelStops);
-      // 輪詢換了站序物件時只重設站點，不動選取（否則每 30 秒選取就被清掉）。
-      return () => setDisplayedStops([]);
-    }, [focusStops, setDisplayedStops]),
+      setRoutePath(focusPath);
+      // 輪詢換了站序物件時只重設站點與線形，不動選取（否則每 30 秒選取就被清掉）。
+      return () => {
+        setDisplayedStops([]);
+        setRoutePath([]);
+      };
+    }, [focusStops, focusPath, setDisplayedStops, setRoutePath]),
   );
   // 失焦（離開或推入子畫面）才整個清掉，包含選取。
   useFocusEffect(useCallback(() => clearPanel, [clearPanel]));
   useEffect(() => clearPanel, [clearPanel]);
 
-  // 地圖：站序連成路線、你的站放大、該方向的即時車輛畫成 marker（設計：路線詳情的地圖）。
+  // 地圖：畫路線線形（TDX 線形，沒有時站序連線）、你的站放大、該方向的即時車輛畫成 marker（設計：路線詳情的地圖）。
   const setRouteOverlay = useBusPanelStore((s) => s.setRouteOverlay);
   const setPanelBuses = useBusPanelStore((s) => s.setBuses);
   const mineStopId = match ? stopId(match.stop) : null;

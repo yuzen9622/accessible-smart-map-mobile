@@ -28,10 +28,10 @@ function buildCollection(stops: PanelStop[], selectedId: string | null, mineId: 
   return { type: 'FeatureCollection', features };
 }
 
-function buildLine(stops: PanelStop[]): FeatureCollection<LineString> {
+function buildLine(path: [number, number][]): FeatureCollection<LineString> {
   return {
     type: 'FeatureCollection',
-    features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: stops.map((s) => [s.lng, s.lat]) } }],
+    features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: path } }],
   };
 }
 
@@ -52,7 +52,7 @@ function BusMarker({ bus }: { bus: PanelBus }) {
 /**
  * 公車面板正在顯示的站牌（路線站序／附近／搜尋結果）。
  *
- * 路線詳情（`routeLine`）時依設計把站序連成一條主色線：一般站白心藍框、你的站放大實心、
+ * 路線詳情（`routeLine`）時依設計畫一條主色路線線形（`routePath`：TDX 線形，沒有時站序連線）：一般站白心藍框、你的站放大實心、
  * 選中的站實心；並把該方向的即時車輛畫成 marker。附近／搜尋清單只畫藍點，選中的站放大換紅。
  * 放在 `<Map>` 內；沒有站牌時不渲染。
  */
@@ -60,6 +60,7 @@ export default function BusStopLayer() {
   const stops = useBusPanelStore((s) => s.displayedStops);
   const selectedId = useBusPanelStore((s) => s.selectedStopId);
   const routeLine = useBusPanelStore((s) => s.routeLine);
+  const routePath = useBusPanelStore((s) => s.routePath);
   const mineId = useBusPanelStore((s) => s.mineStopId);
   const buses = useBusPanelStore((s) => s.buses);
   if (stops.length === 0) return null;
@@ -87,8 +88,8 @@ export default function BusStopLayer() {
 
   return (
     <>
-      {stops.length > 1 ? (
-        <GeoJSONSource key="bus-route-line" id="bus-route-line" data={buildLine(stops)}>
+      {routePath.length > 1 ? (
+        <GeoJSONSource key="bus-route-line" id="bus-route-line" data={buildLine(routePath)}>
           <Layer
             id="bus-route-line-casing"
             type="line"

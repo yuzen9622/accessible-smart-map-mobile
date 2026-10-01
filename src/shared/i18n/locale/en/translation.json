@@ -45,7 +45,10 @@
       "transcriptUser": "You",
       "transcriptModel": "Assistant",
       "listeningHint": "Start speaking",
-      "connectingHint": "Connecting, please wait…"
+      "connectingHint": "Connecting, please wait…",
+      "endShort": "End",
+      "typeShort": "Type",
+      "youSaid": "You said"
     },
     "thinking": "Thinking…",
     "clearConversation": "Clear conversation"

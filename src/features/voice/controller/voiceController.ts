@@ -106,7 +106,11 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
       return createCapture(b.wrapCaptureFrame((frame) => echoGate.push(frame)));
     },
     createPlayback: () =>
-      createPlayback({ onScheduled: (ms) => echoGate.notePlayback(ms), onCleared: () => echoGate.clear() }),
+      createPlayback({
+        onScheduled: (ms) => echoGate.notePlayback(ms),
+        onCleared: () => echoGate.clear(),
+        onLevel: (level) => useVoiceStore.setState({ modelLevel: level }),
+      }),
     onStatusChange: b.onStatusChange,
     onTranscript: b.onTranscript,
     onTranscriptCorrection: b.onTranscriptCorrection,

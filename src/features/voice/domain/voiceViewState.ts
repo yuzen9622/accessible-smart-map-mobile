@@ -22,6 +22,8 @@ export interface VoiceViewState {
   viewMode: VoiceViewMode;
   /** 麥克風 RMS 音量 [0, 1]。 */
   micLevel: number;
+  /** 助理語音的實際播放音量 [0, 1]（播放端 AnalyserNode）。 */
+  modelLevel: number;
   /** Gemini 語音輸出（與麥克風上行）是否靜音。 */
   isMuted: boolean;
 }
@@ -32,6 +34,7 @@ export const initialVoiceViewState: VoiceViewState = {
   activeTool: null,
   viewMode: 'panel',
   micLevel: 0,
+  modelLevel: 0,
   isMuted: false,
 };
 

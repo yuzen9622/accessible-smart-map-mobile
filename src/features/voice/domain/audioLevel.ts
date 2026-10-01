@@ -97,3 +97,35 @@ export function recordingDotPresentation(
   }
   return { scale: 1, pulse: false };
 }
+
+/**
+ * 播放端 AnalyserNode 取到的 float 波形（[-1, 1]）→ [0, 1]，與麥克風同一個 GAIN，
+ * 讓 AI 說話與使用者說話的音波幅度看起來一致。非有限值當 0。
+ */
+export function floatLevel(samples: Float32Array): number {
+  if (samples.length === 0) return 0;
+  let sumSquares = 0;
+  for (const sample of samples) {
+    if (Number.isFinite(sample)) sumSquares += sample * sample;
+  }
+  return clamp(Math.sqrt(sumSquares / samples.length) * GAIN, 0, 1);
+}
+
+/**
+ * 語音音波該跟哪個音量走：AI 說話時跟播放音量（回音閘門是半雙工，這時的麥克風只會收到回音），
+ * 聆聽時跟麥克風；靜音（上下行都停）或其他狀態一律 0。
+ */
+export function waveformLevel(statusName: VoiceStatusName, micLevel: number, modelLevel: number, muted: boolean): number {
+  if (muted) return 0;
+  const level = statusName === 'model-speaking' ? modelLevel : statusName === 'listening' ? micLevel : 0;
+  return Number.isFinite(level) ? clamp(level, 0, 1) : 0;
+}
+
+/** 音波的動態模式：`live` 跟音量跳動、`idle` 連線中的低幅度起伏、`flat` 靜止成一條線。 */
+export type WaveformMode = 'live' | 'idle' | 'flat';
+
+export function waveformMode(statusName: VoiceStatusName, muted: boolean): WaveformMode {
+  if (statusName === 'connecting' || statusName === 'reconnecting' || statusName === 'ready') return 'idle';
+  if (muted || !isMicActiveStatus(statusName)) return 'flat';
+  return 'live';
+}

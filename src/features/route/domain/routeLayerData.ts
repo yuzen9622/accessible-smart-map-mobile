@@ -13,11 +13,11 @@ import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 
 import type { LatLng } from '@/shared/geo';
 
-import { filterIncidentsAlongRoute } from './geo';
+import { filterIncidentsAlongRoute, isIncidentClosed } from './geo';
 import { A11Y_FEATURE_COLOR, TRAFFIC_LEVEL_COLORS, getLegColor, visibleTrafficSegments } from './routeDisplay';
 import type { AccessibleRoute, LngLatTuple } from '../types/route';
 
-export type RouteLineKind = 'walk' | 'transit' | 'drive' | 'traffic' | 'a11y' | 'a11yIndoor';
+export type RouteLineKind = 'walk' | 'transit' | 'drive' | 'traffic' | 'a11y' | 'a11yIndoor' | 'incident';
 
 export interface RouteLineProps {
   id: string;
@@ -102,7 +102,17 @@ export function buildRouteLayerData(route: AccessibleRoute | null, waypoints: re
         }
       });
       filterIncidentsAlongRoute(leg.incidents, coords).forEach((incident) => {
-        const closure = incident.severity === 'closure';
+        const closure = isIncidentClosed(incident);
+        const extent = (incident.points ?? []).filter(isFiniteTuple);
+        if (extent.length >= 2) {
+          lines.push(
+            line(`${base}-incident-extent-${incident.incidentId}`, extent, {
+              kind: 'incident',
+              color: closure ? INCIDENT_CLOSURE_COLOR : INCIDENT_ADVISORY_COLOR,
+              order: 2,
+            }),
+          );
+        }
         points.push(
           point(`${base}-incident-${incident.incidentId}`, [incident.location.lng, incident.location.lat], {
             kind: closure ? 'incidentClosure' : 'incidentAdvisory',

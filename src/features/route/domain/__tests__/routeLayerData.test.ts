@@ -83,6 +83,26 @@ describe('buildRouteLayerData', () => {
     expect(feature?.geometry.coordinates).toEqual([121.51, 25.032]);
   });
 
+  it('draws the incident extent from points and treats roadClosed as a closure', () => {
+    const data = buildRouteLayerData(
+      driveRoute({
+        incidents: [
+          {
+            incidentId: 'inc-2',
+            title: '人行道更新',
+            severity: 'advisory',
+            roadClosed: true,
+            location: { lat: 25.032, lng: 121.51 },
+            points: [[121.51, 25.032], [121.5102, 25.0322]],
+          },
+        ],
+      }),
+    );
+    const extent = data.lines.features.find((f) => f.properties.id === 'leg-0-incident-extent-inc-2');
+    expect(extent?.properties.kind).toBe('incident');
+    expect(data.points.features.find((f) => f.properties.id === 'leg-0-incident-inc-2')?.properties.kind).toBe('incidentClosure');
+  });
+
   it('skips incidents without a numeric coordinate or farther than 150 m', () => {
     const { points } = ids(
       driveRoute({

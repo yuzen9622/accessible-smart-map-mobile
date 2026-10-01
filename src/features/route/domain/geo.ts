@@ -230,3 +230,15 @@ export function filterIncidentsAlongRoute<T extends { location?: { lat: number; 
     return pointToPolylineDistanceM(incident.location, polyline) <= maxDistanceM;
   });
 }
+
+/** 道路是否封閉：優先採後端的 `roadClosed`，缺欄位才看 `severity`。 */
+export function isIncidentClosed(incident: { roadClosed?: boolean; severity: 'closure' | 'advisory' }): boolean {
+  return incident.roadClosed ?? incident.severity === 'closure';
+}
+
+/** 事件預計結束日（M/D）；缺值或無法解析時回 null。 */
+export function formatIncidentEnd(endTime: string | null | undefined): string | null {
+  if (!endTime) return null;
+  const date = new Date(endTime);
+  return Number.isNaN(date.getTime()) ? null : `${date.getMonth() + 1}/${date.getDate()}`;
+}

@@ -6,7 +6,7 @@ import { useAppTranslation } from '@/shared/i18n';
 import { useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
-import { filterIncidentsAlongRoute } from '../domain/geo';
+import { filterIncidentsAlongRoute, formatIncidentEnd, isIncidentClosed } from '../domain/geo';
 import {
   A11Y_FEATURE_LABEL_KEY,
   driveLegMinutes,
@@ -236,13 +236,18 @@ function DriveDetail({
         <Disclosure label={t(allRoadwork ? 'roadworkAlongRoute' : 'incidentsAlongRoute', { count: incidents.length })} color={tones.warn}>
           {incidents.map((incident) => (
             <View key={incident.incidentId} style={[routeStyles.card, styles.alertCard, { backgroundColor: ROUTE_WARN_SURFACE }]}>
-              <Icon name={incident.severity === 'closure' ? 'alert' : 'construction'} size={14} color={tones.warn} />
+              <Icon name={isIncidentClosed(incident) ? 'alert' : 'construction'} size={14} color={tones.warn} />
               <View style={routeStyles.flex}>
                 <Text style={[routeStyles.bodyText, { color: colors.text }]}>
-                  {incident.severity === 'closure' ? `${incident.title}（${t('incidentClosure')}）` : incident.title}
+                  {isIncidentClosed(incident) ? `${incident.title}（${t('incidentClosure')}）` : incident.title}
                 </Text>
-                {incident.description ? (
-                  <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{incident.description}</Text>
+                {incident.locationDescription ?? incident.description ? (
+                  <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{incident.locationDescription ?? incident.description}</Text>
+                ) : null}
+                {formatIncidentEnd(incident.endTime) ? (
+                  <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>
+                    {t('incidentUntil', { date: formatIncidentEnd(incident.endTime) })}
+                  </Text>
                 ) : null}
               </View>
             </View>

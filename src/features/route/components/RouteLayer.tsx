@@ -60,6 +60,13 @@ export default function RouteLayer() {
           paint={{ 'line-color': ['get', 'color'], 'line-width': 6, 'line-opacity': 0.95 }}
         />
         <Layer
+          id="route-line-incident"
+          type="line"
+          filter={['==', ['get', 'kind'], 'incident']}
+          layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+          paint={{ 'line-color': ['get', 'color'], 'line-width': 5, 'line-opacity': 0.9, 'line-dasharray': [1, 1.5] }}
+        />
+        <Layer
           id="route-line-a11y-indoor"
           type="line"
           filter={['==', ['get', 'kind'], 'a11yIndoor']}

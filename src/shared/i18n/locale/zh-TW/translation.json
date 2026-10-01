@@ -757,6 +757,7 @@
   "incidentsAlongRoute": "沿線路況事件 ({{count}} 處)",
   "roadworkAlongRoute": "沿線道路施工 ({{count}} 處)",
   "incidentClosure": "道路封閉",
+  "incidentUntil": "預計 {{date}} 結束",
   "incidentAdvisory": "提醒通行",
   "trafficIncidentOther": "路況事件",
   "transportTool": "交通工具",

@@ -304,6 +304,13 @@ export interface DriveIncident {
   description?: string;
   severity: 'closure' | 'advisory';
   location: { lat: number; lng: number };
+  /** 事件影響範圍的折線點（[lng, lat]）；缺欄位或不足兩點＝只有單一位置。 */
+  points?: LngLatTuple[];
+  /** 道路是否封閉；缺欄位時退回 `severity === 'closure'`。 */
+  roadClosed?: boolean;
+  /** 後端組好的位置文字（例：「…人行道更新」），優先於 `description` 顯示。 */
+  locationDescription?: string;
+  endTime?: string | null;
 }
 
 export interface DriveLeg {
@@ -340,8 +347,15 @@ export type A11yLabel = 'excellent' | 'good' | 'fair' | 'poor' | 'critical';
 export type HazardType = 'obstacle' | 'construction' | 'data_error';
 export type HazardSeverity = 'blocking' | 'difficult' | 'minor';
 
+export type HazardSource = 'community' | 'government';
+
 export interface RouteHazard {
   id: string;
+  /**
+   * `government`＝政府施工公告，id 以 `tdx:` 開頭，不存在於通報資料庫，不能確認／投票；
+   * 缺欄位視為 `community`。
+   */
+  source?: HazardSource;
   hazardType: HazardType;
   severity: HazardSeverity;
   description?: string;

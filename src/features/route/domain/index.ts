@@ -6,6 +6,8 @@ export {
   bearingDeg,
   buildCumulativePath,
   filterIncidentsAlongRoute,
+  isIncidentClosed,
+  formatIncidentEnd,
   normalizeDeg,
   pointToPolylineDistanceM,
   projectToPath,

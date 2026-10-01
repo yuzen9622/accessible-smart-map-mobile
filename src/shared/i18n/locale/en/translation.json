@@ -755,6 +755,7 @@
   "roadworkAlongRoute_one": "{{count}} roadwork along route",
   "roadworkAlongRoute_other": "{{count}} roadworks along route",
   "incidentClosure": "Road closed",
+  "incidentUntil": "Expected to end {{date}}",
   "incidentAdvisory": "Advisory",
   "trafficIncidentOther": "Incident",
   "transportTool": "Transport",

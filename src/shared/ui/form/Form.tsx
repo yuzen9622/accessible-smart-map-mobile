@@ -32,6 +32,7 @@ export function FormScreen({ children }: { children: ReactNode }) {
     <ScrollView
       style={{ backgroundColor: colors.backgroundElement }}
       contentContainerStyle={styles.screen}
+      automaticallyAdjustKeyboardInsets
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag">
       {children}

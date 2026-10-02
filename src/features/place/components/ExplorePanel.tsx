@@ -44,6 +44,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
     <ScrollView
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={styles.content}
+      automaticallyAdjustKeyboardInsets
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag">
       {model.showBrand ? (

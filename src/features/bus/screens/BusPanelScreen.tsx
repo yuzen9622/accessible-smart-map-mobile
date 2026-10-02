@@ -2,7 +2,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 
-import { useUserLocationStore } from '@/features/map';
+import { SHEET_DETENTS, sheetController, useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 import { RADIUS, SPACE, TYPE, semanticColors, useThemeColors } from '@/shared/theme';
@@ -194,6 +194,7 @@ export default function BusPanelScreen() {
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
         contentInsetAdjustmentBehavior="automatic"
+        automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag">
         <SegmentedControl
@@ -209,6 +210,8 @@ export default function BusPanelScreen() {
           <TextInput
             value={keyword}
             onChangeText={setKeyword}
+            // sheet 停在 half 時鍵盤會蓋住搜尋框：聚焦就展開到全高（同首頁搜尋）
+            onFocus={() => sheetController.raiseTo(SHEET_DETENTS.length - 1)}
             placeholder={mode === 'route' ? t('routeName') : t('stopName')}
             placeholderTextColor={colors.textSecondary}
             accessibilityLabel={mode === 'route' ? t('routeName') : t('stopName')}

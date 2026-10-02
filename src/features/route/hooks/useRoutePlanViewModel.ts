@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
-import { useUserLocationStore } from '@/features/map';
+import { SHEET_DETENTS, sheetController, useUserLocationStore } from '@/features/map';
 import { useOnboardingStore } from '@/features/onboarding';
 import { resolveAutocompleteItem, useAutocomplete, type AutocompleteItem } from '@/features/place';
 import { useAppTranslation } from '@/shared/i18n';
@@ -66,6 +66,8 @@ export interface RoutePlanModel {
   onEdit: (field: PlanField) => void;
   onCancelEdit: () => void;
   onQueryChange: (query: string) => void;
+  /** 輸入框取得焦點：sheet 展開到全高，鍵盤才不會蓋住輸入框與建議清單。 */
+  onInputFocus: () => void;
   onUseMyLocation: () => void;
   onClearDestination: () => void;
   onSwap: () => void;
@@ -298,6 +300,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     },
     onCancelEdit: closeEditor,
     onQueryChange: setQuery,
+    onInputFocus: () => sheetController.raiseTo(SHEET_DETENTS.length - 1),
     onUseMyLocation: () => {
       useRouteSessionStore.getState().setOrigin(null);
       closeEditor();

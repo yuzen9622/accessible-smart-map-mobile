@@ -70,6 +70,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
       autoFocus
       value={model.query}
       onChangeText={model.onQueryChange}
+      onFocus={model.onInputFocus}
       placeholder={model.labels.searchPlaceholder}
       placeholderTextColor={colors.textSecondary}
       accessibilityLabel={label}
@@ -128,6 +129,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={routeStyles.content}
       contentInsetAdjustmentBehavior="automatic"
+      automaticallyAdjustKeyboardInsets
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag">
       <View style={styles.header}>

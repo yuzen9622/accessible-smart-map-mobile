@@ -103,6 +103,9 @@ src/
    - `EXPO_PUBLIC_SHARE_BASE_URL`：地點與路線分享基礎網址
    - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`：Google 登入 Web 用戶端 ID
    - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`：Google 登入 iOS 用戶端 ID
+   - `EXPO_PUBLIC_PRIVACY_POLICY_URL`／`EXPO_PUBLIC_TERMS_URL`：隱私權政策／服務條款網址（https；留空時設定頁不顯示入口）
+
+   版控中的 `.env` 只放公開的正式環境預設值，EAS Build／Update 會讀到它；`.env.local` 會覆蓋 `.env`。Google client ID 屬環境設定，正式 build 需另外以 EAS 環境變數提供（未設定時 Google 登入 plugin 不會加入）。
 4. **啟動建置與執行**：
 
    由於本專案包含 MapLibre Native、Audio API 與 MMKV 等 C++/原生模組，無法直接於 Expo Go 中運行，請使用 Development Build：

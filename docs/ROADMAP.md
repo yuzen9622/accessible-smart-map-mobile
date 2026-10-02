@@ -274,29 +274,54 @@
 ## Phase 5 — 無障礙稽核與上架（2–3 週，暫緩）
 
 > 使用者決定先暫緩：上架需 Apple Developer Program 年費與 Google Play 開發者註冊費。5.1 無障礙稽核中不需真機的項目（Dynamic Type、對比、觸控目標）可提前在各期順手做。
+>
+> 2026-10-01：不需繳費、不需真機的部分已先做（程式碼稽核＋修正、EAS Update、Privacy Manifest、spike 路由限開發版）；需真機、商店後台或設計稿的項目仍暫緩。
 
 ### 步驟
 
 **5.1 無障礙稽核（依 SDD §10 逐項）**
 
 - [ ] VoiceOver（iOS 真機）、TalkBack（Android 真機）各走完主流程：搜尋 → 路線 → 導航 → SOS → 通報 → 聊天
-- [ ] Dynamic Type 最大級距、高對比、減少動態效果、觸控目標尺寸檢查
+- [x] Dynamic Type 最大級距、高對比、減少動態效果、觸控目標尺寸檢查（2026-10-01 程式碼稽核＋修正：
+  - 高對比語意色（`semanticColors(isDark, highContrast)`、`useSemanticColors()`，≥ 7:1 有測試）
+  - 導航 HUD「接著」列對比 3.7→4.9:1
+  - 地圖相機在減少動態效果時直接跳到終點（`shared/accessibility`）
+  - AI 分頁／標題、Android 分段控制、路線清除鈕的觸控範圍補到 44pt
+  - 導航指令不再截斷，起訖點、搜尋結果、公車卡片改為最多 2 行
+  - 補上重算完成／失敗、SOS 取消的播報與 SOS 倒數標籤
+  - 語音覆蓋層加 `accessibilityViewIsModal`
+  - 真機螢幕閱讀器仍待驗證）
 - [ ] 修正清單歸零（或列為已知問題並有時程）
 
 **5.2 品質**
 
 - [ ] 效能：冷啟動時間、地圖 FPS、記憶體（長時間導航）
-- [ ] 錯誤回報（例如 Sentry）與基本分析；隱私權政策同步更新
-- [ ] 離線與弱網路行為檢查
+- [ ] 錯誤回報（例如 Sentry）與基本分析；隱私權政策同步更新（2026-10-01：
+  - 使用者決定先不接 Sentry
+  - 已加 root `ErrorBoundary`，並把 `console.*` 收進 `shared/logger`（正式版不輸出）
+  - 設定頁的隱私權政策／服務條款入口走 `EXPO_PUBLIC_PRIVACY_POLICY_URL`／`EXPO_PUBLIC_TERMS_URL`；Web 版頁面尚未存在，目前不顯示）
+- [x] 離線與弱網路行為檢查（2026-10-01：
+  - `fetchRequest` 預設逾時：一般 20 秒、上傳 60 秒，逾時拋 `ApiError` 408 `REQUEST_TIMEOUT`；auth refresh 與 logout 也有逾時
+  - 地圖上的離線提示（`expo-network`）
+  - 探索、我的通報、危險通報詳情補上錯誤／重試狀態）
 
 **5.3 上架準備**
 
 - [ ] App 圖示、啟動畫面、商店截圖（中英）、描述、分類
 - [ ] 權限用途說明文字最終版；背景定位審查備註（說明只在導航／SOS 時使用）與 Google Play 背景位置聲明表與示範影片
-- [ ] iOS Privacy Manifest、App Privacy 問卷、Play Data safety
-- [ ] 帳號刪除功能（App Store 要求）
+- [ ] iOS Privacy Manifest、App Privacy 問卷、Play Data safety（2026-10-01：
+  - `ios.privacyManifests` 已寫入 app.json：required-reason API 含 DiskSpace，並列出蒐集的資料類型
+  - Info.plist 拿掉沒用到的 Motion／Face ID 用途說明
+  - 問卷與 Data safety 需商店後台）
+- [x] 帳號刪除功能（App Store 要求）（Phase 3 已完成）
 - [ ] （v1.x 候選）Universal Links／App Links 只用於分享連結；email 驗證／重設密碼維持開 Web
-- [ ] `eas build --profile production`、`eas submit`；設定 EAS Update channel
+- [ ] `eas build --profile production`、`eas submit`；設定 EAS Update channel（2026-10-01：
+  - 已裝 `expo-updates`，`runtimeVersion` 用 fingerprint policy，`updates.url` 已設
+  - development／preview／production 各有 channel
+  - 版控 `.env` 放公開的正式環境預設值，讓 EAS build 讀得到
+  - build、submit 待繳費）
+- [x] 移除技術 spike 頁面（`src/app/spikes`、`src/features/spikes`；結論保留在 `docs/spikes/`）（2026-10-02）
+- [ ] App 圖示與啟動畫面換成正式設計（目前仍是 Expo 範本；使用者會提供設計稿）
 
 ### 出口條件
 

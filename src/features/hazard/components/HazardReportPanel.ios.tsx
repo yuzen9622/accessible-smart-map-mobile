@@ -1,10 +1,10 @@
-import { Button, Form, Host, Picker, RNHostView, Section, Text, TextField, useNativeState } from '@expo/ui/swift-ui';
+import { Button, Form, Picker, RNHostView, Section, Text, TextField, useNativeState } from '@expo/ui/swift-ui';
 import { font, foregroundStyle, lineLimit, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { Image } from 'expo-image';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { FormPrimaryButton } from '@/shared/ui';
+import { FormPrimaryButton, KeyboardAvoidingHost } from '@/shared/ui';
 
 import type { HazardReportPanelProps } from './HazardReportPanel.types';
 
@@ -17,7 +17,7 @@ export default function HazardReportPanel({ model }: HazardReportPanelProps) {
   // RNHostView matchContents 以子元件尺寸為準，百分比寬度會解析成 0：以視窗寬扣掉 Form 左右內距
   const previewWidth = useWindowDimensions().width - 72;
   return (
-    <Host style={{ flex: 1 }}>
+    <KeyboardAvoidingHost>
       <Form>
         {!model.loggedIn ? (
           <Section>
@@ -98,7 +98,7 @@ export default function HazardReportPanel({ model }: HazardReportPanelProps) {
           <FormPrimaryButton label={t('submitReport')} onPress={model.submit} disabled={!model.canSubmit} loading={model.submitting} />
         </Section>
       </Form>
-    </Host>
+    </KeyboardAvoidingHost>
   );
 }
 

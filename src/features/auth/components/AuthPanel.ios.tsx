@@ -30,7 +30,7 @@ import {
 import { View, useWindowDimensions } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { FormPrimaryButton, FormSecondaryButton } from '@/shared/ui';
+import { FormPrimaryButton, FormSecondaryButton, KeyboardAvoidingHost } from '@/shared/ui';
 
 import AppleSignInButton from './AppleSignInButton';
 import type { AuthPanelProps } from './AuthPanel.types';
@@ -81,7 +81,7 @@ export default function AuthPanel({ model }: AuthPanelProps) {
     model.mode === 'register' ? t('auth.register') : model.mode === 'forgot' ? t('auth.forgotSendButton') : t('auth.login');
 
   return (
-    <Host style={{ flex: 1 }}>
+    <KeyboardAvoidingHost>
       <Form>
         {model.mode !== 'forgot' ? (
           <Section>
@@ -171,6 +171,6 @@ export default function AuthPanel({ model }: AuthPanelProps) {
           {model.mode === 'forgot' ? <Button label={t('auth.backToLogin')} onPress={() => model.setMode('login')} /> : null}
         </Section>
       </Form>
-    </Host>
+    </KeyboardAvoidingHost>
   );
 }

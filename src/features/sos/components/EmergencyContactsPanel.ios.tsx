@@ -1,8 +1,8 @@
-import { Button, Form, Host, HStack, LabeledContent, ProgressView, Section, Spacer, Text, TextField, VStack } from '@expo/ui/swift-ui';
+import { Button, Form, HStack, LabeledContent, ProgressView, Section, Spacer, Text, TextField, VStack } from '@expo/ui/swift-ui';
 import { buttonStyle, disabled, font, foregroundStyle, onSubmit, submitLabel, textContentType } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { FormPrimaryButton } from '@/shared/ui';
+import { FormPrimaryButton, KeyboardAvoidingHost } from '@/shared/ui';
 
 import type { EmergencyContactsPanelProps } from './EmergencyContactsPanel.types';
 
@@ -11,7 +11,7 @@ const secondary = [font({ textStyle: 'footnote' }), foregroundStyle({ type: 'hie
 export default function EmergencyContactsPanel({ model }: EmergencyContactsPanelProps) {
   const { t } = useAppTranslation();
   return (
-    <Host style={{ flex: 1 }}>
+    <KeyboardAvoidingHost>
       <Form>
         <Section title={model.title} footer={<Text>{model.description}</Text>}>
           {model.loading && model.contacts.length === 0 ? <ProgressView /> : null}
@@ -58,6 +58,6 @@ export default function EmergencyContactsPanel({ model }: EmergencyContactsPanel
           />
         </Section>
       </Form>
-    </Host>
+    </KeyboardAvoidingHost>
   );
 }

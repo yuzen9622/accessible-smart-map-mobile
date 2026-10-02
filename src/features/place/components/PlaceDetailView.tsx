@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 
 import { FACILITY_COLORS } from '@/features/map';
-import { RADIUS, semanticColors, useThemeColors } from '@/shared/theme';
+import { RADIUS, semanticColors, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import MoreActionsButton from './MoreActionsButton';
@@ -97,7 +97,7 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
   const isDark = useColorScheme() === 'dark';
   const { fontScale } = useWindowDimensions();
   // 四顆圓鈕（回到此地點、收藏、分享、複製）同一種底色；分享鈕在 ShareButton 內用同一個 token
-  const circleSurface = semanticColors(isDark).accentSoft;
+  const circleSurface = useSemanticColors().accentSoft;
   const toneColors = TONE_COLORS[isDark ? 'dark' : 'light'];
   const reviewEditLabel = model.reviews?.editLabel ?? '';
   const reviewDeleteLabel = model.reviews?.deleteLabel ?? '';

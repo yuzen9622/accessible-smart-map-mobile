@@ -1,6 +1,6 @@
-import { StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { TYPE, semanticColors } from '@/shared/theme';
+import { TYPE, useSemanticColors } from '@/shared/theme';
 
 interface RouteBadgeProps {
   name: string;
@@ -12,8 +12,7 @@ interface RouteBadgeProps {
 
 /** 路線號碼膠囊（設計 2b）：主色淡底＋主色字，長路名（忠孝新幹線）自動縮排不截字。 */
 export default function RouteBadge({ name, onAccent, small }: RouteBadgeProps) {
-  const isDark = useColorScheme() === 'dark';
-  const semantic = semanticColors(isDark);
+  const semantic = useSemanticColors();
   return (
     <View
       importantForAccessibility="no-hide-descendants"

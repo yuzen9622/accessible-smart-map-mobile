@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { mapCamera } from '@/features/map';
 import { fitSelectedRoute } from '@/features/route';
 import { startBackgroundLocation, stopBackgroundLocation, type BackgroundLocationTexts } from '@/shared/location';
+import { logger } from '@/shared/logger';
 
 import { useNavStore } from '../store/navStore';
 import { startNavigation, stopNavigation } from './navigationLifecycle';
@@ -24,7 +25,7 @@ export function beginNavigation(texts: BackgroundLocationTexts): void {
     try {
       await startBackgroundLocation(texts);
     } catch (error) {
-      console.warn('[navigation] background location unavailable', error);
+      logger.warn('[navigation] background location unavailable', error);
     }
   };
   void run();
@@ -41,7 +42,7 @@ export function endNavigation(): void {
     try {
       await stopBackgroundLocation();
     } catch (error) {
-      console.warn('[navigation] stop background location failed', error);
+      logger.warn('[navigation] stop background location failed', error);
     }
   };
   void run();

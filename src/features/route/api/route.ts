@@ -119,6 +119,12 @@ function narrow<T>(response: ApiResponse<unknown>, parse: (value: unknown) => T 
   return { ...response, data };
 }
 
+/**
+ * 算路／重算的逾時。後端冷快取時跨縣市的大眾運輸路線實測可到 23 秒以上（2026-10-02），共用的 20 秒預設會在
+ * 後端還在算時就放棄，使用者只看到「路線規劃失敗」；Web 版這兩支沒有逾時，所以同一條路線在 Web 算得出來。
+ */
+export const ROUTE_TIMEOUT_MS = 60_000;
+
 function url(path: string): string {
   return `${getAppConfig().apiBaseUrl}${path}`;
 }
@@ -134,6 +140,7 @@ export async function getAccessibleRoute(
     body: request,
     signal,
     requireAuth: Boolean(getAccessToken()),
+    timeoutMs: ROUTE_TIMEOUT_MS,
   });
   return narrow(response, parseAccessibleRouteData);
 }
@@ -150,7 +157,12 @@ export async function rerouteAccessibleRoute(
     reason: request.reason,
     clientRequestId: request.clientRequestId,
   };
-  const response = await fetchRequest(url('/api/v1/a11y/accessible-route/reroute'), { method: 'POST', body, signal });
+  const response = await fetchRequest(url('/api/v1/a11y/accessible-route/reroute'), {
+    method: 'POST',
+    body,
+    signal,
+    timeoutMs: ROUTE_TIMEOUT_MS,
+  });
   return narrow(response, parseRerouteData);
 }
 

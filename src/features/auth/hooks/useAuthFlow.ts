@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Alert, Linking } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 import { useCloseScreen } from '@/shared/navigation';
 
 import {
@@ -135,7 +136,7 @@ export function useAuthFlow(initialMode: AuthMode = 'login'): AuthFlowModel {
     try {
       await task();
     } catch (err) {
-      console.warn('[auth] request failed', err);
+      logger.warn('[auth] request failed', err);
       fail(t('nativeNetworkError'));
     } finally {
       setLoading(false);
@@ -251,7 +252,7 @@ export function useAuthFlow(initialMode: AuthMode = 'login'): AuthFlowModel {
         try {
           await Linking.openURL(url);
         } catch (err) {
-          console.warn('[auth] open inbox failed', err);
+          logger.warn('[auth] open inbox failed', err);
         }
       };
       void open();

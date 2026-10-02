@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, useColorScheme, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, semanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 export interface StopAxisRowProps {
@@ -30,8 +30,7 @@ export interface StopAxisRowProps {
  */
 export default function StopAxisRow(props: StopAxisRowProps) {
   const colors = useThemeColors();
-  const isDark = useColorScheme() === 'dark';
-  const semantic = semanticColors(isDark);
+  const semantic = useSemanticColors();
   const lineColor = semantic.accent;
   const busFill = props.bus ? ACCENT_FILL : semantic.neutral.fg;
 

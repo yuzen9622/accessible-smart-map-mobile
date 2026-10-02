@@ -3,6 +3,7 @@ import { AudioManager, AudioRecorder } from 'react-native-audio-api';
 import { createFrameChunker, float32ToPcm16 } from '../domain/pcm';
 import type { VoiceCapture } from '../domain/voiceSession';
 import { activateVoiceAudioSession, currentVoiceAudioEpoch, trackAudioTeardown } from './audioSession';
+import { logger } from '@/shared/logger';
 
 /** 協定（後端 VOICE_WS_PROTOCOL §3.4）：PCM16 LE、16 kHz、mono，每 1600 samples（100 ms）一個 frame。 */
 const CAPTURE_RATE = 16000;
@@ -55,6 +56,6 @@ async function stopRecorder(recorder: AudioRecorder): Promise<void> {
   try {
     await recorder.stop();
   } catch (error) {
-    console.warn('[voice] stop recorder failed', error);
+    logger.warn('[voice] stop recorder failed', error);
   }
 }

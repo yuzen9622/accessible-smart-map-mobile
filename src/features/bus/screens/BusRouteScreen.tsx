@@ -1,10 +1,11 @@
 import { Stack, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { mapCamera, useMapUiStore } from '@/features/map';
 import { useAppTranslation } from '@/shared/i18n';
-import { TYPE, semanticColors, useThemeColors } from '@/shared/theme';
+import { logger } from '@/shared/logger';
+import { TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
 
 import { badgePillTone, badgeText } from '../components/busText';
@@ -63,8 +64,7 @@ function parseDirection(value: string): 0 | 1 | null {
 export default function BusRouteScreen() {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
-  const isDark = useColorScheme() === 'dark';
-  const semantic = semanticColors(isDark);
+  const semantic = useSemanticColors();
   const params = useLocalSearchParams<{
     routeName?: string;
     city?: string;
@@ -161,7 +161,7 @@ export default function BusRouteScreen() {
       try {
         await refreshArrivalReminder(reminderKey, etaMinutes, contentRef.current(etaMinutes));
       } catch (err) {
-        console.warn('[bus] reminder refresh failed', err);
+        logger.warn('[bus] reminder refresh failed', err);
       }
     };
     void run();
@@ -178,7 +178,7 @@ export default function BusRouteScreen() {
       const granted = await startArrivalReminder(reminderKey, etaMinutes, reminderContent(etaMinutes));
       if (!granted) setReminderError(t('nativeBusReminderDenied'));
     } catch (err) {
-      console.warn('[bus] reminder toggle failed', err);
+      logger.warn('[bus] reminder toggle failed', err);
       setReminderError(t('nativeBusReminderFailed'));
     }
   };

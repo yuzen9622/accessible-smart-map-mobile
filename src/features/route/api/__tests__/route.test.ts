@@ -7,6 +7,7 @@ import {
   getRouteInstructions,
   parseAccessibleRouteData,
   rerouteAccessibleRoute,
+  ROUTE_TIMEOUT_MS,
 } from '../route';
 
 const mockFetchRequest = jest.fn();
@@ -117,7 +118,18 @@ describe('transport', () => {
     await getAccessibleRoute({ query: 'x' }, controller.signal);
     const [url, init] = mockFetchRequest.mock.calls[0];
     expect(url).toBe('https://api.test/api/v1/a11y/accessible-route');
-    expect(init).toEqual({ method: 'POST', body: { query: 'x' }, signal: controller.signal, requireAuth: false });
+    expect(init).toEqual({
+      method: 'POST',
+      body: { query: 'x' },
+      signal: controller.signal,
+      requireAuth: false,
+      timeoutMs: ROUTE_TIMEOUT_MS,
+    });
+  });
+
+  it('gives route computation a longer timeout than the shared 20 s default', () => {
+    // 後端冷快取時跨縣市路線實測 23 秒以上；低於這個值使用者就會看到「路線規劃失敗」，Web 卻算得出來。
+    expect(ROUTE_TIMEOUT_MS).toBeGreaterThanOrEqual(60_000);
   });
 
   it('sends the Bearer token (requireAuth) only when logged in', async () => {

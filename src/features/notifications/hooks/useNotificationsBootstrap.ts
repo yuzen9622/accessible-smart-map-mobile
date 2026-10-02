@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useEffect } from 'react';
 
 import { onLogout, selectIsLoggedIn, useAuthStore } from '@/features/auth';
+import { logger } from '@/shared/logger';
 import { usePreferencesStore } from '@/shared/preferences';
 
 import { unregisterPushToken } from '../api/pushTokenApi';
@@ -46,7 +47,7 @@ export function useNotificationsBootstrap(): void {
       try {
         await syncPushToken(loggedIn);
       } catch (error) {
-        console.warn('[push] sync failed', error);
+        logger.warn('[push] sync failed', error);
       }
     };
     void run();
@@ -56,7 +57,7 @@ export function useNotificationsBootstrap(): void {
   useEffect(() => {
     if (!wantsNotifications || !loggedIn) return;
     const subscription = Notifications.addPushTokenListener(() => {
-      void syncPushToken(true).catch((error: unknown) => console.warn('[push] resync failed', error));
+      void syncPushToken(true).catch((error: unknown) => logger.warn('[push] resync failed', error));
     });
     return () => subscription.remove();
   }, [loggedIn, wantsNotifications]);

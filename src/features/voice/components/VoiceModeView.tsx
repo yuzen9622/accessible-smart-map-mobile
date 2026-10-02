@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toolDoneLabel, toolLoadingLabel } from '@/features/ai';
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import { dismissVoiceSession, endVoiceSession, resumeVoicePlayback, toggleVoiceMute } from '../controller/voiceController';
@@ -96,7 +96,7 @@ export default function VoiceModeView() {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   const isDark = useColorScheme() === 'dark';
-  const tones = semanticColors(isDark);
+  const tones = useSemanticColors();
   const wave = isDark ? WAVE_COLORS.dark : WAVE_COLORS.light;
   const fontScale = useFontScale();
   const insets = useSafeAreaInsets();
@@ -202,7 +202,8 @@ export default function VoiceModeView() {
   const morphIconStyle = useAnimatedStyle(() => ({ opacity: interpolate(flight.value, [0, 0.5], [1, 0], 'clamp') }));
 
   return (
-    <View ref={rootRef} collapsable={false} style={styles.root}>
+    // 疊在聊天畫面上的全版覆蓋層：VoiceOver 焦點只在覆蓋層內（底下的聊天另以 no-hide-descendants 隱藏給 TalkBack）
+    <View ref={rootRef} collapsable={false} accessibilityViewIsModal style={styles.root}>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }, backdropStyle]} />
 
       <Animated.View style={[styles.main, contentStyle]}>

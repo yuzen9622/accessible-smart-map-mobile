@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, T
 import { mapCamera, useUserLocationStore } from '@/features/map';
 import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, TYPE, semanticColors, useThemeColors } from '@/shared/theme';
+import { RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
 
 import { etaDisplay } from '../components/etaDisplay';
@@ -46,7 +46,7 @@ export default function BusStopScreen() {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   const isDark = useColorScheme() === 'dark';
-  const semantic = semanticColors(isDark);
+  const semantic = useSemanticColors();
   const router = useRouter();
   const params = useLocalSearchParams<{ stopName?: string; city?: string; lat?: string; lng?: string; routes?: string }>();
   const stopName = firstParam(params.stopName);

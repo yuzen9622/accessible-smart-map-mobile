@@ -1,6 +1,6 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, semanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
 
 import { FACILITY_COLORS } from '../domain/facilityStyle';
@@ -26,8 +26,7 @@ function rowIcon(category: NearbyRow['category']): { name: IconName; color: stri
  */
 export default function NearbyPanel({ model, onRequestLocation, labels }: NearbyPanelProps) {
   const colors = useThemeColors();
-  const isDark = useColorScheme() === 'dark';
-  const semantic = semanticColors(isDark);
+  const semantic = useSemanticColors();
 
   return (
     <ScrollView

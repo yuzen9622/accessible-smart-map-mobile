@@ -17,7 +17,7 @@ import Animated, {
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { TYPE, scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { ThinkingHeader, TraceRow } from '../domain/thinkingTrace';
@@ -75,7 +75,7 @@ function Spinner({ color }: { color: string }) {
 export default function ThinkingTrace({ rows, header, isDark }: ThinkingTraceProps) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
-  const tones = semanticColors(isDark);
+  const tones = useSemanticColors();
   const fontScale = useFontScale();
   const reduceMotion = useReducedMotion();
   // 三態：null＝跟隨自動規則；使用者點過就固定成他選的

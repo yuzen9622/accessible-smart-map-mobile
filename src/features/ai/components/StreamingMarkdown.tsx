@@ -4,8 +4,9 @@ import { useReducedMotion } from 'react-native-reanimated';
 import remend from 'remend';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 import { useFontScale } from '@/shared/preferences';
-import { RADIUS, TYPE, scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
+import { RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 
 import { useSmoothStream } from '../hooks/useSmoothStream';
 
@@ -23,7 +24,7 @@ async function openLink({ url }: LinkPressEvent): Promise<void> {
   try {
     await Linking.openURL(url);
   } catch (error) {
-    console.warn('[ai] open link failed', error);
+    logger.warn('[ai] open link failed', error);
   }
 }
 
@@ -38,7 +39,7 @@ async function openLink({ url }: LinkPressEvent): Promise<void> {
 export default function StreamingMarkdown({ content, streaming, isDark }: StreamingMarkdownProps) {
   const reduceMotion = useReducedMotion();
   const colors = useThemeColors();
-  const tones = semanticColors(isDark);
+  const tones = useSemanticColors();
   const fontScale = useFontScale();
   const { t } = useAppTranslation();
   const animate = streaming && !reduceMotion;

@@ -1,10 +1,10 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
+import { scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { SosFlowModel } from '../hooks/useSosFlow';
@@ -52,10 +52,11 @@ function BigButton({ label, onPress, icon, tone = 'light', hint }: BigButtonProp
 }
 
 function CountdownRing({ progress, seconds }: { progress: number; seconds: number }) {
+  const { t } = useAppTranslation();
   const r = 70;
   const circumference = 2 * Math.PI * r;
   return (
-    <View style={styles.ringWrap} accessible accessibilityRole="timer" accessibilityLabel={`${seconds}`}>
+    <View style={styles.ringWrap} accessible accessibilityRole="timer" accessibilityLabel={t('nativeSosCountdownSeconds', { count: seconds })}>
       <Svg width={180} height={180} viewBox="0 0 180 180">
         <Circle cx={90} cy={90} r={r} stroke="rgba(255,255,255,0.3)" strokeWidth={10} fill="none" />
         <Circle
@@ -99,7 +100,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   // 連結文字用規範的主色文字色（深色模式為亮藍，#0065C8 在黑底只有約 3.7:1）
-  const linkColor = semanticColors(useColorScheme() === 'dark').accent;
+  const linkColor = useSemanticColors().accent;
   const insets = useSafeAreaInsets();
   const scale = useFontScale();
   const pad = { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 };

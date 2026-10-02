@@ -1,4 +1,5 @@
 import { AudioManager } from 'react-native-audio-api';
+import { logger } from '@/shared/logger';
 
 /**
  * 語音對話的 iOS audio session（SDD §6.7）：`playAndRecord` + `voiceChat`（系統回音消除），允許藍牙耳機、
@@ -71,7 +72,7 @@ export function releaseVoiceAudio(): void {
     try {
       await AudioManager.setAudioSessionActivity(false);
     } catch (error) {
-      console.warn('[voice] deactivate audio session failed', error);
+      logger.warn('[voice] deactivate audio session failed', error);
     }
   });
 }

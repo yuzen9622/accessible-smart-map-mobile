@@ -55,7 +55,33 @@ const DARK: SemanticColors = {
   separator: 'rgba(84,84,88,0.6)',
 };
 
-export function semanticColors(isDark: boolean): SemanticColors {
+/**
+ * 高對比變體：語意前景色對 `background`／`backgroundElement` ≥ 7:1（`contrast.test.ts` 實測），
+ * 底色沿用一般變體的淡色調。
+ */
+const LIGHT_HC: SemanticColors = {
+  ...LIGHT,
+  accent: '#003D7A',
+  ok: { ...LIGHT.ok, fg: '#084D21' },
+  warn: { ...LIGHT.warn, fg: '#6E3000' },
+  danger: { ...LIGHT.danger, fg: '#8A0C0C' },
+  neutral: { ...LIGHT.neutral, fg: '#3C3F45' },
+  separator: 'rgba(60,60,67,0.45)',
+};
+
+const DARK_HC: SemanticColors = {
+  ...DARK,
+  accent: '#9CCBFF',
+  ok: { ...DARK.ok, fg: '#7EE69B' },
+  warn: { ...DARK.warn, fg: '#FFC173' },
+  danger: { ...DARK.danger, fg: '#FFA19B' },
+  neutral: { ...DARK.neutral, fg: '#D5D8DC' },
+  separator: 'rgba(235,235,245,0.45)',
+};
+
+/** 元件內請優先用 `useSemanticColors()`（會跟隨高對比設定）；這個純函式給模組常數與測試用。 */
+export function semanticColors(isDark: boolean, highContrast = false): SemanticColors {
+  if (highContrast) return isDark ? DARK_HC : LIGHT_HC;
   return isDark ? DARK : LIGHT;
 }
 

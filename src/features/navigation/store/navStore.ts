@@ -8,6 +8,7 @@ import type {
   HeadingSource,
   NavAdvisory,
   NavRerouteReason,
+  NavStepMode,
   NavViewMode,
   NavigationSource,
   RerouteStatus,
@@ -23,7 +24,7 @@ import type {
  * - 型別改由 `domain/types.ts` 提供；改為具名匯出（本 repo 慣例）。
  */
 
-export type { EtaSource, HeadingSource, NavAdvisory, NavRerouteReason, NavViewMode, NavigationSource, RerouteStatus };
+export type { EtaSource, HeadingSource, NavAdvisory, NavRerouteReason, NavStepMode, NavViewMode, NavigationSource, RerouteStatus };
 
 export interface NavProgressUpdate {
   remainingM?: number | null;
@@ -49,6 +50,8 @@ interface NavState {
   instructions: NavInstruction[];
   warnings: string[];
   currentStepIndex: number;
+  /** 實際導航（定位推進步驟）或預覽（手動切換步驟）；由 controller 依定位自動判斷。 */
+  stepMode: NavStepMode;
   distanceToNextM: number | null;
   /** Combined heading shown by the marker / used to rotate the map. */
   userHeading: number | null;
@@ -105,6 +108,12 @@ interface NavAction {
     currentStepIndex?: number,
   ) => void;
   setCurrentStepIndex: (index: number) => void;
+  setStepMode: (mode: NavStepMode) => void;
+  /**
+   * 使用者手動切換步驟（上一步／下一步、點步驟清單）。只在預覽、本機導航時生效；
+   * 實際導航中步驟只由定位推進，這裡直接忽略，UI 不可能把 HUD 帶離使用者的實際位置。
+   */
+  selectPreviewStep: (index: number) => void;
   applyVoiceStep: (
     index: number,
     instruction: string,
@@ -145,6 +154,7 @@ const initialState: NavState = {
   instructions: [],
   warnings: [],
   currentStepIndex: 0,
+  stepMode: 'live',
   distanceToNextM: null,
   userHeading: null,
   gpsHeading: null,
@@ -193,6 +203,14 @@ export const useNavStore = create<NavStore>()((set) => ({
       etaUpdatedAt: null,
     }),
   setCurrentStepIndex: (currentStepIndex) => set({ currentStepIndex }),
+  setStepMode: (stepMode) => set({ stepMode }),
+  selectPreviewStep: (index) =>
+    set((state) => {
+      if (state.stepMode !== 'preview' || state.navigationSource !== 'local' || state.instructions.length === 0) return {};
+      const currentStepIndex = Math.max(0, Math.min(index, state.instructions.length - 1));
+      // 預覽沒有「目前位置到下一步」的距離：清掉，HUD 退回顯示該步的規劃距離。
+      return currentStepIndex === state.currentStepIndex ? {} : { currentStepIndex, distanceToNextM: null };
+    }),
   applyVoiceStep: (currentStepIndex, instruction, remainingM) =>
     set((state) => ({
       instructions: state.instructions.map((step, index) =>

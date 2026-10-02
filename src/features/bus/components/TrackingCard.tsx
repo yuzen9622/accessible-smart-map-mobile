@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, semanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { pillToneStyle, type PillTone } from './palette';
@@ -57,7 +57,7 @@ export function buildTrackingNodes(busIndex: number, mineIndex: number): Trackin
 export default function TrackingCard(props: TrackingCardProps) {
   const colors = useThemeColors();
   const isDark = useColorScheme() === 'dark';
-  const semantic = semanticColors(isDark);
+  const semantic = useSemanticColors();
   const tone = pillToneStyle(props.etaTone, isDark);
   const busFill = props.busAccessible ? ACCENT_FILL : semantic.neutral.fg;
 

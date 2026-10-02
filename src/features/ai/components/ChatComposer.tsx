@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useFontScale } from '@/shared/preferences';
-import { ACCENT_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 export interface ChatComposerProps {
@@ -37,7 +37,7 @@ export default function ChatComposer({
   onStop,
 }: ChatComposerProps) {
   const colors = useThemeColors();
-  const tones = semanticColors(isDark);
+  const tones = useSemanticColors();
   const fontScale = useFontScale();
   const [text, setText] = useState(initialText);
   const canSend = text.trim().length > 0 && !isLoading;

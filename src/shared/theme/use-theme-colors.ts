@@ -4,6 +4,7 @@ import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
 
 import { type ThemeColors } from './colors';
 import { resolveThemeColors } from './resolve-theme-colors';
+import { semanticColors, type SemanticColors } from './tokens';
 
 export interface UseThemeColorsOptions {
   /**
@@ -19,4 +20,11 @@ export function useThemeColors(options?: UseThemeColorsOptions): ThemeColors {
     scheme: scheme === 'dark' ? 'dark' : 'light',
     highContrast: options?.highContrast ?? preferHighContrast,
   });
+}
+
+/** 語意色（accent／ok／warn／danger…），跟隨系統深淺色與使用者的高對比設定。 */
+export function useSemanticColors(): SemanticColors {
+  const scheme = useColorScheme();
+  const highContrast = usePreferencesStore((s) => s.highContrast);
+  return semanticColors(scheme === 'dark', highContrast);
 }

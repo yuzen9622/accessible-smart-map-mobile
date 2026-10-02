@@ -6,6 +6,7 @@ import { SHEET_DETENTS, sheetController, useUserLocationStore } from '@/features
 import { useOnboardingStore } from '@/features/onboarding';
 import { resolveAutocompleteItem, useAutocomplete, type AutocompleteItem } from '@/features/place';
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 
 import { computeRoute, selectRouteAt } from '../controller/routeSessionPort';
 import { ROUTE_FAILURE_I18N } from '../domain/routeRequest';
@@ -189,7 +190,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       setInputError(null);
       closeEditor();
     } catch (error) {
-      console.warn('[route] resolve place failed', error);
+      logger.warn('[route] resolve place failed', error);
       setInputError(t('nativeRouteErrorFailed'));
     } finally {
       setResolving(false);

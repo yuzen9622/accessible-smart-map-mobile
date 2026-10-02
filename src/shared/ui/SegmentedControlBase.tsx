@@ -51,7 +51,8 @@ export default function SegmentedControlBase<T extends string>({ label, options,
 
 const styles = StyleSheet.create({
   track: { flexDirection: 'row', padding: 2, gap: 2 },
-  segment: { flex: 1, minHeight: 32, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  // 40 + 軌道上下 padding 2 = 44pt 觸控高度（SDD §10）
+  segment: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   thumb: {
     shadowColor: '#000000',
     shadowOpacity: 0.12,

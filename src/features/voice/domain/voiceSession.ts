@@ -1,5 +1,6 @@
 import type { PriorTurn } from '@/features/ai/domain';
 import type { AccessibleRoute, NavInstruction } from '@/features/route/domain';
+import { logger } from '@/shared/logger';
 
 // 移植自 Web `src/lib/voice/voiceSession.ts`（commit f5027af），近原樣。與 Web 的差異：
 // - AccessibleRoute／NavInstruction 改自 `@/features/route/domain`。
@@ -737,14 +738,14 @@ export class VoiceSessionController {
       try {
         parsed = JSON.parse(data);
       } catch {
-        console.warn(
+        logger.warn(
           '[voiceSession] Failed to parse text message, discarding',
           data,
         );
         return;
       }
       if (!isServerEvent(parsed)) {
-        console.warn(
+        logger.warn(
           '[voiceSession] Text message is not an event object, discarding',
           data,
         );
@@ -755,7 +756,7 @@ export class VoiceSessionController {
     }
 
     // Anything else (e.g. Blob, if the adapter forgot binaryType).
-    console.warn(
+    logger.warn(
       '[voiceSession] Unknown message payload type, discarding',
       data,
     );
@@ -841,7 +842,7 @@ export class VoiceSessionController {
         // The server always follows this with a close carrying the
         // matching code/reason; the real state transition happens in
         // handleClose. Nothing to do here besides logging.
-        console.warn(
+        logger.warn(
           '[voiceSession] Server error event',
           (message as ErrorMessage).code,
         );
@@ -865,7 +866,7 @@ export class VoiceSessionController {
         return;
       }
       default:
-        console.warn(
+        logger.warn(
           '[voiceSession] Unknown event type, discarding',
           message.type,
         );
@@ -904,7 +905,7 @@ export class VoiceSessionController {
       capture = await this.deps.createCapture((frame) => this.sendAudio(gen, frame));
     } catch (error) {
       if (gen !== this.generation) return; // stale, discard
-      console.warn('[voiceSession] Microphone capture failed', error);
+      logger.warn('[voiceSession] Microphone capture failed', error);
       // §6 boundary: mic permission denied (or any capture setup
       // failure) → clear error, end the session, notify server.
       this.terminate({ status: 'error', code: 'MIC_UNAVAILABLE' }, true);
@@ -995,7 +996,7 @@ export class VoiceSessionController {
       token = await this.deps.refreshAuth();
     } catch (error) {
       // Web 版沒接 rejection（會變成 unhandled rejection）；這裡當作 refresh 失敗（token = null）處理。
-      console.warn('[voiceSession] refreshAuth rejected', error);
+      logger.warn('[voiceSession] refreshAuth rejected', error);
       token = null;
     }
     if (this.generation !== genAtRefreshStart || !this.sessionActive) return; // stale — discard, don't reconnect

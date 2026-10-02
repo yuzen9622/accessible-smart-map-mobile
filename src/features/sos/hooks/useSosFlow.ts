@@ -6,6 +6,7 @@ import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { useUserLocationStore } from '@/features/map';
 import { getAppConfig } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 import { useCloseScreen } from '@/shared/navigation';
 
 import {
@@ -65,7 +66,7 @@ export function useSosFlow() {
       try {
         await Linking.openURL(`tel:${number}`);
       } catch (error) {
-        console.warn('[sos] open tel failed', error);
+        logger.warn('[sos] open tel failed', error);
       }
     };
     void call();
@@ -78,7 +79,7 @@ export function useSosFlow() {
     try {
       await Share.share({ message });
     } catch (error) {
-      console.warn('[sos] share failed', error);
+      logger.warn('[sos] share failed', error);
     }
   };
 

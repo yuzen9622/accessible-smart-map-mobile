@@ -4,6 +4,7 @@ import { floatLevel } from '../domain/audioLevel';
 import { pcm16ToFloat32 } from '../domain/pcm';
 import type { VoicePlayback } from '../domain/voiceSession';
 import { trackAudioTeardown } from './audioSession';
+import { logger } from '@/shared/logger';
 
 /** 下行 PCM16 LE、24 kHz、mono，chunk 長度不固定（協定 §3.4）。 */
 const PLAYBACK_RATE = 24000;
@@ -93,7 +94,7 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
       node.clearBuffers();
       node.stop();
     } catch (error) {
-      console.warn('[voice] clear playback failed', error);
+      logger.warn('[voice] clear playback failed', error);
     }
   };
 
@@ -108,7 +109,7 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
         node.enqueueBuffer(buffer);
         observer.onScheduled?.((samples.length / PLAYBACK_RATE) * 1000);
       } catch (error) {
-        console.warn('[voice] play frame failed', error);
+        logger.warn('[voice] play frame failed', error);
       }
     },
     clear,
@@ -141,6 +142,6 @@ async function closeContext(ctx: AudioContext): Promise<void> {
   try {
     await ctx.close();
   } catch (error) {
-    console.warn('[voice] close audio context failed', error);
+    logger.warn('[voice] close audio context failed', error);
   }
 }

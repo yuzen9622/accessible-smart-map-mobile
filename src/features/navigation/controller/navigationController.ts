@@ -11,6 +11,7 @@ import {
 import { ApiError, type ApiResponse } from '@/shared/api';
 import type { LatLng } from '@/shared/geo';
 import type { LocationPort } from '@/shared/location';
+import { logger } from '@/shared/logger';
 import type { VisibilitySource } from '@/shared/polling';
 
 import { selectAdvisoryAnnouncement } from '../domain/advisorySpeech';
@@ -20,6 +21,7 @@ import { shouldSpeakLocally } from '../domain/navigationAudio';
 import {
   advanceNavigation,
   angularDistanceDeg,
+  resolveStepMode,
   smoothingFactor,
   withSyntheticPolylineIndices,
   type EngineState,
@@ -188,12 +190,18 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     writeHeading(activeIsVehicle(position));
 
     if (nav.navigationSource === 'voice' || !geometry.path) return;
+    // 預覽（人不在路線附近）：步驟由使用者手動切換，定位不驅動進度。
+    if (resolveStepMode(nav.stepMode, position, geometry.path) === 'preview') return;
+    // 預覽中定位來到路線附近 → 升級成實際導航；手動選的步驟作廢，改從第 0 步由定位重新推算
+    // （引擎只會往前推，不從 0 起算會停在使用者預覽到的那一步）。
+    const promoted = nav.stepMode === 'preview';
+    if (promoted) nav.setStepMode('live');
     const result = advanceNavigation({
       position,
       geometry: { path: geometry.path, waypoints: geometry.waypoints },
       instructions: nav.instructions,
       state: {
-        currentStepIndex: nav.currentStepIndex,
+        currentStepIndex: promoted ? 0 : nav.currentStepIndex,
         isOffRoute: nav.isOffRoute,
         arrived: nav.arrived,
         ...engine,
@@ -319,7 +327,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       // Web 同樣吞掉：沒有指令時 HUD 以路線幾何顯示，使用者仍可手動切步驟。
       // `INVALID_ROUTE_TOKEN`＝routeToken 過期（30 分鐘）或無效，重試同一個 token 不會成功，維持幾何導引。
       if (error instanceof ApiError && error.reason === 'INVALID_ROUTE_TOKEN') {
-        console.warn('[navigation] routeToken expired; falling back to geometry-based guidance');
+        logger.warn('[navigation] routeToken expired; falling back to geometry-based guidance');
       }
     } finally {
       if (instructionsAbort === controller) instructionsAbort = null;
@@ -420,6 +428,13 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
           });
         }),
       );
+      // 自動判斷情境：開場定位在路線附近（從目前位置出發／人已在路上）＝實際導航，否則＝預覽。
+      const route = currentRoute();
+      useNavStore
+        .getState()
+        .setStepMode(
+          resolveStepMode('preview', useUserLocationStore.getState().position, route ? buildCumulativePath(route.legs) : null),
+        );
       void loadInstructions(false);
       const nav = useNavStore.getState();
       const step = nav.instructions[nav.currentStepIndex];

@@ -4,6 +4,7 @@ import { fetchNearbyParking } from '../api/parking';
 import { useParkingStore } from '../store/parkingStore';
 import { useUserLocationStore } from '../store/userLocationStore';
 import { useFetchLocation } from './useFetchLocation';
+import { logger } from '@/shared/logger';
 
 /** 使用者位置移動 ≥ 100 m 才重查附近停車（Web A11yPanel.tsx:71-77）。 */
 export function useNearbyParking(): void {
@@ -18,7 +19,7 @@ export function useNearbyParking(): void {
       try {
         setItems(await fetchNearbyParking(fetchLoc, controller.signal));
       } catch (error) {
-        if (!controller.signal.aborted) console.warn('[parking] nearby fetch failed', error);
+        if (!controller.signal.aborted) logger.warn('[parking] nearby fetch failed', error);
       }
     };
     void load();

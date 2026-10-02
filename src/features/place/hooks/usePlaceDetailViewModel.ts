@@ -10,6 +10,7 @@ import * as mapFeature from '@/features/map';
 import { getAppConfig } from '@/shared/config';
 import { haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 
 import { buildAccessibilityChecklist, type ChecklistItem } from '../domain/accessibilityChecklist';
 import { nearbyFacilityRows, type NearbyFacilityRow } from '../domain/nearbyFacilityRows';
@@ -200,7 +201,7 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       } catch (error) {
-        console.warn('[place] copy failed', error);
+        logger.warn('[place] copy failed', error);
       }
     };
     void run();

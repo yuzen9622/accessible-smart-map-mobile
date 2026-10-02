@@ -3,6 +3,7 @@ import { AccessibilityInfo } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { getLocationPort, setBackgroundPositionSink, type Unsubscribe } from '@/shared/location';
+import { logger } from '@/shared/logger';
 import { appStorage } from '@/shared/storage';
 
 import { createGpsPositionHandlers } from '../domain/gpsErrorHandler';
@@ -29,7 +30,7 @@ export function useLocationTracking(): void {
       try {
         setPermission(await getLocationPort().getPermissionStatus());
       } catch (error) {
-        console.warn('[location] permission check failed', error);
+        logger.warn('[location] permission check failed', error);
       }
     };
     void check();

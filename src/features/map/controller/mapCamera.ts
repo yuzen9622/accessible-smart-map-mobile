@@ -1,5 +1,7 @@
 import type { CameraRef, LngLat, LngLatBounds, ViewPadding } from '@maplibre/maplibre-react-native';
 
+import { isReduceMotionEnabled, motionDuration } from '@/shared/accessibility';
+
 import { MAP_PITCH_3D } from '../domain/basemap';
 import { useMapUiStore, type MapFollowMode } from '../store/mapUiStore';
 
@@ -23,28 +25,35 @@ function currentPadding(extraTop = 0): ViewPadding {
   return { top: extraTop, bottom: useMapUiStore.getState().sheetInset, left: 0, right: 0 };
 }
 
+/** 「減少動態效果」開啟時不飛行、不縮放動畫：直接跳到終點（SDD §10）。 */
+function moveTo(options: { center: LngLat; zoom?: number; pitch?: number; padding: ViewPadding }): void {
+  if (isReduceMotionEnabled()) camera?.jumpTo(options);
+  else camera?.flyTo(options);
+}
+
 export const mapCamera = {
   flyTo(center: LngLat, zoom?: number, pitch?: number): void {
     claimed = true;
-    camera?.flyTo({ center, zoom, pitch, padding: currentPadding() });
+    moveTo({ center, zoom, pitch, padding: currentPadding() });
   },
   easeTo(center: LngLat, zoom?: number, duration = 500): void {
     claimed = true;
-    camera?.easeTo({ center, zoom, duration, padding: currentPadding() });
+    if (isReduceMotionEnabled()) camera?.jumpTo({ center, zoom, padding: currentPadding() });
+    else camera?.easeTo({ center, zoom, duration, padding: currentPadding() });
   },
   /** `edge` 是 sheet inset 以外、額外保留的邊距（例：路線要避開頂部浮動控制，對齊 Web top 70／左右 40）。 */
   fitBounds(bounds: LngLatBounds, edge?: { top?: number; left?: number; right?: number }): void {
     claimed = true;
     camera?.fitBounds(bounds, {
       padding: { ...currentPadding(edge?.top ?? 0), left: edge?.left ?? 0, right: edge?.right ?? 0 },
-      duration: 800,
+      duration: motionDuration(800),
     });
   },
   /** 冷啟動第一個 GPS fix：只在沒有其他相機動作搶先時置中一次（對齊 Web hasAutoLocatedRef） */
   autoCenterOnce(center: LngLat, zoom: number): boolean {
     if (claimed || !camera) return false;
     claimed = true;
-    camera.flyTo({ center, zoom, padding: currentPadding() });
+    moveTo({ center, zoom, padding: currentPadding() });
     return true;
   },
   /**
@@ -59,9 +68,9 @@ export const mapCamera = {
   stopFollow(): void {
     const { is3d, setFollow } = useMapUiStore.getState();
     setFollow(null);
-    void camera?.setStop({ pitch: is3d ? MAP_PITCH_3D : 0, bearing: 0, duration: 600, easing: 'ease' });
+    void camera?.setStop({ pitch: is3d ? MAP_PITCH_3D : 0, bearing: 0, duration: motionDuration(600), easing: 'ease' });
   },
   async setPitch(pitch: number): Promise<void> {
-    await camera?.setStop({ pitch, duration: 600, easing: 'ease' });
+    await camera?.setStop({ pitch, duration: motionDuration(600), easing: 'ease' });
   },
 };

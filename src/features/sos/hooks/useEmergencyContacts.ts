@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Alert, Linking } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 
 import {
   addContact,
@@ -87,7 +88,7 @@ export function useEmergencyContacts() {
               try {
                 await Linking.openURL(url);
               } catch (error) {
-                console.warn('[sos] open bind url failed', error);
+                logger.warn('[sos] open bind url failed', error);
               }
             };
             void open();

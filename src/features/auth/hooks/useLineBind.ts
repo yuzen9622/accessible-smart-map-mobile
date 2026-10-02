@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { AccessibilityInfo, Alert, Linking } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 
 import { getLineLinkCode } from '../api/authApi';
 import type { LineLinkCodeResult } from '../domain/types';
@@ -22,7 +23,7 @@ export function useLineBind() {
     try {
       await Linking.openURL(url);
     } catch (error) {
-      console.warn('[auth] open LINE failed', error);
+      logger.warn('[auth] open LINE failed', error);
     }
   };
 
@@ -39,7 +40,7 @@ export function useLineBind() {
       AccessibilityInfo.announceForAccessibility(t('nativeLineCodeReady', { code: result.bindCode.toUpperCase() }));
       await openLine(result.bindUrl);
     } catch (error) {
-      console.warn('[auth] line link code failed', error);
+      logger.warn('[auth] line link code failed', error);
       Alert.alert(t('nativeLineCodeFailed'));
     } finally {
       setLoading(false);

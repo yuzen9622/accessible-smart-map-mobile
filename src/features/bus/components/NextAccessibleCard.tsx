@@ -43,7 +43,7 @@ export default function NextAccessibleCard(props: NextAccessibleCardProps) {
       </View>
       <View style={styles.main}>
         <View style={styles.routeCol}>
-          <Text style={styles.route} numberOfLines={1} adjustsFontSizeToFit>
+          <Text style={styles.route} numberOfLines={2}>
             {props.routeName}
           </Text>
           <Text style={styles.detail} numberOfLines={2}>

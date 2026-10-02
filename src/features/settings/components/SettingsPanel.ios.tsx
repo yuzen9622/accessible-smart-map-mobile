@@ -107,6 +107,9 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
         </Section>
 
         <Section>
+          {model.legalLinks.map((link) => (
+            <Button key={link.key} label={link.label} onPress={link.open} />
+          ))}
           <LabeledContent label={t('nativeAppVersion')}>
             <Text modifiers={secondary}>{model.version}</Text>
           </LabeledContent>

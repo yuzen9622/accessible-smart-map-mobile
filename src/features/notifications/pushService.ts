@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import i18n from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 
 import { registerPushToken } from './api/pushTokenApi';
 
@@ -62,7 +63,7 @@ export async function syncPushToken(loggedIn: boolean): Promise<string | null> {
     const { data } = await Notifications.getExpoPushTokenAsync({ projectId: projectId() });
     cachedToken = data;
   } catch (error) {
-    console.warn('[push] getExpoPushTokenAsync failed (simulator or missing entitlement?)', error);
+    logger.warn('[push] getExpoPushTokenAsync failed (simulator or missing entitlement?)', error);
     return null;
   }
   if (loggedIn && cachedToken) {
@@ -73,7 +74,7 @@ export async function syncPushToken(loggedIn: boolean): Promise<string | null> {
         locale: i18n.language,
       });
     } catch (error) {
-      console.warn('[push] register token failed', error);
+      logger.warn('[push] register token failed', error);
     }
   }
   return cachedToken;

@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTranslation } from '@/shared/i18n';
 import { useCloseScreen } from '@/shared/navigation';
 import { useFontScale } from '@/shared/preferences';
-import { TYPE, scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, useKeyboardInset } from '@/shared/ui';
 
 import ChatComposer from '../components/ChatComposer';
@@ -36,7 +36,7 @@ export default function ChatScreen({ initialPrompt, voicePanel, composerAccessor
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   const isDark = useColorScheme() === 'dark';
-  const tones = semanticColors(isDark);
+  const tones = useSemanticColors();
   const fontScale = useFontScale();
   const insets = useSafeAreaInsets();
   const keyboardInset = useKeyboardInset();

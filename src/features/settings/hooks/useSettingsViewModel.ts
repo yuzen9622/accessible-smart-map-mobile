@@ -1,11 +1,14 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
+import { openBrowserAsync } from 'expo-web-browser';
 import { AccessibilityInfo, Alert, Linking, Platform } from 'react-native';
 
 import { runAccountDeletion, selectIsLoggedIn, signOut, useAuthStore } from '@/features/auth';
 import { requestPushPermission, syncPushToken } from '@/features/notifications';
 import { useOnboardingStore } from '@/features/onboarding';
+import { getAppConfig } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 import {
   usePreferencesStore,
   type FontSizeLevel,
@@ -73,7 +76,7 @@ export function useSettingsViewModel() {
           Alert.alert(t('nativeDeleteAccountFailed'));
       }
     } catch (error) {
-      console.warn('[settings] delete account failed', error);
+      logger.warn('[settings] delete account failed', error);
       Alert.alert(t('nativeDeleteAccountFailed'));
     }
   };
@@ -121,7 +124,7 @@ export function useSettingsViewModel() {
         prefs.setPreferences({ notifications: true });
         await syncPushToken(loggedIn);
       } catch (error) {
-        console.warn('[settings] enable notifications failed', error);
+        logger.warn('[settings] enable notifications failed', error);
         prefs.setPreferences({ notifications: false });
       }
     };
@@ -187,7 +190,30 @@ export function useSettingsViewModel() {
     // 清掉完成旗標後，地圖主畫面（`app/index.tsx`）的 effect 會自動開 onboarding。
     resetGuides: () => useOnboardingStore.getState().resetGuides(),
     version: Constants.expoConfig?.version ?? '',
+    legalLinks: legalLinks(t),
   };
+}
+
+export interface LegalLink {
+  key: 'privacy' | 'terms';
+  label: string;
+  open: () => void;
+}
+
+/** 隱私權政策／服務條款（商店審查要求 App 內可查看）；網址未設定就不顯示該項。 */
+function legalLinks(t: (key: string) => string): LegalLink[] {
+  const { privacyPolicyUrl, termsUrl } = getAppConfig();
+  const open = (url: string) => async () => {
+    try {
+      await openBrowserAsync(url);
+    } catch (error) {
+      logger.warn('[settings] open legal link failed', error);
+    }
+  };
+  const links: LegalLink[] = [];
+  if (privacyPolicyUrl) links.push({ key: 'privacy', label: t('nativePrivacyPolicy'), open: open(privacyPolicyUrl) });
+  if (termsUrl) links.push({ key: 'terms', label: t('nativeTermsOfService'), open: open(termsUrl) });
+  return links;
 }
 
 export type SettingsViewModel = ReturnType<typeof useSettingsViewModel>;

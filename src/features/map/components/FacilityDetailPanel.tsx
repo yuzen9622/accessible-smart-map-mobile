@@ -1,6 +1,6 @@
-import { Pressable, ScrollView, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, semanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { FacilityDetailRow } from '../hooks/useFacilityDetail';
@@ -16,9 +16,8 @@ import type { FacilityDetailPanelProps } from './FacilityDetailPanel.types';
  */
 export default function FacilityDetailPanel({ model }: FacilityDetailPanelProps) {
   const colors = useThemeColors();
-  const isDark = useColorScheme() === 'dark';
   const { fontScale } = useWindowDimensions();
-  const semantic = semanticColors(isDark);
+  const semantic = useSemanticColors();
   const toneColor = (tone: FacilityDetailRow['tone']) => (tone ? semantic[tone].fg : colors.text);
 
   return (

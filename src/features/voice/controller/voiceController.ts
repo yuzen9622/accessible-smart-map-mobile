@@ -12,6 +12,7 @@ import { VOICE_HISTORY_LIMIT } from '@/features/ai/domain';
 import { useAuthStore } from '@/features/auth';
 import { useUserLocationStore } from '@/features/map';
 import { getAuthPort } from '@/shared/api';
+import { logger } from '@/shared/logger';
 
 import { createCapture } from '../audio/audioCapture';
 import { createPlayback } from '../audio/audioPlayback';
@@ -116,7 +117,7 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
       if (result.ok) openRoutePanel();
       return result;
     },
-    onComputeRouteError: (error) => console.warn('[voice] compute-route failed', error),
+    onComputeRouteError: (error) => logger.warn('[voice] compute-route failed', error),
     get t() {
       return translate;
     },

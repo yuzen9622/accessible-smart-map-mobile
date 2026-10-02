@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { logger } from '@/shared/logger';
 import { appStateVisibility, createPoller } from '@/shared/polling';
 
 import { getLiveBusPositions } from '../api/transit';
@@ -32,7 +33,7 @@ export function useRouteLiveBuses(routeName: string, city: string, direction: 0 
           setState({ key, buses: res.data?.buses ?? [] });
         } catch (error) {
           if (signal.aborted) return;
-          console.warn('[bus] live positions failed', error);
+          logger.warn('[bus] live positions failed', error);
           // 失敗也算查完：保留上一份位置（同方向），讓畫面不必一直等車輛資料。
           setState((prev) => (prev.key === key ? prev : { key, buses: [] }));
         }

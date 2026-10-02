@@ -4,6 +4,7 @@ import { GoogleSignin, isCancelledResponse, isErrorWithCode, isSuccessResponse, 
 import { Platform } from 'react-native';
 
 import { getAppConfig } from '@/shared/config';
+import { logger } from '@/shared/logger';
 
 import type { AppleLoginInput } from './authApi';
 
@@ -52,7 +53,7 @@ export async function signOutGoogle(): Promise<void> {
   try {
     await GoogleSignin.signOut();
   } catch (error) {
-    console.warn('[auth] Google signOut failed', error);
+    logger.warn('[auth] Google signOut failed', error);
   }
 }
 

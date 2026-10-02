@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { configureAuthPort } from '@/shared/api';
+import { logger } from '@/shared/logger';
 import { deleteSecureItem, getSecureItem, setSecureItem } from '@/shared/storage';
 
 import { requestRefresh, revokeSession } from '../api/authTransport';
@@ -112,7 +113,7 @@ async function runLogoutListener(listener: LogoutListener, captured: AuthSession
   try {
     await listener(captured);
   } catch (error) {
-    console.error('[authStore] logout listener failed', error);
+    logger.error('[authStore] logout listener failed', error);
   }
 }
 
@@ -160,7 +161,7 @@ async function writeCredentials(session: AuthSession | null, user: UserDTO | nul
       await deleteSecureItem(USER_KEY);
     }
   } catch (error) {
-    console.warn('[authStore] persist credentials failed', error);
+    logger.warn('[authStore] persist credentials failed', error);
   }
 }
 

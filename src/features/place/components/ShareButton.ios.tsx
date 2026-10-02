@@ -1,8 +1,8 @@
 import { HStack, Host, RNHostView, ShareLink } from '@expo/ui/swift-ui';
 import { accessibilityLabel, contentShape, frame, shapes } from '@expo/ui/swift-ui/modifiers';
-import { StyleSheet, useColorScheme, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { RADIUS, semanticColors } from '@/shared/theme';
+import { RADIUS, useSemanticColors } from '@/shared/theme';
 
 import { Icon } from '@/shared/ui';
 
@@ -19,7 +19,7 @@ import type { ShareButtonProps } from './ShareButton.types';
  * 外框（hairline 邊框、圓角）由外層 RN `View` 提供。
  */
 export default function ShareButton({ url, title, label }: ShareButtonProps) {
-  const tones = semanticColors(useColorScheme() === 'dark');
+  const tones = useSemanticColors();
   const accentText = tones.accent;
   return (
     <View style={[styles.circle, { backgroundColor: tones.accentSoft }]}>

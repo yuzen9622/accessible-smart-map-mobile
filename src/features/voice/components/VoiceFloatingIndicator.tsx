@@ -1,9 +1,9 @@
 import { router, usePathname } from 'expo-router';
-import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { TYPE, scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { GlassCard, Icon } from '@/shared/ui';
 
 import { dismissVoiceSession, endVoiceSession } from '../controller/voiceController';
@@ -19,7 +19,7 @@ import VoiceWaveform from './VoiceWaveform';
 export default function VoiceFloatingIndicator() {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
-  const tones = semanticColors(useColorScheme() === 'dark');
+  const tones = useSemanticColors();
   const fontScale = useFontScale();
   const pathname = usePathname();
   const status = useVoiceStore((s) => s.status);

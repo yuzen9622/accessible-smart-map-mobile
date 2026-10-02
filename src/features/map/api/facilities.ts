@@ -1,4 +1,5 @@
 import { fetchRequest } from '@/shared/api';
+import { logger } from '@/shared/logger';
 import { appStorage, readJson } from '@/shared/storage';
 
 import { parseFacilities, type Facility } from '../domain/facilities';
@@ -37,7 +38,7 @@ export async function fetchFacilities(signal?: AbortSignal): Promise<Facility[]>
     const cache: FacilityCache = { savedAt: Date.now(), items };
     appStorage.set(CACHE_KEY, JSON.stringify(cache));
   } catch (error) {
-    console.warn('[facilities] cache write failed', error);
+    logger.warn('[facilities] cache write failed', error);
   }
   return parseFacilities(items);
 }

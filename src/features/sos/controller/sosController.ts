@@ -9,6 +9,7 @@ import { ApiError } from '@/shared/api';
 import { haversineMeters } from '@/shared/geo';
 import i18n from '@/shared/i18n';
 import { getLocationPort, startBackgroundLocation, stopBackgroundLocation } from '@/shared/location';
+import { logger } from '@/shared/logger';
 import { appStorage } from '@/shared/storage';
 
 import {
@@ -147,7 +148,7 @@ async function startBackground(): Promise<void> {
     );
     useSosStore.setState({ backgroundDenied: !ok });
   } catch (error) {
-    console.warn('[sos] start background location failed', error);
+    logger.warn('[sos] start background location failed', error);
     useSosStore.setState({ backgroundDenied: true });
   }
 }
@@ -163,7 +164,7 @@ function stopAll(): void {
     try {
       await stopBackgroundLocation('sos');
     } catch (error) {
-      console.warn('[sos] stop background location failed', error);
+      logger.warn('[sos] stop background location failed', error);
     }
   };
   void stop();
@@ -173,7 +174,7 @@ async function loadContacts(): Promise<void> {
   try {
     useSosStore.setState({ contacts: await getEmergencyContacts() });
   } catch (error) {
-    console.warn('[sos] load contacts failed', error);
+    logger.warn('[sos] load contacts failed', error);
   }
 }
 
@@ -263,6 +264,7 @@ export function cancelSosCountdown(): void {
   if (useSosStore.getState().phase === 'countdown') {
     stopAddressTracking();
     useSosStore.setState({ phase: 'idle' });
+    announce(i18n.t('nativeSosCountdownCancelled'));
   }
 }
 
@@ -342,7 +344,7 @@ async function startSosSession(): Promise<StartSosResult> {
       try {
         if ((await requestPushPermission()) === 'granted') await syncPushToken(true);
       } catch (error) {
-        console.warn('[sos] push permission failed', error);
+        logger.warn('[sos] push permission failed', error);
       }
     };
     void askPush();
@@ -382,7 +384,7 @@ export async function resolveSos(): Promise<ResolveSosResult> {
     try {
       await resolveSosSession(sessionId);
     } catch (error) {
-      console.warn('[sos] resolve failed', error);
+      logger.warn('[sos] resolve failed', error);
       synced = false;
     }
   }

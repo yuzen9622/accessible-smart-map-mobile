@@ -7,6 +7,7 @@ import {
   advanceNavigation,
   angularDistanceDeg,
   gpsNearRoute,
+  resolveStepMode,
   smoothingFactor,
   type EngineState,
 } from '../navigationEngine';
@@ -176,5 +177,22 @@ describe('helpers', () => {
     expect(smoothingFactor(320, 320)).toBeCloseTo(1 - Math.exp(-1), 10);
     expect(angularDistanceDeg(350, 10)).toBe(20);
     expect(angularDistanceDeg(0, 180)).toBe(180);
+  });
+});
+
+describe('resolveStepMode', () => {
+  const cp = buildCumulativePath([
+    { type: 'WALK', from: 'A', to: 'B', distanceM: 300, minutesEst: 5, polyline: [[121.5, 25.05], [121.503, 25.05]], a11yFacilities: [] },
+  ]);
+
+  it('is live near the route and preview when far or without a fix', () => {
+    expect(resolveStepMode('preview', { lat: 25.05, lng: 121.501 }, cp)).toBe('live');
+    expect(resolveStepMode('preview', { lat: 24.1477, lng: 120.6736 }, cp)).toBe('preview');
+    expect(resolveStepMode('preview', null, cp)).toBe('preview');
+  });
+
+  it('never demotes live back to preview', () => {
+    expect(resolveStepMode('live', { lat: 24.1477, lng: 120.6736 }, cp)).toBe('live');
+    expect(resolveStepMode('live', null, cp)).toBe('live');
   });
 });

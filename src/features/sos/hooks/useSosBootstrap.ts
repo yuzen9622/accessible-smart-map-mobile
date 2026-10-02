@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useEffect } from 'react';
 
 import { onLogout, selectIsLoggedIn, useAuthStore } from '@/features/auth';
+import { logger } from '@/shared/logger';
 
 import { recoverActiveSos, resetSosOnLogout } from '../controller/sosController';
 
@@ -16,7 +17,7 @@ export function useSosBootstrap(): void {
       try {
         if (await recoverActiveSos()) router.navigate('/sos');
       } catch (error) {
-        console.warn('[sos] recovery failed', error);
+        logger.warn('[sos] recovery failed', error);
       }
     };
     void run();

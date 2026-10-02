@@ -8,6 +8,7 @@ import { isPlaceDetailPath } from '../domain/sheetInset';
 import { FACILITY_CLUSTER_COLOR, FACILITY_COLORS } from '../domain/facilityStyle';
 import { useFacilityPills } from '../hooks/useFacilityPills';
 import { useFacilityStore } from '../store/facilityStore';
+import { logger } from '@/shared/logger';
 
 /** Lucide 白色圖示（elevator＝arrow-up-down、ramp＝accessibility、toilet＝toilet），疊在類別色圓底上。 */
 const FACILITY_ICONS = {
@@ -40,7 +41,7 @@ export default function FacilityLayer() {
       const zoom = await sourceRef.current?.getClusterExpansionZoom(clusterId);
       if (zoom !== undefined) mapCamera.easeTo(center, zoom);
     } catch (error) {
-      console.warn('[facility] cluster expansion failed', error);
+      logger.warn('[facility] cluster expansion failed', error);
     }
   };
 

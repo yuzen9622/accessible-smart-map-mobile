@@ -9,6 +9,12 @@ export type HeadingSource = 'compass' | 'gps' | null;
 export type NavigationSource = 'local' | 'voice';
 export type RerouteStatus = 'idle' | 'pending' | 'error';
 export type NavViewMode = '3d' | '2d';
+/**
+ * 步驟由誰推進：
+ * - `live`：使用者在路線上（或從目前位置出發），步驟只由定位推進，不接受手動切換。
+ * - `preview`：使用者不在路線附近（例：人在台中預覽台北車站→101），步驟改由使用者手動切換。
+ */
+export type NavStepMode = 'live' | 'preview';
 export type EtaSource = 'schedule' | 'realtime' | 'free_flow' | 'estimated' | 'local' | null;
 
 export type NavRerouteReason = RerouteReason;

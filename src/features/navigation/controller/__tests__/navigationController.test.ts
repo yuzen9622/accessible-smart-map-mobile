@@ -415,3 +415,73 @@ describe('NavigationController', () => {
     controller.stop();
   });
 });
+
+describe('NavigationController step mode (live vs preview)', () => {
+  it('starts live when the user is already on the route and ignores manual step changes', async () => {
+    fix(25.05, 121.5);
+    const { controller } = setup();
+    controller.start();
+    await flush();
+
+    expect(useNavStore.getState().stepMode).toBe('live');
+    const before = useNavStore.getState().currentStepIndex;
+    useNavStore.getState().selectPreviewStep(3);
+    expect(useNavStore.getState().currentStepIndex).toBe(before);
+    controller.stop();
+  });
+
+  it('previews when the user is far from the route: GPS does not drive steps, the user does', async () => {
+    // 台中（離台北的路線約 130 km）
+    fix(24.1477, 120.6736);
+    const { controller, speech, reroute } = setup();
+    controller.start();
+    await flush();
+
+    expect(useNavStore.getState().stepMode).toBe('preview');
+    fix(24.148, 120.674);
+    await flush();
+    expect(useNavStore.getState().currentStepIndex).toBe(0);
+    expect(reroute.triggerAutoReroute).not.toHaveBeenCalled();
+
+    useNavStore.getState().selectPreviewStep(2);
+    expect(useNavStore.getState().currentStepIndex).toBe(2);
+    expect(speech.speak).toHaveBeenLastCalledWith('左轉', 'zh-TW');
+    useNavStore.getState().selectPreviewStep(99);
+    expect(useNavStore.getState().currentStepIndex).toBe(3);
+    useNavStore.getState().selectPreviewStep(-1);
+    expect(useNavStore.getState().currentStepIndex).toBe(0);
+    expect(useNavStore.getState().arrived).toBe(false);
+    controller.stop();
+  });
+
+  it('switches from preview to live once a fix lands near the route and re-derives the step from GPS', async () => {
+    fix(24.1477, 120.6736);
+    const { controller } = setup();
+    controller.start();
+    await flush();
+    useNavStore.getState().selectPreviewStep(3);
+
+    fix(25.05, 121.5005);
+    await flush();
+    const nav = useNavStore.getState();
+    expect(nav.stepMode).toBe('live');
+    expect(nav.currentStepIndex).toBe(1);
+
+    // live 是單向的：之後走遠是偏航，不會變回可手動切換。
+    fix(24.1477, 120.6736);
+    await flush();
+    expect(useNavStore.getState().stepMode).toBe('live');
+    controller.stop();
+  });
+
+  it('does not let manual selection override a voice-owned navigation', async () => {
+    fix(24.1477, 120.6736);
+    const { controller } = setup();
+    controller.start();
+    await flush();
+    useNavStore.setState({ navigationSource: 'voice' });
+    useNavStore.getState().selectPreviewStep(2);
+    expect(useNavStore.getState().currentStepIndex).toBe(0);
+    controller.stop();
+  });
+});

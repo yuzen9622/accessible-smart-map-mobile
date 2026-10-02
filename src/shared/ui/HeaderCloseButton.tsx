@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useCloseScreen } from '@/shared/navigation';
-import { semanticColors } from '@/shared/theme';
+import { useSemanticColors } from '@/shared/theme';
 
 import Icon from './Icon';
 
@@ -14,7 +14,7 @@ export default function HeaderCloseButton({ onPress }: { onPress?: () => void })
   const { t } = useAppTranslation();
   const closeScreen = useCloseScreen();
   // 深色導覽列上 #1565C0 只有約 2.9:1；改用規範的主色文字色（深色模式為亮藍）
-  const color = semanticColors(useColorScheme() === 'dark').accent;
+  const color = useSemanticColors().accent;
   return (
     <Pressable
       accessibilityRole="button"

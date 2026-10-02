@@ -3,6 +3,7 @@ import { Dimensions } from 'react-native';
 import { isSheetDetentAvailable, selectSheetDetent } from '../../../../modules/sheet-detent';
 import { sheetBottomInset } from '../domain/sheetInset';
 import { useMapUiStore } from '../store/mapUiStore';
+import { logger } from '@/shared/logger';
 
 /**
  * 常駐 sheet 的程式控制（Apple 地圖式的連貫轉場：拖地圖時讓位、選到地點時升到 half、搜尋時展開）。
@@ -20,7 +21,7 @@ async function select(index: number): Promise<boolean> {
     }
     return changed;
   } catch (error) {
-    console.warn('[map] select sheet detent failed', error);
+    logger.warn('[map] select sheet detent failed', error);
     return false;
   }
 }

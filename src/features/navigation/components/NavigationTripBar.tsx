@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useRouteSession } from '@/features/route';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { DANGER_FILL, ON_ACCENT_FILL, semanticColors, useThemeColors } from '@/shared/theme';
+import { DANGER_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { AnimatedNumberText, Icon } from '@/shared/ui';
 
 import { endNavigation } from '../controller/navigationSession';
@@ -23,13 +23,12 @@ function useNow(intervalMs: number): number {
 }
 
 /**
- * 導航 sheet 的收合列（1c 大字色塊）：36pt 剩餘分鐘、抵達時間與距離；56pt 語音開關、44pt 2D/3D、56 高紅色「結束」（確認對話框）。
+ * 導航 sheet 的收合列（1c 大字色塊）：36pt 剩餘分鐘、抵達時間與距離；52pt 語音開關與 2D/3D（同尺寸）、52 高紅色「結束」（確認對話框）。
  * 它就是 sheet 在 peek detent 露出的全部內容，往上滑才看到下方的步驟清單。
  */
 export default function NavigationTripBar() {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
-  const isDark = useColorScheme() === 'dark';
   const now = useNow(30_000);
 
   const remainingM = useNavStore((s) => s.remainingM);
@@ -63,7 +62,7 @@ export default function NavigationTripBar() {
           time: new Date(progress.arrivalAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
         })
       : null;
-  const neutral = semanticColors(isDark).neutral;
+  const neutral = useSemanticColors().neutral;
 
   const confirmExit = () => {
     Alert.alert(t('exitNavTitle'), t('exitNavMessage'), [
@@ -98,7 +97,8 @@ export default function NavigationTripBar() {
           )}
           {progress.remainMinutes != null ? <Text style={[styles.unit, { color: colors.text }]}>{t('nativeMinuteUnit')}</Text> : null}
         </View>
-        <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={2}>
+        {/* 限一行：換行會把左欄撐高，整列超出 peek detent、按鈕就不再垂直置中 */}
+        <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
           {[etaText, remainingM != null ? formatDistance(remainingM) : null].filter(Boolean).join(' · ')}
         </Text>
       </View>
@@ -114,7 +114,7 @@ export default function NavigationTripBar() {
         accessibilityRole="button"
         accessibilityLabel={viewMode === '3d' ? t('switchTo2D') : t('switchTo3D')}
         onPress={() => useNavStore.getState().setViewMode(viewMode === '3d' ? '2d' : '3d')}
-        style={[styles.smallRoundButton, { backgroundColor: neutral.bg }]}>
+        style={[styles.roundButton, { backgroundColor: neutral.bg }]}>
         <Text style={[styles.viewModeText, { color: colors.text }]}>{viewMode === '3d' ? '2D' : '3D'}</Text>
       </Pressable>
       <Pressable
@@ -136,9 +136,8 @@ const styles = StyleSheet.create({
   remain: { fontSize: 36, fontWeight: '800' },
   unit: { fontSize: 17, fontWeight: '600', paddingBottom: 7 },
   meta: { fontSize: 15, marginTop: 2 },
-  roundButton: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
-  smallRoundButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  viewModeText: { fontSize: 15, fontWeight: '700' },
-  endButton: { height: 56, borderRadius: 28, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' },
+  roundButton: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  viewModeText: { fontSize: 17, fontWeight: '700' },
+  endButton: { height: 52, borderRadius: 26, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
   endText: { color: ON_ACCENT_FILL, fontSize: 19, fontWeight: '700' },
 });

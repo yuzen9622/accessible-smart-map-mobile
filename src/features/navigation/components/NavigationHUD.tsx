@@ -1,11 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { ACCENT_FILL, ON_ACCENT_FILL, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { AnimatedNumberText, GlassCard, Icon } from '@/shared/ui';
 
 import { localRerouteCoordinator } from '../controller/localRerouteCoordinator';
@@ -15,15 +15,9 @@ import { findLegHandoffIndex, isVehicleLegType, resolveActiveLegType } from '../
 import { stepIcon } from '../domain/navStepIcon';
 import { useNavStore } from '../store/navStore';
 
-const OK = '#1B7F3B';
-const OK_DARK = '#4CD471';
-const WARN = '#B25000';
-const WARN_DARK = '#FF9F2E';
-const DANGER = '#C02020';
-const DANGER_DARK = '#FF6961';
 const ACCENT = ACCENT_FILL;
-/** 橫幅內「接著」列：比主指示淡一階的白。 */
-const THEN_TEXT = 'rgba(255,255,255,0.72)';
+/** 橫幅內「接著」列：比主指示淡一階的白；0.9 疊在 ACCENT_FILL 上 ≈ 4.9:1（0.72 只有 3.7:1，不到 AA）。 */
+const THEN_TEXT = 'rgba(255,255,255,0.9)';
 
 /**
  * 導航 HUD（SDD §4.5「導航 HUD」、Web `NavigationHUD.tsx`；設計 1c 大字色塊）：疊在地圖上。
@@ -31,14 +25,15 @@ const THEN_TEXT = 'rgba(255,255,255,0.72)';
  *   開車 chip／開車→步行交接提示；抵達時換成抵達橫幅。
  * - 橫幅底部：分隔線下的「接著」列（下一步的指示與距離，較小較淡的字）。
  * - 橫幅下方：偏航／重算時的重算列（重新規劃／重試）；主動警報。
+ * - 預覽（人不在路線附近，`stepMode === 'preview'`）：橫幅內多一列上一步／下一步，VoiceOver 可上下滑調整；實際導航不顯示。
  * - 使用者拖曳地圖後出現「回到導航」。
  * 剩餘時間／預計抵達與語音、2D/3D、結束按鈕是 sheet 的收合列（`NavigationTripBar`），步驟清單在其下方，HUD 不重複。
  */
 export default function NavigationHUD() {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
-  const isDark = useColorScheme() === 'dark';
-  const tones = { ok: isDark ? OK_DARK : OK, warn: isDark ? WARN_DARK : WARN, danger: isDark ? DANGER_DARK : DANGER };
+  const semantic = useSemanticColors();
+  const tones = { ok: semantic.ok.fg, warn: semantic.warn.fg, danger: semantic.danger.fg };
   const insets = useSafeAreaInsets();
 
   const instructions = useNavStore((s) => s.instructions);
@@ -54,6 +49,7 @@ export default function NavigationHUD() {
   const warnings = useNavStore((s) => s.warnings);
   const advisories = useNavStore((s) => s.advisories);
   const followPaused = useNavStore((s) => s.followPaused);
+  const stepMode = useNavStore((s) => s.stepMode);
 
   const step = instructions[currentStepIndex];
   // 第一個定位樣本進來前引擎還沒算出距離：先用這一步的規劃距離，大字不會空著。
@@ -62,6 +58,11 @@ export default function NavigationHUD() {
   const vehicle = isVehicleLegType(resolveActiveLegType(instructions, currentStepIndex));
   const handoff = findLegHandoffIndex(instructions, currentStepIndex) !== null;
   const showReroute = !arrived && (isOffRoute || rerouteStatus !== 'idle');
+  // 預覽（人不在路線附近）：步驟改由使用者切換；實際導航只由定位推進。
+  const previewing = stepMode === 'preview' && navigationSource === 'local' && instructions.length > 0;
+  const canPrev = currentStepIndex > 0;
+  const canNext = currentStepIndex < instructions.length - 1;
+  const selectStep = (index: number) => useNavStore.getState().selectPreviewStep(index);
   const strip = rerouteStripText({ rerouteError, rerouteStatus, lastRerouteReason });
   const stripText = 'text' in strip ? strip.text : t(strip.key);
   const canReroute = navigationSource === 'local' && (rerouteStatus !== 'error' || rerouteRetryable);
@@ -99,6 +100,43 @@ export default function NavigationHUD() {
           </View>
         ) : (
           <View style={[styles.banner, { paddingTop: insets.top + 8 }]}>
+            {/* 預覽列放最上方：上面沒有會變高的內容，連按上一步／下一步時按鈕不會隨指示文字長短跳位 */}
+            {previewing ? (
+              <View style={styles.previewRow}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('prevStep')}
+                  accessibilityState={{ disabled: !canPrev }}
+                  disabled={!canPrev}
+                  onPress={() => selectStep(currentStepIndex - 1)}
+                  style={[styles.previewButton, !canPrev && styles.previewButtonDisabled]}>
+                  <Icon name="chevronLeft" size={26} color={ON_ACCENT_FILL} strokeWidth={2.6} />
+                </Pressable>
+                <View
+                  accessible
+                  accessibilityRole="adjustable"
+                  accessibilityLabel={[t('routePreviewMode'), t('stepOf', { current: currentStepIndex + 1, total: instructions.length })].join('，')}
+                  accessibilityHint={t('routePreviewHint')}
+                  accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+                  onAccessibilityAction={(event) => {
+                    if (event.nativeEvent.actionName === 'increment' && canNext) selectStep(currentStepIndex + 1);
+                    if (event.nativeEvent.actionName === 'decrement' && canPrev) selectStep(currentStepIndex - 1);
+                  }}
+                  style={styles.previewLabel}>
+                  <Text style={styles.previewTitle}>{t('routePreviewMode')}</Text>
+                  <Text style={styles.previewMeta}>{t('stepOf', { current: currentStepIndex + 1, total: instructions.length })}</Text>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('nextStep')}
+                  accessibilityState={{ disabled: !canNext }}
+                  disabled={!canNext}
+                  onPress={() => selectStep(currentStepIndex + 1)}
+                  style={[styles.previewButton, !canNext && styles.previewButtonDisabled]}>
+                  <Icon name="chevronRight" size={26} color={ON_ACCENT_FILL} strokeWidth={2.6} />
+                </Pressable>
+              </View>
+            ) : null}
             <View style={styles.bannerRow}>
               <Icon name={stepIcon(step)} size={64} color={ON_ACCENT_FILL} strokeWidth={2.2} />
               <View style={styles.flex}>
@@ -108,8 +146,7 @@ export default function NavigationHUD() {
                 <Text
                   accessibilityLiveRegion="assertive"
                   accessibilityLabel={step?.text}
-                  style={step ? styles.bannerInstruction : styles.bannerTitle}
-                  numberOfLines={3}>
+                  style={step ? styles.bannerInstruction : styles.bannerTitle}>
                   {step ? stripStepDistance(step.text) : t('preparingNav')}
                 </Text>
               </View>
@@ -136,7 +173,7 @@ export default function NavigationHUD() {
                 style={styles.thenRow}>
                 <Text style={styles.thenLabel}>{t('then')}</Text>
                 <Icon name={stepIcon(next)} size={18} color={THEN_TEXT} strokeWidth={2.4} />
-                <Text style={[styles.thenText, styles.flex]} numberOfLines={1}>
+                <Text style={[styles.thenText, styles.flex]} numberOfLines={2}>
                   {[stripStepDistance(next.text), next.distanceM != null ? formatDistance(next.distanceM) : null].filter(Boolean).join(' ')}
                 </Text>
               </View>
@@ -267,6 +304,19 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(255,255,255,0.35)',
   },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.35)',
+  },
+  previewButton: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.2)' },
+  previewButtonDisabled: { opacity: 0.4 },
+  previewLabel: { flex: 1, alignItems: 'center' },
+  previewTitle: { color: ON_ACCENT_FILL, fontSize: 17, fontWeight: '700' },
+  previewMeta: { color: THEN_TEXT, fontSize: 15, fontWeight: '500', fontVariant: ['tabular-nums'] },
   thenLabel: { color: THEN_TEXT, fontSize: 17, fontWeight: '600' },
   thenText: { color: THEN_TEXT, fontSize: 17, fontWeight: '500' },
   card: { padding: 14, gap: 8 },

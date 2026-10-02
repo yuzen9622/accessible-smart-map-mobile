@@ -1,4 +1,5 @@
 import type { UserDTO } from './types';
+import { logger } from '@/shared/logger';
 
 /**
  * Single-flight、以 session 身分為範圍的 token refresh 協調層。
@@ -56,7 +57,7 @@ let inFlight: RefreshLane | null = null;
 
 export async function refreshAccessToken(): Promise<string | null> {
   if (!authStatePort) {
-    console.error('[authRefresh] configureAuthState was never called; refreshAccessToken resolving null');
+    logger.error('[authRefresh] configureAuthState was never called; refreshAccessToken resolving null');
     return null;
   }
   const port = authStatePort;

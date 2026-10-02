@@ -60,6 +60,9 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
       </FormSection>
 
       <FormSection>
+        {model.legalLinks.map((link) => (
+          <FormRow key={link.key} label={link.label} onPress={link.open} />
+        ))}
         <FormRow label={t('nativeAppVersion')} value={model.version} />
       </FormSection>
     </FormScreen>

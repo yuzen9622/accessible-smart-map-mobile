@@ -9,6 +9,7 @@ import { getRouteSessionSnapshot, useRouteSession } from '@/features/route';
 import { buildCumulativePath, resolveWaypoints, type BusLeg } from '@/features/route/domain';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 
 import { expoSpeechPort } from '../controller/expoSpeechPort';
 import { startLiveNavigationDriver } from '../controller/liveNavigationDriver';
@@ -45,7 +46,7 @@ export function useNavigationEffects(): void {
       try {
         await activateKeepAwakeAsync(KEEP_AWAKE_TAG);
       } catch (error) {
-        console.warn('[navigation] keep awake failed', error);
+        logger.warn('[navigation] keep awake failed', error);
       }
     };
     void run();
@@ -68,6 +69,13 @@ export function useNavigationEffects(): void {
       if (state.rerouteStatus === 'pending' && previous.rerouteStatus !== 'pending') {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         AccessibilityInfo.announceForAccessibility(tRef.current('recalculating'));
+      }
+      // 重算結束也要播報：只播「正在重新規劃」會讓視障使用者不知道新路線已套用或失敗（SDD §10）
+      if (previous.rerouteStatus === 'pending' && state.rerouteStatus === 'idle') {
+        AccessibilityInfo.announceForAccessibility(tRef.current('nativeRerouteDone'));
+      }
+      if (previous.rerouteStatus === 'pending' && state.rerouteStatus === 'error') {
+        AccessibilityInfo.announceForAccessibility(state.rerouteError ?? tRef.current('recalculateFailed'));
       }
     });
   }, [isNavigating]);

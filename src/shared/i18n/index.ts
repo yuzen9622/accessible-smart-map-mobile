@@ -11,6 +11,7 @@ import {
   resolveDeviceLanguage,
   type AppLanguage,
 } from './language';
+import { logger } from '@/shared/logger';
 
 export {
   FALLBACK_LANGUAGE,
@@ -53,7 +54,7 @@ export function useDeviceLanguageSync(override: AppLanguage | null = null): void
       try {
         await changeAppLanguage(language);
       } catch (error) {
-        console.warn('[i18n] changeLanguage failed', error);
+        logger.warn('[i18n] changeLanguage failed', error);
       }
     };
     void sync();

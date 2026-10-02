@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 
 import { useCloseScreen } from '@/shared/navigation';
-import { TYPE, semanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
 
 import { ROUTE_DESTINATION_COLOR, ROUTE_ORIGIN_COLOR } from '../domain/routeLayerData';
@@ -43,7 +43,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
   const closeScreen = useCloseScreen();
   const isDark = useColorScheme() === 'dark';
   const tones = routeTones(isDark);
-  const surface = semanticColors(isDark).surface;
+  const surface = useSemanticColors().surface;
 
   const renderOption = <T extends string>(option: PlanOption<T>, icon?: IconName) => (
     <Pressable
@@ -84,7 +84,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
     model.suggestionsLoading || model.resolving ? (
       <ActivityIndicator size="small" color={colors.textSecondary} />
     ) : (
-      <Pressable accessibilityRole="button" accessibilityLabel={model.labels.cancel} onPress={model.onCancelEdit} hitSlop={10}>
+      <Pressable accessibilityRole="button" accessibilityLabel={model.labels.cancel} onPress={model.onCancelEdit} hitSlop={14}>
         <Icon name="close" size={16} color={colors.textSecondary} />
       </Pressable>
     );
@@ -110,7 +110,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
           style={[routeStyles.listRow, { borderColor: ROUTE_BORDER_COLOR }]}>
           <Icon name="mapPin" size={16} color={colors.textSecondary} />
           <View style={routeStyles.flex}>
-            <Text style={[routeStyles.bodyText, { color: colors.text }]} numberOfLines={1}>
+            <Text style={[routeStyles.bodyText, { color: colors.text }]} numberOfLines={2}>
               {item.title}
             </Text>
             {item.subtitle ? (
@@ -162,7 +162,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
                 accessibilityLabel={`${model.labels.origin}：${model.originLabel}，${model.labels.edit}`}
                 onPress={() => model.onEdit('origin')}
                 style={[routeStyles.flex, styles.endpointPress]}>
-                <Text style={[routeStyles.bodyText, { color: colors.text }]} numberOfLines={1}>
+                <Text style={[routeStyles.bodyText, { color: colors.text }]} numberOfLines={2}>
                   {model.originLabel}
                 </Text>
               </Pressable>
@@ -198,7 +198,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
                 accessibilityRole="button"
                 accessibilityLabel={model.labels.clear}
                 onPress={model.onClearDestination}
-                hitSlop={10}>
+                hitSlop={14}>
                 <Icon name="close" size={16} color={colors.textSecondary} />
               </Pressable>
             ) : null}

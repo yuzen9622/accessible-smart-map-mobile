@@ -15,6 +15,7 @@
  */
 
 import { mapToolToActions, type LatLng, type Translate, type UIAction } from '@/features/ai/domain';
+import { logger } from '@/shared/logger';
 import { isMicActiveStatus, wrapFrameHandler } from './audioLevel';
 import {
   type AggEntry,
@@ -140,7 +141,7 @@ export function createVoiceBindings(sinks: BindingSinks): VoiceBindings {
       if (sinks.onComputeRouteError) {
         sinks.onComputeRouteError(error);
       } else {
-        console.warn('[voiceSessionBindings] computeRoute failed', error);
+        logger.warn('[voiceSessionBindings] computeRoute failed', error);
       }
     }
   }

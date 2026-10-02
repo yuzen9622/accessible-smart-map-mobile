@@ -2,6 +2,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { getLocationPort } from '@/shared/location';
+import { logger } from '@/shared/logger';
 
 import NearbyPanel from '../components/NearbyPanel';
 import { useNearbyParking } from '../hooks/useNearbyParking';
@@ -21,7 +22,7 @@ export default function NearbyScreen() {
     try {
       setPermission(await getLocationPort().requestForegroundPermission());
     } catch (error) {
-      console.warn('[nearby] permission request failed', error);
+      logger.warn('[nearby] permission request failed', error);
     }
   };
 

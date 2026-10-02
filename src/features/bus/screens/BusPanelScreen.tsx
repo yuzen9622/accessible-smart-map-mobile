@@ -1,11 +1,11 @@
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { SHEET_DETENTS, sheetController, useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, SPACE, TYPE, semanticColors, useThemeColors } from '@/shared/theme';
+import { RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
 
 import RouteBadge from '../components/RouteBadge';
@@ -28,7 +28,6 @@ const STOP_ROUTE_PREVIEW = 4;
 export default function BusPanelScreen() {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
-  const isDark = useColorScheme() === 'dark';
   const router = useRouter();
   const position = useUserLocationStore((s) => s.position);
   const [mode, setMode] = useState<BusSearchMode>('route');
@@ -50,7 +49,7 @@ export default function BusPanelScreen() {
   }, [searching, searchStops, nearbyStops, setDisplayedStops]);
   useEffect(() => clearPanel, [clearPanel]);
 
-  const semantic = semanticColors(isDark);
+  const semantic = useSemanticColors();
   const errorText = (error: BusSearchError) => (error === 'NO_DATA' ? t('noBusData') : t('networkError'));
 
   const openStop = (stop: BusStopSearchResult) =>

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, AccessibilityInfo, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useOnboardingStore } from '@/features/onboarding';
 import type { AccessibleRoute } from '@/features/route/domain';
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 import { useFontScale } from '@/shared/preferences';
-import { RADIUS, TYPE, scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
+import { RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { explainRoute, type RouteExplanation } from '../api/explainApi';
@@ -28,7 +29,7 @@ type ExplainState =
 export default function RouteExplanationCard({ route }: RouteExplanationCardProps) {
   const { t, i18n } = useAppTranslation();
   const colors = useThemeColors();
-  const tones = semanticColors(useColorScheme() === 'dark');
+  const tones = useSemanticColors();
   const fontScale = useFontScale();
   const mode = useOnboardingStore((s) => s.profile.routeMode);
   const [state, setState] = useState<ExplainState>({ status: 'idle' });
@@ -49,7 +50,7 @@ export default function RouteExplanationCard({ route }: RouteExplanationCardProp
         AccessibilityInfo.announceForAccessibility(explanation.summary);
       } catch (error) {
         if (controller.signal.aborted) return;
-        console.warn('[ai] explain route failed', error);
+        logger.warn('[ai] explain route failed', error);
         setState({ status: 'error' });
       }
     };

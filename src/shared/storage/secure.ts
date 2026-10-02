@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { logger } from '@/shared/logger';
 
 /**
  * 憑證（access／refresh token）存 Keychain／Keystore。
@@ -14,7 +15,7 @@ export async function getSecureItem(key: string): Promise<string | null> {
     return await SecureStore.getItemAsync(key, OPTIONS);
   } catch (error) {
     // 解密失敗（例如裝置還原、Keystore 金鑰失效）視為沒有值，讓使用者重新登入
-    console.warn(`[secure-store] read ${key} failed`, error);
+    logger.warn(`[secure-store] read ${key} failed`, error);
     return null;
   }
 }

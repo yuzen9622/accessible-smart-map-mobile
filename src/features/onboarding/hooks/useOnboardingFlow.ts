@@ -5,6 +5,7 @@ import { AccessibilityInfo } from 'react-native';
 import { applyDefaultFacilityCategories, useUserLocationStore } from '@/features/map';
 import { useAppTranslation } from '@/shared/i18n';
 import { getLocationPort } from '@/shared/location';
+import { logger } from '@/shared/logger';
 import { useCloseScreen } from '@/shared/navigation';
 
 import {
@@ -107,7 +108,7 @@ export function useOnboardingFlow() {
           nextState === 'granted' ? t('onboarding.location.granted') : t('onboarding.location.denied'),
         );
       } catch (error) {
-        console.warn('[onboarding] location permission request failed', error);
+        logger.warn('[onboarding] location permission request failed', error);
         setLocationState('unsupported');
         AccessibilityInfo.announceForAccessibility(t('onboarding.location.unsupported'));
       }

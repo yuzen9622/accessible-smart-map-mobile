@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { RADIUS, TYPE, scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
+import { RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { ToolCardIcon, ToolResultGroup, ToolResultItem } from '../domain/toolResultCards';
@@ -36,7 +36,7 @@ const CARD_WIDTH = 220;
 export default function ToolResultsBox({ groups, isDark, onOpenItem }: ToolResultsBoxProps) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
-  const tones = semanticColors(isDark);
+  const tones = useSemanticColors();
   const fontScale = useFontScale();
   const [expanded, setExpanded] = useState(true);
   const [tab, setTab] = useState(0);
@@ -54,6 +54,7 @@ export default function ToolResultsBox({ groups, isDark, onOpenItem }: ToolResul
         accessibilityState={{ expanded }}
         accessibilityLabel={`${heading}，${t('nativeAiCardCount', { count: total })}`}
         onPress={() => setExpanded((value) => !value)}
+        hitSlop={HEADER_HIT_SLOP}
         style={({ pressed }) => [styles.header, pressed && styles.pressed]}>
         <View style={[styles.headerIcon, { backgroundColor: tones.accentSoft }]}>
           <Icon name={ICON[groups.length > 1 ? 'search' : active.icon]} size={16} color={tones.accent} />
@@ -70,7 +71,7 @@ export default function ToolResultsBox({ groups, isDark, onOpenItem }: ToolResul
       {expanded ? (
         <>
           {groups.length > 1 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll} contentContainerStyle={styles.tabs}>
               {groups.map((group, index) => {
                 const selected = group === active;
                 return (
@@ -79,6 +80,7 @@ export default function ToolResultsBox({ groups, isDark, onOpenItem }: ToolResul
                     accessibilityRole="tab"
                     accessibilityState={{ selected }}
                     onPress={() => setTab(index)}
+                    hitSlop={TAB_HIT_SLOP}
                     style={[styles.tab, { backgroundColor: selected ? tones.accentSoft : 'transparent', borderColor: tones.separator }]}>
                     <Icon name={ICON[group.icon]} size={14} color={selected ? tones.accent : colors.textSecondary} />
                     <Text
@@ -144,13 +146,19 @@ export default function ToolResultsBox({ groups, isDark, onOpenItem }: ToolResul
   );
 }
 
+// 視覺尺寸維持精簡，觸控範圍補到 ≥ 44pt（SDD §10）：標題 36＋上下 4；分頁 30＋上下 7（分頁列留同樣的上下 padding，熱區才不會超出 ScrollView 被裁掉）
+const HEADER_HIT_SLOP = { top: 4, bottom: 4 };
+const TAB_HIT_SLOP = { top: 7, bottom: 7 };
+
 const styles = StyleSheet.create({
   box: { borderRadius: RADIUS.card, paddingVertical: 10, gap: 8, marginTop: 8 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, minHeight: 36 },
   headerIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   heading: { flex: 1, fontWeight: '700' },
   count: { fontWeight: '600' },
-  tabs: { gap: 6, paddingHorizontal: 12 },
+  tabs: { gap: 6, paddingHorizontal: 12, paddingVertical: 7 },
+  // 分頁列的上下 padding 是熱區用的，用負 margin 抵掉，視覺間距維持原樣
+  tabsScroll: { marginVertical: -7 },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',

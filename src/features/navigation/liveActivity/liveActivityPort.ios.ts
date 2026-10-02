@@ -5,6 +5,7 @@ import type { LiveNavigationSnapshot } from '../domain/liveNavigation';
 import type { NavStepIconName } from '../domain/navStepIcon';
 import NavigationActivity, { type NavigationActivityProps } from './NavigationLiveActivity';
 import type { CreateLiveNavigationPort, LiveActivityTexts } from './liveActivityPort.types';
+import { logger } from '@/shared/logger';
 
 /** HUD 的 Lucide 轉向圖示 → Live Activity 的 SF Symbol（widget runtime 無法畫 Lucide SVG）。 */
 const SF_SYMBOL: Record<NavStepIconName, SFSymbol> = {
@@ -43,7 +44,7 @@ async function endActivity(activity: LiveActivity<NavigationActivityProps>): Pro
   try {
     await activity.end('immediate');
   } catch (error) {
-    console.warn('[live-activity] end failed', error);
+    logger.warn('[live-activity] end failed', error);
   }
 }
 
@@ -65,7 +66,7 @@ export const createLiveNavigationPort: CreateLiveNavigationPort = (texts) => {
         }
         instance = NavigationActivity.start(toProps(snapshot, texts()), 'accessiblesmartmap://');
       } catch (error) {
-        console.warn('[live-activity] start failed', error);
+        logger.warn('[live-activity] start failed', error);
       }
     },
     update(snapshot) {
@@ -75,7 +76,7 @@ export const createLiveNavigationPort: CreateLiveNavigationPort = (texts) => {
         try {
           await current.update(toProps(snapshot, texts()));
         } catch (error) {
-          console.warn('[live-activity] update failed', error);
+          logger.warn('[live-activity] update failed', error);
         }
       };
       void run();

@@ -3,7 +3,7 @@ import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, semanticColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { buildTraceRows, describeThinking, shouldShowTrace } from '../domain/thinkingTrace';
@@ -25,7 +25,7 @@ export interface ChatMessageItemProps {
  */
 export default function ChatMessageItem({ entry, isDark, onOpenResult }: ChatMessageItemProps) {
   const { t } = useAppTranslation();
-  const tones = semanticColors(isDark);
+  const tones = useSemanticColors();
   const fontScale = useFontScale();
   const reduceMotion = useReducedMotion();
   const entering = reduceMotion ? undefined : FadeInDown.duration(240);

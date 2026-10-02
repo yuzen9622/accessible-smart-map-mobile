@@ -1,6 +1,7 @@
 import { AccessibilityInfo } from 'react-native';
 
 import { useUserLocationStore } from '@/features/map';
+import { logger } from '@/shared/logger';
 
 import { streamChat } from '../api/aiApi';
 import { applyStreamSignal, settleBubble, type ChatStreamSignal } from '../domain/chatStream';
@@ -62,7 +63,7 @@ async function runComputeRoute(
     updateEntry(entryId, (entry) => ({ ...entry, notice }));
     AccessibilityInfo.announceForAccessibility(notice);
   } catch (error) {
-    console.warn('[ai] compute-route failed', error);
+    logger.warn('[ai] compute-route failed', error);
     updateEntry(entryId, (entry) => ({ ...entry, notice: t('nativeAiRouteFailed') }));
   }
 }
@@ -117,7 +118,7 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
         if (controller.signal.aborted) return;
         if (signal.type === 'error') {
           outcome.error = signal;
-          console.warn('[ai] backend stream error', signal.code, signal.message);
+          logger.warn('[ai] backend stream error', signal.code, signal.message);
           return;
         }
         if (signal.type === 'done') return;
@@ -127,7 +128,7 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
         try {
           runToolActions(assistant.id, signal.name, signal.result, controller.signal, t);
         } catch (error) {
-          console.warn('[ai] tool action failed', signal.name, error);
+          logger.warn('[ai] tool action failed', signal.name, error);
         }
       },
       controller.signal,
@@ -136,7 +137,7 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
     // 取消：保留已收到的部分（對齊 Web：AbortError 仍走 finally 收尾）
     if (!controller.signal.aborted) {
       outcome.failed = true;
-      console.warn('[ai] chat stream failed', error);
+      logger.warn('[ai] chat stream failed', error);
     }
   } finally {
     if (inflight === controller) inflight = null;

@@ -1,5 +1,6 @@
 import { Colors } from '../colors';
 import { contrastRatio, hexToRgb, relativeLuminance } from '../contrast';
+import { semanticColors } from '../tokens';
 
 describe('relativeLuminance / contrastRatio（WCAG 公式）', () => {
   it('黑白對比為 21:1（公式已知上界）', () => {
@@ -47,5 +48,29 @@ describe('色票對比門檻（text/textSecondary vs background）', () => {
   it.each(highContrastVariants)('%s：textSecondary 對 background ≥ 7:1', (variant) => {
     const { textSecondary, background } = Colors[variant];
     expect(contrastRatio(textSecondary, background)).toBeGreaterThanOrEqual(7);
+  });
+});
+
+describe('語意色對比門檻（semanticColors）', () => {
+  const tones = ['ok', 'warn', 'danger', 'neutral'] as const;
+  const cases = [
+    { name: 'light', dark: false, hc: false, variant: 'light', min: 4.5 },
+    { name: 'dark', dark: true, hc: false, variant: 'dark', min: 4.5 },
+    { name: 'light-hc', dark: false, hc: true, variant: 'light-hc', min: 7 },
+    { name: 'dark-hc', dark: true, hc: true, variant: 'dark-hc', min: 7 },
+  ] as const;
+
+  it.each(cases)('$name：accent 與各語意前景色對 background ≥ 門檻', ({ dark, hc, variant, min }) => {
+    const palette = semanticColors(dark, hc);
+    const { background } = Colors[variant];
+    expect(contrastRatio(palette.accent, background)).toBeGreaterThanOrEqual(min);
+    for (const tone of tones) expect(contrastRatio(palette[tone].fg, background)).toBeGreaterThanOrEqual(min);
+  });
+
+  it.each(cases.filter((c) => c.hc))('$name：高對比語意前景色對 backgroundElement 也 ≥ 7:1', ({ dark, hc, variant }) => {
+    const palette = semanticColors(dark, hc);
+    const { backgroundElement } = Colors[variant];
+    expect(contrastRatio(palette.accent, backgroundElement)).toBeGreaterThanOrEqual(7);
+    for (const tone of tones) expect(contrastRatio(palette[tone].fg, backgroundElement)).toBeGreaterThanOrEqual(7);
   });
 });

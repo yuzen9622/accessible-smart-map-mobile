@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AccessibilityInfo, Alert } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 import { useCloseScreen } from '@/shared/navigation';
 
 import { changePassword } from '../api/authApi';
@@ -59,7 +60,7 @@ export function useChangePassword() {
           fail(result.message || t('nativeSecurityFailed'));
       }
     } catch (err) {
-      console.warn('[auth] change password failed', err);
+      logger.warn('[auth] change password failed', err);
       fail(t('nativeNetworkError'));
     } finally {
       setLoading(false);

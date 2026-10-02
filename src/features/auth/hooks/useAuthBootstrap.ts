@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Alert } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 
 import { restoreSession, useAuthStore } from '../store/authStore';
 
@@ -19,7 +20,7 @@ export function useAuthBootstrap(): void {
       try {
         await restoreSession();
       } catch (error) {
-        console.warn('[auth] restore session failed', error);
+        logger.warn('[auth] restore session failed', error);
       }
     };
     void run();

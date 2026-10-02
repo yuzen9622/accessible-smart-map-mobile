@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 
 import { pickUserConfig, selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { useOnboardingStore } from '@/features/onboarding';
+import { logger } from '@/shared/logger';
 import { usePreferencesStore, type Preferences } from '@/shared/preferences';
 
 import { getServerA11yProfile, putServerA11yProfile, updateRemoteConfig } from '../api/settingsApi';
@@ -41,7 +42,7 @@ export function useSettingsSync(): void {
         try {
           await updateRemoteConfig(toRemoteConfigPatch(changed));
         } catch (error) {
-          console.warn('[settings] updateConfig failed', error);
+          logger.warn('[settings] updateConfig failed', error);
         }
       };
       void upload();
@@ -61,7 +62,7 @@ export function useSettingsSync(): void {
         if (decision.kind === 'pull') useOnboardingStore.getState().replaceProfile(decision.profile);
         if (decision.kind === 'push') await putServerA11yProfile(toServerA11yProfile(useOnboardingStore.getState().profile));
       } catch (error) {
-        console.warn('[settings] a11y profile sync failed', error);
+        logger.warn('[settings] a11y profile sync failed', error);
       }
     };
     void initial();
@@ -71,7 +72,7 @@ export function useSettingsSync(): void {
         try {
           await putServerA11yProfile(toServerA11yProfile(state.profile));
         } catch (error) {
-          console.warn('[settings] a11y profile push failed', error);
+          logger.warn('[settings] a11y profile push failed', error);
         }
       };
       void push();

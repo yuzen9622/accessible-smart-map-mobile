@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  useColorScheme,
   ScrollView,
   StyleSheet,
   Switch,
@@ -13,7 +12,7 @@ import {
   type TextInputProps,
 } from 'react-native';
 
-import { ACCENT_FILL, DANGER_FILL, scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, DANGER_FILL, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { useFontScale } from '@/shared/preferences';
 
 /**
@@ -58,7 +57,7 @@ export function FormSection({ title, footer, children }: { title?: string; foote
 
 /** 文字用的主色／危險色：深色模式要用亮一階的版本（實心底色才用 ACCENT_FILL／DANGER_FILL）。 */
 function useTextTones() {
-  const tones = semanticColors(useColorScheme() === 'dark');
+  const tones = useSemanticColors();
   return { accent: tones.accent, danger: tones.danger.fg };
 }
 

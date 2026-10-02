@@ -4,6 +4,7 @@ import { AccessibilityInfo, Alert } from 'react-native';
 
 import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 import { usePreferencesStore } from '@/shared/preferences';
 
 import {
@@ -43,7 +44,7 @@ export function useAiMemory() {
       setEnabled(isEnabled);
       setMemories(list);
     } catch (e) {
-      console.warn('[ai-memory] load failed', e);
+      logger.warn('[ai-memory] load failed', e);
       setError(true);
     } finally {
       setLoading(false);
@@ -75,7 +76,7 @@ export function useAiMemory() {
         usePreferencesStore.getState().setPreferences({ memoryEnabled: saved });
         AccessibilityInfo.announceForAccessibility(t('aiMemorySettingSaved'));
       } catch (e) {
-        console.warn('[ai-memory] settings failed', e);
+        logger.warn('[ai-memory] settings failed', e);
         setEnabled(previous);
         Alert.alert(t('nativeAiMemorySettingFailed'));
       }
@@ -100,7 +101,7 @@ export function useAiMemory() {
         }
         resetForm();
       } catch (e) {
-        console.warn('[ai-memory] save failed', e);
+        logger.warn('[ai-memory] save failed', e);
         Alert.alert(t('nativeAiMemorySaveFailed'));
       } finally {
         setSaving(false);
@@ -117,7 +118,7 @@ export function useAiMemory() {
         if (editingId === memory.id) resetForm();
         AccessibilityInfo.announceForAccessibility(t('nativeAiMemoryDeleted'));
       } catch (e) {
-        console.warn('[ai-memory] delete failed', e);
+        logger.warn('[ai-memory] delete failed', e);
         Alert.alert(t('nativeAiMemoryDeleteFailed'));
       }
     };
@@ -135,7 +136,7 @@ export function useAiMemory() {
         resetForm();
         AccessibilityInfo.announceForAccessibility(t('nativeAiMemoryCleared'));
       } catch (e) {
-        console.warn('[ai-memory] clear failed', e);
+        logger.warn('[ai-memory] clear failed', e);
         Alert.alert(t('nativeAiMemoryClearFailed'));
       }
     };

@@ -7,6 +7,7 @@ import type {
 } from '@/features/route/domain';
 import { ApiError, type ApiResponse } from '@/shared/api';
 import type { LatLng } from '@/shared/geo';
+import i18n from '@/shared/i18n';
 
 import { createClientRequestId } from '../domain/requestId';
 import type { NavigationSource } from '../domain/types';
@@ -292,7 +293,7 @@ export class LocalRerouteCoordinator {
       context.routeVersion < 1 ||
       !position
     ) {
-      this.setError('無法重新規劃路線，請稍後重試');
+      this.setError(i18n.t('nativeRerouteRetryLater'));
       return false;
     }
 
@@ -331,7 +332,7 @@ export class LocalRerouteCoordinator {
 
       const succeeded = response.ok === true || response.success === true;
       if (!succeeded || !response.data) {
-        this.setError(response.message || '無法重新規劃路線');
+        this.setError(response.message || i18n.t('recalculateFailed'));
         return false;
       }
 
@@ -352,7 +353,7 @@ export class LocalRerouteCoordinator {
       this.setError(
         error instanceof ApiError || error instanceof Error
           ? error.message
-          : '網路連線失敗，請稍後重試',
+          : i18n.t('nativeNetworkError'),
       );
       return false;
     } finally {

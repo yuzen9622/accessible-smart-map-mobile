@@ -14,6 +14,7 @@ import {
   selectNextStepIndex,
   type NavLegType,
 } from './legMode';
+import type { NavStepMode } from './types';
 
 /** 連續幾個偏離樣本才判定偏航（單一飄移的 GPS 點不算）。 */
 export const OFF_ROUTE_HITS = 3;
@@ -58,6 +59,16 @@ export function withSyntheticPolylineIndices(
 export function gpsNearRoute(loc: LatLng | null, cp: CumulativePath | null): boolean {
   if (!loc || !cp || cp.path.length === 0) return false;
   return projectToPath(loc, cp.path, cp.cumM).perpDistM <= FOLLOW_GPS_MAX_M;
+}
+
+/**
+ * 自動判斷導航情境（`NavStepMode`）：定位在路線附近＝實際導航；沒有定位或離路線太遠＝預覽。
+ * `live` 是單向的：實際導航中走遠了是偏航（交給重算），不會變回可手動切換的預覽；
+ * 預覽中定位來到路線附近（例：冷啟動 GPS 晚到、或人真的走到起點）才升級成 `live`。
+ */
+export function resolveStepMode(current: NavStepMode, loc: LatLng | null, cp: CumulativePath | null): NavStepMode {
+  if (current === 'live') return 'live';
+  return gpsNearRoute(loc, cp) ? 'live' : 'preview';
 }
 
 export interface EngineState {
@@ -146,7 +157,8 @@ export function advanceNavigation(input: ProgressInput): ProgressResult | null {
   // 下一個轉向點＝沿路線第一個仍在前方的 waypoint，各自以所屬 leg 的抵達半徑判斷。
   const nextIdx = selectNextStepIndex(instructions, wps, proj.alongM);
   // 步驟只由定位驅動、且只往前（對齊 Google／Apple Maps、Mapbox RouteProgress）：往回走不會倒退步驟，
-  // 真的離開路線交給偏航→重算處理。刻意不接受手動切換，避免 HUD 與使用者實際位置脫節。
+  // 真的離開路線交給偏航→重算處理。實際導航刻意不接受手動切換，避免 HUD 與使用者實際位置脫節；
+  // 只有預覽（`resolveStepMode` 判定人不在路線附近）才開放手動切換，且那時定位不會進到這裡。
   if (nextIdx > state.currentStepIndex) state.currentStepIndex = nextIdx;
 
   let legHandoff = false;

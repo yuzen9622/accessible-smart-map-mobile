@@ -1,4 +1,4 @@
-// 語音協定的 PCM 轉換（複製自 src/features/spikes/voice/pcm.ts，spike 原檔保留）。
+// 語音協定的 PCM 轉換（源自 Spike B，見 docs/spikes/voice.md；spike 程式已於 2026-10-02 移除）。
 // 後端 VOICE_WS_PROTOCOL：上行 PCM16 LE 16 kHz mono、每 frame 1600 samples；下行 PCM16 LE 24 kHz mono。
 
 /** Float32 [-1, 1] → PCM16 little-endian bytes（超出範圍 clamp）。 */

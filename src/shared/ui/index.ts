@@ -41,3 +41,5 @@ export { default as HeaderCloseButton } from './HeaderCloseButton';
 
 export { default as FormPrimaryButton, FormSecondaryButton } from './form/FormPrimaryButton';
 export type { FormPrimaryButtonProps, FormSecondaryButtonProps } from './form/FormPrimaryButton.types';
+
+export { useKeyboardInset } from './useKeyboardInset';

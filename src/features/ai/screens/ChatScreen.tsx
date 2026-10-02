@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { FlatList, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import Animated, { FadeOut } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -7,7 +7,7 @@ import { useAppTranslation } from '@/shared/i18n';
 import { useCloseScreen } from '@/shared/navigation';
 import { useFontScale } from '@/shared/preferences';
 import { TYPE, scaledSize, semanticColors, useThemeColors } from '@/shared/theme';
-import { Icon } from '@/shared/ui';
+import { Icon, useKeyboardInset } from '@/shared/ui';
 
 import ChatComposer from '../components/ChatComposer';
 import ChatMessageItem from '../components/ChatMessageItem';
@@ -39,6 +39,7 @@ export default function ChatScreen({ initialPrompt, voicePanel, composerAccessor
   const tones = semanticColors(isDark);
   const fontScale = useFontScale();
   const insets = useSafeAreaInsets();
+  const keyboardInset = useKeyboardInset();
   const entries = useChatStore((state) => state.entries);
   const isLoading = useChatStore((state) => state.isLoading);
   // inverted：最新一則在資料頭、畫在最下面，串流長高時不必手動捲動
@@ -55,13 +56,11 @@ export default function ChatScreen({ initialPrompt, voicePanel, composerAccessor
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView
+      <View
         accessibilityElementsHidden={voiceOpen}
         importantForAccessibility={voiceOpen ? 'no-hide-descendants' : 'auto'}
         pointerEvents={voiceOpen ? 'none' : 'auto'}
-        style={styles.root}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 56 : 0}>
+        style={styles.root}>
         <FlatList
           data={data}
           inverted={entries.length > 0}
@@ -87,7 +86,8 @@ export default function ChatScreen({ initialPrompt, voicePanel, composerAccessor
             </View>
           }
         />
-        <View style={{ paddingBottom: Math.max(insets.bottom, 8) }}>
+        {/* 鍵盤打開時墊到鍵盤上緣（鍵盤高已含 home indicator），收起時墊 safe area */}
+        <View style={{ paddingBottom: keyboardInset > 0 ? keyboardInset + 8 : Math.max(insets.bottom, 8) }}>
           <ChatComposer
             // 換了預填問題（modal 已開著時再開深層連結）就重建輸入框，讓新問題填進去
             key={initialPrompt ?? ''}
@@ -103,7 +103,7 @@ export default function ChatScreen({ initialPrompt, voicePanel, composerAccessor
             onStop={stopChatStreaming}
           />
         </View>
-      </KeyboardAvoidingView>
+      </View>
       {voiceOpen ? (
         <Animated.View exiting={FadeOut.duration(180)} style={StyleSheet.absoluteFill}>
           {voicePanel}

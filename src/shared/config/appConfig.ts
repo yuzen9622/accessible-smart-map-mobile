@@ -7,6 +7,10 @@ export interface AppConfig {
   googleWebClientId: string | null;
   /** Google 登入 iOS client ID；Phase 3 前可缺 */
   googleIosClientId: string | null;
+  /** 隱私權政策網址（EXPO_PUBLIC_PRIVACY_POLICY_URL）；未設定時設定頁不顯示入口 */
+  privacyPolicyUrl: string | null;
+  /** 服務條款網址（EXPO_PUBLIC_TERMS_URL）；未設定時設定頁不顯示入口 */
+  termsUrl: string | null;
 }
 
 export interface AppConfigEnv {
@@ -14,6 +18,8 @@ export interface AppConfigEnv {
   EXPO_PUBLIC_SHARE_BASE_URL?: string;
   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?: string;
   EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?: string;
+  EXPO_PUBLIC_PRIVACY_POLICY_URL?: string;
+  EXPO_PUBLIC_TERMS_URL?: string;
 }
 
 export type AppConfigResult =
@@ -49,6 +55,17 @@ function parseOptional(raw: string | undefined): string | null {
   return value ? value : null;
 }
 
+/** 選填網址：缺值或不是 https 時視為未設定（只影響入口顯示，不擋 App 啟動）。 */
+function parseOptionalUrl(raw: string | undefined): string | null {
+  const value = parseOptional(raw);
+  if (!value) return null;
+  try {
+    return new URL(value).protocol === 'https:' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * 驗證 EXPO_PUBLIC_* 設定。缺值或格式錯誤時回傳錯誤清單，
  * 不以預設值默默連到 localhost（SDD §7.1）。
@@ -71,6 +88,8 @@ export function parseAppConfig(env: AppConfigEnv): AppConfigResult {
       shareBaseUrl,
       googleWebClientId: parseOptional(env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID),
       googleIosClientId: parseOptional(env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID),
+      privacyPolicyUrl: parseOptionalUrl(env.EXPO_PUBLIC_PRIVACY_POLICY_URL),
+      termsUrl: parseOptionalUrl(env.EXPO_PUBLIC_TERMS_URL),
     },
   };
 }

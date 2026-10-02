@@ -14,8 +14,23 @@ describe('parseAppConfig', () => {
         shareBaseUrl: 'https://map.yuzen.dev',
         googleWebClientId: null,
         googleIosClientId: null,
+        privacyPolicyUrl: null,
+        termsUrl: null,
       },
     });
+  });
+
+  it('隱私權政策／服務條款網址只接受 https，其他視為未設定（不擋啟動）', () => {
+    const result = parseAppConfig({
+      ...valid,
+      EXPO_PUBLIC_PRIVACY_POLICY_URL: 'https://map.yuzen.dev/privacy',
+      EXPO_PUBLIC_TERMS_URL: 'http://insecure.example/terms',
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.config.privacyPolicyUrl).toBe('https://map.yuzen.dev/privacy');
+      expect(result.config.termsUrl).toBeNull();
+    }
   });
 
   it('缺必要變數時回報錯誤，不給預設值', () => {

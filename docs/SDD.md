@@ -372,7 +372,7 @@ MapScreen
   - 下行：**PCM16 LE、24000 Hz、mono**，chunk 長度不固定，需依序排程播放。
   - 控制訊息：`session.end`、`nav.setRoute{routeToken}`、`nav.position`、`nav.cancel`、`nav.start`、`nav.resume{navigationId,routeVersion,routeToken,lastKnownStepIndex,currentPosition?}`；伺服器事件：`session.ready`、`error`、`interrupted`、`tool_call`、`tool_result`、`transcript`、`transcript.correction`、`turn.complete`、`nav.*`。
 - **原生設計**：
-  - `AudioCapturePort` 實作：`react-native-audio-api` `AudioRecorder`（`sampleRate: 16000`、`channelCount: 1`、`bufferLength: 1600`）→ Float32 轉 Int16 → `ws.send(ArrayBuffer)`（轉換函式已在 Spike B 寫好並有測試：`src/features/spikes/voice/pcm.ts`，Phase 4 移入 `features/voice/domain`）。
+  - `AudioCapturePort` 實作：`react-native-audio-api` `AudioRecorder`（`sampleRate: 16000`、`channelCount: 1`、`bufferLength: 1600`）→ Float32 轉 Int16 → `ws.send(ArrayBuffer)`（轉換函式源自 Spike B，已移入 `features/voice/domain/pcm.ts`；spike 程式 2026-10-02 移除）。
   - 已知 0.13.6 bug：`AudioBufferQueueSourceNode.start()` 必須明確傳 `start(0, 0)`。
   - **重取樣必須有抗混疊**：若裝置無法直接以 16 kHz 擷取，必須用函式庫內建重取樣或帶 low-pass 的重取樣，**禁止**「每 N 個取 1 個」的裸抽稀（會 aliasing 並造成 44.1 kHz 裝置變速變調；後端協定文件 §258-259 明文禁止）。
   - `AudioPlaybackPort` 實作：`AudioContext({sampleRate: 24000})` + `AudioBufferQueueSourceNode` 依序排隊；`interrupted` 事件時清空佇列。

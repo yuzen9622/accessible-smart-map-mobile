@@ -1,7 +1,7 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { BackHandler, Platform, useColorScheme, useWindowDimensions } from 'react-native';
+import { BackHandler, Platform, View, useColorScheme, useWindowDimensions } from 'react-native';
 
 import { useAiBootstrap } from '@/features/ai';
 import { useAuthBootstrap } from '@/features/auth';
@@ -18,13 +18,31 @@ import { useSettingsSync } from '@/features/settings';
 import { selectSosInProgress, useSosBootstrap, useSosStore } from '@/features/sos';
 import { ConfigErrorScreen, appConfigResult } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 import { usePreferencesEffects } from '@/shared/preferences';
-import { HeaderCloseButton } from '@/shared/ui';
+import { ErrorState, HeaderCloseButton } from '@/shared/ui';
 // 背景定位任務必須在 JS 頂層定義（App 從背景被喚醒時要找得到）
 import '@/shared/location/backgroundLocation';
 
 // 深層連結（例如 accessiblesmartmap://place/123）直接開 sheet 路由時，底下仍要有地圖。
 export const unstable_settings = { initialRouteName: 'index' };
+
+/** 畫面渲染錯誤時取代白屏：提示並可重試（Expo Router 會把子樹的錯誤交到最近的 ErrorBoundary）。 */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const { t } = useAppTranslation();
+  useEffect(() => {
+    logger.error('[ErrorBoundary]', error);
+  }, [error]);
+  return (
+    <View style={{ flex: 1, justifyContent: 'center' }}>
+      <ErrorState
+        title={t('nativeUnexpectedErrorTitle')}
+        description={t('nativeUnexpectedErrorBody')}
+        retry={{ label: t('retry'), onPress: () => void retry() }}
+      />
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

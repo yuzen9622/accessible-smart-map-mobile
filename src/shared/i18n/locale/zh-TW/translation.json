@@ -1343,5 +1343,7 @@
   "nativeAiExplainFailed": "暫時無法取得路線分析，請稍後再試。",
   "nativeAiIncomplete": "連線中斷，這則回答可能不完整。",
   "nativeVoiceMute": "靜音",
-  "nativeVoiceUnmute": "取消靜音"
+  "nativeVoiceUnmute": "取消靜音",
+  "nativeUnexpectedErrorTitle": "畫面發生錯誤",
+  "nativeUnexpectedErrorBody": "這個畫面暫時無法顯示，請重新嘗試。"
 }

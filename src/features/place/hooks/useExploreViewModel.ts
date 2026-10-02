@@ -16,6 +16,7 @@ import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { ROUTE_MODE_LABEL_KEY, useOnboardingStore } from '@/features/onboarding';
 import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 import type { IconName } from '@/shared/ui';
 
 import { getPlaceDetails } from '../api/placeSearch';
@@ -83,6 +84,10 @@ export interface ExploreViewModel {
   onSearchFocus: () => void;
   /** 自動完成請求 in-flight。 */
   loading: boolean;
+  /** 自動完成請求或解析所選地點失敗（與「沒有結果」區分）。 */
+  error: boolean;
+  /** 重新送出目前查詢。 */
+  onRetry: () => void;
   mode: ExploreMode;
   historyRows: ExploreRow[];
   resultRows: ExploreRow[];
@@ -109,6 +114,8 @@ export interface ExploreViewModel {
     noResults: string;
     recentSearches: string;
     moreActions: string;
+    networkError: string;
+    retry: string;
   };
 }
 
@@ -124,6 +131,7 @@ export function useExploreViewModel(): ExploreViewModel {
   const userName = useAuthStore((s) => (loggedIn ? (s.user?.name ?? null) : null));
   const [query, setQuery] = useState('');
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [resolveFailed, setResolveFailed] = useState(false);
   const userLocation = useUserLocationStore((state) => state.position);
   const searchHistory = useSavedPlacesStore((state) => state.searchHistory);
   const savedPlaces = useSavedPlacesStore((state) => state.savedPlaces);
@@ -135,7 +143,7 @@ export function useExploreViewModel(): ExploreViewModel {
   const routeMode = useOnboardingStore((state) => state.profile.routeMode);
   const addSearchHistory = useSavedPlacesStore((state) => state.addSearchHistory);
   const setSelectedPlace = usePlaceUiStore((state) => state.setSelectedPlace);
-  const { suggestions, loading, sessionToken, resetSession } = useAutocomplete(query, userLocation ?? undefined);
+  const { suggestions, loading, error: autocompleteError, retry, sessionToken, resetSession } = useAutocomplete(query, userLocation ?? undefined);
 
   const openPlace = (entry: PlaceDetail) => {
     addSearchHistory(entry);
@@ -148,6 +156,7 @@ export function useExploreViewModel(): ExploreViewModel {
   const handlePickSuggestion = async (item: AutocompleteItem) => {
       if (resolvingId) return;
       setResolvingId(item.id);
+      setResolveFailed(false);
       try {
         const res = await getPlaceDetails(
           item.id,
@@ -162,7 +171,8 @@ export function useExploreViewModel(): ExploreViewModel {
           setQuery('');
         }
       } catch (error) {
-        console.warn('[place] resolve suggestion failed', error);
+        logger.warn('[place] resolve suggestion failed', error);
+        setResolveFailed(true);
       } finally {
         setResolvingId(null);
       }
@@ -235,9 +245,17 @@ export function useExploreViewModel(): ExploreViewModel {
 
   return {
     query,
-    onQueryChange: setQuery,
+    onQueryChange: (text: string) => {
+      setResolveFailed(false);
+      setQuery(text);
+    },
     onSearchFocus: () => sheetController.raiseTo(SHEET_DETENTS.length - 1),
     loading,
+    error: autocompleteError || resolveFailed,
+    onRetry: () => {
+      setResolveFailed(false);
+      retry();
+    },
     mode: query.trim() === '' ? 'history' : 'results',
     historyRows,
     resultRows,
@@ -278,6 +296,8 @@ export function useExploreViewModel(): ExploreViewModel {
       noResults: t('nativeNoSearchResults'),
       recentSearches: t('recentSearches'),
       moreActions: t('nativeHomeMoreActions'),
+      networkError: t('nativeNetworkError'),
+      retry: t('retry'),
     },
   };
 }

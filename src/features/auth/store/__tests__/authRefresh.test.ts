@@ -233,6 +233,10 @@ describe('useAuthStore logout race (case 20)', () => {
         expect(result).toBeNull();
         expect(useAuthStore.getState().session).toBeNull();
         expect(useAuthStore.getState().user).toBeNull();
+
+        // 斷言完才收尾：「logout 一直沒回應」的情境會留下 revoke 的逾時計時器，讓它結束以免 Jest 卡住
+        logoutDeferred.resolve(jsonResponse({ ok: true }));
+        await flush();
       });
     }
   }

@@ -1,6 +1,6 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { ACCENT_FILL, RADIUS, SPACE, TYPE, semanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { ExplorePanelProps, ExploreRow } from './ExplorePanel.types';
@@ -22,7 +22,7 @@ import { PLACE_BORDER_COLOR } from './palette';
  */
 export default function ExplorePanel({ model }: ExplorePanelProps) {
   const colors = useThemeColors();
-  const tones = semanticColors(useColorScheme() === 'dark');
+  const tones = useSemanticColors();
   const accentText = tones.accent;
 
   const renderRow = (row: ExploreRow) => (
@@ -214,7 +214,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
               style={[styles.resultRow, { borderColor: PLACE_BORDER_COLOR }, row.disabled && !row.resolving && styles.disabled]}>
               <Icon name="mapPin" size={16} color={colors.textSecondary} />
               <View style={styles.flex}>
-                <Text style={[styles.resultTitle, { color: colors.text }]} numberOfLines={1}>
+                <Text style={[styles.resultTitle, { color: colors.text }]} numberOfLines={2}>
                   {row.title}
                 </Text>
                 {row.subtitle ? (
@@ -226,7 +226,19 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
               {row.resolving ? <ActivityIndicator size="small" color={colors.textSecondary} /> : null}
             </Pressable>
           ))}
-          {model.resultRows.length === 0 && !model.loading ? (
+          {model.error ? (
+            <View style={styles.empty} accessibilityRole="alert" accessible accessibilityLabel={model.labels.networkError}>
+              <Icon name="alert" size={28} color={colors.textSecondary} />
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{model.labels.networkError}</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={model.labels.retry}
+                onPress={model.onRetry}
+                style={({ pressed }) => [styles.retryButton, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
+                <Text style={[styles.resultTitle, { color: colors.text }]}>{model.labels.retry}</Text>
+              </Pressable>
+            </View>
+          ) : model.resultRows.length === 0 && !model.loading ? (
             <View style={styles.empty}>
               <Icon name="search" size={28} color={colors.textSecondary} />
               <Text accessibilityRole="text" style={[styles.emptyText, { color: colors.textSecondary }]}>
@@ -310,4 +322,5 @@ const styles = StyleSheet.create({
   resultSubtitle: { fontSize: 12 },
   empty: { alignItems: 'center', gap: 8, paddingVertical: 24 },
   emptyText: { fontSize: 15, textAlign: 'center' },
+  retryButton: { minHeight: 44, paddingHorizontal: 20, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 });

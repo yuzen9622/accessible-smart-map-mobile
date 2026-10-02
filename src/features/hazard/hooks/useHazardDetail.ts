@@ -5,6 +5,7 @@ import { useAuthStore } from '@/features/auth';
 import { mapCamera } from '@/features/map';
 import { ApiError } from '@/shared/api';
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 
 import { confirmHazardReport, getHazardReport } from '../api/hazardApi';
 import { markVoted, updateReport, useHazardLayerStore } from '../controller/hazardLayerController';
@@ -18,7 +19,8 @@ export function useHazardDetail(id: string | undefined) {
   const fromLayer = useHazardLayerStore((s) => s.reports.find((r) => r._id === id) ?? null);
   const voted = useHazardLayerStore((s) => (id ? s.votedIds.includes(id) : false));
   const [fetched, setFetched] = useState<HazardReport | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<'notFound' | 'network' | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [voting, setVoting] = useState(false);
   const report = fromLayer ?? fetched;
 
@@ -30,15 +32,25 @@ export function useHazardDetail(id: string | undefined) {
       try {
         const result = await getHazardReport(id, controller.signal);
         if (controller.signal.aborted) return;
-        if (result) setFetched(result);
-        else setFailed(true);
-      } catch {
-        if (!controller.signal.aborted) setFailed(true);
+        if (result) {
+          setFetched(result);
+          setFailure(null);
+        } else {
+          setFailure('notFound');
+        }
+      } catch (error) {
+        logger.warn('[hazard] detail fetch failed', error);
+        if (!controller.signal.aborted) setFailure('network');
       }
     };
     void run();
     return () => controller.abort();
-  }, [id, fromLayer]);
+  }, [id, fromLayer, attempt]);
+
+  const retry = () => {
+    setFailure(null);
+    setAttempt((n) => n + 1);
+  };
 
   const center = report ? reportLatLng(report) : null;
   const centerLat = center?.lat;
@@ -69,8 +81,9 @@ export function useHazardDetail(id: string | undefined) {
   };
 
   return {
-    loading: !report && !failed,
-    failed: !report && failed,
+    loading: !report && failure === null,
+    failure: report ? null : failure,
+    retry,
     report,
     typeLabel: report ? t(HAZARD_TYPE_LABEL_KEY[report.hazardType]) : '',
     severityLabel: report?.severity ? t(SEVERITY_LABEL_KEY[report.severity]) : null,

@@ -1,5 +1,6 @@
-import { isApiResponse } from '@/shared/api';
+import { isApiResponse, timedFetch } from '@/shared/api';
 import { getAppConfig } from '@/shared/config';
+import { logger } from '@/shared/logger';
 
 import type { AuthSession, RefreshOutcome } from '../domain/authRefresh';
 import { isUserDTO } from '../domain/types';
@@ -30,7 +31,8 @@ export async function requestRefresh(session: AuthSession | null): Promise<Refre
   }
   let response: Response;
   try {
-    response = await fetch(`${getAppConfig().apiBaseUrl}/api/v1/user/refresh`, {
+    // 續期是 single-flight：卡住會讓所有等它的請求一起卡住，逾時就當暫時不可用
+    response = await timedFetch(`${getAppConfig().apiBaseUrl}/api/v1/user/refresh`, {
       method: 'POST',
       headers: MOBILE_HEADERS,
       credentials: 'omit',
@@ -67,13 +69,13 @@ export async function requestRefresh(session: AuthSession | null): Promise<Refre
 export async function revokeSession(refreshToken: string | undefined): Promise<void> {
   if (!refreshToken) return;
   try {
-    await fetch(`${getAppConfig().apiBaseUrl}/api/v1/user/logout`, {
+    await timedFetch(`${getAppConfig().apiBaseUrl}/api/v1/user/logout`, {
       method: 'POST',
       headers: MOBILE_HEADERS,
       credentials: 'omit',
       body: JSON.stringify({ refreshToken }),
     });
   } catch (error) {
-    console.error('[authTransport] revokeSession failed', error);
+    logger.error('[authTransport] revokeSession failed', error);
   }
 }

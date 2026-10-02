@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 
 import { getPlaceAutocomplete } from '../api/placeSearch';
 import { toApiLang } from '../domain/lang';
@@ -22,6 +23,8 @@ import type { AutocompleteItem } from '../types/place';
 export function useAutocomplete(query: string, location?: { lat: number; lng: number }) {
   const [suggestions, setSuggestions] = useState<AutocompleteItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const { i18n } = useAppTranslation();
   const lang = toApiLang(i18n.language);
   const [sessionToken, setSessionToken] = useState<string>(() => createSearchSessionToken());
@@ -44,11 +47,13 @@ export function useAutocomplete(query: string, location?: { lat: number; lng: nu
         if (!trimmed) {
           setSuggestions([]);
           setLoading(false);
+          setError(false);
           // 直接用 state setter（穩定），不透過 resetSession，effect 才不必依賴每次 render 的新函式
           setSessionToken(createSearchSessionToken());
           return;
         }
         setLoading(true);
+        setError(false);
         try {
           const res = await getPlaceAutocomplete(
             {
@@ -64,8 +69,12 @@ export function useAutocomplete(query: string, location?: { lat: number; lng: nu
           if (!controller.signal.aborted) {
             setSuggestions(res.data ?? []);
           }
-        } catch {
-          if (!controller.signal.aborted) setSuggestions([]);
+        } catch (e) {
+          if (!controller.signal.aborted) {
+            logger.warn('[place] autocomplete failed', e);
+            setSuggestions([]);
+            setError(true);
+          }
         } finally {
           if (!controller.signal.aborted) setLoading(false);
         }
@@ -76,7 +85,9 @@ export function useAutocomplete(query: string, location?: { lat: number; lng: nu
       clearTimeout(handler);
       controller.abort();
     };
-  }, [query, lang, location?.lat, location?.lng]);
+  }, [query, lang, location?.lat, location?.lng, attempt]);
 
-  return { suggestions, loading, sessionToken, resetSession };
+  const retry = () => setAttempt((n) => n + 1);
+
+  return { suggestions, loading, error, retry, sessionToken, resetSession };
 }

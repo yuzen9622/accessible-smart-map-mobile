@@ -36,7 +36,17 @@ export interface RequestOptions<TBody = unknown> {
   skipAuthRetry?: boolean;
   /** 測試專用：覆寫這次請求要打的 base URL；預設 `getAppConfig().apiBaseUrl`。 */
   baseUrl?: string;
+  /**
+   * 逾時（毫秒，含讀取 body）。預設一般請求 20 秒、上傳（FormData）60 秒；0 表示不設逾時。
+   * 弱網路下 fetch 不會自己放棄，沒有逾時就會一直轉圈。
+   */
+  timeoutMs?: number;
 }
+
+export const DEFAULT_TIMEOUT_MS = 20_000;
+export const UPLOAD_TIMEOUT_MS = 60_000;
+/** 逾時以 `ApiError(code 408, reason REQUEST_TIMEOUT)` 拋出，與呼叫端自行 abort（原樣拋 AbortError）區分。 */
+export const REQUEST_TIMEOUT_REASON = 'REQUEST_TIMEOUT';
 
 /**
  * 本模組 401-retry 遞迴專用的內部旗標，不對外開放。
@@ -110,6 +120,53 @@ function isRevocation403(data: ApiResponse<unknown>): boolean {
   return extractReason(data.data) === undefined && data.message.trim().toLowerCase() === 'forbidden';
 }
 
+/** 給不經 `fetchRequest` 的直接 fetch（例：auth refresh）用：拿到回應標頭前逾時就 abort（拋錯）。 */
+export async function timedFetch(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 呼叫端的 signal 與逾時合併成一個 signal；逾時才轉成 `ApiError`，呼叫端 abort 照原樣拋出。 */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  signal: AbortSignal | undefined,
+  timeoutMs: number,
+): Promise<ApiResponse<unknown>> {
+  if (timeoutMs <= 0) {
+    const response = await fetch(url, signal ? { ...init, signal } : init);
+    return parseResponseBody(response);
+  }
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  const forwardAbort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  signal?.addEventListener('abort', forwardAbort);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    return await parseResponseBody(response);
+  } catch (error) {
+    if (timedOut) throw new ApiError('Request timed out', 408, REQUEST_TIMEOUT_REASON);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', forwardAbort);
+  }
+}
+
 export function getAccessToken(): string | undefined {
   return getAuthPort().getSession()?.accessToken;
 }
@@ -126,6 +183,7 @@ export async function fetchRequest<TBody = unknown>(
     signal,
     skipAuthRetry = false,
     baseUrl,
+    timeoutMs,
     __retried,
   } = options as InternalRequestOptions<TBody>;
 
@@ -160,12 +218,8 @@ export async function fetchRequest<TBody = unknown>(
   if (body !== undefined) {
     init.body = isFormData ? (body as FormData) : JSON.stringify(body);
   }
-  if (signal) {
-    init.signal = signal;
-  }
-
-  const response = await fetch(resolvedUrl, init);
-  const data = await parseResponseBody(response);
+  const timeout = timeoutMs ?? (isFormData ? UPLOAD_TIMEOUT_MS : DEFAULT_TIMEOUT_MS);
+  const data = await fetchWithTimeout(resolvedUrl, init, signal, timeout);
   const isSuccess = data.ok === true || data.success === true;
 
   if (!isSuccess && data.code === 403 && requireAuth && isRevocation403(data)) {
@@ -208,6 +262,7 @@ export async function fetchRequest<TBody = unknown>(
         signal,
         skipAuthRetry,
         baseUrl,
+        timeoutMs,
         __retried: true,
       } as InternalRequestOptions<TBody>);
     }

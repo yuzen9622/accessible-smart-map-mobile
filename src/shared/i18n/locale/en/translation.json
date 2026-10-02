@@ -1366,5 +1366,9 @@
   "nativeVoiceMute": "Mute",
   "nativeVoiceUnmute": "Unmute",
   "nativeUnexpectedErrorTitle": "Something went wrong",
-  "nativeUnexpectedErrorBody": "This screen couldn't be shown. Please try again."
+  "nativeUnexpectedErrorBody": "This screen couldn't be shown. Please try again.",
+  "nativeOfflineTitle": "You're offline",
+  "nativeOfflineBody": "The map and loaded data are still available. Search, routes and live bus info need a connection.",
+  "nativeOfflineNavigating": "Guidance continues on the current route. Recalculating needs a connection.",
+  "nativeBackOnline": "Back online"
 }

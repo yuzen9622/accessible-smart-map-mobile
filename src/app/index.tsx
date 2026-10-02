@@ -13,6 +13,8 @@ import { PlacePinLayer } from '@/features/place';
 import { RouteLayer, RouteSessionPill } from '@/features/route';
 import { SosButton, SosTrackerLayer } from '@/features/sos';
 import { VoiceFloatingIndicator } from '@/features/voice';
+import { useAppTranslation } from '@/shared/i18n';
+import { OfflineBanner } from '@/shared/ui';
 
 /**
  * 地圖主畫面的組裝點（SDD §4.4）：map 不能反向 import route／navigation／bus（會形成 require cycle），
@@ -23,6 +25,7 @@ export default function Index() {
   const shouldOnboard = useOnboardingStore(needsOnboarding);
   const isNavigating = useNavStore((s) => s.isNavigating);
   const insets = useSafeAreaInsets();
+  const { t } = useAppTranslation();
   useNavigationEffects();
   useLiveBusTracking();
 
@@ -33,6 +36,8 @@ export default function Index() {
   return (
     <MapScreen
       navigationMode={isNavigating}
+      // 引導未完成前不帶出首頁 sheet，否則 sheet 會疊在引導 modal 上（擋住底部按鈕、略過也關不掉）
+      homeSheetEnabled={!shouldOnboard}
       layers={
         <>
           <HazardLayer />
@@ -53,8 +58,9 @@ export default function Index() {
               <RouteSessionPill isNavigating={isNavigating} />
             </View>
           )}
-          {/* 語音對話膠囊：聊天關著或切回文字時顯示；導航中放到 HUD 下方，不擋轉向提示 */}
+          {/* 離線提示與語音對話膠囊（聊天關著或切回文字時顯示）；導航中放到 HUD 下方，不擋轉向提示 */}
           <View pointerEvents="box-none" style={[styles.voice, { top: insets.top + (isNavigating ? 190 : 60) }]}>
+            <OfflineBanner message={isNavigating ? t('nativeOfflineNavigating') : undefined} />
             <VoiceFloatingIndicator />
           </View>
           {/* SOS 在導航中也要按得到（行動不便者最可能在路上需要求助）：導航時移到 HUD 下方 */}
@@ -70,5 +76,5 @@ export default function Index() {
 const styles = StyleSheet.create({
   pill: { position: 'absolute', left: 16, right: 72, alignItems: 'flex-start' },
   sos: { position: 'absolute', right: 12 },
-  voice: { position: 'absolute', left: 16, right: 80, alignItems: 'flex-start' },
+  voice: { position: 'absolute', left: 16, right: 80, alignItems: 'flex-start', gap: 8 },
 });

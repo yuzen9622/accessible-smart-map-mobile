@@ -22,6 +22,9 @@ export type { LoadingStateProps } from './LoadingState.types';
 export { default as GlassCard } from './GlassCard';
 export type { GlassCardProps } from './GlassCard.types';
 
+export { default as OfflineBanner } from './OfflineBanner';
+export type { OfflineBannerProps } from './OfflineBanner.types';
+
 export {
   FORM_DESTRUCTIVE,
   FormButton,

@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { getLocationPort } from '@/shared/location';
+import { logger } from '@/shared/logger';
 import { appStorage, readJson } from '@/shared/storage';
 import { ErrorState, LoadingState } from '@/shared/ui';
 
@@ -53,9 +54,14 @@ export interface MapScreenProps {
   overlays?: ReactNode;
   /** 導航中：隱藏一般浮動按鈕（HUD 有自己的控制），點地圖也不開地點面板 */
   navigationMode?: boolean;
+  /**
+   * false 時不帶出首頁 sheet（例：首次啟動要先顯示 onboarding）。sheet 與 fullScreenModal 同時 present
+   * 會讓 sheet 疊在 modal 之上、擋住其按鈕；改回 true 後地圖重新 focus 時才帶出。
+   */
+  homeSheetEnabled?: boolean;
 }
 
-export default function MapScreen({ layers, overlays, navigationMode = false }: MapScreenProps) {
+export default function MapScreen({ layers, overlays, navigationMode = false, homeSheetEnabled = true }: MapScreenProps) {
   const theme: MapTheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const { t } = useAppTranslation();
   const insets = useSafeAreaInsets();
@@ -91,7 +97,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
   // 常駐 sheet：地圖一露出（上面沒有 sheet）就把首頁 sheet 帶出來。用 focus 而非只在掛載時推一次：
   // 萬一 sheet 被關掉也會自動補回；深層連結已帶 sheet 路由時地圖不在最上層，不會重複推。
   useFocusEffect(() => {
-    router.navigate('/explore');
+    if (homeSheetEnabled) router.navigate('/explore');
   });
 
   const handleToggle3d = async () => {
@@ -100,7 +106,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
     try {
       await mapCamera.setPitch(next ? MAP_PITCH_3D : 0);
     } catch (error) {
-      console.warn('[map] setPitch failed', error);
+      logger.warn('[map] setPitch failed', error);
     }
   };
 
@@ -113,7 +119,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false }: 
       const current = position ?? (await port.getCurrent({ accuracy: 'high' }));
       mapCamera.flyTo([current.lng, current.lat], LOCATED_ZOOM);
     } catch (error) {
-      console.warn('[map] locate failed', error);
+      logger.warn('[map] locate failed', error);
     }
   };
 

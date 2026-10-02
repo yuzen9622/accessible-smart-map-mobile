@@ -18,6 +18,7 @@ export type IconName =
   | 'messageSquare'
   | 'star'
   | 'chevronRight'
+  | 'chevronLeft'
   | 'crosshair'
   | 'arrowDown'
   | 'arrowUp'
@@ -79,7 +80,8 @@ export type IconName =
   | 'wind'
   | 'trees'
   | 'brain'
-  | 'audioLines';
+  | 'audioLines'
+  | 'wifiOff';
 
 export interface IconProps {
   name: IconName;

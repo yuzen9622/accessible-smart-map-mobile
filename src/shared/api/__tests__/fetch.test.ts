@@ -220,3 +220,47 @@ describe('fetchRequest non-JSON error body', () => {
     });
   });
 });
+
+describe('fetchRequest timeout', () => {
+  function hangingFetch(): FetchMock {
+    const fetchMock = installFetchMock();
+    fetchMock.mockImplementation(
+      (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          const signal = (init as RequestInit | undefined)?.signal;
+          signal?.addEventListener('abort', () => reject(new Error('AbortError')));
+        }),
+    );
+    return fetchMock;
+  }
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('rejects with a 408 REQUEST_TIMEOUT ApiError after the default timeout', async () => {
+    jest.useFakeTimers();
+    hangingFetch();
+    const pending = fetchRequest('http://test.local/api/v1/slow');
+    const assertion = expect(pending).rejects.toMatchObject({ name: 'ApiError', code: 408, reason: 'REQUEST_TIMEOUT' });
+    jest.advanceTimersByTime(20_000);
+    await assertion;
+  });
+
+  it('honours a per-request timeoutMs', async () => {
+    jest.useFakeTimers();
+    hangingFetch();
+    const pending = fetchRequest('http://test.local/api/v1/slow', { timeoutMs: 1_000 });
+    const assertion = expect(pending).rejects.toBeInstanceOf(ApiError);
+    jest.advanceTimersByTime(1_000);
+    await assertion;
+  });
+
+  it('rethrows the original error when the caller aborts', async () => {
+    hangingFetch();
+    const controller = new AbortController();
+    const pending = fetchRequest('http://test.local/api/v1/slow', { signal: controller.signal });
+    controller.abort();
+    await expect(pending).rejects.toThrow('AbortError');
+  });
+});

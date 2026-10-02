@@ -8,6 +8,7 @@ import { reverseGeocodeLabel } from '@/features/place';
 import { ApiError } from '@/shared/api';
 import { haversineMeters, type LatLng } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
+import { logger } from '@/shared/logger';
 import { useCloseScreen } from '@/shared/navigation';
 
 import { createHazardReport } from '../api/hazardApi';
@@ -78,7 +79,7 @@ export function useHazardReport(params: HazardReportParams) {
           Alert.alert(t(result.error === 'IMAGE_TOO_LARGE' ? 'imageTooLarge' : 'invalidImageType'));
         }
       } catch (error) {
-        console.warn('[hazard] pick photo failed', error);
+        logger.warn('[hazard] pick photo failed', error);
         Alert.alert(t('reportFailed'));
       }
     };

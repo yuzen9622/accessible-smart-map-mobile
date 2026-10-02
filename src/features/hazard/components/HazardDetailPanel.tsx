@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
 import { scaledSize, useThemeColors } from '@/shared/theme';
-import { Icon, type IconName } from '@/shared/ui';
+import { ErrorState, Icon, type IconName } from '@/shared/ui';
 
 import type { HazardDetailModel } from '../hooks/useHazardDetail';
 import { HAZARD_COLORS } from './HazardLayer';
@@ -42,7 +42,15 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
   if (!model.report) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <Text style={{ color: colors.text }}>{t('hazardVoteReportNotFound')}</Text>
+        {model.failure === 'network' ? (
+          <ErrorState
+            title={t('nativeNetworkError')}
+            systemImage="wifi.slash"
+            retry={{ label: t('retry'), onPress: model.retry }}
+          />
+        ) : (
+          <ErrorState title={t('hazardVoteReportNotFound')} systemImage="mappin.slash" />
+        )}
       </View>
     );
   }

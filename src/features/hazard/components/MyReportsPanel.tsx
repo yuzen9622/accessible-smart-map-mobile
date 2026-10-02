@@ -15,7 +15,12 @@ export default function MyReportsPanel({ model }: MyReportsPanelProps) {
           <FormRow key={row.id} label={row.title} value={row.subtitle} onPress={row.onPress} />
         ))}
         {model.loading ? <ActivityIndicator /> : null}
-        {model.error ? <FormButton label={t('retry')} variant="secondary" onPress={model.retry} /> : null}
+        {model.error ? (
+          <>
+            <FormText tone="error">{t('nativeNetworkError')}</FormText>
+            <FormButton label={t('retry')} variant="secondary" onPress={model.retry} />
+          </>
+        ) : null}
         {model.hasMore && !model.loading ? <FormButton label={t('reviewLoadMore')} variant="secondary" onPress={model.loadMore} /> : null}
       </FormSection>
     </FormScreen>

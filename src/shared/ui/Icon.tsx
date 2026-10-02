@@ -6,6 +6,7 @@ import Bookmark from 'lucide-react-native/icons/bookmark';
 import BookmarkCheck from 'lucide-react-native/icons/bookmark-check';
 import Check from 'lucide-react-native/icons/check';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import CircleHelp from 'lucide-react-native/icons/circle-question-mark';
 import CircleParking from 'lucide-react-native/icons/circle-parking';
 import Clock from 'lucide-react-native/icons/clock';
@@ -80,6 +81,7 @@ import Wind from 'lucide-react-native/icons/wind';
 import Trees from 'lucide-react-native/icons/trees';
 import Brain from 'lucide-react-native/icons/brain';
 import AudioLines from 'lucide-react-native/icons/audio-lines';
+import WifiOff from 'lucide-react-native/icons/wifi-off';
 import { View } from 'react-native';
 
 import type { IconName, IconProps } from './Icon.types';
@@ -104,6 +106,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   messageSquare: MessageSquare,
   star: Star,
   chevronRight: ChevronRight,
+  chevronLeft: ChevronLeft,
   crosshair: Crosshair,
   arrowDown: ArrowDown,
   arrowUp: ArrowUp,
@@ -166,6 +169,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   trees: Trees,
   brain: Brain,
   audioLines: AudioLines,
+  wifiOff: WifiOff,
 };
 
 /**

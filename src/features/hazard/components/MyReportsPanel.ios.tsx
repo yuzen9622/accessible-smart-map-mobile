@@ -24,7 +24,12 @@ export default function MyReportsPanel({ model }: MyReportsPanelProps) {
             </Button>
           ))}
           {model.loading ? <ProgressView /> : null}
-          {model.error ? <Button label={t('retry')} onPress={model.retry} /> : null}
+          {model.error ? (
+            <>
+              <Text modifiers={secondary}>{t('nativeNetworkError')}</Text>
+              <Button label={t('retry')} onPress={model.retry} />
+            </>
+          ) : null}
           {model.hasMore && !model.loading ? <Button label={t('reviewLoadMore')} onPress={model.loadMore} /> : null}
         </Section>
       </Form>

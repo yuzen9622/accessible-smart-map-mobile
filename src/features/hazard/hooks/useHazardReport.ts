@@ -112,6 +112,7 @@ export function useHazardReport(params: HazardReportParams) {
       void refreshNearbyHazards(true);
       closeScreen();
     } catch (error) {
+      logger.warn('[hazard] submit failed', error);
       const key = error instanceof ApiError ? submitErrorKey(error.reason, error.code) : 'reportFailed';
       Alert.alert(t(key));
     } finally {

@@ -1,3 +1,5 @@
+import { File } from 'expo-file-system';
+
 import { ApiError, authenticatedRequest, fetchRequest, getAccessToken } from '@/shared/api';
 
 import { isHazardReport, isHazardVoteResult, type HazardReport, type HazardSeverity, type HazardType, type HazardVoteResult } from '../domain/types';
@@ -41,8 +43,8 @@ export async function createHazardReport(input: HazardReportInput): Promise<Crea
   form.append('latitude', String(input.latitude));
   form.append('longitude', String(input.longitude));
   if (input.description) form.append('description', input.description);
-  // RN 的 FormData 接受 { uri, name, type } 檔案描述（原生層讀檔上傳）
-  form.append('photo', input.photo);
+  // Expo 57 的 fetch 不接受 RN 的 URI 描述物件；File 提供原始 bytes，保留照片與 EXIF。
+  form.append('photo', new File(input.photo.uri));
   const res = await fetchRequest(BASE, { method: 'POST', body: form, headers: optionalAuthHeaders() });
   if (!ok(res)) throw new ApiError(res.message, res.code);
   const data = isRecord(res.data) ? res.data : {};

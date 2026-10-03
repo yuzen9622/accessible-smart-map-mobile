@@ -1,29 +1,33 @@
-import { ActionSheetIOS, Pressable, StyleSheet } from 'react-native';
+import { Host } from '@expo/ui';
+import { Button, Menu, RNHostView } from '@expo/ui/swift-ui';
+import { accessibilityLabel, buttonStyle } from '@expo/ui/swift-ui/modifiers';
+import { StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/shared/ui';
 
 import type { MoreActionsButtonProps } from './MoreActionsButton.types';
 
-/** 地點動作列的「⋯」：原生 action sheet 收納次要動作（回到此地點、複製連結）。 */
-export default function MoreActionsButton({ label, cancelLabel, actions, backgroundColor, color }: MoreActionsButtonProps) {
-  const open = () => {
-    ActionSheetIOS.showActionSheetWithOptions(
-      { title: label, options: [...actions.map((action) => action.label), cancelLabel], cancelButtonIndex: actions.length },
-      (index) => actions[index]?.onPress(),
-    );
-  };
+/** 點一下即在「⋯」旁展開 SwiftUI Menu，保留 Lucide 圖示與觸控範圍。 */
+export default function MoreActionsButton({ label, actions, backgroundColor, color }: MoreActionsButtonProps) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={open}
-      style={({ pressed }) => [styles.button, { backgroundColor }, pressed && styles.pressed]}>
-      <Icon name="ellipsis" size={20} color={color} />
-    </Pressable>
+    <Host matchContents ignoreSafeArea="all">
+      <Menu
+        modifiers={[buttonStyle('plain'), accessibilityLabel(label)]}
+        label={
+          <RNHostView matchContents>
+            <View style={[styles.button, { backgroundColor }]}>
+              <Icon name="ellipsis" size={20} color={color} />
+            </View>
+          </RNHostView>
+        }>
+        {actions.map((action) => (
+          <Button key={action.label} label={action.label} onPress={action.onPress} />
+        ))}
+      </Menu>
+    </Host>
   );
 }
 
 const styles = StyleSheet.create({
   button: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
-  pressed: { opacity: 0.6 },
 });

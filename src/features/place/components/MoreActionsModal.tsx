@@ -8,7 +8,7 @@ import { Icon } from '@/shared/ui';
 import type { MoreActionsButtonProps } from './MoreActionsButton.types';
 
 /**
- * 地點動作列的「⋯」：Android／fallback 版，以底部 Modal 列出次要動作。
+ * 地點動作列的「⋯」：非原生平台 fallback，以底部 Modal 列出次要動作。
  * 不用 `Alert.alert`：Android 對話框最多 3 顆按鈕，動作（回到此地點、複製、OSM、Google）加取消會被截掉，
  * 且預設點外面關不掉。這裡點背景、返回鍵、取消都能關閉，動作數量不受限。
  */

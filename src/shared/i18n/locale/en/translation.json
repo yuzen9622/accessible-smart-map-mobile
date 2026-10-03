@@ -996,7 +996,7 @@
   "nativeRouteTravelMode": "Travel mode",
   "nativeRouteDetails": "Route details",
   "nativeNavNotificationTitle": "Navigating",
-  "nativeNavNotificationBody": "Taipei Accessible Map is guiding you",
+  "nativeNavNotificationBody": "Guiding you",
   "nativeAuthPassword_tooShort": "Password must be at least 8 characters",
   "nativeAuthPassword_tooLong": "Password is too long (max 72 bytes)",
   "nativeAuthPassword_needsLetterAndDigit": "Password must contain both letters and numbers",

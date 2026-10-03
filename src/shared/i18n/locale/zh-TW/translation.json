@@ -981,7 +981,7 @@
   "nativeRouteTravelMode": "交通方式",
   "nativeRouteDetails": "路線詳情",
   "nativeNavNotificationTitle": "導航中",
-  "nativeNavNotificationBody": "臺北無障礙導航正在為你導航",
+  "nativeNavNotificationBody": "正在為你導航",
   "nativeAuthPassword_tooShort": "密碼至少需要 8 個字元",
   "nativeAuthPassword_tooLong": "密碼過長（最多 72 個位元組，純中文約 24 字）",
   "nativeAuthPassword_needsLetterAndDigit": "密碼必須同時包含英文字母與數字",

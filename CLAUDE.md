@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 專案目標
 
-把 Web 版「臺北無障礙導航系統」（參考專案：`/Users/yuen/orca/taipei-accessible-map`，線上版 https://map.yuzen.dev/） **復刻成原生 iOS／Android App**。功能對齊參考專案；UI 與互動改用原生慣例，不要照搬 DOM／CSS。
+把 Web 版「無障礙智慧地圖」（參考專案：`/Users/yuen/orca/taipei-accessible-map`，線上版 https://map.yuzen.dev/） **復刻成原生 iOS／Android App**。功能對齊參考專案；UI 與互動改用原生慣例，不要照搬 DOM／CSS。
 
 - 參考專案有 graphify 圖譜：先讀 `/Users/yuen/orca/taipei-accessible-map/graphify-out/wiki/index.md` 與 `graphify-out/GRAPH_REPORT.md`，再決定是否讀原始檔。
 - 後端沿用參考專案的 Node.js + Express API（串 TDX 交通開放資料）。Web 端 base URL 來自 `NEXT_PUBLIC_END_POINT`；本專案改用 `EXPO_PUBLIC_*` 環境變數。

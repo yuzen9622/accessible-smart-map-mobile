@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MIN_TOUCH, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { MoreActionsButtonProps } from './MoreActionsButton.types';
@@ -33,7 +33,7 @@ export default function MoreActionsModal({ label, cancelLabel, actions, backgrou
         <Pressable accessibilityRole="button" accessibilityLabel={cancelLabel} onPress={close} style={styles.backdrop} />
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <View accessibilityViewIsModal style={[styles.group, { backgroundColor: colors.background }]}>
-            <Text accessibilityRole="header" style={[styles.title, { color: colors.textSecondary }]}>
+            <Text accessibilityRole="header" maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.title, { color: colors.textSecondary }]}>
               {label}
             </Text>
             {actions.map((action) => (
@@ -46,7 +46,7 @@ export default function MoreActionsModal({ label, cancelLabel, actions, backgrou
                 }}
                 android_ripple={{ color: semantic.separator }}
                 style={({ pressed }) => [styles.row, { borderColor: semantic.separator }, pressed && styles.pressed]}>
-                <Text style={[styles.rowText, { color: semantic.accent }]}>{action.label}</Text>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.rowText, { color: semantic.accent }]}>{action.label}</Text>
               </Pressable>
             ))}
           </View>
@@ -55,7 +55,7 @@ export default function MoreActionsModal({ label, cancelLabel, actions, backgrou
             onPress={close}
             android_ripple={{ color: semantic.separator }}
             style={({ pressed }) => [styles.group, styles.cancel, { backgroundColor: colors.background }, pressed && styles.pressed]}>
-            <Text style={[styles.rowText, styles.cancelText, { color: colors.text }]}>{cancelLabel}</Text>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.rowText, styles.cancelText, { color: colors.text }]}>{cancelLabel}</Text>
           </Pressable>
         </View>
       </Modal>

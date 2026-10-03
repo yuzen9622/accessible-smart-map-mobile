@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 
 import { FACILITY_COLORS } from '@/features/map';
-import { MIN_TOUCH, RADIUS, TYPE, semanticColors, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, semanticColors, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import MoreActionsButton from './MoreActionsButton';
@@ -84,7 +84,7 @@ const LARGE_FONT_SCALE = 1.3;
 function SectionHeader({ title, color, accessory, stacked }: { title: string; color: string; accessory?: ReactNode; stacked: boolean }) {
   return (
     <View style={[styles.sectionHeaderRow, stacked && styles.sectionHeaderStacked]}>
-      <Text accessibilityRole="header" style={[styles.sectionHeading, !stacked && styles.flex, { color }]}>
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} accessibilityRole="header" style={[styles.sectionHeading, !stacked && styles.flex, { color }]}>
         {title}
       </Text>
       {accessory}
@@ -118,6 +118,9 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
   const groupStyle = [styles.group, { backgroundColor: colors.backgroundElement }];
   const rowDivider = { borderTopWidth: StyleSheet.hairlineWidth, borderColor: semantic.separator };
   const largeText = fontScale >= LARGE_FONT_SCALE;
+  // 圖示跟著字級縮放，不然大字級時圖示小得像標點；上限 1.6 倍，避免圖示圈把四格網格撐爆
+  const iconScale = Math.min(Math.max(fontScale, 1), 1.6);
+  const scaled = (size: number) => Math.round(size * iconScale);
 
   return (
     // sheet 內 Stack 導覽列為 `headerTransparent`：靠 automatic content inset 讓標頭不被導覽列蓋住
@@ -126,12 +129,12 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic">
       <View style={styles.header}>
-        <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]} numberOfLines={2}>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} accessibilityRole="header" style={[styles.title, { color: colors.text }]} numberOfLines={largeText ? 3 : 2}>
           {model.title}
         </Text>
         {model.subtitle ? (
           // 完整地址只在這一行，不截斷（地址卡已移除）
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.subtitle, { color: colors.textSecondary }]}>
             {model.subtitle}
           </Text>
         ) : null}
@@ -146,8 +149,8 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                   accessible
                   accessibilityLabel={badge.label}
                   style={[styles.badge, { backgroundColor: tone ? tone.surface : PLACE_SURFACE_COLOR }]}>
-                  {badge.iconName ? <Icon name={badge.iconName} size={13} color={color} /> : null}
-                  <Text style={[styles.badgeText, { color }]}>{badge.label}</Text>
+                  {badge.iconName ? <Icon name={badge.iconName} size={scaled(13)} color={color} /> : null}
+                  <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.badgeText, { color }]}>{badge.label}</Text>
                 </View>
               );
             })}
@@ -163,7 +166,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
           onPress={model.onPlanRoute}
           style={({ pressed }) => [styles.primaryButton, largeText && styles.primaryButtonLarge, pressed && styles.pressed]}>
           <Icon name="navigation" color={PLACE_ON_ACCENT_COLOR} />
-          <Text style={styles.primaryButtonText}>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={styles.primaryButtonText}>
             {model.planRouteLabel}
           </Text>
         </Pressable>
@@ -202,8 +205,8 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                 { backgroundColor: colors.backgroundElement },
                 cat.isSelected && { backgroundColor: PLACE_ACCENT_COLOR },
               ]}>
-              {cat.isSelected ? <Icon name="check" size={14} color={PLACE_ON_ACCENT_COLOR} /> : null}
-              <Text style={[styles.categoryChipText, { color: cat.isSelected ? PLACE_ON_ACCENT_COLOR : colors.text }]}>
+              {cat.isSelected ? <Icon name="check" size={scaled(14)} color={PLACE_ON_ACCENT_COLOR} /> : null}
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.categoryChipText, { color: cat.isSelected ? PLACE_ON_ACCENT_COLOR : colors.text }]}>
                 {cat.label}
               </Text>
             </Pressable>
@@ -219,7 +222,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             stacked={largeText}
             accessory={
               model.checklistConfirmedLabel ? (
-                <Text
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label}
                   style={[
                     styles.sectionMeta,
                     { color: model.checklist.some((item) => item.tone !== 'unknown') ? toneColors.ok : colors.textSecondary },
@@ -230,24 +233,24 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             }
           />
           {/* 四項設施壓成一列圖示；未確認直接給「我知道 ›」回報出口 */}
-          <View style={[groupStyle, styles.checklistRow]}>
+          <View style={[groupStyle, styles.checklistRow, largeText && styles.checklistGrid]}>
             {model.checklist.map((item) => {
               const tone = checklistTone(item.tone, toneColors);
               const report = item.onReport;
               return (
-                <View key={item.key} style={styles.checklistItem}>
+                <View key={item.key} style={[styles.checklistItem, largeText && styles.checklistItemGrid]}>
                   <View
                     accessible
                     accessibilityLabel={`${item.label}：${item.statusLabel}`}
                     style={styles.checklistBody}>
-                    <View style={[styles.checklistIcon, { backgroundColor: tone.surface }]}>
+                    <View style={[styles.checklistIcon, { width: scaled(44), height: scaled(44), backgroundColor: tone.surface }]}>
                       <Icon
                         name={item.tone === 'unknown' ? 'help' : CHECKLIST_ICON[item.key] ?? tone.icon}
-                        size={22}
+                        size={scaled(22)}
                         color={tone.color}
                       />
                     </View>
-                    <Text style={[styles.checklistLabel, { color: colors.text }]} numberOfLines={2}>
+                    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.checklistLabel, { color: colors.text }]} numberOfLines={2}>
                       {item.label}
                     </Text>
                   </View>
@@ -257,10 +260,10 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                       accessibilityLabel={`${item.label}，${model.reportLabel}`}
                       onPress={report}
                       hitSlop={REPORT_HIT_SLOP}>
-                      <Text style={[styles.checklistStatus, { color: accentText }]}>{`${model.reportLabel} ›`}</Text>
+                      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.checklistStatus, { color: accentText }]}>{`${model.reportLabel} ›`}</Text>
                     </Pressable>
                   ) : (
-                    <Text style={[styles.checklistStatus, { color: tone.color }]} importantForAccessibility="no">
+                    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.checklistStatus, { color: tone.color }]} importantForAccessibility="no">
                       {item.statusLabel}
                     </Text>
                   )}
@@ -281,28 +284,34 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                 accessible
                 accessibilityLabel={[row.name, row.typeLabel, row.address, row.distanceText].filter(Boolean).join('，')}
                 style={styles.nearbyRow}>
-                <View style={[styles.nearbyIcon, { backgroundColor: nearbyKindStyle(row.kind).color }]}>
-                  <Icon name={nearbyKindStyle(row.kind).icon} size={16} color="#FFFFFF" />
+                <View style={[styles.nearbyIcon, { width: scaled(30), height: scaled(30), backgroundColor: nearbyKindStyle(row.kind).color }]}>
+                  <Icon name={nearbyKindStyle(row.kind).icon} size={scaled(16)} color="#FFFFFF" />
                 </View>
                 {/* 分隔線從文字起點開始（iOS inset grouped 列表的慣例），不切過圖示 */}
                 <View style={[styles.nearbyText, index > 0 && rowDivider]}>
                   <View style={styles.flex}>
-                    <Text style={[styles.nearbyName, { color: colors.text }]} numberOfLines={1}>
+                    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.nearbyName, { color: colors.text }]} numberOfLines={largeText ? 3 : 1}>
                       {row.name}
                     </Text>
-                    <Text style={[styles.nearbyMeta, { color: colors.textSecondary }]} numberOfLines={1}>
+                    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.nearbyMeta, { color: colors.textSecondary }]} numberOfLines={largeText ? 2 : 1}>
                       {row.address ? `${row.typeLabel} · ${row.address}` : row.typeLabel}
                     </Text>
+                    {/* 大字級時距離移到名稱下方，不跟名稱搶寬度（否則名稱被截成「台北1…」） */}
+                    {largeText ? (
+                      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.nearbyDistance, { color: colors.textSecondary }]}>{row.distanceText}</Text>
+                    ) : null}
                   </View>
-                  <Text style={[styles.nearbyDistance, { color: colors.textSecondary }]}>{row.distanceText}</Text>
+                  {largeText ? null : (
+                    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.nearbyDistance, { color: colors.textSecondary }]}>{row.distanceText}</Text>
+                  )}
                 </View>
               </View>
             ))}
           </View>
         ) : (
           <View style={[groupStyle, styles.emptyCard]}>
-            <Icon name="accessibility" size={20} color={colors.textSecondary} />
-            <Text style={[styles.bodyText, styles.emptyText, { color: colors.textSecondary }]}>{model.nearbyEmptyLabel}</Text>
+            <Icon name="accessibility" size={scaled(20)} color={colors.textSecondary} />
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.bodyText, styles.emptyText, { color: colors.textSecondary }]}>{model.nearbyEmptyLabel}</Text>
           </View>
         )}
       </View>
@@ -319,17 +328,17 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                 accessibilityLabel={model.reviews.write.label}
                 onPress={model.reviews.write.onPress}
                 style={({ pressed }) => [styles.headerAction, !largeText && styles.headerActionInline, pressed && styles.pressed]}>
-                <Text style={[styles.sectionAction, { color: accentText }]}>{model.reviews.write.label}</Text>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.sectionAction, { color: accentText }]}>{model.reviews.write.label}</Text>
               </Pressable>
             }
           />
           {model.reviews.write.hint ? (
-            <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{model.reviews.write.hint}</Text>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.bodyText, { color: colors.textSecondary }]}>{model.reviews.write.hint}</Text>
           ) : null}
           {model.reviews.aiSummary ? (
             <View style={[styles.group, styles.summaryCard, { backgroundColor: semantic.accentSoft }]}>
-              <Text style={[styles.summaryLabel, { color: accentText }]}>{model.reviews.aiSummaryLabel}</Text>
-              <Text style={[styles.bodyText, { color: colors.text }]}>{model.reviews.aiSummary}</Text>
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.summaryLabel, { color: accentText }]}>{model.reviews.aiSummaryLabel}</Text>
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.bodyText, { color: colors.text }]}>{model.reviews.aiSummary}</Text>
             </View>
           ) : null}
           {model.reviews.loading ? (
@@ -339,14 +348,14 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
               {model.reviews.items.map((review, index) => (
                 <View key={review.key} style={[styles.reviewRow, index > 0 && rowDivider]}>
                   <View style={styles.reviewHead}>
-                    <Text accessibilityLabel={review.starsA11yLabel} style={[styles.reviewStars, { color: toneColors.warn }]}>{review.starsLabel}</Text>
-                    <Text style={[styles.reviewMeta, styles.flex, { color: colors.textSecondary }]} numberOfLines={1}>
+                    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} accessibilityLabel={review.starsA11yLabel} style={[styles.reviewStars, { color: toneColors.warn }]}>{review.starsLabel}</Text>
+                    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.reviewMeta, styles.flex, { color: colors.textSecondary }]} numberOfLines={1}>
                       {review.metaLabel}
                     </Text>
                   </View>
-                  {review.comment ? <Text style={[styles.reviewComment, { color: colors.text }]}>{review.comment}</Text> : null}
+                  {review.comment ? <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.reviewComment, { color: colors.text }]}>{review.comment}</Text> : null}
                   {review.evidence.map((line) => (
-                    <Text key={line} style={[styles.reviewEvidence, { color: colors.textSecondary }]}>
+                    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} key={line} style={[styles.reviewEvidence, { color: colors.textSecondary }]}>
                       {line}
                     </Text>
                   ))}
@@ -358,7 +367,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                           accessibilityLabel={reviewEditLabel}
                           onPress={review.onEdit}
                           style={({ pressed }) => [styles.reviewActionButton, pressed && styles.pressed]}>
-                          <Text style={[styles.sectionAction, { color: accentText }]}>{reviewEditLabel}</Text>
+                          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.sectionAction, { color: accentText }]}>{reviewEditLabel}</Text>
                         </Pressable>
                       ) : null}
                       {review.onDelete ? (
@@ -367,7 +376,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                           accessibilityLabel={reviewDeleteLabel}
                           onPress={review.onDelete}
                           style={({ pressed }) => [styles.reviewActionButton, pressed && styles.pressed]}>
-                          <Text style={[styles.sectionAction, { color: toneColors.no }]}>{reviewDeleteLabel}</Text>
+                          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.sectionAction, { color: toneColors.no }]}>{reviewDeleteLabel}</Text>
                         </Pressable>
                       ) : null}
                     </View>
@@ -379,14 +388,14 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                   accessibilityRole="button"
                   onPress={model.reviews.onLoadMore}
                   style={({ pressed }) => [styles.loadMoreButton, rowDivider, pressed && styles.pressed]}>
-                  <Text style={[styles.loadMoreText, { color: accentText }]}>{model.reviews.loadMoreLabel}</Text>
+                  <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.loadMoreText, { color: accentText }]}>{model.reviews.loadMoreLabel}</Text>
                 </Pressable>
               ) : null}
             </View>
           ) : (
             <View style={[groupStyle, styles.emptyCard]}>
-              <Icon name="messageSquare" size={20} color={colors.textSecondary} />
-              <Text style={[styles.bodyText, styles.emptyText, { color: colors.textSecondary }]}>{model.reviews.emptyLabel}</Text>
+              <Icon name="messageSquare" size={scaled(20)} color={colors.textSecondary} />
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.bodyText, styles.emptyText, { color: colors.textSecondary }]}>{model.reviews.emptyLabel}</Text>
             </View>
           )}
         </View>
@@ -461,11 +470,14 @@ const styles = StyleSheet.create({
   nearbyName: { fontSize: TYPE.body, fontWeight: '500' },
   nearbyMeta: { fontSize: TYPE.subhead, marginTop: 2 },
   nearbyDistance: { fontSize: TYPE.subhead, fontVariant: ['tabular-nums'] },
-  nearbyIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  nearbyIcon: { width: 30, height: 30, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
   checklistRow: { flexDirection: 'row', gap: 4, paddingVertical: 16, paddingHorizontal: 8 },
   checklistItem: { flex: 1, minWidth: 0, alignItems: 'center', gap: 4 },
+  // 大字級：四欄改 2×2，「我知道 ›」才不會被擠成兩行
+  checklistGrid: { flexWrap: 'wrap', columnGap: 0, rowGap: 20 },
+  checklistItemGrid: { flex: 0, flexBasis: '50%', paddingHorizontal: 4 },
   checklistBody: { alignItems: 'center', gap: 6 },
-  checklistIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  checklistIcon: { width: 44, height: 44, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
   checklistLabel: { fontSize: TYPE.subhead, textAlign: 'center' },
   checklistStatus: { fontSize: TYPE.caption, fontWeight: '700', textAlign: 'center' },
   summaryCard: { padding: 14, gap: 6 },

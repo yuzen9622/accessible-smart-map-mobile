@@ -109,6 +109,20 @@ export const TYPE = {
   display: 30,
 } as const;
 
+/**
+ * 使用者字級倍率上限（RN `maxFontSizeMultiplier`），分層而不是一刀鎖死：
+ * 本來就大的標題少放大，內文多放大。iOS 最大輔助字級約 3.1 倍，標題放到 3 倍會吃掉半個 sheet。
+ * 小字至少 2 倍（WCAG 1.4.4 要求文字可放大到 200%），否則低視能使用者在最大字級看到的反而是全畫面最小的字。
+ */
+export const MAX_FONT_SCALE = {
+  /** 地點名、區塊標題（24／20pt 起跳）。 */
+  heading: 1.5,
+  /** chip、badge、按鈕、距離、計數這類短標籤。 */
+  label: 2,
+  /** 地址、列表主文字、評價內文（會換行，給得比標籤寬）。 */
+  body: 2.5,
+} as const;
+
 /** 圓角：卡片 16、按鈕與 chip 用膠囊（高度的一半）、小元件 10。 */
 export const RADIUS = {
   small: 10,

@@ -18,6 +18,7 @@ import { buildPlaceBadges, type PlaceBadge } from '../domain/placeBadges';
 import { placeKey, SAVED_PLACE_CATEGORIES, type SavedPlaceCategory } from '../domain/placeKey';
 import { evidenceLines } from '../domain/reviewEvidence';
 import { buildPlaceShareUrl } from '../domain/shareUrl';
+import { buildPlaceHeading } from '../domain/placeHeading';
 import { deleteReview } from '../api/reviews';
 import { bumpReviewRevision, useReviewEditorStore } from '../store/reviewEditorStore';
 import { isSavedPlace, useSavedPlacesStore } from '../store/savedPlacesStore';
@@ -150,17 +151,15 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   const category = savedPlaceCategories[key] as SavedPlaceCategory | undefined;
 
   const place = entry.kind === 'place' ? entry.place : null;
-  const title = entry.kind === 'place' ? entry.place.name || entry.place.fullAddress || '' : entry.address;
-  const address = entry.kind === 'place' ? entry.place.fullAddress : entry.address;
   const userPosition = mapFeature.useUserLocationStore((state) => state.position);
   // 設計 1a：「類別 · 距離 · 地址」一行交代這是什麼、多遠
   const distanceText = userPosition ? mapFeature.formatDistance(haversineMeters(userPosition, entry.position)) : null;
-  // Nominatim 的 fullAddress 常以地點名稱開頭（「安侯建業…, 7, 信義路五段…」），副標題不重複名稱
-  const addressWithoutTitle = address && title && address.startsWith(title) ? address.slice(title.length).replace(/^[\s,，、]+/, '') : address;
-  const subtitle =
-    [place?.typeLabel ?? null, distanceText, addressWithoutTitle && addressWithoutTitle !== title ? addressWithoutTitle : null]
-      .filter((part): part is string => Boolean(part))
-      .join(' · ') || null;
+  const { title, subtitle } = buildPlaceHeading({
+    name: entry.kind === 'place' ? entry.place.name || null : null,
+    address: entry.kind === 'place' ? entry.place.fullAddress : entry.address,
+    typeLabel: place?.typeLabel ?? null,
+    distanceText,
+  });
 
   const checklistItems = place ? buildAccessibilityChecklist(place) : [];
   const reviews = useReviews(place?.reviewKey?.placeId ?? '', place?.reviewKey?.placeType ?? 'osm');

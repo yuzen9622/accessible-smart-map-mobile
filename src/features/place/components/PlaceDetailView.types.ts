@@ -4,5 +4,4 @@ export type { PlaceDetailBadge, PlaceDetailNearbyRow };
 
 export interface PlaceDetailViewProps {
   model: PlaceDetailModel;
-  loading: boolean;
 }

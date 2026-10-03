@@ -31,11 +31,6 @@ const CHECKLIST_LABEL_KEY: Record<ChecklistItem['key'], string> = {
   toilet: 'hasAccessibleToilet',
 };
 
-export interface PlaceDetailRow {
-  label: string;
-  value: string;
-}
-
 export interface PlaceDetailChecklistRow {
   key: string;
   label: string;
@@ -66,6 +61,8 @@ export type PlaceDetailNearbyRow = NearbyFacilityRow;
 export interface PlaceDetailReviewRow {
   key: string;
   starsLabel: string;
+  /** VoiceOver 用：「通行評級 4.0 星，共 5 星」，避免逐個唸星號 */
+  starsA11yLabel: string;
   comment?: string;
   /** 綜合分數與已評估的無障礙細節；未評估的項目不列出。 */
   evidence: string[];
@@ -85,6 +82,7 @@ export interface PlaceDetailReviewsModel {
   hasMore: boolean;
   onLoadMore: () => void;
   loadMoreLabel: string;
+  loadingLabel: string;
   emptyLabel: string;
   /** 已登入：撰寫／編輯您的評價；未登入：提示登入 */
   write: { hint: string | null; label: string; onPress: () => void };
@@ -108,8 +106,6 @@ export interface PlaceDetailModel {
   onShare: () => void;
   onCopy: () => void;
   categories: PlaceDetailCategoryOption[] | null;
-  addressTitle: string;
-  addressRows: PlaceDetailRow[];
   checklistTitle: string;
   checklist: PlaceDetailChecklistRow[];
   /** 「3 / 4 已確認」；清單為空時為 null */
@@ -226,18 +222,6 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
       }))
     : null;
 
-  const addressRows: PlaceDetailRow[] = place?.addressComponents
-    ? (
-        [
-          place.addressComponents.road ? { label: t('road'), value: place.addressComponents.road } : null,
-          place.addressComponents.district ? { label: t('district'), value: place.addressComponents.district } : null,
-          place.addressComponents.city ? { label: t('city'), value: place.addressComponents.city } : null,
-          place.addressComponents.postcode ? { label: t('postcode'), value: place.addressComponents.postcode } : null,
-        ] as const
-      ).filter((row): row is PlaceDetailRow => row !== null)
-    : [];
-
-
   const links: PlaceDetailLinkRow[] = [];
   if (place?.externalLinks.osm) {
     const osmUrl = place.externalLinks.osm;
@@ -288,6 +272,7 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
             return {
               key: review._id,
               starsLabel: `${'★'.repeat(Math.round(review.rating))} ${review.rating.toFixed(1)}`,
+              starsA11yLabel: t('starAriaLabel', { filled: review.rating.toFixed(1) }),
               comment: review.comment,
               evidence: [
                 ...(review.aggregateAccessibilityScore !== undefined
@@ -302,6 +287,7 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
           hasMore: reviews.hasMore,
           onLoadMore: reviews.loadMore,
           loadMoreLabel: t('reviewLoadMore'),
+          loadingLabel: t('loading'),
           emptyLabel: t('noReviews'),
           write: loggedIn
             ? { hint: null, label: ownReview ? t('reviewEditYours') : t('writeReview'), onPress: () => openReviewForm(ownReview) }
@@ -339,8 +325,6 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     onShare: handleShare,
     onCopy: handleCopy,
     categories,
-    addressTitle: t('addressInfo'),
-    addressRows,
     checklistTitle: t('nativePlaceA11yInfo'),
     checklist,
     checklistConfirmedLabel:

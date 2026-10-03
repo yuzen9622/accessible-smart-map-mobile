@@ -2,9 +2,10 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { ErrorState, LoadingState } from '@/shared/ui';
+import { ErrorState } from '@/shared/ui';
 
 import PlaceDetailPanel from '../components/PlaceDetailPanel';
+import PlaceDetailSkeleton from '../components/PlaceDetailSkeleton';
 import { useReverseGeocode } from '../hooks/useReverseGeocode';
 import { usePlaceUiStore } from '../store/placeUiStore';
 import type { PlaceDetail, PlaceResult } from '../types/place';
@@ -54,7 +55,7 @@ export default function LocDetailScreen() {
       {!validCoords ? (
         <ErrorState title={t('nativePlaceLoadError')} systemImage="exclamationmark.triangle" />
       ) : !entry || loading ? (
-        <LoadingState />
+        <PlaceDetailSkeleton />
       ) : (
         <PlaceDetailPanel entry={entry} />
       )}

@@ -1,7 +1,8 @@
+import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 
 import { FACILITY_COLORS } from '@/features/map';
-import { RADIUS, semanticColors, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MIN_TOUCH, RADIUS, TYPE, semanticColors, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import MoreActionsButton from './MoreActionsButton';
@@ -9,7 +10,6 @@ import type { PlaceDetailBadge, PlaceDetailNearbyRow, PlaceDetailViewProps } fro
 import {
   PLACE_ACCENT_COLOR,
   PLACE_ACCENT_COLOR_DARK,
-  PLACE_BORDER_COLOR,
   PLACE_NO_COLOR,
   PLACE_NO_COLOR_DARK,
   PLACE_NO_SURFACE,
@@ -77,8 +77,20 @@ function nearbyKindStyle(kind: PlaceDetailNearbyRow['kind']): { color: string; i
 /** 「我知道 ›」文字只有 16pt 高，hitSlop 補到 44pt 觸控目標 */
 const REPORT_HIT_SLOP = { top: 14, bottom: 14, left: 8, right: 8 };
 
-/** 外部連結 chip 視覺高度 32，hitSlop 補到 44pt 觸控目標 */
-const LINK_HIT_SLOP = { top: 6, bottom: 6, left: 0, right: 0 };
+/** 大字級門檻：超過時動作列與區塊標題改為上下排，避免標題被右側配件擠成一字一行。 */
+const LARGE_FONT_SCALE = 1.3;
+
+/** 區塊標題：每一區同一種字級與留白，右側可放計數或動作；大字級時配件換到標題下方。 */
+function SectionHeader({ title, color, accessory, stacked }: { title: string; color: string; accessory?: ReactNode; stacked: boolean }) {
+  return (
+    <View style={[styles.sectionHeaderRow, stacked && styles.sectionHeaderStacked]}>
+      <Text accessibilityRole="header" style={[styles.sectionHeading, !stacked && styles.flex, { color }]}>
+        {title}
+      </Text>
+      {accessory}
+    </View>
+  );
+}
 
 /**
  * 地點詳情面板（`(sheet)/place/[id]`、`(sheet)/loc/[coords]`），iOS／Android 共用。
@@ -88,28 +100,24 @@ const LINK_HIT_SLOP = { top: 6, bottom: 6, left: 0, right: 0 };
  *   仍是原生 `ShareLink`（見 `ShareButton.ios.tsx`）。
  * - 根節點必須是單一 `ScrollView`（iOS formSheet 對多個 sibling 會警告
  *   「expects at most 2 subviews」並造成版面重疊）。
- * - 版型依設計 1a「原生精修」（2026-09-30）：標題＋「類別 · 距離 · 地址」→ 主按鈕「規劃路線」與
- *   同高 50pt 圓鈕（收藏、分享、「⋯」收納回到此地點／複製連結）→ 無障礙資訊卡（四項一列、
- *   「n / 4 已確認」，未確認給「我知道 ›」開撰寫評價）→ badges → 附近無障礙設施 → 地址 → 評價。
+ * - 版型（2026-10-03 精簡）：標題＋「類別 · 距離 · 地址」＋ badges → 主按鈕「規劃路線」與
+ *   同高 50pt 圓鈕（收藏、分享、「⋯」收納回到此地點／複製連結／外部地圖）→ 無障礙資訊卡 →
+ *   附近無障礙設施（分組卡片）→ 評價（分組卡片）。地址已在副標題，不再另開地址卡。
  */
-export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps) {
+export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
   const colors = useThemeColors();
   const isDark = useColorScheme() === 'dark';
   const { fontScale } = useWindowDimensions();
+  const semantic = useSemanticColors();
   // 四顆圓鈕（回到此地點、收藏、分享、複製）同一種底色；分享鈕在 ShareButton 內用同一個 token
-  const circleSurface = useSemanticColors().accentSoft;
+  const circleSurface = semantic.accentSoft;
   const toneColors = TONE_COLORS[isDark ? 'dark' : 'light'];
   const reviewEditLabel = model.reviews?.editLabel ?? '';
   const reviewDeleteLabel = model.reviews?.deleteLabel ?? '';
   const accentText = isDark ? PLACE_ACCENT_COLOR_DARK : PLACE_ACCENT_COLOR;
-
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={colors.textSecondary} />
-      </View>
-    );
-  }
+  const groupStyle = [styles.group, { backgroundColor: colors.backgroundElement }];
+  const rowDivider = { borderTopWidth: StyleSheet.hairlineWidth, borderColor: semantic.separator };
+  const largeText = fontScale >= LARGE_FONT_SCALE;
 
   return (
     // sheet 內 Stack 導覽列為 `headerTransparent`：靠 automatic content inset 讓標頭不被導覽列蓋住
@@ -122,19 +130,38 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
           {model.title}
         </Text>
         {model.subtitle ? (
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]} numberOfLines={2}>
+          // 完整地址只在這一行，不截斷（地址卡已移除）
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             {model.subtitle}
           </Text>
         ) : null}
+        {model.badges.length > 0 ? (
+          <View style={[styles.chipsRow, styles.headerBadges]}>
+            {model.badges.map((badge) => {
+              const tone = badge.tone === 'neutral' ? null : badgeTone(badge.tone, toneColors);
+              const color = tone ? tone.color : colors.textSecondary;
+              return (
+                <View
+                  key={badge.key}
+                  accessible
+                  accessibilityLabel={badge.label}
+                  style={[styles.badge, { backgroundColor: tone ? tone.surface : PLACE_SURFACE_COLOR }]}>
+                  {badge.iconName ? <Icon name={badge.iconName} size={13} color={color} /> : null}
+                  <Text style={[styles.badgeText, { color }]}>{badge.label}</Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
       </View>
 
-      {/* 設計 1a：主按鈕是「路線」，次要動作收成同高 50pt 的圓鈕；回到此地點／複製連結收進「⋯」 */}
-      <View style={[styles.actionsRow, fontScale >= 1.3 && styles.actionsRowLarge]}>
+      {/* 主按鈕是「路線」，次要動作收成同高 50pt 的圓鈕；回到此地點／複製連結／外部地圖收進「⋯」 */}
+      <View style={[styles.actionsRow, largeText && styles.actionsRowLarge]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={model.planRouteLabel}
           onPress={model.onPlanRoute}
-          style={({ pressed }) => [styles.primaryButton, fontScale >= 1.3 && styles.primaryButtonLarge, pressed && styles.pressed]}>
+          style={({ pressed }) => [styles.primaryButton, largeText && styles.primaryButtonLarge, pressed && styles.pressed]}>
           <Icon name="navigation" color={PLACE_ON_ACCENT_COLOR} />
           <Text style={styles.primaryButtonText}>
             {model.planRouteLabel}
@@ -157,6 +184,7 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
           actions={[
             { label: model.recenterLabel, onPress: model.onRecenter },
             { label: model.copyLabel, onPress: model.onCopy },
+            ...model.links,
           ]}
         />
       </View>
@@ -171,8 +199,8 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
               onPress={cat.onSelect}
               style={[
                 styles.categoryChip,
-                { borderColor: PLACE_BORDER_COLOR },
-                cat.isSelected && { backgroundColor: PLACE_ACCENT_COLOR, borderColor: PLACE_ACCENT_COLOR },
+                { backgroundColor: colors.backgroundElement },
+                cat.isSelected && { backgroundColor: PLACE_ACCENT_COLOR },
               ]}>
               {cat.isSelected ? <Icon name="check" size={14} color={PLACE_ON_ACCENT_COLOR} /> : null}
               <Text style={[styles.categoryChipText, { color: cat.isSelected ? PLACE_ON_ACCENT_COLOR : colors.text }]}>
@@ -184,23 +212,25 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
       ) : null}
 
       {model.checklist.length > 0 ? (
-        <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-          <View style={styles.cardHeader}>
-            <Text accessibilityRole="header" style={[styles.sectionTitle, styles.flex, { color: colors.text }]}>
-              {model.checklistTitle}
-            </Text>
-            {model.checklistConfirmedLabel ? (
-              <Text
-                style={[
-                  styles.confirmedText,
-                  { color: model.checklist.some((item) => item.tone !== 'unknown') ? toneColors.ok : colors.textSecondary },
-                ]}>
-                {model.checklistConfirmedLabel}
-              </Text>
-            ) : null}
-          </View>
-          {/* 四項設施壓成一列圖示（設計 1a）；未確認直接給「我知道 ›」回報出口 */}
-          <View style={styles.checklistRow}>
+        <View style={styles.section}>
+          <SectionHeader
+            title={model.checklistTitle}
+            color={colors.text}
+            stacked={largeText}
+            accessory={
+              model.checklistConfirmedLabel ? (
+                <Text
+                  style={[
+                    styles.sectionMeta,
+                    { color: model.checklist.some((item) => item.tone !== 'unknown') ? toneColors.ok : colors.textSecondary },
+                  ]}>
+                  {model.checklistConfirmedLabel}
+                </Text>
+              ) : null
+            }
+          />
+          {/* 四項設施壓成一列圖示；未確認直接給「我知道 ›」回報出口 */}
+          <View style={[groupStyle, styles.checklistRow]}>
             {model.checklist.map((item) => {
               const tone = checklistTone(item.tone, toneColors);
               const report = item.onReport;
@@ -241,140 +271,94 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
         </View>
       ) : null}
 
-      {model.badges.length > 0 || model.links.length > 0 ? (
-        <View style={styles.chipsRow}>
-          {model.badges.map((badge) => {
-            const tone = badge.tone === 'neutral' ? null : badgeTone(badge.tone, toneColors);
-            const color = tone ? tone.color : colors.text;
-            return (
-              <View
-                key={badge.key}
-                accessible
-                accessibilityLabel={badge.label}
-                style={[styles.badge, { backgroundColor: tone ? tone.surface : PLACE_SURFACE_COLOR }]}>
-                {badge.iconName ? <Icon name={badge.iconName} size={14} color={color} /> : null}
-                <Text style={[styles.badgeText, { color }]}>{badge.label}</Text>
-              </View>
-            );
-          })}
-          {model.links.map((link) => (
-            <Pressable
-              key={link.label}
-              accessibilityRole="link"
-              accessibilityLabel={link.label}
-              onPress={link.onPress}
-              hitSlop={LINK_HIT_SLOP}
-              style={[styles.badge, styles.linkChip, { borderColor: PLACE_BORDER_COLOR }]}>
-              <Icon name="externalLink" size={14} color={colors.text} />
-              <Text style={[styles.badgeText, { color: colors.text }]}>{link.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-
-      <View>
-        <Text accessibilityRole="header" style={[styles.largeTitle, { color: colors.text }]}>
-          {model.nearbyTitle}
-        </Text>
+      <View style={styles.section}>
+        <SectionHeader title={model.nearbyTitle} color={colors.text} stacked={largeText} />
         {model.nearbyRows.length > 0 ? (
-          model.nearbyRows.map((row, index) => (
-            <View
-              key={row.key}
-              accessible
-              accessibilityLabel={`${row.name}，${row.typeLabel}，${row.distanceText}`}
-              style={[
-                styles.nearbyRow,
-                index < model.nearbyRows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: PLACE_BORDER_COLOR },
-              ]}>
-              <View style={[styles.nearbyIcon, { backgroundColor: nearbyKindStyle(row.kind).color }]}>
-                <Icon name={nearbyKindStyle(row.kind).icon} size={18} color="#FFFFFF" />
-              </View>
-              <View style={styles.flex}>
-                <Text style={[styles.nearbyName, { color: colors.text }]} numberOfLines={1}>
-                  {row.name}
-                </Text>
-                <Text style={[styles.nearbyMeta, { color: colors.textSecondary }]} numberOfLines={1}>
-                  {row.address ? `${row.typeLabel} · ${row.address}` : row.typeLabel}
-                </Text>
-              </View>
-              <Text style={[styles.nearbyDistance, { color: colors.textSecondary }]}>{row.distanceText}</Text>
-            </View>
-          ))
-        ) : (
-          <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{model.nearbyEmptyLabel}</Text>
-        )}
-      </View>
-
-      {model.addressRows.length > 0 ? (
-        <View style={[styles.card, { backgroundColor: PLACE_SURFACE_COLOR }]}>
-          <View style={styles.sectionHeader}>
-            <Icon name="mapPin" size={16} color={colors.text} />
-            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
-              {model.addressTitle}
-            </Text>
-          </View>
-          <View style={styles.addressGrid}>
-            {model.addressRows.map((row) => (
-              <View key={row.label} style={styles.addressCell}>
-                <Text style={[styles.addressText, { color: colors.textSecondary }]}>
-                  {row.label}: <Text style={{ color: colors.text }}>{row.value}</Text>
-                </Text>
+          <View style={groupStyle}>
+            {model.nearbyRows.map((row, index) => (
+              <View
+                key={row.key}
+                accessible
+                accessibilityLabel={[row.name, row.typeLabel, row.address, row.distanceText].filter(Boolean).join('，')}
+                style={styles.nearbyRow}>
+                <View style={[styles.nearbyIcon, { backgroundColor: nearbyKindStyle(row.kind).color }]}>
+                  <Icon name={nearbyKindStyle(row.kind).icon} size={16} color="#FFFFFF" />
+                </View>
+                {/* 分隔線從文字起點開始（iOS inset grouped 列表的慣例），不切過圖示 */}
+                <View style={[styles.nearbyText, index > 0 && rowDivider]}>
+                  <View style={styles.flex}>
+                    <Text style={[styles.nearbyName, { color: colors.text }]} numberOfLines={1}>
+                      {row.name}
+                    </Text>
+                    <Text style={[styles.nearbyMeta, { color: colors.textSecondary }]} numberOfLines={1}>
+                      {row.address ? `${row.typeLabel} · ${row.address}` : row.typeLabel}
+                    </Text>
+                  </View>
+                  <Text style={[styles.nearbyDistance, { color: colors.textSecondary }]}>{row.distanceText}</Text>
+                </View>
               </View>
             ))}
           </View>
-        </View>
-      ) : null}
+        ) : (
+          <View style={[groupStyle, styles.emptyCard]}>
+            <Icon name="accessibility" size={20} color={colors.textSecondary} />
+            <Text style={[styles.bodyText, styles.emptyText, { color: colors.textSecondary }]}>{model.nearbyEmptyLabel}</Text>
+          </View>
+        )}
+      </View>
 
       {model.reviews ? (
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Icon name="messageSquare" size={16} color={colors.text} />
-            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
-              {model.reviews.titleLabel}
-            </Text>
-          </View>
-          {model.reviews.aiSummary ? (
-            <View style={[styles.card, { backgroundColor: PLACE_SURFACE_COLOR }]}>
-              <Text style={[styles.sectionTitle, { color: accentText }]}>{model.reviews.aiSummaryLabel}</Text>
-              <Text style={[styles.bodyText, { color: colors.text }]}>{model.reviews.aiSummary}</Text>
-            </View>
-          ) : null}
+          <SectionHeader
+            title={model.reviews.titleLabel}
+            color={colors.text}
+            stacked={largeText}
+            accessory={
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={model.reviews.write.label}
+                onPress={model.reviews.write.onPress}
+                style={({ pressed }) => [styles.headerAction, !largeText && styles.headerActionInline, pressed && styles.pressed]}>
+                <Text style={[styles.sectionAction, { color: accentText }]}>{model.reviews.write.label}</Text>
+              </Pressable>
+            }
+          />
           {model.reviews.write.hint ? (
             <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{model.reviews.write.hint}</Text>
           ) : null}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={model.reviews.write.label}
-            onPress={model.reviews.write.onPress}
-            style={styles.loadMoreButton}>
-            <Text style={[styles.loadMoreText, { color: accentText }]}>{model.reviews.write.label}</Text>
-          </Pressable>
+          {model.reviews.aiSummary ? (
+            <View style={[styles.group, styles.summaryCard, { backgroundColor: semantic.accentSoft }]}>
+              <Text style={[styles.summaryLabel, { color: accentText }]}>{model.reviews.aiSummaryLabel}</Text>
+              <Text style={[styles.bodyText, { color: colors.text }]}>{model.reviews.aiSummary}</Text>
+            </View>
+          ) : null}
           {model.reviews.loading ? (
-            <ActivityIndicator color={colors.textSecondary} />
+            <ActivityIndicator accessibilityLabel={model.reviews.loadingLabel} color={colors.textSecondary} />
           ) : model.reviews.items.length > 0 ? (
-            <>
-              {model.reviews.items.map((review) => (
-                <View key={review.key} style={[styles.reviewRow, { borderColor: PLACE_BORDER_COLOR }]}>
-                  <View style={styles.sectionHeader}>
-                    <Icon name="star" size={14} color={toneColors.warn} />
-                    <Text style={{ color: colors.text }}>{review.starsLabel}</Text>
+            <View style={groupStyle}>
+              {model.reviews.items.map((review, index) => (
+                <View key={review.key} style={[styles.reviewRow, index > 0 && rowDivider]}>
+                  <View style={styles.reviewHead}>
+                    <Text accessibilityLabel={review.starsA11yLabel} style={[styles.reviewStars, { color: toneColors.warn }]}>{review.starsLabel}</Text>
+                    <Text style={[styles.reviewMeta, styles.flex, { color: colors.textSecondary }]} numberOfLines={1}>
+                      {review.metaLabel}
+                    </Text>
                   </View>
-                  <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{review.metaLabel}</Text>
+                  {review.comment ? <Text style={[styles.reviewComment, { color: colors.text }]}>{review.comment}</Text> : null}
                   {review.evidence.map((line) => (
-                    <Text key={line} style={[styles.bodyText, { color: colors.textSecondary }]}>
+                    <Text key={line} style={[styles.reviewEvidence, { color: colors.textSecondary }]}>
                       {line}
                     </Text>
                   ))}
-                  {review.comment ? <Text style={[styles.bodyText, { color: colors.text }]}>{review.comment}</Text> : null}
                   {review.onEdit || review.onDelete ? (
-                    <View style={styles.sectionHeader}>
+                    <View style={styles.reviewActions}>
                       {review.onEdit ? (
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel={reviewEditLabel}
                           onPress={review.onEdit}
-                          style={styles.loadMoreButton}>
-                          <Text style={[styles.loadMoreText, { color: accentText }]}>{reviewEditLabel}</Text>
+                          style={({ pressed }) => [styles.reviewActionButton, pressed && styles.pressed]}>
+                          <Text style={[styles.sectionAction, { color: accentText }]}>{reviewEditLabel}</Text>
                         </Pressable>
                       ) : null}
                       {review.onDelete ? (
@@ -382,8 +366,8 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
                           accessibilityRole="button"
                           accessibilityLabel={reviewDeleteLabel}
                           onPress={review.onDelete}
-                          style={styles.loadMoreButton}>
-                          <Text style={[styles.loadMoreText, { color: toneColors.no }]}>{reviewDeleteLabel}</Text>
+                          style={({ pressed }) => [styles.reviewActionButton, pressed && styles.pressed]}>
+                          <Text style={[styles.sectionAction, { color: toneColors.no }]}>{reviewDeleteLabel}</Text>
                         </Pressable>
                       ) : null}
                     </View>
@@ -391,13 +375,19 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
                 </View>
               ))}
               {model.reviews.hasMore ? (
-                <Pressable accessibilityRole="button" onPress={model.reviews.onLoadMore} style={styles.loadMoreButton}>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={model.reviews.onLoadMore}
+                  style={({ pressed }) => [styles.loadMoreButton, rowDivider, pressed && styles.pressed]}>
                   <Text style={[styles.loadMoreText, { color: accentText }]}>{model.reviews.loadMoreLabel}</Text>
                 </Pressable>
               ) : null}
-            </>
+            </View>
           ) : (
-            <Text style={[styles.bodyText, { color: colors.textSecondary }]}>{model.reviews.emptyLabel}</Text>
+            <View style={[groupStyle, styles.emptyCard]}>
+              <Icon name="messageSquare" size={20} color={colors.textSecondary} />
+              <Text style={[styles.bodyText, styles.emptyText, { color: colors.textSecondary }]}>{model.reviews.emptyLabel}</Text>
+            </View>
           )}
         </View>
       ) : null}
@@ -407,24 +397,23 @@ export default function PlaceDetailView({ model, loading }: PlaceDetailViewProps
 
 const styles = StyleSheet.create({
   // paddingTop 多留一點：透明導覽列底緣的 scroll-edge 效果會蓋到第一行小標
-  content: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 32, gap: 16 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  content: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 40, gap: 24 },
   flex: { flex: 1 },
   header: { gap: 4 },
-  title: { fontSize: 24, fontWeight: '700' },
-  subtitle: { fontSize: 15 },
-  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  headerBadges: { marginTop: 8 },
+  title: { fontSize: TYPE.title, fontWeight: '700', letterSpacing: 0.2 },
+  subtitle: { fontSize: TYPE.callout, lineHeight: 21 },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    minHeight: 32,
-    borderRadius: 16,
+    minHeight: 26,
+    borderRadius: RADIUS.pill,
     paddingHorizontal: 10,
   },
-  linkChip: { borderWidth: StyleSheet.hairlineWidth },
-  badgeText: { fontSize: 13, fontWeight: '500' },
-  actionsRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  badgeText: { fontSize: TYPE.caption, fontWeight: '600' },
+  actionsRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: -8 },
   actionsRowLarge: { flexWrap: 'wrap' },
   primaryButton: {
     flex: 1,
@@ -452,40 +441,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     minHeight: 44,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 22,
+    borderRadius: RADIUS.pill,
     paddingHorizontal: 14,
   },
-  categoryChipText: { fontSize: 13, fontWeight: '500' },
-  card: { borderRadius: RADIUS.card, paddingVertical: 14, paddingHorizontal: 12, gap: 8 },
-  section: { gap: 8 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitle: { fontSize: 15, fontWeight: '600' },
-  addressGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 6 },
-  addressCell: { width: '50%', paddingRight: 8 },
-  addressText: { fontSize: 14 },
-  bodyText: { fontSize: 14 },
-  nearbyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    minHeight: 60,
-    paddingVertical: 8,
-  },
-  nearbyName: { fontSize: 17 },
-  nearbyMeta: { fontSize: 13 },
-  nearbyDistance: { fontSize: 15 },
-  nearbyIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  largeTitle: { fontSize: 20, fontWeight: '700', marginBottom: 2 },
-  cardHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingHorizontal: 2 },
-  confirmedText: { fontSize: 13, fontWeight: '600' },
-  checklistRow: { flexDirection: 'row', gap: 4, marginTop: 4 },
+  categoryChipText: { fontSize: TYPE.subhead, fontWeight: '500' },
+  section: { gap: 10 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sectionHeaderStacked: { flexDirection: 'column', alignItems: 'flex-start', gap: 0 },
+  // 實體 44pt：Android 的 hitSlop 超出父層範圍就點不到，不能只靠 hitSlop
+  headerAction: { minHeight: MIN_TOUCH, justifyContent: 'center' },
+  headerActionInline: { paddingLeft: 8 },
+  sectionHeading: { fontSize: TYPE.headline, fontWeight: '700' },
+  sectionMeta: { fontSize: TYPE.subhead, fontWeight: '600' },
+  sectionAction: { fontSize: TYPE.callout, fontWeight: '600' },
+  group: { borderRadius: RADIUS.card, overflow: 'hidden' },
+  bodyText: { fontSize: 14, lineHeight: 20 },
+  nearbyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 14 },
+  nearbyText: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10, paddingRight: 14 },
+  nearbyName: { fontSize: TYPE.body, fontWeight: '500' },
+  nearbyMeta: { fontSize: TYPE.subhead, marginTop: 2 },
+  nearbyDistance: { fontSize: TYPE.subhead, fontVariant: ['tabular-nums'] },
+  nearbyIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  checklistRow: { flexDirection: 'row', gap: 4, paddingVertical: 16, paddingHorizontal: 8 },
   checklistItem: { flex: 1, minWidth: 0, alignItems: 'center', gap: 4 },
-  checklistBody: { alignItems: 'center', gap: 4 },
+  checklistBody: { alignItems: 'center', gap: 6 },
   checklistIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  checklistLabel: { fontSize: 13, textAlign: 'center' },
-  checklistStatus: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  reviewRow: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 8, gap: 4 },
-  loadMoreButton: { minHeight: 44, justifyContent: 'center' },
-  loadMoreText: { textAlign: 'center', fontSize: 15, fontWeight: '500' },
+  checklistLabel: { fontSize: TYPE.subhead, textAlign: 'center' },
+  checklistStatus: { fontSize: TYPE.caption, fontWeight: '700', textAlign: 'center' },
+  summaryCard: { padding: 14, gap: 6 },
+  summaryLabel: { fontSize: TYPE.subhead, fontWeight: '700' },
+  reviewRow: { paddingVertical: 12, paddingHorizontal: 14, gap: 4 },
+  reviewHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  reviewStars: { fontSize: TYPE.subhead, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  reviewMeta: { fontSize: TYPE.caption },
+  reviewComment: { fontSize: TYPE.callout, lineHeight: 21 },
+  reviewEvidence: { fontSize: TYPE.subhead },
+  reviewActions: { flexDirection: 'row', gap: 12, marginLeft: -4 },
+  reviewActionButton: { minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
+  loadMoreButton: { minHeight: MIN_TOUCH, justifyContent: 'center' },
+  loadMoreText: { textAlign: 'center', fontSize: TYPE.callout, fontWeight: '600' },
+  emptyCard: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, paddingHorizontal: 14 },
+  emptyText: { flex: 1 },
 });

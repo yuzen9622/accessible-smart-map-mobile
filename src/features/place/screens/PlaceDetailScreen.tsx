@@ -2,9 +2,10 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { ErrorState, LoadingState } from '@/shared/ui';
+import { ErrorState } from '@/shared/ui';
 
 import PlaceDetailPanel from '../components/PlaceDetailPanel';
+import PlaceDetailSkeleton from '../components/PlaceDetailSkeleton';
 import { usePlaceDetail } from '../hooks/usePlaceDetail';
 import { usePlaceUiStore } from '../store/placeUiStore';
 
@@ -31,7 +32,7 @@ export default function PlaceDetailScreen() {
     <>
       <Stack.Screen options={{ title: place?.name ?? t('placeInfoLabel') }} />
       {loading ? (
-        <LoadingState />
+        <PlaceDetailSkeleton />
       ) : error || !place ? (
         <ErrorState title={t('nativePlaceLoadError')} systemImage="exclamationmark.triangle" />
       ) : (

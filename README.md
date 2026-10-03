@@ -111,10 +111,78 @@ src/
    由於本專案包含 MapLibre Native、Audio API 與 MMKV 等 C++/原生模組，無法直接於 Expo Go 中運行，請使用 Development Build：
 
     **iOS 模擬器**：
+    ```bash
+    npx expo run:ios
+    ```
 
     **Android 模擬器**：
+    ```bash
+    npx expo run:android
+    ```
 
     **本機 Metro 伺服器**（原生建置完成後）：
+    ```bash
+    npm run start
+    ```
+
+---
+
+## 真機安裝與 OTA 更新（iOS）
+
+裝到自己的 iPhone 有兩種情境：有付費 Apple Developer Program 的帳號用 EAS Build；只有免費 Apple ID（Personal Team）時，只能在 Mac 上本機建置並以 USB 安裝。兩種都能透過 EAS Update 推送 JS 更新（OTA），不必每次重裝。
+
+### 免費 Apple ID：本機建置安裝
+
+免費帳號無法簽署推播、Sign in with Apple 與 App Groups 這三種能力。設定 `IOS_FREE_SIGNING=1` 時，`app.config.ts` 會暫時拿掉 `expo-notifications`、`expo-apple-authentication`、`expo-widgets` 三個 plugin，並由 `plugins/with-free-signing.ts` 清除相關 entitlement。因此這種 build **沒有遠端推播、Apple 登入與 Widget／Live Activity**；EAS 與正式 build 不設此變數，不受影響。
+
+1. **找出 Team ID 與裝置 UDID**：Team ID 是鑰匙圈中 Apple Development 憑證的 `OU` 欄位；UDID 由 `devicectl` 列出。
+   ```bash
+   security find-certificate -c "Apple Development" -p | openssl x509 -noout -subject
+   xcrun devicectl list devices
+   ```
+2. **以免費簽章模式產生原生專案**：
+   ```bash
+   IOS_FREE_SIGNING=1 npx expo prebuild --platform ios --clean
+   ```
+3. **建置 Release 版**（`DEVELOPMENT_TEAM` 每次 prebuild 後都會遺失，請在命令列帶入）：
+   ```bash
+   IOS_FREE_SIGNING=1 xcodebuild -workspace ios/app.xcworkspace -scheme app \
+     -configuration Release -destination 'generic/platform=iOS' \
+     -derivedDataPath ios/build/device -allowProvisioningUpdates \
+     DEVELOPMENT_TEAM=<TEAM_ID> CODE_SIGN_STYLE=Automatic
+   ```
+4. **以 USB 安裝到 iPhone**：
+   ```bash
+   xcrun devicectl device install app --device <UDID> \
+     ios/build/device/Build/Products/Release-iphoneos/app.app
+   ```
+
+> [!NOTE]
+> - 免費簽章的 App **7 天後過期**，到期需重新執行步驟 3–4。
+> - 若建置出現 provisioning profile 或帳號登入錯誤，請到 Xcode › Settings › Accounts 重新登入該 Apple ID。
+> - CocoaPods 需要 UTF-8 locale；若 shell 為 `LANG=C`，請在指令前加上 `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8`。
+
+### 付費 Apple Developer：EAS Build
+
+```bash
+npx eas-cli@latest build --profile preview --platform ios
+```
+
+`eas.json` 的 `preview` profile 會將 build 綁定到 `preview` channel。
+
+### 推送 OTA 更新（EAS Update）
+
+`app.json` 的 `updates.requestHeaders` 已將本機 build 綁定到 `preview` channel，`runtimeVersion` 採 `fingerprint` 策略。只改 JS／資源時，可直接推送：
+
+```bash
+IOS_FREE_SIGNING=1 npx eas-cli@latest update --channel preview --platform ios --message "說明這次更新"
+```
+
+- **`IOS_FREE_SIGNING=1` 必須與建置時一致**：它會改變 app config，進而改變 fingerprint；不一致時手機會判定 runtime 不相容而不套用更新。EAS Build 的 build 則不要帶這個變數。
+- **加上 `--platform ios`**：`--platform all` 會連同 web 靜態渲染一起匯出，而原生元件在 web 端會失敗。
+- **使用 `npx eas-cli@latest`**：`eas.json` 要求 eas-cli ≥ 24.0.0，舊版全域安裝會被拒絕。
+- 推送後在手機上**完全關閉 App 再開啟兩次**：第一次下載更新，第二次才會套用。
+- 新增原生套件、修改原生設定或 config plugin 會改變 fingerprint，這時 OTA 無法套用，必須重新建置安裝。發佈前可用 `npx eas-cli@latest fingerprint:compare` 確認。
 
 ---
 
@@ -143,15 +211,7 @@ src/
 - **品質驗收基準**：任何功能提交或 Pull Request 前，以下檢查項目必須全數無錯誤通過：
   1. `npm run typecheck`：零型別錯誤。
   2. `npm run lint`：零警告、零錯誤。
-  3. `npm test`：全數測試通過（87 個測試套件，712+ 測試案例）。
-
----
-
-## 相關文件
-
-- [軟體設計文件 (SDD)](./docs/SDD.md) — 系統架構、架構決策紀錄（ADR）與詳細領域設計規格
-- [開發藍圖與分期實作 (ROADMAP)](./docs/ROADMAP.md) — 移植分期進度、各階段實作項目與驗收標準
-- [移植帳本 (Port Ledger)](./docs/port-ledger.md) — 記錄 Web 版與原生行動端功能對齊狀態與移植細節
+  3. `npm test`：全數測試通過（114 個測試套件，1069 個測試案例）。
 
 ---
 

@@ -1,4 +1,5 @@
-import { AccessibilityInfo } from 'react-native';
+import { isDevice } from 'expo-device';
+import { AccessibilityInfo, Platform } from 'react-native';
 
 import {
   appendVoiceTurns,
@@ -56,11 +57,16 @@ let lastAnnounced = '';
 let toolMarks: VoiceToolMark[] = [];
 let merged = true;
 /**
- * 回音閘門（domain/echoGate.ts）：助理語音播放中不把麥克風收到的回音送回後端，否則 Gemini 會把自己的話當成
- * 使用者發言而不停重複回答。播放端回報排程時長／清空，擷取端每個 frame 先過閘門。
+ * iOS 真機用 voiceChat + 原生 voice processing 消除回音，助理播放中仍送麥克風資料以支援插話。
+ * 原生補丁在 voice processing 啟用失敗時拒絕開始錄音，不會偷偷退回未處理的收音。
+ * 模擬器的 AEC 曾實測無效，Android 尚未接入 AEC，兩者保留半雙工。此能力不隨 session 改變。
  */
 let gateForward: (frame: ArrayBuffer) => void = () => {};
-const echoGate = createEchoGate({ now: () => Date.now(), forward: (frame) => gateForward(frame) });
+const echoGate = createEchoGate({
+  now: () => Date.now(),
+  forward: (frame) => gateForward(frame),
+  echoCancellationEnabled: Platform.OS === 'ios' && isDevice,
+});
 
 function currentIdentity(): string | null {
   return useAuthStore.getState().user?._id ?? null;

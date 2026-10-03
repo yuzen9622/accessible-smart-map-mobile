@@ -9,10 +9,10 @@ function frame(amplitude: number): ArrayBuffer {
 const QUIET = frame(1200); // level ≈ 0.15：喇叭回授到麥克風的回音
 const LOUD = frame(4000); // level ≈ 0.49：使用者直接對麥克風說話
 
-function setup() {
+function setup(echoCancellationEnabled = false) {
   let now = 0;
   const forwarded: ArrayBuffer[] = [];
-  const gate = createEchoGate({ now: () => now, forward: (f) => forwarded.push(f) });
+  const gate = createEchoGate({ now: () => now, forward: (f) => forwarded.push(f), echoCancellationEnabled });
   return { gate, forwarded, advance: (ms: number) => (now += ms) };
 }
 
@@ -22,6 +22,24 @@ describe('echoGate（播放助理語音時不把回音送回後端）', () => {
     gate.push(QUIET);
     gate.push(LOUD);
     expect(forwarded).toHaveLength(2);
+  });
+
+  it('原生 AEC 啟用時，播放中第一個麥克風 frame 就放行，不靠音量猜測插話', () => {
+    const { gate, forwarded } = setup(true);
+    gate.notePlayback(5000);
+    gate.push(QUIET);
+    gate.push(LOUD);
+    expect(forwarded).toEqual([QUIET, LOUD]);
+  });
+
+  it('原生 AEC 啟用時，清掉播放後仍持續上傳，不截斷插話的前 400 ms', () => {
+    const { gate, forwarded, advance } = setup(true);
+    gate.notePlayback(5000);
+    advance(1000);
+    gate.push(LOUD);
+    gate.clear();
+    gate.push(QUIET);
+    expect(forwarded).toEqual([LOUD, QUIET]);
   });
 
   it('播放中（含尾音）擋掉回音，播完後恢復', () => {

@@ -1,4 +1,5 @@
 import type { PriorTurn } from '@/features/ai/domain';
+import { createEchoGate } from '../echoGate';
 import {
   type VoiceCapture,
   type VoiceNavigationResumeState,
@@ -419,6 +420,42 @@ describe('VoiceSessionController', () => {
     h.sockets[0].triggerMessage(JSON.stringify({ type: 'interrupted' }));
     expect(h.playback.clear).toHaveBeenCalled();
     expect(h.controller.getStatus().status).toBe('listening');
+  });
+
+  it('AEC uplink reaches the server during playback, interruption clears audio, and mute/end still block mic', async () => {
+    const h = createHarness();
+    h.controller.start();
+    await bringToListening(h);
+    const gate = createEchoGate({
+      now: Date.now,
+      forward: h.captureCalls[0].onFrame,
+      echoCancellationEnabled: true,
+    });
+    h.playback.play.mockImplementation(() => gate.notePlayback(5000));
+    h.playback.clear.mockImplementation(() => gate.clear());
+
+    h.sockets[0].triggerMessage(new ArrayBuffer(24000));
+    expect(h.controller.getStatus().status).toBe('model-speaking');
+    const firstWord = new ArrayBuffer(3200);
+    gate.push(firstWord);
+    expect(h.sockets[0].sent.at(-1)).toBe(firstWord);
+
+    h.playback.clear.mockClear();
+    h.sockets[0].triggerMessage(JSON.stringify({ type: 'interrupted' }));
+    expect(h.playback.clear).toHaveBeenCalledTimes(1);
+    expect(h.onInterrupted).toHaveBeenCalledTimes(1);
+    expect(h.controller.getStatus().status).toBe('listening');
+    const restOfUtterance = new ArrayBuffer(3200);
+    gate.push(restOfUtterance); // Same instant: no echo-tail delay after interruption.
+    expect(h.sockets[0].sent.at(-1)).toBe(restOfUtterance);
+
+    h.controller.setMuted(true);
+    gate.push(new ArrayBuffer(3200));
+    expect(h.sockets[0].sent.filter((message) => message instanceof ArrayBuffer)).toEqual([firstWord, restOfUtterance]);
+    h.controller.setMuted(false);
+    h.controller.end();
+    gate.push(new ArrayBuffer(3200));
+    expect(h.sockets[0].sent.filter((message) => message instanceof ArrayBuffer)).toEqual([firstWord, restOfUtterance]);
   });
 
   it('a burst of downlink audio chunks publishes model-speaking once, not once per chunk', async () => {

@@ -212,7 +212,10 @@
       "policy": "fingerprint"
     },
     "updates": {
-      "url": "https://u.expo.dev/bb9d1d34-20a9-4b56-9da0-07ebca78c153"
+      "url": "https://u.expo.dev/bb9d1d34-20a9-4b56-9da0-07ebca78c153",
+      "requestHeaders": {
+        "expo-channel-name": "preview"
+      }
     }
   }
 }

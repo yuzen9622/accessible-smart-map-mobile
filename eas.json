@@ -17,7 +17,10 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
-      "environment": "preview"
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_END_POINT": "https://map.yuzen.dev"
+      }
     },
     "production": {
       "autoIncrement": true,

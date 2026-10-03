@@ -116,9 +116,19 @@ export function floatLevel(samples: Float32Array): number {
  * 聆聽時跟麥克風；靜音（上下行都停）或其他狀態一律 0。
  */
 export function waveformLevel(statusName: VoiceStatusName, micLevel: number, modelLevel: number, muted: boolean): number {
-  if (muted) return 0;
-  const level = statusName === 'model-speaking' ? modelLevel : statusName === 'listening' ? micLevel : 0;
+  const source = waveformLevelSource(statusName, muted);
+  const level = source === 'model' ? modelLevel : source === 'mic' ? micLevel : 0;
   return Number.isFinite(level) ? clamp(level, 0, 1) : 0;
+}
+
+/** 音波該讀哪一路音量（`waveformLevel` 的選路部分）；UI 用它挑 SharedValue，音量本身不經過 React。 */
+export type WaveformLevelSource = 'mic' | 'model' | null;
+
+export function waveformLevelSource(statusName: VoiceStatusName, muted: boolean): WaveformLevelSource {
+  if (muted) return null;
+  if (statusName === 'model-speaking') return 'model';
+  if (statusName === 'listening') return 'mic';
+  return null;
 }
 
 /** 音波的動態模式：`live` 跟音量跳動、`idle` 連線中的低幅度起伏、`flat` 靜止成一條線。 */

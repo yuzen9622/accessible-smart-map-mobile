@@ -4,6 +4,7 @@ import Animated, {
   Easing,
   cancelAnimation,
   interpolateColor,
+  useAnimatedReaction,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -16,8 +17,11 @@ import Animated, {
 import type { WaveformMode } from '../domain/audioLevel';
 
 export interface VoiceWaveformProps {
-  /** 驅動音波的音量 [0, 1]（`waveformLevel`：聆聽時是麥克風、AI 說話時是播放）。 */
-  level: number;
+  /**
+   * 驅動音波的音量 [0, 1]（`voiceLevelFor(waveformLevelSource(...))`：聆聽時是麥克風、AI 說話時是播放；
+   * `null` 視為 0）。用 SharedValue 在 UI thread 直接讀，音量變化不觸發 React 重繪。
+   */
+  level: SharedValue<number> | null;
   mode: WaveformMode;
   /** 中央直條的顏色；兩側漸淡成 `edgeColor`。 */
   color: string;
@@ -37,6 +41,7 @@ const TAU = Math.PI * 2;
 const IDLE_AMPLITUDE = 0.14;
 /** live 但沒聲音時保留一點起伏，讓人知道還在聽。 */
 const LIVE_FLOOR = 0.05;
+const AMPLITUDE_SPRING = { damping: 16, stiffness: 220, mass: 0.6 } as const;
 
 /**
  * 上下對稱的圓角直條音波。幅度跟著真實音量（spring 平滑），每根直條再疊兩個不同頻率、錯開相位的正弦，
@@ -58,10 +63,18 @@ export default function VoiceWaveform({
   const clock = useSharedValue(0);
   const amplitude = useSharedValue(0);
 
-  useEffect(() => {
-    const target = mode === 'flat' ? 0 : mode === 'idle' ? IDLE_AMPLITUDE : Math.max(level, LIVE_FLOOR);
-    amplitude.set(reduceMotion ? target : withSpring(target, { damping: 16, stiffness: 220, mass: 0.6 }));
-  }, [amplitude, level, mode, reduceMotion]);
+  useAnimatedReaction(
+    () => {
+      const raw = level ? level.value : 0;
+      const current = Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 0;
+      return mode === 'flat' ? 0 : mode === 'idle' ? IDLE_AMPLITUDE : Math.max(current, LIVE_FLOOR);
+    },
+    (target, previous) => {
+      if (target === previous) return;
+      amplitude.set(reduceMotion ? target : withSpring(target, AMPLITUDE_SPRING));
+    },
+    [level, mode, reduceMotion],
+  );
 
   useEffect(() => {
     if (reduceMotion || mode === 'flat') {

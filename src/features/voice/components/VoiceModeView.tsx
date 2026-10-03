@@ -18,8 +18,9 @@ import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scal
 import { Icon, type IconName } from '@/shared/ui';
 
 import { dismissVoiceSession, endVoiceSession, resumeVoicePlayback, toggleVoiceMute } from '../controller/voiceController';
-import { waveformLevel, waveformMode } from '../domain/audioLevel';
+import { waveformLevelSource, waveformMode } from '../domain/audioLevel';
 import { getVoiceStatusLabel, isTerminalVoiceStatus } from '../domain/voiceStatus';
+import { voiceLevelFor } from '../store/voiceLevels';
 import { useVoiceStore, type VoiceLaunchOrigin } from '../store/voiceStore';
 import VoiceWaveform from './VoiceWaveform';
 
@@ -104,8 +105,6 @@ export default function VoiceModeView() {
   const status = useVoiceStore((s) => s.status);
   const transcripts = useVoiceStore((s) => s.transcripts);
   const activeTool = useVoiceStore((s) => s.activeTool);
-  const micLevel = useVoiceStore((s) => s.micLevel);
-  const modelLevel = useVoiceStore((s) => s.modelLevel);
   const isMuted = useVoiceStore((s) => s.isMuted);
   const scrollRef = useRef<ScrollView>(null);
   const rootRef = useRef<View>(null);
@@ -122,7 +121,7 @@ export default function VoiceModeView() {
 
   const terminal = isTerminalVoiceStatus(status.status) || status.status === 'ended';
   const statusLabel = getVoiceStatusLabel(status, t);
-  const level = waveformLevel(status.status, micLevel, modelLevel, isMuted);
+  const level = voiceLevelFor(waveformLevelSource(status.status, isMuted));
   const mode = waveformMode(status.status, isMuted);
   const latestModelId = [...transcripts].reverse().find((entry) => entry.role === 'model')?.id;
   const hint =

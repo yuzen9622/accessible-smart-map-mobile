@@ -42,7 +42,7 @@ export interface BindingSinks {
   publishStatus(status: VoiceStatus): void;
   /** Bind to the hook's `setActiveTool`. */
   publishTool(event: VoiceToolEvent): void;
-  /** Bind to `useVoiceStore.getState().setMicLevel`. */
+  /** Bind to `voiceLevels.mic`（store/voiceLevels.ts，SharedValue，不經過 React）. */
   setMicLevel(level: number): void;
   /** 執行同步 UI action（原生：`features/ai/controller/actionExecutor` 的 executeAction）。 */
   executeAction(action: UIAction): void;

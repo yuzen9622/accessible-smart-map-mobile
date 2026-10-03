@@ -1,4 +1,4 @@
-import { GAIN, floatLevel, waveformLevel, waveformMode } from '../audioLevel';
+import { GAIN, floatLevel, waveformLevel, waveformLevelSource, waveformMode } from '../audioLevel';
 import type { VoiceStatusName } from '../voiceSession';
 
 describe('floatLevel', () => {
@@ -15,6 +15,15 @@ describe('floatLevel', () => {
   it('滿振幅 clamp 到 1、非有限值當 0', () => {
     expect(floatLevel(new Float32Array([1, -1, 1, -1]))).toBe(1);
     expect(floatLevel(new Float32Array([Number.NaN, Number.POSITIVE_INFINITY]))).toBe(0);
+  });
+});
+
+describe('waveformLevelSource', () => {
+  it('AI 說話讀播放、聆聽讀麥克風、靜音或其他狀態不讀', () => {
+    expect(waveformLevelSource('model-speaking', false)).toBe('model');
+    expect(waveformLevelSource('listening', false)).toBe('mic');
+    expect(waveformLevelSource('listening', true)).toBeNull();
+    expect(waveformLevelSource('connecting', false)).toBeNull();
   });
 });
 

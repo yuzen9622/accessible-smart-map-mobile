@@ -44,8 +44,8 @@ describe('voiceViewState', () => {
   });
 
   it('case 14g: a session boundary (start/end) leaves the state unmuted and keeps the rest', () => {
-    const next = reduceSessionBoundary({ ...muted, micLevel: 0.4, viewMode: 'pill' });
-    expect(next).toEqual({ ...initialVoiceViewState, micLevel: 0.4, viewMode: 'pill', isMuted: false });
+    const next = reduceSessionBoundary({ ...muted, status: { status: 'listening' }, viewMode: 'pill' });
+    expect(next).toEqual({ ...initialVoiceViewState, status: { status: 'listening' }, viewMode: 'pill', isMuted: false });
   });
 
   it('reducers do not mutate their input', () => {

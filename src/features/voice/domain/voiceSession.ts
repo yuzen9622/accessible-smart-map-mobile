@@ -724,10 +724,9 @@ export class VoiceSessionController {
       // Downlink audio: never JSON-parsed, forwarded to playback in
       // arrival order (§5.9).
       this.playback?.play(data);
-      if (
-        this.status.status === 'listening' ||
-        this.status.status === 'model-speaking'
-      ) {
+      // 只在 listening → model-speaking 的轉折發一次：回覆時 chunk 會比即時播放更快湧進來，
+      // 每個 chunk 都 setStatus 會讓 store 與語音畫面每秒重繪數十次，把 JS thread 塞爆。
+      if (this.status.status === 'listening') {
         this.setStatus({ status: 'model-speaking' });
       }
       return;

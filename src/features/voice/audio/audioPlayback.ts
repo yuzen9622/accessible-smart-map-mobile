@@ -12,6 +12,8 @@ const PLAYBACK_RATE = 24000;
 const METER_INTERVAL_MS = 33;
 /** 音量變化小於這個值就不回報，避免靜音尾巴每 33ms 寫一次 store。 */
 const METER_EPSILON = 0.01;
+/** 連續這麼多次取樣都是靜音（約 2 秒，避開句間停頓）就停掉取樣；下一段音訊排進來時再開。 */
+const METER_IDLE_TICKS = 60;
 
 /**
  * `VoicePlayback` 原生實作（取代 Web `lib/voice/audioPlayback.ts`）：`AudioBufferQueueSourceNode` 依序無縫排隊。
@@ -51,13 +53,19 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
   const startMeter = (node: AnalyserNode) => {
     if (meter || !observer.onLevel) return;
     const samples = new Float32Array(node.fftSize);
+    let silentTicks = 0;
     meter = setInterval(() => {
+      let level = 0;
       try {
         node.getFloatTimeDomainData(samples);
-        reportLevel(floatLevel(samples));
+        level = floatLevel(samples);
       } catch {
-        reportLevel(0);
+        level = 0;
       }
+      reportLevel(level);
+      // 佇列播完後輸出一直是靜音；不停掉的話整段對話都會每 33ms 在 JS thread 取樣一次
+      silentTicks = level < METER_EPSILON ? silentTicks + 1 : 0;
+      if (silentTicks >= METER_IDLE_TICKS) stopMeter();
     }, METER_INTERVAL_MS);
   };
 
@@ -107,6 +115,7 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
         const buffer = ctx.createBuffer(1, samples.length, PLAYBACK_RATE);
         buffer.copyToChannel(samples, 0);
         node.enqueueBuffer(buffer);
+        if (analyser) startMeter(analyser);
         observer.onScheduled?.((samples.length / PLAYBACK_RATE) * 1000);
       } catch (error) {
         logger.warn('[voice] play frame failed', error);

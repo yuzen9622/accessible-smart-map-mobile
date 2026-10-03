@@ -23,6 +23,7 @@ import { createVoiceBindings, type VoiceBindings } from '../domain/voiceSessionB
 import { VoiceSessionController, type VoiceStatus } from '../domain/voiceSession';
 import { getVoiceStatusLabel } from '../domain/voiceStatus';
 import { reduceSessionBoundary, reduceStatus, reduceToggleMute } from '../domain/voiceViewState';
+import { voiceLevels } from '../store/voiceLevels';
 import { useVoiceStore } from '../store/voiceStore';
 import { createVoiceSocket, voiceWsUrl } from '../transport/voiceSocket';
 import {
@@ -110,7 +111,7 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
       if (mark) toolMarks.push(mark);
       useVoiceStore.setState({ activeTool: event });
     },
-    setMicLevel: (level) => useVoiceStore.setState({ micLevel: level }),
+    setMicLevel: (level) => voiceLevels.mic.set(level),
     executeAction,
     computeRoute: async (origin, destination) => {
       const result = await computeRouteAction(origin, destination);
@@ -145,7 +146,7 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
       createPlayback({
         onScheduled: (ms) => echoGate.notePlayback(ms),
         onCleared: () => echoGate.clear(),
-        onLevel: (level) => useVoiceStore.setState({ modelLevel: level }),
+        onLevel: (level) => voiceLevels.model.set(level),
       }),
     onStatusChange: b.onStatusChange,
     onTranscript: b.onTranscript,

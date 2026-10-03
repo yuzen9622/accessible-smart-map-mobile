@@ -421,6 +421,18 @@ describe('VoiceSessionController', () => {
     expect(h.controller.getStatus().status).toBe('listening');
   });
 
+  it('a burst of downlink audio chunks publishes model-speaking once, not once per chunk', async () => {
+    const h = createHarness();
+    h.controller.start();
+    await bringToListening(h);
+    h.onStatusChange.mockClear();
+
+    for (let i = 0; i < 50; i += 1) h.sockets[0].triggerMessage(new ArrayBuffer(4));
+
+    expect(h.playback.play).toHaveBeenCalledTimes(50);
+    expect(h.onStatusChange.mock.calls).toEqual([[{ status: 'model-speaking' }]]);
+  });
+
   it('case 10: any close immediately stops capture and clears playback', async () => {
     const h = createHarness();
     h.controller.start();

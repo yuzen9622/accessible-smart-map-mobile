@@ -7,8 +7,9 @@ import { TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/th
 import { GlassCard, Icon } from '@/shared/ui';
 
 import { dismissVoiceSession, endVoiceSession } from '../controller/voiceController';
-import { waveformLevel, waveformMode } from '../domain/audioLevel';
+import { waveformLevelSource, waveformMode } from '../domain/audioLevel';
 import { getVoiceStatusLabel, isTerminalVoiceStatus, shouldShowVoicePill } from '../domain/voiceStatus';
+import { voiceLevelFor } from '../store/voiceLevels';
 import { useVoiceStore } from '../store/voiceStore';
 import VoiceWaveform from './VoiceWaveform';
 
@@ -23,8 +24,6 @@ export default function VoiceFloatingIndicator() {
   const fontScale = useFontScale();
   const pathname = usePathname();
   const status = useVoiceStore((s) => s.status);
-  const micLevel = useVoiceStore((s) => s.micLevel);
-  const modelLevel = useVoiceStore((s) => s.modelLevel);
   const isMuted = useVoiceStore((s) => s.isMuted);
   const viewMode = useVoiceStore((s) => s.viewMode);
   const setViewMode = useVoiceStore((s) => s.setViewMode);
@@ -48,7 +47,7 @@ export default function VoiceFloatingIndicator() {
           onPress={expand}
           style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
           <VoiceWaveform
-            level={waveformLevel(status.status, micLevel, modelLevel, isMuted)}
+            level={voiceLevelFor(waveformLevelSource(status.status, isMuted))}
             mode={terminal ? 'flat' : waveformMode(status.status, isMuted)}
             color={terminal ? tones.neutral.fg : tones.accent}
             edgeColor={terminal ? tones.neutral.fg : tones.accent}

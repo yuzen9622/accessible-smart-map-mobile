@@ -42,7 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   }
   return {
     ...config,
-    name: config.name ?? '臺北無障礙導航',
+    name: config.name ?? '無障礙智慧地圖',
     slug: config.slug ?? 'accessible-smart-map-mobile',
     plugins,
     ios: freeSigning ? { ...config.ios, usesAppleSignIn: false } : config.ios,

@@ -172,10 +172,15 @@ npx eas-cli@latest build --profile preview --platform ios
 
 ### 推送 OTA 更新（EAS Update）
 
-`app.json` 的 `updates.requestHeaders` 已將本機 build 綁定到 `preview` channel，`runtimeVersion` 採 `fingerprint` 策略。只改 JS／資源時，可直接推送：
+`app.json` 的 `updates.requestHeaders` 已將本機 build 綁定到 `preview` channel，`runtimeVersion` 採 `fingerprint` 策略。SDK 57 發布必須指定 `--environment preview`；此時使用 EAS 雲端變數，**不讀本機 `.env`／`.env.local`，也不套用 `eas.json` build profile 的 `env`**。
+
+先在專案的 EAS `preview` environment 設定 `EXPO_PUBLIC_END_POINT` 與 `EXPO_PUBLIC_SHARE_BASE_URL`（目前皆為 `https://map.yuzen.dev`），並確認 Google 登入的兩個 client ID 已存在。隱私權政策與服務條款網址是選填，未設定時不顯示入口。不得只以 export 成功判定設定完整。
+
+只改 JS／資源時，先用雲端變數執行 App 的設定驗證，通過後才發布（檢查腳本使用 Node 的 TypeScript type stripping，需 Node 22.18+）：
 
 ```bash
-IOS_FREE_SIGNING=1 npx eas-cli@latest update --channel preview --platform ios --message "說明這次更新"
+npx eas-cli@latest env:exec preview 'node --experimental-strip-types scripts/check-update-env.mjs' --non-interactive && \
+IOS_FREE_SIGNING=1 npx eas-cli@latest update --channel preview --environment preview --platform ios --message "說明這次更新"
 ```
 
 - **`IOS_FREE_SIGNING=1` 必須與建置時一致**：它會改變 app config，進而改變 fingerprint；不一致時手機會判定 runtime 不相容而不套用更新。EAS Build 的 build 則不要帶這個變數。

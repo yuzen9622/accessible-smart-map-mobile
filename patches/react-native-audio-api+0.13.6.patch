@@ -1,39 +1,364 @@
+diff --git a/node_modules/react-native-audio-api/ios/audioapi/ios/system/AudioEngine.h b/node_modules/react-native-audio-api/ios/audioapi/ios/system/AudioEngine.h
+--- a/node_modules/react-native-audio-api/ios/audioapi/ios/system/AudioEngine.h
++++ b/node_modules/react-native-audio-api/ios/audioapi/ios/system/AudioEngine.h
+@@ -52,8 +52,9 @@
+
+ - (void)stopIfPossible;
+
+ - (void)restartAudioEngine;
++- (void)handleConfigurationChangeIfCurrent:(BOOL (^)(AVAudioEngine *))matchesEngine;
+
+ - (void)logAudioEngineState;
+
+ @end
 diff --git a/node_modules/react-native-audio-api/ios/audioapi/ios/system/AudioEngine.mm b/node_modules/react-native-audio-api/ios/audioapi/ios/system/AudioEngine.mm
-index d0e77d8..dde9788 100644
 --- a/node_modules/react-native-audio-api/ios/audioapi/ios/system/AudioEngine.mm
 +++ b/node_modules/react-native-audio-api/ios/audioapi/ios/system/AudioEngine.mm
-@@ -219,6 +219,34 @@ static AudioEngine *_sharedInstance = nil;
+@@ -37,14 +37,16 @@
+ - (void)destroyAudioEnginePreservingSessionDeactivationState:(BOOL)preserveSessionDeactivationState;
+ - (BOOL)hasTrackedGraph;
+ - (AVAudioFormat *)currentInputConnectionFormat;
+ - (void)materializeSourceNodeWithId:(NSString *)sourceNodeId;
++- (BOOL)prepareInputForMaterialization;
+ - (BOOL)materializeInputNodeIfNeeded;
+-- (void)materializeTrackedNodesIfNeeded;
++- (BOOL)materializeTrackedNodesIfNeeded;
+
+ - (AVAudioFormat *)liveInputFormat;
+ - (void)resetInputNode;
+-- (void)rebuildAudioEngineAndResumeIfNeeded;
++- (BOOL)rebuildAudioEngine;
++- (BOOL)rebuildAudioEngineAndResumeIfNeeded;
+ - (void)notifyConfigurationChanges;
+
+ @end
+
+@@ -196,20 +198,16 @@
+
+   return inputFormat;
+ }
+
+-- (BOOL)materializeInputNodeIfNeeded
+-{
+-  if (self.inputRegistration == nil) {
++- (BOOL)prepareInputForMaterialization
++{
++  if (self.inputRegistration == nil || self.inputNode != nil) {
+     return YES;
+   }
+
+   if (self.audioEngine == nil) {
+     return NO;
+-  }
+-
+-  if (self.inputNode != nil) {
+-    return YES;
+   }
+
+   NSError *sessionError = nil;
+   if (![self.sessionManager ensureActive:true error:&sessionError]) {
+@@ -218,8 +216,37 @@
+         [sessionError debugDescription]);
      return NO;
    }
- 
-+  // accessible-smart-map patch: enable system acoustic echo cancellation for voice chat.
-+  // Capture and playback share this engine, but voice processing was never turned on, so the
-+  // assistant's own speech leaked back into the microphone and the model kept answering itself.
-+  // Only applies when the app configured the session as voiceChat; other users are unaffected.
+
++  // Voice processing changes both hardware I/O formats. Configure it before connecting
++  // any input or output nodes, including on replacement engines after a route change.
 +  if (@available(iOS 13.0, *)) {
 +    AVAudioInputNode *engineInputNode = self.audioEngine.inputNode;
 +    if (engineInputNode != nil && !engineInputNode.isVoiceProcessingEnabled &&
 +        [[AVAudioSession sharedInstance].mode isEqualToString:AVAudioSessionModeVoiceChat]) {
-+      BOOL wasRunning = [self.audioEngine isRunning];
-+      if (wasRunning) {
++      if ([self.audioEngine isRunning]) {
 +        [self.audioEngine stop];
 +      }
 +      NSError *voiceProcessingError = nil;
 +      if (![engineInputNode setVoiceProcessingEnabled:YES error:&voiceProcessingError]) {
 +        NSLog(@"Error while enabling voice processing: %@", [voiceProcessingError debugDescription]);
-+      }
-+      if (wasRunning) {
-+        [self.audioEngine prepare];
-+        NSError *restartError = nil;
-+        [self.audioEngine startAndReturnError:&restartError];
-+        if (restartError != nil) {
-+          NSLog(@"Error while restarting the audio engine after voice processing: %@",
-+              [restartError debugDescription]);
-+        }
++        return NO;
 +      }
 +    }
 +  }
 +
++  return YES;
++}
++
++- (BOOL)materializeInputNodeIfNeeded
++{
++  if (self.inputRegistration == nil || self.inputNode != nil) {
++    return YES;
++  }
++  if (![self prepareInputForMaterialization]) {
++    return NO;
++  }
++
    AVAudioFormat *inputFormat = [self currentInputConnectionFormat];
- 
+
    if (inputFormat == nil) {
+     return NO;
+@@ -231,17 +258,20 @@
+   [self.audioEngine connect:self.audioEngine.inputNode to:self.inputNode format:inputFormat];
+   return YES;
+ }
+
+-- (void)materializeTrackedNodesIfNeeded
+-{
++- (BOOL)materializeTrackedNodesIfNeeded
++{
++  if (![self prepareInputForMaterialization]) {
++    return NO;
++  }
+   NSArray<NSString *> *sourceNodeIds =
+       [[self.sourceRegistrations allKeys] sortedArrayUsingSelector:@selector(compare:)];
+   for (NSString *sourceNodeId in sourceNodeIds) {
+     [self materializeSourceNodeWithId:sourceNodeId];
+   }
+
+-  [self materializeInputNodeIfNeeded];
++  return [self materializeInputNodeIfNeeded];
+ }
+
+ - (NSString *)attachSourceNodeWithRenderBlock:(AVAudioSourceNodeRenderBlock)renderBlock
+                                    sampleRate:(float)sampleRate
+@@ -256,9 +286,13 @@
+   registration.sampleRate = sampleRate;
+   registration.channelCount = channelCount;
+
+   self.sourceRegistrations[sourceNodeId] = registration;
+-  [self materializeSourceNodeWithId:sourceNodeId];
++  // An input that is waiting for activation or a rebuild must establish the I/O
++  // formats first. startIfNecessary will materialize both registrations in order.
++  if (self.inputRegistration == nil || self.inputNode != nil) {
++    [self materializeSourceNodeWithId:sourceNodeId];
++  }
+
+   return sourceNodeId;
+ }
+
+@@ -299,8 +333,16 @@
+   registration.receiverBlock = receiverBlock;
+   registration.onInputConfigurationChange = onInputConfigurationChange;
+   self.inputRegistration = registration;
+
++  // A recorder can be attached after playback has already built its graph. Rebuild
++  // that graph so voice processing is configured before its output connections too.
++  if ([self.sourceNodes count] > 0 &&
++      [[AVAudioSession sharedInstance].mode isEqualToString:AVAudioSessionModeVoiceChat]) {
++    self.graphNeedsRebuild = true;
++    return;
++  }
++
+   [self materializeInputNodeIfNeeded];
+ }
+
+ - (void)resetInputNode
+@@ -385,9 +427,13 @@
+     return;
+   }
+
+   [self stopEngine];
+-  [self rebuildAudioEngine];
++  if (![self rebuildAudioEngine]) {
++    self.state = AudioEngineState::AudioEngineStatePaused;
++    [self notifyConfigurationChanges];
++    return;
++  }
+
+   if (!shouldResume) {
+     self.state = AudioEngineState::AudioEngineStatePaused;
+     [self notifyConfigurationChanges];
+@@ -429,39 +475,49 @@
+   std::scoped_lock lock(_engineLock);
+   return self.audioEngine != nil && [self.audioEngine isRunning];
+ }
+
+-- (void)rebuildAudioEngineAndResumeIfNeeded
++- (BOOL)rebuildAudioEngineAndResumeIfNeeded
+ {
+   if (_isRebuildingAudioEngine) {
+-    return;
++    return YES;
+   }
+
+   _isRebuildingAudioEngine = YES;
+
+   if ([self.audioEngine isRunning]) {
+     [self.audioEngine stop];
+   }
+
+-  [self rebuildAudioEngine];
++  if (![self rebuildAudioEngine]) {
++    _isRebuildingAudioEngine = NO;
++    return NO;
++  }
+   self.sessionDeactivationInvalidatedGraph = false;
+
+   if (self.state == AudioEngineState::AudioEngineStateRunning) {
+-    [self startEngine];
++    if (![self startEngine]) {
++      _isRebuildingAudioEngine = NO;
++      return NO;
++    }
+   }
+
+   [self notifyConfigurationChanges];
+
+   _isRebuildingAudioEngine = NO;
+-}
+-
+-- (void)rebuildAudioEngine
++  return YES;
++}
++
++- (BOOL)rebuildAudioEngine
+ {
+   [self destroyAudioEnginePreservingSessionDeactivationState:YES];
+   [self createAudioEngineIfNeeded];
+
+-  [self materializeTrackedNodesIfNeeded];
++  if (![self materializeTrackedNodesIfNeeded]) {
++    return NO;
++  }
+   self.graphNeedsRebuild = false;
++  return YES;
+ }
+
+ - (bool)startEngine
+ {
+@@ -480,11 +536,15 @@
+   }
+
+   if (self.state == AudioEngineState::AudioEngineStateInterrupted || self.graphNeedsRebuild ||
+       self.sessionDeactivationInvalidatedGraph) {
+-    [self rebuildAudioEngineAndResumeIfNeeded];
++    if (![self rebuildAudioEngineAndResumeIfNeeded]) {
++      return false;
++    }
+   } else {
+-    [self materializeTrackedNodesIfNeeded];
++    if (![self materializeTrackedNodesIfNeeded]) {
++      return false;
++    }
+   }
+
+   if (self.inputRegistration != nil && self.inputNode == nil) {
+     NSLog(@"Error while materializing the audio input node: missing live input format");
+@@ -521,10 +581,14 @@
+ {
+   std::scoped_lock lock(_engineLock);
+   if (self.state == AudioEngineState::AudioEngineStateRunning && self.audioEngine != nil &&
+       [self.audioEngine isRunning]) {
+-    [self materializeTrackedNodesIfNeeded];
+-    return true;
++    if (!self.graphNeedsRebuild && !self.sessionDeactivationInvalidatedGraph &&
++        (self.inputRegistration == nil || self.inputNode != nil)) {
++      return true;
++    }
++    [self.audioEngine stop];
++    self.state = AudioEngineState::AudioEngineStateIdle;
+   }
+
+   if ([self hasTrackedGraph]) {
+     return [self startEngine];
+@@ -570,9 +634,57 @@
+
+ - (void)restartAudioEngine
+ {
+   std::scoped_lock lock(_engineLock);
+-  [self rebuildAudioEngineAndResumeIfNeeded];
++  if (![self rebuildAudioEngineAndResumeIfNeeded]) {
++    self.state = AudioEngineState::AudioEngineStatePaused;
++    [self notifyConfigurationChanges];
++  }
++}
++
++- (void)handleConfigurationChangeIfCurrent:(BOOL (^)(AVAudioEngine *))matchesEngine
++{
++  // Called after hopping off AVAudioEngine's internal notification queue. Taking
++  // this lock on that queue can deadlock against AVAudioEngine deallocation.
++  std::scoped_lock lock(_engineLock);
++  // The predicate reads a weak notification sender while we hold the engine lock.
++  // Release temporary references before doing any graph recovery.
++  BOOL matchesCurrentEngine;
++  @autoreleasepool {
++    matchesCurrentEngine = matchesEngine(self.audioEngine);
++  }
++  if (!matchesCurrentEngine || ![self hasTrackedGraph] ||
++      [self.audioEngine isRunning]) {
++    return;
++  }
++
++  // A real I/O configuration change stops the current engine. A delayed notification
++  // from our own voice-processing setup, a replaced engine, or another audio library
++  // must not tear down a graph that is already running successfully.
++  [self.sessionManager markInactive];
++  // AVAudioEngineConfigurationChange leaves nodes connected with old hardware
++  // formats. Reconnect registrations on this engine, preserving VoiceProcessingIO:
++  // replacing that unit can itself trigger another hardware change and a loop.
++  // The implicit mainMixer -> output connection tracks hardware format on restart.
++  BOOL shouldResume = self.state == AudioEngineState::AudioEngineStateRunning;
++  [self.audioEngine stop];
++  for (AVAudioSourceNode *sourceNode in [self.sourceNodes allValues]) {
++    [self.audioEngine detachNode:sourceNode];
++  }
++  if (self.inputNode != nil) {
++    [self.audioEngine detachNode:self.inputNode];
++  }
++  [self.audioEngine reset];
++  self.sourceNodes = [[NSMutableDictionary alloc] init];
++  self.sourceFormats = [[NSMutableDictionary alloc] init];
++  self.inputNode = nil;
++  self.graphNeedsRebuild = false;
++  self.sessionDeactivationInvalidatedGraph = false;
++
++  if (![self materializeTrackedNodesIfNeeded] || (shouldResume && ![self startEngine])) {
++    self.state = AudioEngineState::AudioEngineStatePaused;
++  }
++  [self notifyConfigurationChanges];
+ }
+
+ - (void)logAudioEngineState
+ {
+diff --git a/node_modules/react-native-audio-api/ios/audioapi/ios/system/SystemNotificationManager.mm b/node_modules/react-native-audio-api/ios/audioapi/ios/system/SystemNotificationManager.mm
+--- a/node_modules/react-native-audio-api/ios/audioapi/ios/system/SystemNotificationManager.mm
++++ b/node_modules/react-native-audio-api/ios/audioapi/ios/system/SystemNotificationManager.mm
+@@ -216,8 +216,10 @@
+       reasonStr = @"Unknown";
+       break;
+   }
+
++  NSLog(@"[NotificationManager] Audio route changed: %@", reasonStr);
++
+   [self.audioAPIModule
+       invokeHandlerWithEventName:audioapi::AudioEvent::ROUTE_CHANGE
+                          payload:audioapi::StringPayload{
+                                      .name = "reason", .reason = [reasonStr UTF8String]}];
+@@ -249,13 +251,26 @@
+
+ - (void)handleEngineConfigurationChange:(NSNotification *)notification
+ {
+   AudioEngine *audioEngine = self.audioAPIModule.audioEngine;
+-  AudioSessionManager *sessionManager = self.audioAPIModule.audioSessionManager;
++  BOOL isEngineNotification = notification != nil;
++  // NSNotification retains its engine. A queued event must not keep an old
++  // VoiceProcessingIO unit alive across a route or media-services rebuild.
++  __weak AVAudioEngine *changedEngine = notification.object;
+
+   dispatch_async(dispatch_get_main_queue(), ^{
+-    [sessionManager markInactive];
+-    [audioEngine restartAudioEngine];
++    if (isEngineNotification) {
++      [audioEngine handleConfigurationChangeIfCurrent:^BOOL(AVAudioEngine *currentEngine) {
++        return changedEngine != nil && changedEngine == currentEngine;
++      }];
++      return;
++    }
++    // A route event can follow session setup after I/O is already healthy. A
++    // hardware format change stops the engine; recover that graph in place and
++    // avoid replacing a running VoiceProcessingIO unit for a delayed event.
++    [audioEngine handleConfigurationChangeIfCurrent:^BOOL(AVAudioEngine *currentEngine) {
++      return currentEngine != nil;
++    }];
+   });
+ }
+
+ - (void)startPollingSecondaryAudioHint

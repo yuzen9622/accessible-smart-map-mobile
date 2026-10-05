@@ -2,6 +2,7 @@ import type { BusLeg } from '@/features/route';
 import { createPoller, type VisibilitySource } from '@/shared/polling';
 
 import { fetchRouteDetailCached, peekRouteDetail } from '../api/busRouteDetailCache';
+import { stripLiveEta } from '../domain/busDirections';
 import type { LiveBus, RouteDetailDirection } from '../types/transit';
 import { fetchLeg, tdxRouteName } from './liveBusTracker';
 
@@ -16,7 +17,7 @@ export const STOP_ETA_POLL_MS = 20_000;
 
 /**
  * 每 15 秒更新使用者要搭的那一台車。每一輪都透過 `getLeg` 重讀目前的 leg（Web 的 legRef）；
- * leg 已不存在就停止回報。暫時性錯誤保留上一次的好位置（不清空）。回傳停止函式；停止時 abort 進行中的請求。
+ * leg 已不存在就停止回報。查詢失敗回報空陣列：不沿用上一輪的車牌與位置冒充本輪成功。回傳停止函式；停止時 abort 進行中的請求。
  */
 export function watchLiveBus(
   getLeg: () => BusLeg | null,
@@ -29,7 +30,12 @@ export function watchLiveBus(
     task: async ({ signal }) => {
       const leg = getLeg();
       if (!leg) return;
-      const buses = await fetchLeg(leg, signal);
+      let buses: LiveBus[];
+      try {
+        buses = await fetchLeg(leg, signal);
+      } catch {
+        buses = [];
+      }
       if (!signal.aborted) onBuses(buses);
     },
   });
@@ -88,8 +94,9 @@ export function watchLegStopEtas(
     // 回前景的那一輪會 abort 進行中的那一輪；被取代的結果不得晚到蓋掉較新的。
     if (cancelled || signal?.aborted) return;
     if (fetched) last = fetched;
-    // 失敗時保留畫面上最後一份資料，只把狀態標成 error（對齊 Web：setStatus('error') 不清 directions）。
-    onUpdate(fetched ? { directions: fetched, status: 'ready' } : { directions: last, status: 'error' });
+    else if (last) last = stripLiveEta(last);
+    // 失敗時保留靜態站序（讓行程仍可看站名與班表），但清掉舊的即時 ETA 與狀態，並標成 error。
+    onUpdate(fetched ? { directions: fetched, status: 'ready' } : { directions: last ? stripLiveEta(last) : null, status: 'error' });
   };
 
   if (!poll) {

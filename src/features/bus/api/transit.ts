@@ -2,8 +2,10 @@ import { fetchRequest, type ApiResponse } from '@/shared/api';
 import { getAppConfig } from '@/shared/config';
 import type { LatLng } from '@/shared/geo';
 
+import { isBusDirection } from '../domain/busDirections';
 import type {
   BusArrivalData,
+  BusDirection,
   BusArrivalItem,
   BusSearchResult,
   BusStopSearchResult,
@@ -33,10 +35,6 @@ const TIMEOUT_MS = 10_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
-}
-
-function isDirection(value: unknown): value is 0 | 1 {
-  return value === 0 || value === 1;
 }
 
 function finiteOrNull(value: unknown): number | null {
@@ -81,7 +79,7 @@ function parseRouteDetail(value: unknown): { directions: RouteDetailDirection[] 
   if (!isRecord(value) || !Array.isArray(value.directions)) return undefined;
   const directions: RouteDetailDirection[] = [];
   for (const d of value.directions) {
-    if (!isRecord(d) || !isDirection(d.direction) || !Array.isArray(d.stops)) continue;
+    if (!isRecord(d) || !isBusDirection(d.direction) || !Array.isArray(d.stops)) continue;
     const stops = d.stops.map(parseRouteDetailStop);
     // 站序缺一站就無法切出正確的乘車區間：整個方向丟掉，比少一站更安全。
     if (stops.some((stop) => stop === null)) continue;
@@ -97,7 +95,7 @@ function parseRouteDetail(value: unknown): { directions: RouteDetailDirection[] 
 }
 
 function parseArrivalItem(value: unknown): BusArrivalItem | null {
-  if (!isRecord(value) || typeof value.stopName !== 'string' || !isDirection(value.direction)) return null;
+  if (!isRecord(value) || typeof value.stopName !== 'string' || !isBusDirection(value.direction)) return null;
   return {
     stopName: value.stopName,
     direction: value.direction,
@@ -122,9 +120,10 @@ function parseArrival(value: unknown): BusArrivalData | undefined {
 
 function parseLiveBus(value: unknown): LiveBus | null {
   if (!isRecord(value) || typeof value.plateNumb !== 'string') return null;
-  // 方向不明的車不能判斷是不是往使用者那邊開（SDD §6.5）：丟掉，不捏造一個方向。
-  const direction = finiteOrNull(value.direction);
-  if (direction === null) return null;
+  // 方向必須是 TDX 五值之一（255 保留為「未知」，由後續配對決定不能追蹤）；字串、null、缺值、
+  // 未定義數字都丟掉，不捏造一個方向。
+  const { direction } = value;
+  if (!isBusDirection(direction)) return null;
   const { lat, lng } = value;
   if (typeof lat !== 'number' || typeof lng !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   return {
@@ -193,7 +192,7 @@ function booleanOrNull(value: unknown): boolean | null {
 }
 
 function parseStopArrival(value: unknown): StopArrival | null {
-  if (!isRecord(value) || typeof value.routeName !== 'string' || !isDirection(value.direction)) return null;
+  if (!isRecord(value) || typeof value.routeName !== 'string' || !isBusDirection(value.direction)) return null;
   return {
     routeName: value.routeName,
     subRouteUid: optionalString(value.subRouteUid),
@@ -217,9 +216,15 @@ function parseStopArrivals(value: unknown): StopArrivalsData | undefined {
   };
 }
 
+/** 只有 envelope 成功才解析 data：失敗回應即使帶 data 也不當作本次成功的資料。 */
 function narrow<T>(response: ApiResponse<unknown>, parse: (value: unknown) => T | undefined): ApiResponse<T> {
-  const data: T | undefined = parse(response.data);
+  const data: T | undefined = response.ok ? parse(response.data) : undefined;
   return { ...response, data };
+}
+
+/** 方向以 undefined／null 判斷是否省略：0 是合法方向，不可用 truthy 判斷。 */
+function directionParam(params: URLSearchParams, direction: BusDirection | null | undefined): void {
+  if (direction !== undefined && direction !== null) params.set('direction', String(direction));
 }
 
 /** 10 秒逾時＋呼叫端取消，兩者任一觸發就 abort；計時器一定會清掉。 */
@@ -244,13 +249,13 @@ function locationParam(params: URLSearchParams, location?: LatLng | null): void 
 }
 
 export async function getBusArrival(
-  query: { routeName?: string; stopName?: string; direction?: 0 | 1; city?: string },
+  query: { routeName?: string; stopName?: string; direction?: BusDirection | null; city?: string },
   signal?: AbortSignal,
 ): Promise<ApiResponse<BusArrivalData>> {
   const params = new URLSearchParams();
   if (query.routeName) params.set('routeName', query.routeName);
   if (query.stopName) params.set('stopName', query.stopName);
-  if (query.direction !== undefined) params.set('direction', String(query.direction));
+  directionParam(params, query.direction);
   if (query.city) params.set('city', query.city);
   return narrow(await withTimeout(`/api/v1/transit/bus/arrival?${params.toString()}`, signal), parseArrival);
 }
@@ -274,12 +279,12 @@ export async function getStopArrivals(
 
 /** 一條路線（可限定方向）所有車輛的即時位置；後端已正規化成 camelCase／lat,lng。 */
 export async function getLiveBusPositions(
-  query: { routeName: string; city?: string; direction?: 0 | 1 },
+  query: { routeName: string; city?: string; direction?: BusDirection | null },
   signal?: AbortSignal,
 ): Promise<ApiResponse<LiveBusPositionsData>> {
   const params = new URLSearchParams({ routeName: query.routeName });
   if (query.city) params.set('city', query.city);
-  if (query.direction !== undefined) params.set('direction', String(query.direction));
+  directionParam(params, query.direction);
   return narrow(await withTimeout(`/api/v1/transit/bus/positions?${params.toString()}`, signal), parsePositions);
 }
 
@@ -287,8 +292,11 @@ export async function getBusRouteDetail(
   routeName: string,
   city: string,
   signal?: AbortSignal,
+  subRouteUid?: string,
 ): Promise<ApiResponse<{ directions: RouteDetailDirection[] }>> {
+  // route-detail 沒有 direction query；方向由前端在回傳的站序中選。subRouteUid 是後端合法的選填欄位。
   const params = new URLSearchParams({ routeName, city });
+  if (subRouteUid) params.set('subRouteUid', subRouteUid);
   return narrow(await withTimeout(`/api/v1/transit/bus/route-detail?${params.toString()}`, signal), parseRouteDetail);
 }
 

@@ -2,11 +2,12 @@ import type { BusLeg } from '@/features/route';
 
 import { fetchRouteDetailCached } from '../api/busRouteDetailCache';
 import { getBusArrival, getLiveBusPositions } from '../api/transit';
+import { matchesSelection, pickNextArrival, type RideSelection } from '../domain/busDirections';
 import { resolveCurrentStopSeq, resolveLegRide } from '../domain/busLegStops';
 import type { LiveBus, RouteDetailStop } from '../types/transit';
 
 /**
- * 移植自 Web `src/hook/useLiveBusPositions.ts`（commit 5eadc71）的 `fetchLeg` 與其輔助函式，邏輯逐行保留。
+ * 移植自 Web `src/hook/useLiveBusPositions.ts`（commit 5eadc71）的 `fetchLeg` 與其輔助函式；TDX 方向／支線配對已依 2026-10-05 契約改寫。
  * 輪詢迴圈本身改由 `busWatchers.ts`（`shared/polling`）以 AppState 控制（Web 用 `document.hidden`）。
  */
 
@@ -18,47 +19,27 @@ export function tdxRouteName(leg: BusLeg): string {
   return leg.subRouteName ?? leg.routeName;
 }
 
-/**
- * 這筆紀錄是否屬於本 leg 搭的子路線。{@link tdxRouteName} 之後的第二道防線：母路線名稱查詢
- * 仍會回所有子路線，99延 的車停的站 99 的乘客根本到不了。沒帶子路線的紀錄照收——
- * 後端說不出來不代表不相符。
- */
-function onLegSubRoute(leg: BusLeg, subRouteUid?: string): boolean {
-  if (!leg.subRouteUid || !subRouteUid) return true;
-  return leg.subRouteUid === subRouteUid;
-}
-
 interface ArrivalTarget {
-  /** 上車站下一班車的車牌（TDX 已派車時才有）。 */
+  /** 上車站下一班車的車牌（與 {@link eta} 來自同一筆到站紀錄）。 */
   plate?: string;
-  /** 本 leg 方向在上車站最快的 ETA（分鐘）。 */
+  /** 本 leg 這組站序在上車站最快的 ETA（分鐘）。 */
   eta: number | null;
 }
 
 /**
  * 從到站（ETA）資料找上車站的下一班車。後端已把 TDX 車牌帶進每筆到站資料，所以最快的那筆
  * 同時告訴我們「何時來」與「哪一台」——這是鎖定「你要搭的那台車」最可靠的方式。
+ * 站名、支線、方向都要和乘車區間吻合，ETA 必須是合法的非負數；查詢失敗不沿用任何舊值。
  */
-async function fetchArrival(leg: BusLeg, direction: 0 | 1, signal: AbortSignal): Promise<ArrivalTarget> {
+async function fetchArrival(leg: BusLeg, selection: RideSelection, signal: AbortSignal): Promise<ArrivalTarget> {
   try {
     const res = await getBusArrival(
-      { routeName: tdxRouteName(leg), stopName: leg.departureStop, direction, city: leg.tdxCity },
+      { routeName: tdxRouteName(leg), stopName: leg.departureStop, direction: selection.direction, city: leg.tdxCity },
       signal,
     );
     if (!res.ok || !res.data?.arrivals) return { eta: null };
-
-    let next: { plateNumb?: string; estimateMinutes: number } | undefined;
-    for (const a of res.data.arrivals) {
-      if (!onLegSubRoute(leg, a.subRouteUid) || a.direction !== direction) continue;
-      if (typeof a.estimateMinutes !== 'number') continue;
-      if (!next || a.estimateMinutes < next.estimateMinutes) {
-        next = { plateNumb: a.plateNumb, estimateMinutes: a.estimateMinutes };
-      }
-    }
-    if (!next) return { eta: null };
-
-    const plate = next.plateNumb && next.plateNumb !== '-1' ? next.plateNumb : undefined;
-    return { plate, eta: next.estimateMinutes };
+    const next = pickNextArrival(res.data.arrivals, leg.departureStop, selection);
+    return next ? { plate: next.plateNumb, eta: next.estimateMinutes } : { eta: null };
   } catch {
     return { eta: null };
   }
@@ -92,30 +73,37 @@ function hasPassedBoardingStop(stops: RouteDetailStop[], bus: { lat: number; lng
  * 因為「這條線上的某台車」的 marker 會被讀成「你的車」。
  */
 export async function fetchLeg(leg: BusLeg, signal: AbortSignal): Promise<LiveBus[]> {
-  // 問 TDX 任何事之前先解析實際營運的方向。單靠 `leg.direction` 曾指到反方向，鎖定一台遠離
-  // 使用者的車並顯示它的到站時間。route-detail 已被站序預熱，通常是讀快取。
+  // 問 TDX 任何事之前先解析實際營運的支線與方向（GTFS 方向不可信）。route-detail 已被站序預熱，通常是讀快取。
+  // 認不出唯一乘車區間（重複站名、多個候選、缺資料、方向未知）就不追車：保留排程，不猜。
   const city = leg.tdxCity ?? leg.cityCode ?? '';
   const directions = city ? await fetchRouteDetailCached(tdxRouteName(leg), city) : null;
   const ride = resolveLegRide(directions ?? undefined, leg);
-  const direction = ride?.direction ?? leg.direction;
+  if (!ride) return [];
+  // 站序資料沒有帶支線 ID 時，退回規劃器訂的那一支：回傳紀錄若自稱別的支線就能被排除。
+  const selection: RideSelection = {
+    direction: ride.direction,
+    subRouteUid: ride.subRouteUid ?? leg.subRouteUid,
+    exclusive: ride.exclusive,
+  };
 
   // ETA 與位置互相獨立，一起跑。
   const [arrival, posRes] = await Promise.all([
-    fetchArrival(leg, direction, signal),
-    getLiveBusPositions({ routeName: tdxRouteName(leg), city: leg.tdxCity, direction }, signal),
+    fetchArrival(leg, selection, signal),
+    getLiveBusPositions({ routeName: tdxRouteName(leg), city: leg.tdxCity, direction: ride.direction }, signal),
   ]);
 
   if (!posRes.ok || !posRes.data?.buses?.length) return [];
 
-  const buses = posRes.data.buses.filter((b) => onLegSubRoute(leg, b.subRouteUid));
+  // 查詢已帶方向，這裡仍要自己確認每台車屬於同一支線、同一方向。
+  const buses = posRes.data.buses.filter((b) => matchesSelection(b, selection));
   const targetPlate = resolveTargetPlate(buses, arrival.plate);
-  if (!targetPlate) return [];
+  if (!targetPlate || arrival.eta === null) return [];
 
   const target = buses.find((b) => b.plateNumb === targetPlate);
   if (!target) return [];
 
   // 最後一道防線：已經過了上車站的車不可能是使用者要搭的，不管資料怎麼說。
-  if (ride && hasPassedBoardingStop(ride.stops, target)) return [];
+  if (hasPassedBoardingStop(ride.stops, target)) return [];
 
   // `targetPlate` 只可能是到站紀錄點名的車牌，所以下面的 ETA 描述的就是這台車——
   // 一台車的車牌旁邊絕不能放另一台車的倒數。

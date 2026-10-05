@@ -6,7 +6,6 @@ export {
   fallbackStopRows,
   normalizeStopName,
   parseStatusLabel,
-  pickDirection,
   resolveCurrentStopSeq,
   resolveEtaLabel,
   resolveLegDirection,
@@ -17,6 +16,7 @@ export {
   type EtaLabel,
   type EtaLabelKind,
   type EtaTone,
+  type LegRide,
   type LegRideRef,
   type StopRowKind,
   type StopRowState,
@@ -34,6 +34,7 @@ export {
   BUS_STATUS,
   type BusArrivalData,
   type BusArrivalItem,
+  type BusDirection,
   type BusSearchResult,
   type BusStopSearchResult,
   type LiveBus,
@@ -42,17 +43,30 @@ export {
   type RouteDetailStop,
   type StopArrival,
   type StopArrivalsData,
+  type TrackableBusDirection,
 } from '../types/transit';
 export { BUS_CITY_NAMES, busCityLabel, groupByCity, type BusCityGroup } from './busCities';
 export { resolveStopBadge, type BusStopBadge, type BusStopBadgeKind, type BusStopBadgeTone } from './busStopBadge';
 export {
-  defaultDirection,
-  resolveDirectionLabels,
-  routePathOfDirection,
-  stopsOfDirection,
-  type DirectionLabels,
+  belongsToSelection,
+  buildDirectionOptions,
+  directionTitle,
+  isBusDirection,
+  isTrackableDirection,
+  matchesSelection,
+  pickNextArrival,
+  resolveDirectionOption,
+  routePathOfOption,
+  selectionOf,
+  stopsOfOption,
+  stripLiveEta,
+  type DirectionOption,
+  type DirectionPreference,
+  type DirectionTitle,
+  type NextArrival,
+  type RideSelection,
 } from './busDirections';
-export { firstParam, parseFiniteParam, parseRouteListParam } from './screenParams';
+export { firstParam, parseDirectionParam, parseFiniteParam, parseRouteListParam } from './screenParams';
 export {
   EMPTY_LIVE_BUSES,
   isAccessibleBus,

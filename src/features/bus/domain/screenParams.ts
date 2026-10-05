@@ -1,3 +1,6 @@
+import type { BusDirection } from '../types/transit';
+import { isBusDirection } from './busDirections';
+
 // Expo Router 的 search params 只有字串（或字串陣列）：集中在這裡收窄，畫面不直接信任外部輸入。
 
 /** 取單一字串參數；缺值或陣列取第一個。 */
@@ -23,4 +26,12 @@ export function parseRouteListParam(value: string | string[] | undefined): strin
   } catch {
     return [];
   }
+}
+
+/** 導覽方向參數：只接受 "0"、"1"、"2"、"10"、"255"；空字串與其他字串視為未選擇（不經 `Number('')` 變成 0）。 */
+export function parseDirectionParam(value: string | string[] | undefined): BusDirection | null {
+  const raw = firstParam(value);
+  if (!/^(0|1|2|10|255)$/.test(raw)) return null;
+  const n = Number(raw);
+  return isBusDirection(n) ? n : null;
 }

@@ -6,10 +6,10 @@ import {
   fallbackStopRows,
   normalizeStopName,
   parseStatusLabel,
-  pickDirection,
   resolveCurrentStopSeq,
   resolveEtaLabel,
   resolveLegDirection,
+  resolveLegRide,
   resolveLegStops,
   sliceLegStops,
 } from '../busLegStops';
@@ -38,25 +38,6 @@ const line = [
   stop(4, 'C站'),
   stop(5, '終點'),
 ];
-
-describe('pickDirection', () => {
-  it('returns the stops of the matching direction', () => {
-    const stops = pickDirection(
-      [
-        { direction: 0, stops: line },
-        { direction: 1, stops: [...line].reverse() },
-      ],
-      1,
-    );
-    expect(stops?.[0].name).toBe('終點');
-  });
-
-  it('returns null when the direction is missing or empty', () => {
-    expect(pickDirection(undefined, 0)).toBeNull();
-    expect(pickDirection([{ direction: 0, stops: [] }], 0)).toBeNull();
-    expect(pickDirection([{ direction: 0, stops: line }], 1)).toBeNull();
-  });
-});
 
 describe('sliceLegStops', () => {
   it('cuts the inclusive board → alight range', () => {
@@ -511,37 +492,90 @@ describe('resolveLegStops sub-route scoping', () => {
     expect(sliced?.at(-1)?.name).toBe('臺中區監理所(遊園路)');
   });
 
-  it('falls back to geometry when the named sub-route is absent', () => {
-    const sliced = resolveLegStops(directions, {
-      direction: 0,
-      departureStop: '豐樂公園',
-      arrivalStop: '仁友停車場',
-      subRouteUid: 'TXG-nope',
-    });
-    expect(sliced?.at(-1)?.name).toBe('仁友停車場');
+  it('never picks another sub-route when the named one is absent from the payload', () => {
+    expect(
+      resolveLegStops(directions, {
+        direction: 0,
+        departureStop: '豐樂公園',
+        arrivalStop: '仁友停車場',
+        subRouteUid: 'TXG-nope',
+      }),
+    ).toBeNull();
   });
 
-  it("prefers the declared direction among a sub-route's runs", () => {
-    const both = [
-      {
-        direction: 1 as const,
-        subRouteUid: 'TXG99',
-        stops: line(['A', 'B', 'C']),
-      },
-      {
-        direction: 0 as const,
-        subRouteUid: 'TXG99',
-        stops: line(['A', 'B', 'C']),
-      },
+  it('falls back to the only run that can hold the ride when the payload carries no sub-route ids', () => {
+    const noIds = [
+      { direction: 0 as const, stops: line(['X', 'Y']) },
+      { direction: 1 as const, stops: line(['B', 'A']) },
     ];
-    expect(
-      resolveLegDirection(both, {
-        direction: 0,
-        departureStop: 'A',
-        arrivalStop: 'C',
-        subRouteUid: 'TXG99',
-      }),
-    ).toBe(0);
+    expect(resolveLegRide(noIds, { departureStop: 'A', arrivalStop: 'B', subRouteUid: 'TXG99' })).toBeNull();
+    expect(resolveLegRide(noIds, { departureStop: 'B', arrivalStop: 'A', subRouteUid: 'TXG99' })).toMatchObject({
+      direction: 1,
+      exclusive: true,
+    });
+  });
+
+  it('returns the sub-route of the matched run', () => {
+    const ride = resolveLegRide(directions, { departureStop: '豐樂公園', arrivalStop: '美榮藥局', subRouteUid: 'TXG991' });
+    expect(ride).toMatchObject({ direction: 0, subRouteUid: 'TXG991', exclusive: false });
+  });
+
+  it('refuses to guess between two runs of one sub-route that both hold the ride', () => {
+    const both = [
+      { direction: 1 as const, subRouteUid: 'TXG99', stops: line(['A', 'B', 'C']) },
+      { direction: 0 as const, subRouteUid: 'TXG99', stops: line(['A', 'B', 'C']) },
+    ];
+    expect(resolveLegDirection(both, { direction: 0, departureStop: 'A', arrivalStop: 'C', subRouteUid: 'TXG99' })).toBeNull();
+  });
+});
+
+describe('resolveLegRide against TDX directions (GTFS direction is not a tiebreak)', () => {
+  const line = (names: string[]) =>
+    names.map((name, seq) => ({ seq, name, lat: 0, lng: 0, estimateMinutes: null, statusLabel: '' }));
+  const names = (ride: ReturnType<typeof resolveLegRide>) => ride?.stops.map((s) => s.name);
+
+  it.each([
+    [1, 'B', 'A'],
+    [10, 'A', 'C'],
+    [2, 'A', 'C'],
+  ] as const)('GTFS direction 0 rides TDX direction %i', (tdx, board, alight) => {
+    const directions = [
+      { direction: tdx, subRouteUid: 'U', stops: line(tdx === 1 ? ['B', 'A'] : ['A', 'B', 'C']) },
+      { direction: 255 as const, subRouteUid: 'U', stops: line(['A', 'B', 'C']) },
+    ];
+    const ride = resolveLegRide(directions, { direction: 0, departureStop: board, arrivalStop: alight, subRouteUid: 'U' });
+    expect(ride?.direction).toBe(tdx);
+    expect(resolveLegDirection(directions, { direction: 0, departureStop: board, arrivalStop: alight, subRouteUid: 'U' })).toBe(tdx);
+  });
+
+  it('never resolves to direction 255 even when it is the only run holding the ride', () => {
+    expect(resolveLegRide([{ direction: 255, stops: line(['A', 'B']) }], { departureStop: 'A', arrivalStop: 'B' })).toBeNull();
+  });
+
+  it('a loop that repeats the board stop is ambiguous: keep the schedule', () => {
+    const loop = [{ direction: 10 as const, subRouteUid: 'U', stops: line(['A', 'B', 'C', 'A', 'B', 'D']) }];
+    expect(resolveLegRide(loop, { departureStop: 'A', arrivalStop: 'D', subRouteUid: 'U' })).toBeNull();
+    // C 只出現一次、D 只在它之後：唯一區間，不受 A 重複影響。
+    expect(names(resolveLegRide(loop, { departureStop: 'C', arrivalStop: 'D', subRouteUid: 'U' }))).toEqual(['C', 'A', 'B', 'D']);
+  });
+
+  it('a loop whose alight stop appears only after one board stop is unique', () => {
+    const loop = [{ direction: 10 as const, subRouteUid: 'U', stops: line(['A', 'B', 'C', 'A']) }];
+    expect(names(resolveLegRide(loop, { departureStop: 'A', arrivalStop: 'C', subRouteUid: 'U' }))).toEqual(['A', 'B', 'C']);
+  });
+
+  it('never wraps across the loop end', () => {
+    const loop = [{ direction: 10 as const, subRouteUid: 'U', stops: line(['A', 'B', 'C']) }];
+    expect(resolveLegRide(loop, { departureStop: 'C', arrivalStop: 'A', subRouteUid: 'U' })).toBeNull();
+  });
+
+  it('without a sub-route id, two runs that both hold the ride is ambiguous; one run is fine', () => {
+    const shared = [
+      { direction: 0 as const, subRouteUid: 'U1', stops: line(['A', 'B']) },
+      { direction: 0 as const, subRouteUid: 'U2', stops: line(['A', 'B', 'C']) },
+    ];
+    expect(resolveLegRide(shared, { departureStop: 'A', arrivalStop: 'B' })).toBeNull();
+    expect(resolveLegRide(shared, { departureStop: 'B', arrivalStop: 'C' })).toMatchObject({ subRouteUid: 'U2', direction: 0, exclusive: false });
   });
 });
 

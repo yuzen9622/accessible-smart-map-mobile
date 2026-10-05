@@ -111,6 +111,51 @@ describe('fetchRouteDetailCached', () => {
   });
 });
 
+describe('receipt time and sub-route key', () => {
+  it('a failed forced refresh keeps the original receipt time instead of refreshing it', async () => {
+    getBusRouteDetail.mockResolvedValue(ok());
+    await fetchRouteDetailCached('365', 'Taichung');
+    jest.advanceTimersByTime(10_000);
+
+    getBusRouteDetail.mockResolvedValue({ ok: false });
+    await expect(fetchRouteDetailCached('365', 'Taichung', { force: true })).resolves.toBeNull();
+
+    // 原本的收件時間（10 秒前）仍有效，且沒有被這次失敗延長。
+    expect(peekRouteDetail('365', 'Taichung')).toEqual(directions);
+    jest.advanceTimersByTime(5_001);
+    expect(peekRouteDetail('365', 'Taichung')).toBeNull();
+  });
+
+  it('a successful forced refresh moves the receipt time', async () => {
+    getBusRouteDetail.mockResolvedValue(ok());
+    await fetchRouteDetailCached('365', 'Taichung');
+    jest.advanceTimersByTime(10_000);
+    await fetchRouteDetailCached('365', 'Taichung', { force: true });
+    jest.advanceTimersByTime(10_000);
+    expect(peekRouteDetail('365', 'Taichung')).toEqual(directions);
+  });
+
+  it('reading the cache never resets its age', async () => {
+    getBusRouteDetail.mockResolvedValue(ok());
+    await fetchRouteDetailCached('365', 'Taichung');
+    jest.advanceTimersByTime(10_000);
+    await fetchRouteDetailCached('365', 'Taichung');
+    expect(peekRouteDetail('365', 'Taichung')).toEqual(directions);
+    jest.advanceTimersByTime(5_001);
+    expect(peekRouteDetail('365', 'Taichung')).toBeNull();
+  });
+
+  it('keys by sub-route only when one is sent, and forwards it to the API', async () => {
+    expect(routeDetailKey('99', 'Taichung', 'TXG991')).not.toBe(routeDetailKey('99', 'Taichung'));
+    expect(routeDetailKey('99', 'Taichung')).toBe(routeDetailKey('99', 'Taichung', undefined));
+    getBusRouteDetail.mockResolvedValue(ok());
+    await fetchRouteDetailCached('99', 'Taichung', { subRouteUid: 'TXG991' });
+    expect(getBusRouteDetail).toHaveBeenCalledWith('99', 'Taichung', undefined, 'TXG991');
+    expect(peekRouteDetail('99', 'Taichung')).toBeNull();
+    expect(peekRouteDetail('99', 'Taichung', 'TXG991')).toEqual(directions);
+  });
+});
+
 describe('peekRouteDetail', () => {
   it('returns nothing before anything is fetched', () => {
     expect(peekRouteDetail('365', 'Taichung')).toBeNull();

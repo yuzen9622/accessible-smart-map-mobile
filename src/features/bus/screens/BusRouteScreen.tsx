@@ -23,34 +23,74 @@ import {
   useArrivalReminderActive,
 } from '../controller/arrivalReminder';
 import {
-  defaultDirection,
+  buildDirectionOptions,
+  directionTitle,
   firstParam,
+  isAccessibleBus,
+  isTrackableDirection,
   matchStopInRoute,
-  nextBusToStop,
+  parseDirectionParam,
   parseFiniteParam,
   placeBuses,
-  resolveDirectionLabels,
+  resolveDirectionOption,
   resolveStopBadge,
-  routePathOfDirection,
-  isAccessibleBus,
+  routePathOfOption,
+  selectionOf,
   stopsBounds,
-  stopsOfDirection,
+  stopsOfOption,
+  type DirectionOption,
+  type DirectionTitle,
+  type RouteDetailDirection,
   type RouteDetailStop,
 } from '../domain';
 import { useBusRouteDetail } from '../hooks/useBusRouteDetail';
 import { useRouteLiveBuses } from '../hooks/useRouteLiveBuses';
+import { useTrackedArrival } from '../hooks/useTrackedArrival';
 import { useBusPanelStore, type PanelStop } from '../store/busPanelStore';
 
 const STOP_ZOOM = 17;
 /** 對焦時避開頂部狀態列與右側浮動控制（定位、3D、SOS 約 70pt 寬）；左右同路線規劃至少 40。 */
 const FIT_EDGE_PADDING = { top: 70, left: 40, right: 90 };
 
-function stopId(stop: RouteDetailStop): string {
-  return `${stop.seq}:${stop.name}`;
+function stopId(seq: number, name: string): string {
+  return `${seq}:${name}`;
 }
 
-function parseDirection(value: string): 0 | 1 | null {
-  return value === '0' ? 0 : value === '1' ? 1 : null;
+/**
+ * 回到畫面（含從站牌詳情返回）時重新把選定那組站序與線形交給地圖；離開時清掉。輪詢換了站序物件時只重設站點與線形，
+ * 不動選取（否則每 30 秒選取就被清掉）。獨立成 hook：站序物件在畫面本體會被傳進許多函式，
+ * 放在同一個元件裡 React Compiler 會把 useCallback 的依賴視為可能被改動而放棄 memo。
+ */
+function useRoutePanelStops(directions: readonly RouteDetailDirection[], selectedIndex: number | null): void {
+  const setDisplayedStops = useBusPanelStore((s) => s.setDisplayedStops);
+  const setRoutePath = useBusPanelStore((s) => s.setRoutePath);
+  useFocusEffect(
+    useCallback(() => {
+      const panelStops: PanelStop[] = stopsOfOption(directions, selectedIndex).map((s) => ({
+        id: stopId(s.seq, s.name),
+        name: s.name,
+        lat: s.lat,
+        lng: s.lng,
+      }));
+      setDisplayedStops(panelStops);
+      setRoutePath(routePathOfOption(directions, selectedIndex));
+      return () => {
+        setDisplayedStops([]);
+        setRoutePath([]);
+      };
+    }, [directions, selectedIndex, setDisplayedStops, setRoutePath]),
+  );
+}
+
+/** 對焦一次：同一個 key 不重複對焦（輪詢換了站序物件、使用者拖動地圖都不搶鏡頭）。 */
+function useFitCamera(fitKey: string | null, stops: readonly RouteDetailStop[], fitFrom: number, fitTo: number): void {
+  const fittedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (fitKey === null || fittedFor.current === fitKey) return;
+    fittedFor.current = fitKey;
+    const bounds = stopsBounds(stops, fitFrom, Math.min(fitTo, stops.length - 1));
+    if (bounds) mapCamera.fitBounds(bounds, FIT_EDGE_PADDING);
+  }, [fitKey, stops, fitFrom, fitTo]);
 }
 
 /**
@@ -72,6 +112,7 @@ export default function BusRouteScreen() {
     destination?: string;
     stopName?: string;
     direction?: string;
+    subRouteUid?: string;
     stopLat?: string;
     stopLng?: string;
   }>();
@@ -84,41 +125,72 @@ export default function BusRouteScreen() {
   const stopPosition = stopLat !== null && stopLng !== null ? { lat: stopLat, lng: stopLng } : null;
 
   const { directions, loading, refreshing, error, refresh } = useBusRouteDetail(routeName, city);
-  const [picked, setPicked] = useState<0 | 1 | null>(parseDirection(firstParam(params.direction)));
-  const direction = picked !== null && directions.some((d) => d.direction === picked) ? picked : defaultDirection(directions);
-  const stops = stopsOfDirection(directions, direction);
-  const labels = resolveDirectionLabels(directions, route);
-  const { buses, settled: busesSettled } = useRouteLiveBuses(routeName, city, direction);
-  const placed = direction === null ? [] : placeBuses(stops, buses, direction);
-  // 只給 useFocusEffect 用的一份站序參照：`stops` 會被傳進其他函式，React Compiler 會把它視為可能被改動而放棄 memo
-  const focusStops = stopsOfDirection(directions, direction);
-  const focusPath = routePathOfDirection(directions, direction);
+  // 選擇以實際方向物件（支線＋方向）識別，不只靠 direction 數字：同方向的不同支線各自一個選項。
+  const options = buildDirectionOptions(directions);
+  const selectionContext = JSON.stringify([routeName, city, firstParam(params.subRouteUid), parseDirectionParam(params.direction)]);
+  const [picked, setPicked] = useState<{ context: string; key: string } | null>(null);
+  const pickedKey = picked?.context === selectionContext ? picked.key : null;
+  const selected = resolveDirectionOption(options, {
+    key: pickedKey,
+    subRouteUid: firstParam(params.subRouteUid) || undefined,
+    direction: parseDirectionParam(params.direction),
+  });
+  const selectedKey = selected?.key ?? null;
+  // 自動選出的方向也屬於目前選擇；刷新新增 0 時不能把仍存在的 2／10 換掉。
+  // 導覽目標改變時以新的 context 重新解析。僅在不一致時同步調整本元件 state，
+  // 讓 React 在 commit 子元件與其查詢前重 render，避免 effect 帶來錯誤選擇的中間畫面。
+  if (selectedKey !== null && selectedKey !== pickedKey) {
+    setPicked({ context: selectionContext, key: selectedKey });
+  }
+  const selectedIndex = selected?.index ?? null;
+  const stops = stopsOfOption(directions, selectedIndex);
+  const selection = selected && !selected.ambiguous ? selectionOf(selected) : null;
+  const { buses, settled: busesSettled } = useRouteLiveBuses(routeName, city, selection);
+  const placed = selection ? placeBuses(stops, buses, selection) : [];
 
-  const match = myStopName && direction !== null ? matchStopInRoute(directions, myStopName, stopPosition, direction) : null;
-  const approaching = match ? nextBusToStop(placed, match.index, match.stop.estimateMinutes) : null;
-  const [alight, setAlight] = useState<{ direction: 0 | 1 | null; seq: number } | null>(null);
-  const alightSeq = alight && alight.direction === direction ? alight.seq : null;
+  const match =
+    myStopName && selected ? matchStopInRoute(directions.filter((_, i) => i === selected.index), myStopName, stopPosition) : null;
+  // 搭乘追蹤、到站提醒、下車站都要確定方向與支線：255（未知）或無法區分的重複組不做。
+  const trackDirection = selected && !selected.ambiguous && isTrackableDirection(selected.direction) ? selected.direction : null;
+  const trackMatch = trackDirection !== null ? match : null;
+  // 單車資訊只來自鎖定同站、同支線、同方向的那一筆到站紀錄；route-detail 的站不擁有車牌。
+  const tracked = useTrackedArrival(routeName, city, trackMatch ? myStopName : '', trackDirection !== null ? selection : null);
+  const trackedPlate = tracked?.plateNumb;
+  const trackedBus = trackMatch && trackedPlate ? (placed.find((b) => b.plateNumb === trackedPlate) ?? null) : null;
+  const approaching =
+    trackMatch && trackedBus && trackedBus.index <= trackMatch.index
+      ? { bus: trackedBus, stopsAway: trackMatch.index - trackedBus.index }
+      : null;
+  const [alight, setAlight] = useState<{ key: string | null; seq: number } | null>(null);
+  const alightSeq = trackMatch && alight && alight.key === selectedKey ? alight.seq : null;
   const alightIndex = alightSeq === null ? -1 : stops.findIndex((s) => s.seq === alightSeq);
 
+  // 標題與選單文字要在下面的 useFocusEffect 之前算完：它們把 `directions` 交給別的函式，放在後面 React Compiler 會放棄 memo
+  const titleOf = (option: DirectionOption): DirectionTitle => directionTitle(directions, option, route);
+  const titleText = (title: DirectionTitle): string => {
+    switch (title.kind) {
+      case 'headsign':
+        return title.name ? t('nativeBusHeadingTo', { name: title.name }) : '';
+      case 'loop':
+        return t('nativeBusDirectionLoop');
+      case 'circular':
+        return t('nativeBusDirectionCircular');
+      case 'unknown':
+        return t('nativeBusDirectionUnknown');
+    }
+  };
+  // 同一路線有多個支線時，選項前面加支線名稱，才分得出同方向的不同支線。
+  const hasBranches = new Set(options.map((o) => o.subRouteUid ?? '')).size > 1;
+  const optionLabel = (option: DirectionOption): string => {
+    const base = titleText(titleOf(option));
+    return hasBranches && option.subRouteName ? t('nativeBusDirectionSubRoute', { sub: option.subRouteName, direction: base }) : base;
+  };
+  const headsign = selected ? titleText(titleOf(selected)) : '';
+  const segmentOptions = options.map((o) => ({ value: o.key, label: optionLabel(o), selected: o.key === selectedKey }));
   const selectedStopId = useBusPanelStore((s) => s.selectedStopId);
-  const setDisplayedStops = useBusPanelStore((s) => s.setDisplayedStops);
-  const setRoutePath = useBusPanelStore((s) => s.setRoutePath);
   const selectStop = useBusPanelStore((s) => s.selectStop);
   const clearPanel = useBusPanelStore((s) => s.clear);
 
-  // 回到此畫面（含從站牌詳情返回）時重新把站序交給地圖；離開時清掉。
-  useFocusEffect(
-    useCallback(() => {
-      const panelStops: PanelStop[] = focusStops.map((s) => ({ id: stopId(s), name: s.name, lat: s.lat, lng: s.lng }));
-      setDisplayedStops(panelStops);
-      setRoutePath(focusPath);
-      // 輪詢換了站序物件時只重設站點與線形，不動選取（否則每 30 秒選取就被清掉）。
-      return () => {
-        setDisplayedStops([]);
-        setRoutePath([]);
-      };
-    }, [focusStops, focusPath, setDisplayedStops, setRoutePath]),
-  );
   // 失焦（離開或推入子畫面）才整個清掉，包含選取。
   useFocusEffect(useCallback(() => clearPanel, [clearPanel]));
   useEffect(() => clearPanel, [clearPanel]);
@@ -126,7 +198,7 @@ export default function BusRouteScreen() {
   // 地圖：畫路線線形（TDX 線形，沒有時站序連線）、你的站放大、該方向的即時車輛畫成 marker（設計：路線詳情的地圖）。
   const setRouteOverlay = useBusPanelStore((s) => s.setRouteOverlay);
   const setPanelBuses = useBusPanelStore((s) => s.setBuses);
-  const mineStopId = match ? stopId(match.stop) : null;
+  const mineStopId = match ? stopId(match.stop.seq, match.stop.name) : null;
   // 失焦時 clearPanel 會清掉這些；回到畫面（focused 變回 true）時重畫。
   const focused = useIsFocused();
   useEffect(() => {
@@ -135,31 +207,50 @@ export default function BusRouteScreen() {
   useEffect(() => {
     if (!focused) return;
     setPanelBuses(
-      buses
-        .filter((b) => b.direction === direction)
-        .map((b) => ({ plateNumb: b.plateNumb, lat: b.lat, lng: b.lng, accessible: isAccessibleBus(b) })),
+      buses.map((b) => ({ plateNumb: b.plateNumb, lat: b.lat, lng: b.lng, accessible: isAccessibleBus(b) })),
     );
-  }, [buses, direction, focused, setPanelBuses]);
+  }, [buses, focused, setPanelBuses]);
 
   // --- 到站提醒 ---
-  const reminderKey = match && direction !== null ? arrivalReminderKey(city, routeName, direction, match.stop.name) : '';
+  // 提醒的 ETA 與追車卡同一來源：有車牌的那筆到站紀錄，否則是站序上這站的 ETA。
+  const reminderKey =
+    trackMatch && trackDirection !== null
+      ? arrivalReminderKey(city, routeName, selected?.subRouteUid, trackDirection, trackMatch.stop.name)
+      : '';
   const reminderActive = useArrivalReminderActive(reminderKey);
   const [reminderError, setReminderError] = useState<string | null>(null);
-  const eta = match ? etaDisplay(t, match.stop) : null;
-  const etaMinutes = match?.stop.estimateMinutes ?? null;
+  const etaSource = trackedPlate ? { estimateMinutes: tracked?.estimateMinutes ?? null, statusLabel: '' } : (trackMatch?.stop ?? null);
+  const eta = etaSource ? etaDisplay(t, etaSource) : null;
+  const rawEta = etaSource?.estimateMinutes ?? null;
+  const etaMinutes = rawEta !== null && Number.isFinite(rawEta) && rawEta >= 0 ? rawEta : null;
   const reminderContent = (minutes: number) => ({
     title: t('nativeBusReminderTitle', { route: routeName }),
-    body: t('nativeBusReminderBody', { minutes: Math.max(1, Math.min(REMINDER_LEAD_MINUTES, Math.round(minutes))), stop: match?.stop.name ?? '' }),
+    body: t('nativeBusReminderBody', { minutes: Math.max(1, Math.min(REMINDER_LEAD_MINUTES, Math.round(minutes))), stop: trackMatch?.stop.name ?? '' }),
   });
   const contentRef = useRef(reminderContent);
   useEffect(() => {
     contentRef.current = reminderContent;
   });
+  // 切到別的方向／支線或離開追蹤狀態時取消舊提醒；離開畫面（卸載）則保留，使用者可以先收起畫面等車。
+  const unmounting = useRef(false);
   useEffect(() => {
-    if (!reminderKey || etaMinutes === null || etaMinutes < 0) return;
+    unmounting.current = false;
+    return () => {
+      unmounting.current = true;
+    };
+  }, []);
+  useEffect(() => {
+    if (!reminderKey) return;
+    return () => {
+      if (!unmounting.current) void stopArrivalReminder(reminderKey);
+    };
+  }, [reminderKey]);
+  // ETA 更新就重排；沒有可用 ETA 時 refreshArrivalReminder 會取消原本排定的通知。
+  useEffect(() => {
+    if (!reminderKey) return;
     const run = async () => {
       try {
-        await refreshArrivalReminder(reminderKey, etaMinutes, contentRef.current(etaMinutes));
+        await refreshArrivalReminder(reminderKey, etaMinutes, contentRef.current(etaMinutes ?? 0));
       } catch (err) {
         logger.warn('[bus] reminder refresh failed', err);
       }
@@ -174,9 +265,9 @@ export default function BusRouteScreen() {
         await stopArrivalReminder(reminderKey);
         return;
       }
-      if (etaMinutes === null || etaMinutes < 0) return;
-      const granted = await startArrivalReminder(reminderKey, etaMinutes, reminderContent(etaMinutes));
-      if (!granted) setReminderError(t('nativeBusReminderDenied'));
+      if (etaMinutes === null) return;
+      const result = await startArrivalReminder(reminderKey, etaMinutes, reminderContent(etaMinutes));
+      if (result === 'denied') setReminderError(t('nativeBusReminderDenied'));
     } catch (err) {
       logger.warn('[bus] reminder toggle failed', err);
       setReminderError(t('nativeBusReminderFailed'));
@@ -184,38 +275,39 @@ export default function BusRouteScreen() {
   };
 
   // --- 站序從車子前一站開始（設計 2b「不先列 40 個站」），前面的站收成一列，點開看完整站序（2a） ---
-  const [expandedFor, setExpandedFor] = useState<0 | 1 | null>(null);
+  const [expandedFor, setExpandedFor] = useState<string | null>(null);
   const trackedFrom = match ? Math.min(approaching?.bus.index ?? match.index, match.index) : 0;
-  const collapsedCount = expandedFor !== null && expandedFor === direction ? 0 : Math.max(0, trackedFrom - 1);
+  const collapsedCount = expandedFor !== null && expandedFor === selectedKey ? 0 : Math.max(0, trackedFrom - 1);
 
   // 鏡頭對到「車子 → 你這站」這一段（沒有你的站就是整條路線）。等站序與車輛位置都回來才對焦，
   // 之後 sheet 高度（地圖底部 inset）改變時再對一次：相機 padding 跟著 sheet 走，高 sheet 時對的焦在 sheet 降下後會偏出畫面。
   // 使用者點了某一站（地圖飛到那站）就不再搶鏡頭。
   const fitFrom = match ? trackedFrom - 1 : 0;
   const fitTo = match ? match.index + 2 : Number.POSITIVE_INFINITY;
-  const readyDirection = focusStops.length > 0 && busesSettled ? direction : null;
+  const readyKey = stops.length > 0 && (busesSettled || selection === null) ? selectedKey : null;
   const sheetInset = Math.round(useMapUiStore((st) => st.sheetInset));
-  const fittedFor = useRef<string | null>(null);
-  const fitKey = readyDirection === null || selectedStopId !== null || !focused ? null : `${readyDirection}:${sheetInset}`;
-  useEffect(() => {
-    if (fitKey === null || fittedFor.current === fitKey) return;
-    fittedFor.current = fitKey;
-    const bounds = stopsBounds(focusStops, fitFrom, Math.min(fitTo, focusStops.length - 1));
-    if (bounds) mapCamera.fitBounds(bounds, FIT_EDGE_PADDING);
-  }, [fitKey, focusStops, fitFrom, fitTo]);
+  const fitKey = readyKey === null || selectedStopId !== null || !focused ? null : `${readyKey}:${sheetInset}`;
+  useFitCamera(fitKey, stops, fitFrom, fitTo);
 
   const onSelectStop = (stop: RouteDetailStop) => {
-    selectStop(stopId(stop));
+    selectStop(stopId(stop.seq, stop.name));
     mapCamera.flyTo([stop.lng, stop.lat], STOP_ZOOM);
   };
 
-  const headsign = direction === 1 ? labels.departure : labels.destination;
   const subtitle = [route.departure && route.destination ? `${route.departure} – ${route.destination}` : '', t('nativeBusRefreshNote')]
     .filter(Boolean)
     .join(' · ');
 
   const renderTracking = () => {
-    if (!match || !eta) return null;
+    if (selected?.direction === 255) {
+      return (
+        <Text accessibilityLiveRegion="polite" style={[styles.messageText, { color: colors.textSecondary }]}>
+          {t('nativeBusTrackUnknownDirection')}
+        </Text>
+      );
+    }
+    if (!trackMatch || !eta) return null;
+    const match = trackMatch;
     const accessible = approaching?.bus.accessible ?? false;
     const busLabel = approaching
       ? approaching.stopsAway === 0
@@ -247,6 +339,8 @@ export default function BusRouteScreen() {
     );
   };
 
+  useRoutePanelStops(directions, selectedIndex);
+
   return (
     <>
       <Stack.Screen options={{ title: routeName }} />
@@ -260,7 +354,7 @@ export default function BusRouteScreen() {
             <RouteBadge name={routeName} />
             {headsign ? (
               <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]} numberOfLines={2}>
-                {t('nativeBusHeadingTo', { name: headsign })}
+                {headsign}
               </Text>
             ) : null}
           </View>
@@ -285,14 +379,9 @@ export default function BusRouteScreen() {
             {renderTracking()}
             <SegmentedControl
               label={t('nativeBusDirectionLabel')}
-              options={(
-                [
-                  { value: '0', label: t('nativeBusHeadingTo', { name: labels.destination }), selected: direction === 0 },
-                  { value: '1', label: t('nativeBusHeadingTo', { name: labels.departure }), selected: direction === 1 },
-                ] as const
-              ).filter((o) => directions.some((d) => String(d.direction) === o.value))}
+              options={segmentOptions}
               onSelect={(value) => {
-                setPicked(value === '1' ? 1 : 0);
+                setPicked({ context: selectionContext, key: value });
                 selectStop(null);
               }}
             />
@@ -305,7 +394,7 @@ export default function BusRouteScreen() {
                 {collapsedCount > 0 ? (
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => setExpandedFor(direction)}
+                    onPress={() => setExpandedFor(selectedKey)}
                     style={({ pressed }) => [styles.earlier, pressed && styles.pressed]}>
                     <Icon name="chevronUp" size={16} color={semantic.accent} />
                     <Text style={[styles.earlierText, { color: semantic.accent }]}>
@@ -320,29 +409,29 @@ export default function BusRouteScreen() {
                   const busHere = placed.filter((b) => b.index === index);
                   const bus = busHere.length === 0 ? null : busHere.some((b) => b.accessible);
                   const mine = match?.index === index;
-                  const selected = selectedStopId === stopId(stop);
+                  const isSelected = selectedStopId === stopId(stop.seq, stop.name);
                   const isAlight = alightSeq === stop.seq;
-                  const canAlight = match !== null && index > match.index;
+                  const canAlight = trackMatch !== null && index > trackMatch.index;
                   const busSpoken = bus === null ? '' : `，${bus ? t('nativeBusOnAxisAccessible') : t('nativeBusOnAxis')}`;
                   return (
                     <StopAxisRow
-                      key={stopId(stop)}
+                      key={stopId(stop.seq, stop.name)}
                       name={stop.name}
                       note={mine ? t('nativeBusYouAreHere') : undefined}
                       tag={isAlight ? t('nativeBusAlight') : mine ? t('nativeBusBoard') : undefined}
                       first={index === 0 || index === collapsedCount}
                       last={index === stops.length - 1}
                       mine={mine}
-                      selected={selected && !mine}
+                      selected={isSelected && !mine}
                       bus={bus}
                       trailing={<EtaPill text={etaText} tone={badgePillTone(badge)} />}
                       accessibilityLabel={`${t('nativeBusStopEtaRowLabel', { seq: stop.seq, name: stop.name, eta: etaText })}${mine ? `，${t('nativeBusYouAreHere')}` : ''}${busSpoken}`}
                       onPress={() => onSelectStop(stop)}
                       footer={
-                        selected && canAlight ? (
+                        isSelected && canAlight ? (
                           <Pressable
                             accessibilityRole="button"
-                            onPress={() => setAlight(isAlight ? null : { direction, seq: stop.seq })}
+                            onPress={() => setAlight(isAlight ? null : { key: selectedKey, seq: stop.seq })}
                             style={({ pressed }) => [styles.alightButton, { borderColor: semantic.accent }, pressed && styles.pressed]}>
                             <Icon name="flag" size={14} color={semantic.accent} />
                             <Text style={[styles.alightText, { color: semantic.accent }]}>

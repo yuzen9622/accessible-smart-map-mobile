@@ -1,4 +1,4 @@
-import { firstParam, parseFiniteParam, parseRouteListParam } from '../screenParams';
+import { firstParam, parseDirectionParam, parseFiniteParam, parseRouteListParam } from '../screenParams';
 
 describe('screenParams', () => {
   it('firstParam handles string, array and missing', () => {
@@ -17,5 +17,10 @@ describe('screenParams', () => {
     expect(parseRouteListParam('{oops')).toEqual([]);
     expect(parseRouteListParam('{"a":1}')).toEqual([]);
     expect(parseRouteListParam(undefined)).toEqual([]);
+  });
+  it('parseDirectionParam accepts only the five direction strings', () => {
+    expect(['0', '1', '2', '10', '255'].map(parseDirectionParam)).toEqual([0, 1, 2, 10, 255]);
+    expect(parseDirectionParam(['10', '1'])).toBe(10);
+    for (const bad of ['', ' ', 'abc', '3', '-1', '01', '10.0', '256', undefined]) expect(parseDirectionParam(bad)).toBeNull();
   });
 });

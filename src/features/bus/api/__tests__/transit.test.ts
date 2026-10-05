@@ -1,6 +1,6 @@
 import type { ApiResponse } from '@/shared/api';
 
-import { getBusArrival, getBusRouteDetail, getLiveBusPositions, getNearbyBusStops, searchBusRoutes } from '../transit';
+import { getBusArrival, getBusRouteDetail, getLiveBusPositions, getNearbyBusStops, getStopArrivals, searchBusRoutes } from '../transit';
 
 const mockFetchRequest = jest.fn();
 jest.mock('@/shared/api', () => ({
@@ -35,7 +35,16 @@ describe('transit api', () => {
     expect(mockFetchRequest.mock.calls[0][0]).toBe(
       'https://api.test/api/v1/transit/bus/route-detail?routeName=99%E5%BB%B6&city=Taichung',
     );
-    expect(res.data?.directions.map((d) => d.direction)).toEqual([0]);
+    // direction 2 帶著空站序也被保留（站序驗證只擋壞站），只有壞站的那組被丟掉。
+    expect(res.data?.directions.map((d) => d.direction)).toEqual([0, 2]);
+  });
+
+  it('sends subRouteUid to route-detail only when given, and never a direction', async () => {
+    mockFetchRequest.mockResolvedValue(envelope({ directions: [] }));
+    await getBusRouteDetail('99', 'Taichung', undefined, 'TXG991');
+    expect(mockFetchRequest.mock.calls[0][0]).toBe(
+      'https://api.test/api/v1/transit/bus/route-detail?routeName=99&city=Taichung&subRouteUid=TXG991',
+    );
   });
 
   it('keeps a valid route polyline and drops unusable ones', async () => {
@@ -77,6 +86,67 @@ describe('transit api', () => {
       'https://api.test/api/v1/transit/bus/positions?routeName=99&city=Taichung&direction=1',
     );
     expect(res.data?.buses.map((b) => b.plateNumb)).toEqual(['A']);
+  });
+
+  it.each([0, 1, 2, 10, 255] as const)('keeps direction %i on parsed buses, arrivals and route-detail', async (direction) => {
+    const stop = { seq: 0, name: 'A', lat: 1, lng: 2, estimateMinutes: null, statusLabel: '' };
+    mockFetchRequest.mockResolvedValueOnce(envelope({ directions: [{ direction, stops: [stop], subRouteUid: 'U' }] }));
+    expect((await getBusRouteDetail('R', 'Taipei')).data?.directions.map((d) => d.direction)).toEqual([direction]);
+    mockFetchRequest.mockResolvedValueOnce(envelope({ arrivals: [{ stopName: 'A', direction, estimateMinutes: 3, statusLabel: '' }] }));
+    expect((await getBusArrival({ routeName: 'R', stopName: 'A', direction })).data?.arrivals.map((a) => a.direction)).toEqual([direction]);
+    mockFetchRequest.mockResolvedValueOnce(envelope({ buses: [{ plateNumb: 'P', direction, lat: 24, lng: 120 }] }));
+    expect((await getLiveBusPositions({ routeName: 'R', direction })).data?.buses.map((b) => b.direction)).toEqual([direction]);
+  });
+
+  it.each(['10', '0', null, undefined, 3, -1, 256, 1.5, ''])('rejects invalid direction %p on every parser without hurting valid rows', async (bad) => {
+    const stop = { seq: 0, name: 'A', lat: 1, lng: 2, estimateMinutes: null, statusLabel: '' };
+    mockFetchRequest.mockResolvedValueOnce(
+      envelope({ directions: [{ direction: bad, stops: [stop] }, { direction: 10, stops: [stop] }] }),
+    );
+    expect((await getBusRouteDetail('R', 'Taipei')).data?.directions.map((d) => d.direction)).toEqual([10]);
+    mockFetchRequest.mockResolvedValueOnce(
+      envelope({ arrivals: [{ stopName: 'A', direction: bad }, { stopName: 'B', direction: 10 }] }),
+    );
+    expect((await getBusArrival({ routeName: 'R', stopName: 'A' })).data?.arrivals.map((a) => a.stopName)).toEqual(['B']);
+    mockFetchRequest.mockResolvedValueOnce(
+      envelope({
+        buses: [
+          { plateNumb: 'BAD', direction: bad, lat: 24, lng: 120 },
+          { plateNumb: 'OK', direction: 255, lat: 24, lng: 120 },
+        ],
+      }),
+    );
+    expect((await getLiveBusPositions({ routeName: 'R' })).data?.buses.map((b) => b.plateNumb)).toEqual(['OK']);
+    mockFetchRequest.mockResolvedValueOnce(
+      envelope({ arrivals: [{ routeName: 'R', direction: bad }, { routeName: 'S', direction: 2 }] }),
+    );
+    expect((await getStopArrivals({ stopName: 'A', city: 'Taipei', position: { lat: 1, lng: 2 } })).data?.arrivals.map((a) => a.routeName)).toEqual(['S']);
+  });
+
+  it.each([
+    [0, '&direction=0'],
+    [1, '&direction=1'],
+    [2, '&direction=2'],
+    [10, '&direction=10'],
+    [255, '&direction=255'],
+    [undefined, ''],
+    [null, ''],
+  ] as const)('puts direction %p in the arrival and positions URLs as %p', async (direction, suffix) => {
+    mockFetchRequest.mockResolvedValue(envelope({ arrivals: [], buses: [] }));
+    await getBusArrival({ routeName: '307', stopName: 'S', city: 'Taipei', direction });
+    expect(mockFetchRequest.mock.calls[0][0]).toBe(
+      `https://api.test/api/v1/transit/bus/arrival?routeName=307&stopName=S${suffix}&city=Taipei`,
+    );
+    await getLiveBusPositions({ routeName: '307', city: 'Taipei', direction });
+    expect(mockFetchRequest.mock.calls[1][0]).toBe(`https://api.test/api/v1/transit/bus/positions?routeName=307&city=Taipei${suffix}`);
+    expect(mockFetchRequest.mock.calls.every(([url]) => !String(url).includes('subRouteUid'))).toBe(true);
+  });
+
+  it('only parses data from a successful envelope', async () => {
+    mockFetchRequest.mockResolvedValue({ ok: false, status: 'error', code: 500, message: 'x', data: { arrivals: [{ stopName: 'A', direction: 0 }] } });
+    expect((await getBusArrival({ routeName: 'R', stopName: 'A' })).data).toBeUndefined();
+    expect((await getLiveBusPositions({ routeName: 'R' })).data).toBeUndefined();
+    expect((await getBusRouteDetail('R', 'Taipei')).data).toBeUndefined();
   });
 
   it('omits empty arrival params and non-finite search locations', async () => {

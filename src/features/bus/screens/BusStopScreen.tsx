@@ -83,14 +83,28 @@ export default function BusStopScreen() {
   const filter: BoardFilter = picked ?? (accessibleCount > 0 ? 'accessible' : 'all');
   const listed = sorted.filter((a) => a !== featured && (filter === 'all' || isAccessibleArrival(a)));
 
-  const headsignText = (a: StopArrival) => (a.headsign ? t('nativeBusHeadingTo', { name: a.headsign }) : (a.subRouteName ?? a.routeName));
+  // 只有去程／返程才有「往終點」；迴圈、循環線、方向未知不套終點（255 更不能當成有方向）。
+  const headsignText = (a: StopArrival) => {
+    if (a.direction === 0 || a.direction === 1) {
+      return a.headsign ? t('nativeBusHeadingTo', { name: a.headsign }) : (a.subRouteName ?? a.routeName);
+    }
+    const label = a.direction === 2 ? t('nativeBusDirectionLoop') : a.direction === 10 ? t('nativeBusDirectionCircular') : t('nativeBusDirectionUnknown');
+    return a.subRouteName && a.subRouteName !== a.routeName ? t('nativeBusDirectionSubRoute', { sub: a.subRouteName, direction: label }) : label;
+  };
   const accessText = (a: StopArrival) => (a.isLowFloor ? t('nativeBusLowFloor') : t('nativeBusLiftOrRamp'));
   const stopParams = stopPosition ? { stopLat: String(stopPosition.lat), stopLng: String(stopPosition.lng) } : {};
 
   const openRoute = (a: StopArrival) =>
     router.navigate({
       pathname: '/bus/route',
-      params: { routeName: a.routeName, city, stopName, direction: String(a.direction), ...stopParams },
+      params: {
+        routeName: a.routeName,
+        city,
+        stopName,
+        direction: String(a.direction),
+        ...(a.subRouteUid ? { subRouteUid: a.subRouteUid } : {}),
+        ...stopParams,
+      },
     });
   const openRouteByName = (routeName: string) =>
     router.navigate({ pathname: '/bus/route', params: { routeName, city, stopName, ...stopParams } });
@@ -115,7 +129,7 @@ export default function BusStopScreen() {
         minuteUnit={t('nativeBusMinuteUnit')}
         accessibilityLabel={t('nativeBusFeaturedLabel', {
           route: a.routeName,
-          headsign: a.headsign ?? a.routeName,
+          headsign: headsignText(a),
           access: accessText(a),
           eta: etaSpoken,
         })}
@@ -129,7 +143,7 @@ export default function BusStopScreen() {
     const tone = pillToneStyle(eta.tone, isDark);
     const accessible = isAccessibleArrival(a);
     const etaSpoken = eta.minutes !== null ? t('nativeBusEtaMinutes', { count: eta.minutes }) : eta.text;
-    const label = t('nativeBusBoardRowLabel', { route: a.routeName, headsign: a.headsign ?? a.routeName, eta: etaSpoken });
+    const label = t('nativeBusBoardRowLabel', { route: a.routeName, headsign: headsignText(a), eta: etaSpoken });
     return (
       <Pressable
         key={arrivalKey(a)}

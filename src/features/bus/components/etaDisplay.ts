@@ -12,11 +12,9 @@ export interface EtaDisplay {
   tone: PillTone;
 }
 
-/** 站牌倒數的大字版本：有分鐘數就顯示數字＋「分」，否則顯示狀態文字（進站中、尚未發車、末班已過）。 */
+/** 站牌倒數的大字版本：有分鐘數就顯示數字＋「分」，否則顯示狀態文字（進站中、末班已過、班表時刻；缺值是「暫無到站資訊」）。 */
 export function etaDisplay(t: TFunction, stop: Pick<RouteDetailStop, 'estimateMinutes' | 'statusLabel'>): EtaDisplay {
-  // `/bus/stop-arrivals` 的 statusLabel 是 TDX 原文：沒有分鐘數時的「正常」沒有資訊量，當作沒給。
-  const statusLabel = stop.statusLabel === '正常' ? '' : stop.statusLabel;
-  const badge = resolveStopBadge({ estimateMinutes: stop.estimateMinutes, statusLabel });
+  const badge = resolveStopBadge(stop);
   const m = stop.estimateMinutes;
   const minutes = badge.kind === 'soon' || badge.kind === 'minutes' ? Math.max(1, Math.round(m ?? 0)) : null;
   return { minutes, text: badgeText(t, badge), tone: badgePillTone(badge) };

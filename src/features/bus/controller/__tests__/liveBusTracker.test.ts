@@ -64,6 +64,7 @@ const leg = {
 
 const vehicle = (plateNumb: string, subRouteUid?: string) => ({
   plateNumb,
+  direction: 1,
   subRouteUid,
   lat: 24.13,
   lng: 120.64,
@@ -78,8 +79,9 @@ const arrivals = (
   items: {
     plateNumb?: string;
     estimateMinutes: number | null;
-    direction?: 0 | 1;
+    direction?: 0 | 1 | 2 | 10 | 255;
     subRouteUid?: string;
+    stopName?: string;
   }[],
 ) => ({
   ok: true,
@@ -207,20 +209,15 @@ describe('fetchLeg', () => {
     );
   });
 
-  it('falls back to the declared direction when route-detail is unusable', async () => {
+  // GTFS 方向不是 TDX 方向：route-detail 不可用就認不出乘車區間，不追車、不打 TDX。
+  it('does not guess a direction from the planner when route-detail is unusable', async () => {
     mockGetBusRouteDetail.mockResolvedValue({ ok: false });
-    mockGetBusArrival.mockResolvedValue(
-      arrivals([{ plateNumb: 'KKA-1234', estimateMinutes: 4, direction: 0 }]),
-    );
+    mockGetBusArrival.mockResolvedValue(arrivals([{ plateNumb: 'KKA-1234', estimateMinutes: 4, direction: 0 }]));
     mockGetLiveBusPositions.mockResolvedValue(positions(['KKA-1234']));
 
-    const [bus] = await fetchLeg(leg, signal);
-
-    expect(mockGetBusArrival).toHaveBeenCalledWith(
-      { routeName: '99', stopName: '豐樂公園', direction: 0, city: 'Taichung' },
-      signal,
-    );
-    expect(bus.plateNumb).toBe('KKA-1234');
+    expect(await fetchLeg(leg, signal)).toEqual([]);
+    expect(mockGetBusArrival).not.toHaveBeenCalled();
+    expect(mockGetLiveBusPositions).not.toHaveBeenCalled();
   });
 
   it('survives an arrival lookup that throws', async () => {
@@ -250,7 +247,7 @@ describe('fetchLeg sub-route scoping', () => {
 
     await fetchLeg(legOn延, signal);
 
-    expect(mockGetBusRouteDetail).toHaveBeenCalledWith('99延', 'Taichung');
+    expect(mockGetBusRouteDetail).toHaveBeenCalledWith('99延', 'Taichung', undefined, undefined);
     expect(mockGetBusArrival.mock.calls[0][0].routeName).toBe('99延');
     expect(mockGetLiveBusPositions.mock.calls[0][0].routeName).toBe('99延');
   });
@@ -270,7 +267,7 @@ describe('fetchLeg sub-route scoping', () => {
     expect(await fetchLeg(legOn延, signal)).toEqual([]);
   });
 
-  it('keeps records that carry no sub-route of their own', async () => {
+  it('keeps records that carry no sub-route when the direction has a single run', async () => {
     mockGetBusArrival.mockResolvedValue(
       arrivals([{ plateNumb: 'KKA-1234', estimateMinutes: 4 }]),
     );
@@ -280,3 +277,71 @@ describe('fetchLeg sub-route scoping', () => {
     expect(bus.plateNumb).toBe('KKA-1234');
   });
 });
+
+describe('fetchLeg TDX directions 2 / 10 / 255 and exact pairing', () => {
+  const line = (names: string[]) => names.map((name, seq) => stop(seq, name));
+  const detail = (directions: unknown[]) => ({ ok: true, data: { directions } });
+  const loopLeg = { ...leg, subRouteUid: 'LOOP' } as BusLeg;
+
+  it.each([2, 10] as const)('queries and pairs on TDX direction %i, not the planner direction', async (direction) => {
+    mockGetBusRouteDetail.mockResolvedValue(
+      detail([{ direction, subRouteUid: 'LOOP', stops: line(['豐樂公園', '美榮藥局', '國立臺中科技大學']) }]),
+    );
+    mockGetBusArrival.mockResolvedValue(arrivals([{ plateNumb: 'KKA-1234', estimateMinutes: 4, direction, subRouteUid: 'LOOP' }]));
+    mockGetLiveBusPositions.mockResolvedValue({
+      ok: true,
+      data: { buses: [{ ...vehicle('KKA-1234', 'LOOP'), direction }, { ...vehicle('OTHER-1', 'LOOP'), direction: 1 }] },
+    });
+
+    const [bus] = await fetchLeg(loopLeg, signal);
+    expect(bus.plateNumb).toBe('KKA-1234');
+    expect(mockGetBusArrival.mock.calls[0][0].direction).toBe(direction);
+    expect(mockGetLiveBusPositions.mock.calls[0][0].direction).toBe(direction);
+  });
+
+  it('does not track when the only run holding the ride is direction 255', async () => {
+    mockGetBusRouteDetail.mockResolvedValue(detail([{ direction: 255, subRouteUid: 'LOOP', stops: line(['豐樂公園', '國立臺中科技大學']) }]));
+    expect(await fetchLeg(loopLeg, signal)).toEqual([]);
+    expect(mockGetBusArrival).not.toHaveBeenCalled();
+  });
+
+  it('does not track an ambiguous ride (repeated boarding stop on a loop)', async () => {
+    mockGetBusRouteDetail.mockResolvedValue(
+      detail([{ direction: 10, subRouteUid: 'LOOP', stops: line(['豐樂公園', '美榮藥局', '豐樂公園', '國立臺中科技大學']) }]),
+    );
+    expect(await fetchLeg(loopLeg, signal)).toEqual([]);
+    expect(mockGetBusArrival).not.toHaveBeenCalled();
+  });
+
+  it('pairs plate and ETA from one record of the right stop, ignoring a same-name stop elsewhere', async () => {
+    mockGetBusArrival.mockResolvedValue(
+      arrivals([
+        { plateNumb: 'NEAR-1', estimateMinutes: 1, stopName: '另一個站' },
+        { plateNumb: 'KKA-1234', estimateMinutes: 6, stopName: '豐樂公園' },
+      ]),
+    );
+    mockGetLiveBusPositions.mockResolvedValue(positions(['NEAR-1', 'KKA-1234']));
+    const [bus] = await fetchLeg(leg, signal);
+    expect(bus).toMatchObject({ plateNumb: 'KKA-1234', estimateTime: 6 });
+  });
+
+  it('rejects invalid ETAs and positions of unknown direction', async () => {
+    mockGetBusArrival.mockResolvedValue(arrivals([{ plateNumb: 'KKA-1234', estimateMinutes: -3 }]));
+    mockGetLiveBusPositions.mockResolvedValue(positions(['KKA-1234']));
+    expect(await fetchLeg(leg, signal)).toEqual([]);
+
+    mockGetBusArrival.mockResolvedValue(arrivals([{ plateNumb: 'KKA-1234', estimateMinutes: 4 }]));
+    mockGetLiveBusPositions.mockResolvedValue({ ok: true, data: { buses: [{ ...vehicle('KKA-1234'), direction: 255 }] } });
+    expect(await fetchLeg(leg, signal)).toEqual([]);
+  });
+
+  it('keeps nothing from a previous round when the arrival lookup fails', async () => {
+    mockGetBusArrival.mockResolvedValueOnce(arrivals([{ plateNumb: 'KKA-1234', estimateMinutes: 4 }]));
+    mockGetLiveBusPositions.mockResolvedValue(positions(['KKA-1234']));
+    expect(await fetchLeg(leg, signal)).toHaveLength(1);
+
+    mockGetBusArrival.mockResolvedValueOnce({ ok: false });
+    expect(await fetchLeg(leg, signal)).toEqual([]);
+  });
+});
+

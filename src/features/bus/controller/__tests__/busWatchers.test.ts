@@ -56,7 +56,7 @@ describe('watchLegStopEtas', () => {
     const updates: LegEtaSnapshot[] = [];
     const stop = watchLegStopEtas(leg, false, (s) => updates.push(s), always);
     await flush();
-    expect(mockGetBusRouteDetail).toHaveBeenCalledWith('99延', 'Taichung');
+    expect(mockGetBusRouteDetail).toHaveBeenCalledWith('99延', 'Taichung', undefined, undefined);
     expect(updates.map((u) => u.status)).toEqual(['loading', 'ready']);
     expect(peekLegEtas(leg).status).toBe('ready');
     stop();
@@ -81,7 +81,7 @@ describe('watchLegStopEtas', () => {
     stop();
   });
 
-  it('keeps the last good data when a refresh fails', async () => {
+  it('keeps the static stops but drops the stale ETA when a refresh fails', async () => {
     mockGetBusRouteDetail
       .mockResolvedValueOnce({ ok: true, data: { directions } })
       .mockRejectedValueOnce(new Error('network'));
@@ -90,7 +90,10 @@ describe('watchLegStopEtas', () => {
     await flush();
     jest.advanceTimersByTime(STOP_ETA_POLL_MS);
     await flush();
-    expect(updates.at(-1)).toEqual({ directions, status: 'error' });
+    expect(updates.at(-1)).toEqual({
+      directions: [{ direction: 0, stops: [{ seq: 0, name: 'A', lat: 24, lng: 120, estimateMinutes: null, statusLabel: '' }] }],
+      status: 'error',
+    });
     stop();
   });
 
@@ -124,14 +127,15 @@ describe('watchLiveBus', () => {
     expect(jest.getTimerCount()).toBe(0);
   });
 
-  it('keeps the last position when a poll throws', async () => {
+  it('reports no vehicle when a poll throws instead of keeping the last position', async () => {
     mockFetchLeg.mockResolvedValueOnce([{ plateNumb: 'KKA-1234' }]).mockRejectedValueOnce(new Error('network'));
     const onBuses = jest.fn();
     const stop = watchLiveBus(() => leg, onBuses, always);
     await flush();
     jest.advanceTimersByTime(15_000);
     await flush();
-    expect(onBuses).toHaveBeenCalledTimes(1);
+    expect(onBuses).toHaveBeenCalledTimes(2);
+    expect(onBuses).toHaveBeenLastCalledWith([]);
     stop();
   });
 });

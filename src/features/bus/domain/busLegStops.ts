@@ -1,7 +1,7 @@
 // 移植自 Web `src/lib/transit/busLegStops.ts`（commit 5eadc71），邏輯逐行保留；只改 import 路徑。
 // 純函式、無 RN／Expo 依賴。`leg.direction` 不可信（SDD §6.5），問 TDX 前一律先 `resolveLegRide`。
 
-import type { RouteDetailDirection, RouteDetailStop } from '../types/transit';
+import type { RouteDetailDirection, RouteDetailStop, TrackableBusDirection } from '../types/transit';
 import { haversineMeters } from '@/shared/geo';
 import type { BusLeg } from '@/features/route/domain';
 
@@ -24,14 +24,6 @@ export interface BusLegStopRow {
    * 「尚未發車」.
    */
   pending?: boolean;
-}
-
-export function pickDirection(
-  directions: RouteDetailDirection[] | undefined,
-  direction: 0 | 1,
-): RouteDetailStop[] | null {
-  const match = directions?.find((d) => d.direction === direction);
-  return match?.stops?.length ? match.stops : null;
 }
 
 /**
@@ -100,20 +92,27 @@ export function sliceLegStops(
 }
 
 /**
- * The ride's stops, hunting for the direction that actually contains it.
+ * Identifies the exact run a leg rides: the planner's sub-route, if it named one.
  *
- * `leg.direction` cannot be trusted: TDX numbers a line's two directions
- * independently of how the planner labelled the leg, so on 365 / 26 the
- * declared direction 0 holds the stops in the opposite order and the slice
- * finds no arrival stop after the departure stop — leaving every badge with no
- * data at all. The declared direction is tried first, then the other one.
+ * `direction` is the planner's GTFS direction (0 | 1). TDX numbers directions
+ * independently (and adds 2 / 10 / 255), so it is NOT a tiebreak — the ride is
+ * located purely by sub-route and board → alight stop order.
  */
-/** Identifies the exact run a leg rides: the planner's sub-route, if it named one. */
 export interface LegRideRef {
-  direction: 0 | 1;
+  direction?: 0 | 1;
   departureStop: string;
   arrivalStop: string;
   subRouteUid?: string;
+}
+
+export interface LegRide {
+  /** TDX's direction number for the matched run (never 255). */
+  direction: TrackableBusDirection;
+  stops: RouteDetailStop[];
+  /** The sub-route the matched run belongs to; query results are filtered by it. */
+  subRouteUid?: string;
+  /** True when no other run of the payload shares this direction. */
+  exclusive: boolean;
 }
 
 export function resolveLegStops(
@@ -124,7 +123,8 @@ export function resolveLegStops(
 }
 
 /**
- * TDX's direction number for this ride, or null when nothing matches.
+ * TDX's direction number for this ride, or null when nothing (or more than one
+ * thing) matches.
  *
  * Everything that asks TDX about "this leg" — arrival times, live vehicle
  * positions — must use *this* number rather than `leg.direction`, or it may
@@ -133,48 +133,74 @@ export function resolveLegStops(
 export function resolveLegDirection(
   directions: RouteDetailDirection[] | undefined,
   leg: LegRideRef,
-): 0 | 1 | null {
+): TrackableBusDirection | null {
   return resolveLegRide(directions, leg)?.direction ?? null;
+}
+
+/**
+ * Every (board, alight) index pair on `stops` where board precedes alight.
+ * Exact normalised names are tried first; containment only when no exact pair
+ * exists, so a loose match never beats a real one.
+ */
+function rideRanges(stops: RouteDetailStop[], departureStop: string, arrivalStop: string): [number, number][] {
+  for (const eq of [equalStopName, looseEqualStopName]) {
+    const froms: number[] = [];
+    const tos: number[] = [];
+    stops.forEach((s, i) => {
+      if (eq(s.name, departureStop)) froms.push(i);
+      if (eq(s.name, arrivalStop)) tos.push(i);
+    });
+    const ranges: [number, number][] = [];
+    for (const from of froms) for (const to of tos) if (to > from) ranges.push([from, to]);
+    if (ranges.length > 0) return ranges;
+  }
+  return [];
 }
 
 /**
  * Pick the published run this leg actually rides.
  *
- * `subRouteUid` is authoritative when the planner supplied one: a line's
- * sub-routes (99 vs 99延) share a name but not a stop list, and picking the
- * wrong one yields stops the rider never sees. Only when the payload carries
- * no matching sub-route do we fall back to geometry — trying each direction
- * and keeping the one whose stop order can hold board → alight.
+ * Candidates are the runs of the planner's sub-route (`subRouteUid`); a payload
+ * that names other sub-routes only never lets us pick one of them. Without a
+ * `subRouteUid` every run is a candidate. Among candidates the ride is the one
+ * run with exactly one valid board → alight range in stop order. A circular
+ * line that offers several valid ranges (repeated names, two runs both holding
+ * the pair) is ambiguous: null, so the caller keeps the schedule instead of
+ * guessing the first. A range never wraps across the loop's end. Direction 255
+ * (unknown) cannot be matched to a ride.
  */
 export function resolveLegRide(
   directions: RouteDetailDirection[] | undefined,
   leg: LegRideRef,
-): { direction: 0 | 1; stops: RouteDetailStop[] } | null {
+): LegRide | null {
   if (!directions?.length) return null;
 
-  const scoped = leg.subRouteUid
-    ? directions.filter((d) => d.subRouteUid === leg.subRouteUid)
-    : [];
-  const pool = scoped.length ? scoped : directions;
+  const pool = leg.subRouteUid
+    ? directions.filter((d) => d.subRouteUid === leg.subRouteUid || d.subRouteUid === undefined)
+    : directions;
+  const scoped = leg.subRouteUid ? pool.filter((d) => d.subRouteUid === leg.subRouteUid) : [];
+  const candidates = scoped.length > 0 ? scoped : pool;
 
-  // The declared direction first: with a correct sub-route it is normally
-  // right, and preferring it keeps a loop route from matching the wrong lap.
-  const ordered = [
-    ...pool.filter((d) => d.direction === leg.direction),
-    ...pool.filter((d) => d.direction !== leg.direction),
-  ];
-
-  for (const candidate of ordered) {
-    if (!candidate.stops?.length) continue;
-    const sliced = sliceLegStops(
-      candidate.stops,
-      leg.departureStop,
-      leg.arrivalStop,
-    );
-    if (sliced?.length)
-      return { direction: candidate.direction, stops: sliced };
+  const matches: { run: RouteDetailDirection; direction: TrackableBusDirection; range: [number, number] }[] = [];
+  for (const run of candidates) {
+    if (run.direction === 255 || !run.stops?.length) continue;
+    const ranges = rideRanges(run.stops, leg.departureStop, leg.arrivalStop);
+    // Several valid ranges inside one run: cannot tell which lap the rider takes.
+    if (ranges.length !== 1) {
+      if (ranges.length > 1) return null;
+      continue;
+    }
+    matches.push({ run, direction: run.direction, range: ranges[0] });
   }
-  return null;
+  if (matches.length !== 1) return null;
+
+  const { run, direction, range } = matches[0];
+  return {
+    direction,
+    stops: run.stops.slice(range[0], range[1] + 1),
+    subRouteUid: run.subRouteUid,
+    exclusive: directions.filter((d) => d.direction === direction).length === 1,
+  };
 }
 
 /** Beyond this the target vehicle counts as travelling between stops. */
@@ -324,6 +350,8 @@ export function parseStatusLabel(statusLabel: string): EtaLabel | null {
       return { key: 'busStopSkipped', tone: 'muted', kind: 'status' };
     case '尚未發車':
       return { key: 'busNotDeparted', tone: 'muted', kind: 'status' };
+    case '暫無到站資訊':
+      return { key: 'busEtaUnknown', tone: 'muted', kind: 'status' };
     default:
       return null;
   }

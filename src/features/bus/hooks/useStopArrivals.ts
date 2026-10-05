@@ -27,61 +27,82 @@ type FetchResult = { ok: true; arrivals: StopArrival[] } | { ok: false; unavaila
 async function fetchArrivals(stopName: string, city: string, position: LatLng, signal?: AbortSignal): Promise<FetchResult> {
   try {
     const res = await getStopArrivals({ stopName, city, position }, signal);
-    if (!res.data) return { ok: false, unavailable: false };
+    if (!res.ok || !res.data) return { ok: false, unavailable: false };
     return { ok: true, arrivals: res.data.arrivals };
   } catch (error) {
     return { ok: false, unavailable: error instanceof ApiError && error.code === 404 };
   }
 }
 
+function toState(key: string, result: FetchResult): { key: string; status: StopArrivalsStatus; arrivals: StopArrival[] } {
+  if (result.ok) return { key, status: 'ready', arrivals: result.arrivals };
+  return { key, status: result.unavailable ? 'unavailable' : 'error', arrivals: [] };
+}
+
 /**
  * 站牌上所有行經路線的下一班（設計 2b「站牌（下一班優先）」）：每輪只打一支 `/bus/stop-arrivals`。
- * 每 30 秒前景感知輪詢；`active` 為 false（畫面失焦，例如推入路線詳情）時停止。輪詢失敗保留上一份資料。
+ * 每 30 秒前景感知輪詢；`active` 為 false（畫面失焦，例如推入路線詳情）時停止。
+ *
+ * 查詢失敗就是 `error`（或 `unavailable`），並清掉到站資料：上一輪的 ETA、車牌不能冒充本輪成功。
+ * 資料連同它屬於哪個站牌一起存，換站牌後才完成的舊請求（輪詢或手動更新）不會寫入。
  */
 export function useStopArrivals(stopName: string, city: string, position: LatLng | null, active: boolean): StopArrivalsState {
-  const [state, setState] = useState<{ status: StopArrivalsStatus; arrivals: StopArrival[] }>({
+  const lat = position?.lat ?? null;
+  const lng = position?.lng ?? null;
+  const key = `${city}::${stopName}::${lat ?? ''},${lng ?? ''}`;
+  const initial = (forKey: string): { key: string; status: StopArrivalsStatus; arrivals: StopArrival[] } => ({
+    key: forKey,
     status: position ? 'loading' : 'unavailable',
     arrivals: [],
   });
-  const [refreshing, setRefreshing] = useState(false);
-  const alive = useRef(true);
-  const lat = position?.lat ?? null;
-  const lng = position?.lng ?? null;
-
-  const apply = (result: FetchResult) =>
-    setState((prev) => {
-      if (result.ok) return { status: 'ready', arrivals: result.arrivals };
-      if (result.unavailable) return { status: 'unavailable', arrivals: [] };
-      // 暫時性失敗：已有資料就保留。
-      return prev.status === 'ready' ? prev : { status: 'error', arrivals: [] };
-    });
+  const [state, setState] = useState(() => initial(key));
+  const [refreshingKey, setRefreshingKey] = useState<string | null>(null);
+  const generation = useRef(0);
+  const requests = useRef(0);
+  const manual = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    alive.current = true;
+    const mine = ++generation.current;
     if (!active || lat === null || lng === null || !stopName) return;
     const poller = createPoller({
       intervalMs: STOP_ARRIVALS_REFRESH_MS,
       visibility: appStateVisibility,
       task: async ({ signal }) => {
+        const request = ++requests.current;
+        if (manual.current) {
+          manual.current.abort();
+          manual.current = null;
+          setRefreshingKey(null);
+        }
         const result = await fetchArrivals(stopName, city, { lat, lng }, signal);
-        if (!signal.aborted) apply(result);
+        if (!signal.aborted && generation.current === mine && requests.current === request) setState(toState(key, result));
       },
     });
     poller.start();
     return () => {
-      alive.current = false;
+      generation.current += 1;
+      manual.current?.abort();
       poller.stop();
     };
-  }, [stopName, city, lat, lng, active]);
+  }, [stopName, city, lat, lng, active, key]);
 
   const refresh = async () => {
     if (lat === null || lng === null) return;
-    setRefreshing(true);
-    const result = await fetchArrivals(stopName, city, { lat, lng });
-    if (!alive.current) return;
-    setRefreshing(false);
-    apply(result);
+    const mine = generation.current;
+    const request = ++requests.current;
+    manual.current?.abort();
+    const controller = new AbortController();
+    manual.current = controller;
+    setRefreshingKey(key);
+    const result = await fetchArrivals(stopName, city, { lat, lng }, controller.signal);
+    if (manual.current === controller && generation.current === mine) {
+      manual.current = null;
+      setRefreshingKey(null);
+    }
+    if (controller.signal.aborted || generation.current !== mine || requests.current !== request) return;
+    setState(toState(key, result));
   };
 
-  return { status: state.status, arrivals: state.arrivals, refreshing, refresh };
+  const current = state.key === key ? state : initial(key);
+  return { status: current.status, arrivals: current.arrivals, refreshing: refreshingKey === key, refresh };
 }

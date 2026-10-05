@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 
-import type { BusStopBadge, EtaLabel, EtaTone } from '../domain';
+import { parseStatusLabel, type BusStopBadge, type EtaLabel, type EtaTone } from '../domain';
 import type { PillTone } from './palette';
 
 export function badgeText(t: TFunction, badge: BusStopBadge): string {
@@ -11,8 +11,13 @@ export function badgeText(t: TFunction, badge: BusStopBadge): string {
       return t('busArrivalSoon');
     case 'minutes':
       return t('nativeBusEtaMinutes', { count: badge.minutes ?? 0 });
-    case 'status':
-      return badge.statusText ?? t('busNotDeparted');
+    case 'status': {
+      // 班表時刻與狀態文字沿用 parseStatusLabel 的翻譯；認不得的文字原樣顯示。班表不冒充即時倒數。
+      const parsed = parseStatusLabel(badge.statusText ?? '');
+      return parsed?.key ? t(parsed.key, parsed.params) : (badge.statusText ?? t('busEtaUnknown'));
+    }
+    case 'unknown':
+      return t('busEtaUnknown');
     case 'notDeparted':
       return t('busNotDeparted');
   }

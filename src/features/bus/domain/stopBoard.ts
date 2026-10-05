@@ -3,17 +3,21 @@
 // 不 import react-native／expo，可在 node 下測。
 import { haversineMeters, type LatLng } from '@/shared/geo';
 
-import type { LiveBus, RouteDetailDirection, RouteDetailStop, StopArrival } from '../types/transit';
+import type { BusDirection, LiveBus, RouteDetailDirection, RouteDetailStop, StopArrival } from '../types/transit';
 import { equalStopName } from './busLegStops';
+import { matchesSelection, type RideSelection } from './busDirections';
 import { isAccessibleBus } from './liveBusGeoJson';
 
 /** 車輛離最近一站超過這個距離就算「在兩站之間」，不當成停在該站。 */
 export const BUS_AT_STOP_RADIUS_M = 200;
 /** ETA 超過這個分鐘數，卻被判定在你這站的車，是剛開走的車，不算下一班。 */
 const JUST_LEFT_ETA_MINUTES = 3;
+/** 浮點誤差內的距離視為並列，不能據此判定循環路線上的哪一次停靠。 */
+const STOP_MATCH_TIE_METERS = 0.01;
 
 export interface StopMatch {
-  direction: 0 | 1;
+  direction: BusDirection;
+  subRouteUid?: string;
   /** 你這站在該方向站序中的索引（0 起算）。 */
   index: number;
   stop: RouteDetailStop;
@@ -23,29 +27,40 @@ export interface StopMatch {
 }
 
 /**
- * 在路線的各方向裡找出使用者的站牌。同名站牌常在兩個方向都有（對街兩側），
- * 有座標時取離座標最近的那一個；沒有座標時取第一個同名站。
+ * 在給定的站序（呼叫端傳入已選定的那一組，不混合別的支線或方向）裡找出使用者的站牌。同名站牌常在
+ * 兩側都有（對街），只有座標能確定唯一最近的一筆才配對；缺座標或最近距離並列時不猜停靠區間。
  */
 export function matchStopInRoute(
   directions: readonly RouteDetailDirection[],
   stopName: string,
   position: LatLng | null,
-  preferredDirection?: 0 | 1 | null,
 ): StopMatch | null {
   let best: StopMatch | null = null;
   let bestDist = Number.POSITIVE_INFINITY;
+  let ambiguous = false;
   for (const dir of directions) {
-    if (preferredDirection !== undefined && preferredDirection !== null && dir.direction !== preferredDirection) continue;
     for (let index = 0; index < dir.stops.length; index += 1) {
       const stop = dir.stops[index];
       if (!equalStopName(stop.name, stopName)) continue;
       const dist = position ? haversineMeters(position, { lat: stop.lat, lng: stop.lng }) : 0;
-      if (dist >= bestDist) continue;
+      if (Math.abs(dist - bestDist) <= STOP_MATCH_TIE_METERS) {
+        ambiguous = true;
+        continue;
+      }
+      if (dist > bestDist) continue;
       bestDist = dist;
-      best = { direction: dir.direction, index, stop, stops: dir.stops, headsign: dir.stops.at(-1)?.name ?? '' };
+      ambiguous = false;
+      best = {
+        direction: dir.direction,
+        subRouteUid: dir.subRouteUid,
+        index,
+        stop,
+        stops: dir.stops,
+        headsign: dir.stops.at(-1)?.name ?? '',
+      };
     }
   }
-  return best;
+  return ambiguous ? null : best;
 }
 
 export interface PlacedBus {
@@ -58,12 +73,12 @@ export interface PlacedBus {
   isLowFloor: boolean;
 }
 
-/** 把同方向的車輛對應到最接近的站。 */
-export function placeBuses(stops: readonly RouteDetailStop[], buses: readonly LiveBus[], direction: 0 | 1): PlacedBus[] {
-  if (stops.length === 0) return [];
+/** 把同一組站序（同支線、同方向）的車輛對應到最接近的站；方向未知（255）的車不配對。 */
+export function placeBuses(stops: readonly RouteDetailStop[], buses: readonly LiveBus[], selection: RideSelection): PlacedBus[] {
+  if (stops.length === 0 || selection.direction === 255) return [];
   const placed: PlacedBus[] = [];
   for (const bus of buses) {
-    if (bus.direction !== direction || !Number.isFinite(bus.lat) || !Number.isFinite(bus.lng)) continue;
+    if (!matchesSelection(bus, selection) || !Number.isFinite(bus.lat) || !Number.isFinite(bus.lng)) continue;
     let bestIndex = 0;
     let bestDist = Number.POSITIVE_INFINITY;
     stops.forEach((stop, index) => {

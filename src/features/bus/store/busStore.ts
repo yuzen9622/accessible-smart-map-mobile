@@ -18,20 +18,49 @@ export interface ActiveBusLeg {
   leg: BusLeg;
   /** 這段 leg 所屬的路線物件；選中的路線換成別的物件（重新規劃、重算）時追蹤要清掉。 */
   route: AccessibleRoute;
+  /**
+   * 導航判定使用者已上車：不再追「開往上車站的車」，改查這台車（`plate`）到下車站的時間。
+   * `plate` 為 null＝上車時沒鎖到車牌，沒有可對應的即時資料，不再發請求。
+   */
+  boarded?: { plate: string | null };
+}
+
+/** 導航用的即時分鐘數：等車時是上車站下一班，已上車時是使用者那台車到下車站；查不到為 null。 */
+export interface LegArrival {
+  stop: 'board' | 'alight';
+  eta: number | null;
 }
 
 interface BusState {
   activeBusLeg: ActiveBusLeg | null;
   liveBusPositions: LiveBus[];
+  legArrival: LegArrival | null;
   setActiveBusLeg: (active: ActiveBusLeg | null) => void;
   setLiveBusPositions: (buses: LiveBus[]) => void;
+  setLegArrival: (arrival: LegArrival | null) => void;
+  /** 只標記目前這段（`key` 相同）；leg 已換掉的晚到判定不得套到新的 leg。 */
+  markBoarded: (key: string, plate: string | null) => void;
 }
 
 export const useBusStore = create<BusState>()((set) => ({
   activeBusLeg: null,
   liveBusPositions: [],
-  setActiveBusLeg: (activeBusLeg) => set(activeBusLeg ? { activeBusLeg } : { activeBusLeg: null, liveBusPositions: [] }),
+  legArrival: null,
+  // 換成另一段 leg（key 不同）時，上一段的車輛與分鐘數立刻作廢，不等 watcher 清理。
+  setActiveBusLeg: (activeBusLeg) =>
+    set((state) =>
+      activeBusLeg && state.activeBusLeg?.key === activeBusLeg.key
+        ? { activeBusLeg }
+        : { activeBusLeg, liveBusPositions: [], legArrival: null },
+    ),
   setLiveBusPositions: (liveBusPositions) => set({ liveBusPositions }),
+  setLegArrival: (legArrival) => set({ legArrival }),
+  markBoarded: (key, plate) =>
+    set((state) =>
+      state.activeBusLeg?.key === key && !state.activeBusLeg.boarded
+        ? { activeBusLeg: { ...state.activeBusLeg, boarded: { plate } } }
+        : state,
+    ),
 }));
 
 /**

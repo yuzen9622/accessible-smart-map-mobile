@@ -89,6 +89,11 @@ export interface ProgressInput {
   now: number;
   /** 路線總分鐘數，用來按比例估剩餘時間；沒有就不估。 */
   routeTotalMinutes: number | null;
+  /**
+   * 步驟最多推進到這一步（含）。公車段還沒上車時停在上車指令：上車指令的轉向點就是站牌，
+   * 人走到站牌不代表已經上車（見 `transitRide.ts`）。
+   */
+  maxStepIndex?: number | null;
 }
 
 export interface ProgressUpdate {
@@ -155,7 +160,8 @@ export function advanceNavigation(input: ProgressInput): ProgressResult | null {
   }
 
   // 下一個轉向點＝沿路線第一個仍在前方的 waypoint，各自以所屬 leg 的抵達半徑判斷。
-  const nextIdx = selectNextStepIndex(instructions, wps, proj.alongM);
+  const selected = selectNextStepIndex(instructions, wps, proj.alongM);
+  const nextIdx = input.maxStepIndex != null ? Math.min(selected, input.maxStepIndex) : selected;
   // 步驟只由定位驅動、且只往前（對齊 Google／Apple Maps、Mapbox RouteProgress）：往回走不會倒退步驟，
   // 真的離開路線交給偏航→重算處理。實際導航刻意不接受手動切換，避免 HUD 與使用者實際位置脫節；
   // 只有預覽（`resolveStepMode` 判定人不在路線附近）才開放手動切換，且那時定位不會進到這裡。

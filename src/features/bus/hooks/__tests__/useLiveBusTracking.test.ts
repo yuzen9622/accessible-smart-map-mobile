@@ -8,8 +8,10 @@ import { useLiveBusTracking } from '../useLiveBusTracking';
 import { flushPromises } from '@/shared/testing/flushPromises';
 
 const mockFetchLeg = jest.fn();
+const mockFetchRideArrival = jest.fn();
 jest.mock('../../controller/liveBusTracker', () => ({
-  fetchLeg: (...args: unknown[]) => mockFetchLeg(...args),
+  fetchLegSnapshot: (...args: unknown[]) => mockFetchLeg(...args),
+  fetchRideArrival: (...args: unknown[]) => mockFetchRideArrival(...args),
   tdxRouteName: (leg: { routeName: string }) => leg.routeName,
 }));
 jest.mock('@/shared/polling', () => {
@@ -56,8 +58,9 @@ beforeEach(() => {
   // React 19 的 act 靠 microtask 排程；只假計時器，不假 microtask。
   jest.useFakeTimers({ doNotFake: ['queueMicrotask', 'nextTick', 'setImmediate'] });
   mockFetchLeg.mockReset();
-  mockFetchLeg.mockResolvedValue([{ plateNumb: 'KKA-1234' }]);
-  useBusStore.setState({ activeBusLeg: null, liveBusPositions: [] });
+  mockFetchLeg.mockResolvedValue({ buses: [{ plateNumb: 'KKA-1234' }], arrival: { eta: 4, plate: 'KKA-1234' } });
+  mockFetchRideArrival.mockReset();
+  useBusStore.setState({ activeBusLeg: null, liveBusPositions: [], legArrival: null });
   mockRouteStore.setState({ selectRoute: null });
 });
 afterEach(() => jest.useRealTimers());
@@ -82,6 +85,62 @@ describe('useLiveBusTracking', () => {
     await act(flush);
     expect(mockFetchLeg.mock.calls[0][0].routeName).toBe('307');
     expect(useBusStore.getState().liveBusPositions).toEqual([{ plateNumb: 'KKA-1234' }]);
+    expect(useBusStore.getState().legArrival).toEqual({ stop: 'board', eta: 4 });
+  });
+
+  it('after boarding stops tracking vehicles and polls only the boarded bus to the alighting stop', async () => {
+    const r = route('r1', busLeg('307'));
+    activate(r);
+    mockFetchRideArrival.mockResolvedValue(7);
+    await renderHook(() => useLiveBusTracking());
+    await act(flush);
+    const before = mockFetchLeg.mock.calls.length;
+
+    await act(async () => {
+      useBusStore.getState().markBoarded(useBusStore.getState().activeBusLeg?.key ?? '', 'KKA-1234');
+      await flush();
+    });
+    expect(useBusStore.getState().liveBusPositions).toEqual([]);
+    expect(mockFetchRideArrival).toHaveBeenCalledWith(expect.objectContaining({ routeName: '307' }), 'KKA-1234', expect.anything());
+    expect(useBusStore.getState().legArrival).toEqual({ stop: 'alight', eta: 7 });
+
+    await act(() => {
+      jest.advanceTimersByTime(15_000);
+    });
+    await act(flush);
+    expect(mockFetchLeg.mock.calls.length).toBe(before);
+  });
+
+  it('boarded without a locked plate makes no further requests', async () => {
+    activate(route('r1', busLeg('307')));
+    await renderHook(() => useLiveBusTracking());
+    await act(flush);
+    const before = mockFetchLeg.mock.calls.length;
+    await act(async () => {
+      useBusStore.getState().markBoarded(useBusStore.getState().activeBusLeg?.key ?? '', null);
+      await flush();
+    });
+    await act(() => {
+      jest.advanceTimersByTime(60_000);
+    });
+    await act(flush);
+    expect(mockFetchLeg.mock.calls.length).toBe(before);
+    expect(mockFetchRideArrival).not.toHaveBeenCalled();
+    expect(useBusStore.getState().legArrival).toEqual({ stop: 'alight', eta: null });
+  });
+
+  it('switching to another leg drops the previous leg vehicles and minutes at once', () => {
+    activate(route('r1', busLeg('307')));
+    useBusStore.setState({ liveBusPositions: [{ plateNumb: 'OLD', direction: 0, lat: 25, lng: 121.5, speed: 0, gpsTime: '', isLowFloor: '是', hasLiftOrRamp: '是', vehicleClass: '' }], legArrival: { stop: 'board', eta: 3 } });
+    activate(route('r2', busLeg('307')));
+    expect(useBusStore.getState().liveBusPositions).toEqual([]);
+    expect(useBusStore.getState().legArrival).toBeNull();
+  });
+
+  it('ignores a boarding mark for a leg that is no longer active', async () => {
+    activate(route('r1', busLeg('307')));
+    useBusStore.getState().markBoarded('stale-key', 'KKA-1234');
+    expect(useBusStore.getState().activeBusLeg?.boarded).toBeUndefined();
   });
 
   it('drops the tracked leg when a new route replaces the selection at the same index', async () => {

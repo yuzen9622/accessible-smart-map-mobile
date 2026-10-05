@@ -3,17 +3,19 @@ import type { VisibilitySource } from '@/shared/polling';
 
 import { __clearRouteDetailCache } from '../../api/busRouteDetailCache';
 import type { RouteDetailDirection } from '../../types/transit';
-import { STOP_ETA_POLL_MS, peekLegEtas, watchLegStopEtas, watchLiveBus, type LegEtaSnapshot } from '../busWatchers';
+import { STOP_ETA_POLL_MS, peekLegEtas, watchLegStopEtas, watchLiveBus, watchRideArrival, type LegEtaSnapshot } from '../busWatchers';
 import { flushPromises } from '@/shared/testing/flushPromises';
 
 const mockGetBusRouteDetail = jest.fn();
 const mockFetchLeg = jest.fn();
+const mockFetchRideArrival = jest.fn();
 
 jest.mock('../../api/transit', () => ({
   getBusRouteDetail: (...args: unknown[]) => mockGetBusRouteDetail(...args),
 }));
 jest.mock('../liveBusTracker', () => ({
-  fetchLeg: (...args: unknown[]) => mockFetchLeg(...args),
+  fetchLegSnapshot: (...args: unknown[]) => mockFetchLeg(...args),
+  fetchRideArrival: (...args: unknown[]) => mockFetchRideArrival(...args),
   tdxRouteName: (leg: { subRouteName?: string; routeName: string }) => leg.subRouteName ?? leg.routeName,
 }));
 
@@ -47,6 +49,7 @@ beforeEach(() => {
   __clearRouteDetailCache();
   mockGetBusRouteDetail.mockReset();
   mockFetchLeg.mockReset();
+  mockFetchRideArrival.mockReset();
 });
 afterEach(() => jest.useRealTimers());
 
@@ -117,25 +120,52 @@ describe('watchLegStopEtas', () => {
 });
 
 describe('watchLiveBus', () => {
-  it('publishes the tracked vehicle and stops cleanly', async () => {
-    mockFetchLeg.mockResolvedValue([{ plateNumb: 'KKA-1234' }]);
-    const onBuses = jest.fn();
-    const stop = watchLiveBus(() => leg, onBuses, always);
+  const tracked = { buses: [{ plateNumb: 'KKA-1234' }], arrival: { eta: 4, plate: 'KKA-1234' } };
+
+  it('publishes the tracked vehicle with the boarding-stop ETA and stops cleanly', async () => {
+    mockFetchLeg.mockResolvedValue(tracked);
+    const onSnapshot = jest.fn();
+    const stop = watchLiveBus(() => leg, onSnapshot, always);
     await flush();
-    expect(onBuses).toHaveBeenCalledWith([{ plateNumb: 'KKA-1234' }]);
+    expect(onSnapshot).toHaveBeenCalledWith(tracked);
     stop();
     expect(jest.getTimerCount()).toBe(0);
   });
 
-  it('reports no vehicle when a poll throws instead of keeping the last position', async () => {
-    mockFetchLeg.mockResolvedValueOnce([{ plateNumb: 'KKA-1234' }]).mockRejectedValueOnce(new Error('network'));
-    const onBuses = jest.fn();
-    const stop = watchLiveBus(() => leg, onBuses, always);
+  it('reports no vehicle and no ETA when a poll throws instead of keeping the last values', async () => {
+    mockFetchLeg.mockResolvedValueOnce(tracked).mockRejectedValueOnce(new Error('network'));
+    const onSnapshot = jest.fn();
+    const stop = watchLiveBus(() => leg, onSnapshot, always);
     await flush();
     jest.advanceTimersByTime(15_000);
     await flush();
-    expect(onBuses).toHaveBeenCalledTimes(2);
-    expect(onBuses).toHaveBeenLastCalledWith([]);
+    expect(onSnapshot).toHaveBeenCalledTimes(2);
+    expect(onSnapshot).toHaveBeenLastCalledWith({ buses: [], arrival: { eta: null } });
+    stop();
+  });
+});
+
+describe('watchRideArrival', () => {
+  it('polls only the alighting-stop arrival for the boarded plate', async () => {
+    mockFetchRideArrival.mockResolvedValue(6);
+    const onEta = jest.fn();
+    const stop = watchRideArrival(() => leg, 'KKA-1234', onEta, always);
+    await flush();
+    expect(mockFetchRideArrival).toHaveBeenCalledWith(leg, 'KKA-1234', expect.anything());
+    expect(mockFetchLeg).not.toHaveBeenCalled();
+    expect(onEta).toHaveBeenCalledWith(6);
+    stop();
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('reports null when a poll throws instead of keeping the last minutes', async () => {
+    mockFetchRideArrival.mockResolvedValueOnce(6).mockRejectedValueOnce(new Error('network'));
+    const onEta = jest.fn();
+    const stop = watchRideArrival(() => leg, 'KKA-1234', onEta, always);
+    await flush();
+    jest.advanceTimersByTime(15_000);
+    await flush();
+    expect(onEta).toHaveBeenLastCalledWith(null);
     stop();
   });
 });

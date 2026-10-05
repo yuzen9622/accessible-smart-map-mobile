@@ -69,6 +69,10 @@ export interface LiveSnapshotInput {
   estimatedArrivalAt: number | null;
   remainingDurationSec: number | null;
   rerouteStatus: 'idle' | 'pending' | 'error';
+  /** 公車段的等車／搭乘導引文字；有就取代後端的靜態上下車指令。 */
+  transitText?: string | null;
+  /** 正在站牌等車：沒有「到下一個轉向點的距離」可顯示。 */
+  waitingAtStop?: boolean;
 }
 
 export function buildLiveSnapshot(input: LiveSnapshotInput, icon: (step: NavInstruction | undefined) => NavStepIconName): LiveNavigationSnapshot {
@@ -79,8 +83,8 @@ export function buildLiveSnapshot(input: LiveSnapshotInput, icon: (step: NavInst
       : null;
   return {
     icon: icon(step),
-    instruction: step?.text ?? '',
-    distanceToNextM: input.distanceToNextM,
+    instruction: input.transitText ?? step?.text ?? '',
+    distanceToNextM: input.waitingAtStop ? null : input.distanceToNextM,
     progress,
     estimatedArrivalAt: input.estimatedArrivalAt,
     remainingDurationSec: input.remainingDurationSec,

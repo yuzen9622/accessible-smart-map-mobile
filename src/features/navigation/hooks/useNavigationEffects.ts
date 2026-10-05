@@ -14,6 +14,7 @@ import { logger } from '@/shared/logger';
 import { expoSpeechPort } from '../controller/expoSpeechPort';
 import { startLiveNavigationDriver } from '../controller/liveNavigationDriver';
 import { resolveActiveBusLegOrdinal } from '../domain/legMode';
+import { transitLiveText } from '../domain/transitCopy';
 import { navFollowParams, navPitch, navZoomForLeg } from '../domain/navCamera';
 import { gpsNearRoute } from '../domain/navigationEngine';
 import { createLiveNavigationPort } from '../liveActivity/liveActivityPort';
@@ -92,7 +93,7 @@ export function useNavigationEffects(): void {
       remaining: (seconds) => tRef.current('minutesLeft', { count: Math.max(1, Math.round(seconds / 60)) }),
       rerouting: tRef.current('recalculating'),
     }));
-    return startLiveNavigationDriver(port);
+    return startLiveNavigationDriver(port, Date.now, (guide) => transitLiveText((key, options) => tRef.current(key, options), guide));
   }, [isNavigating]);
 
   // 鏡頭

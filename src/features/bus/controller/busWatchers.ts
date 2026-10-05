@@ -3,8 +3,8 @@ import { createPoller, type VisibilitySource } from '@/shared/polling';
 
 import { fetchRouteDetailCached, peekRouteDetail } from '../api/busRouteDetailCache';
 import { stripLiveEta } from '../domain/busDirections';
-import type { LiveBus, RouteDetailDirection } from '../types/transit';
-import { fetchLeg, tdxRouteName } from './liveBusTracker';
+import type { RouteDetailDirection } from '../types/transit';
+import { fetchLegSnapshot, fetchRideArrival, tdxRouteName, type LegSnapshot } from './liveBusTracker';
 
 /**
  * 移植自 Web `src/hook/useLiveBusPositions.ts` 與 `src/hook/useBusLegStopEtas.ts`（commit 5eadc71）的
@@ -16,12 +16,12 @@ export const LIVE_BUS_POLL_MS = 15_000;
 export const STOP_ETA_POLL_MS = 20_000;
 
 /**
- * 每 15 秒更新使用者要搭的那一台車。每一輪都透過 `getLeg` 重讀目前的 leg（Web 的 legRef）；
- * leg 已不存在就停止回報。查詢失敗回報空陣列：不沿用上一輪的車牌與位置冒充本輪成功。回傳停止函式；停止時 abort 進行中的請求。
+ * 每 15 秒更新使用者要搭的那一台車與上車站 ETA。每一輪都透過 `getLeg` 重讀目前的 leg（Web 的 legRef）；
+ * leg 已不存在就停止回報。查詢失敗回報空快照：不沿用上一輪的車牌、位置與 ETA 冒充本輪成功。回傳停止函式；停止時 abort 進行中的請求。
  */
 export function watchLiveBus(
   getLeg: () => BusLeg | null,
-  onBuses: (buses: LiveBus[]) => void,
+  onSnapshot: (snapshot: LegSnapshot) => void,
   visibility: VisibilitySource,
 ): () => void {
   const poller = createPoller({
@@ -30,13 +30,42 @@ export function watchLiveBus(
     task: async ({ signal }) => {
       const leg = getLeg();
       if (!leg) return;
-      let buses: LiveBus[];
+      let snapshot: LegSnapshot;
       try {
-        buses = await fetchLeg(leg, signal);
+        snapshot = await fetchLegSnapshot(leg, signal);
       } catch {
-        buses = [];
+        snapshot = { buses: [], arrival: { eta: null } };
       }
-      if (!signal.aborted) onBuses(buses);
+      if (!signal.aborted) onSnapshot(snapshot);
+    },
+  });
+  poller.start();
+  return () => poller.stop();
+}
+
+/**
+ * 已上車：每 15 秒只查一支下車站到站（不再查車輛位置），回報 `plate` 這台車到下車站的分鐘數；
+ * 對不上車牌或失敗回報 null，不沿用上一輪的數字。
+ */
+export function watchRideArrival(
+  getLeg: () => BusLeg | null,
+  plate: string,
+  onEta: (eta: number | null) => void,
+  visibility: VisibilitySource,
+): () => void {
+  const poller = createPoller({
+    intervalMs: LIVE_BUS_POLL_MS,
+    visibility,
+    task: async ({ signal }) => {
+      const leg = getLeg();
+      if (!leg) return;
+      let eta: number | null;
+      try {
+        eta = await fetchRideArrival(leg, plate, signal);
+      } catch {
+        eta = null;
+      }
+      if (!signal.aborted) onEta(eta);
     },
   });
   poller.start();

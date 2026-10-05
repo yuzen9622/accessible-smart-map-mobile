@@ -12,6 +12,7 @@ import {
   type SpeechPort,
 } from '../controller/navigationController';
 import { getNavigationSpeechOwner, subscribeSpeechOwner } from '../controller/speechOwnerPort';
+import { transitSpeechText, type Translate } from '../domain/transitCopy';
 import { useNavStore } from '../store/navStore';
 
 /**
@@ -22,10 +23,11 @@ import { useNavStore } from '../store/navStore';
 export function useNavigationSession(speech: SpeechPort = silentSpeech): void {
   const isNavigating = useNavStore((s) => s.isNavigating);
   const { i18n, t } = useAppTranslation();
-  const env = useRef({ speech, language: i18n.language, arrived: t('arrivedDesc') });
+  const translate: Translate = (key, options) => t(key, options);
+  const env = useRef({ speech, language: i18n.language, arrived: t('arrivedDesc'), translate });
 
   useEffect(() => {
-    env.current = { speech, language: i18n.language, arrived: t('arrivedDesc') };
+    env.current = { speech, language: i18n.language, arrived: t('arrivedDesc'), translate };
   });
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export function useNavigationSession(speech: SpeechPort = silentSpeech): void {
       },
       language: () => (env.current.language === 'en' ? 'en' : 'zh-TW'),
       arrivedText: () => env.current.arrived,
+      transitSpeechText: (speech) => transitSpeechText(env.current.translate, speech),
       // 喇叭仲裁：語音助理擁有播報時本機 TTS 不發聲（port 由語音 feature 注入，見 speechOwnerPort.ts）
       geminiOwnsSpeech: () => getNavigationSpeechOwner().geminiOwnsSpeech(),
       subscribeSpeechOwner,

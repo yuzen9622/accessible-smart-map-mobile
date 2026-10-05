@@ -1,5 +1,6 @@
 import { stepIcon } from '../domain/navStepIcon';
 import { buildLiveSnapshot, shouldSendLiveUpdate, type LiveNavigationPort, type LiveThrottleState } from '../domain/liveNavigation';
+import type { TransitGuide } from '../domain/transitRide';
 import { useNavStore } from '../store/navStore';
 
 /**
@@ -8,7 +9,11 @@ import { useNavStore } from '../store/navStore';
  * - 抵達、結束導航 → 立即 `end`（SDD §6.4 不變量：不得殘留在鎖定畫面）。
  * 重算中快照的 `rerouting` 為 true，鎖定畫面同步改顯示「重新規劃路線中」。
  */
-export function startLiveNavigationDriver(port: LiveNavigationPort, now: () => number = Date.now): () => void {
+export function startLiveNavigationDriver(
+  port: LiveNavigationPort,
+  now: () => number = Date.now,
+  transitText: (guide: TransitGuide) => string | null = () => null,
+): () => void {
   let active = false;
   let throttle: LiveThrottleState = { lastSentAt: 0, last: null };
 
@@ -24,6 +29,8 @@ export function startLiveNavigationDriver(port: LiveNavigationPort, now: () => n
         estimatedArrivalAt: s.estimatedArrivalAt,
         remainingDurationSec: s.remainingDurationSec,
         rerouteStatus: s.rerouteStatus,
+        transitText: s.transitGuide ? transitText(s.transitGuide) : null,
+        waitingAtStop: s.transitGuide?.phase === 'waiting',
       },
       stepIcon,
     );

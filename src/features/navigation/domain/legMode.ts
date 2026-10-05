@@ -1,6 +1,7 @@
 // 移植自 Web `src/lib/navigation/legMode.ts`（commit 5eadc71），邏輯逐行保留；只改 import 路徑。
 import type { NavInstruction } from '@/features/route/domain';
 
+import { busStepRuns } from './transitRide';
 import type { HeadingSource } from './types';
 
 export type NavLegType = NavInstruction['legType'];
@@ -210,18 +211,7 @@ export function resolveActiveBusLegOrdinal(
   instructions: readonly NavInstruction[],
   currentStepIndex: number,
 ): number | null {
-  const runs: { start: number; end: number }[] = [];
-  let start: number | null = null;
-  for (let i = 0; i < instructions.length; i++) {
-    const isBus = instructions[i]?.legType === 'BUS';
-    if (isBus && start === null) start = i;
-    if (!isBus && start !== null) {
-      runs.push({ start, end: i - 1 });
-      start = null;
-    }
-  }
-  if (start !== null) runs.push({ start, end: instructions.length - 1 });
-
+  const runs = busStepRuns(instructions);
   const riding = runs.findIndex(
     (r) => currentStepIndex >= r.start && currentStepIndex <= r.end,
   );

@@ -207,6 +207,8 @@ export interface BusLeg {
   cityCode?: string;
   departureTime?: string;
   arrivalTime?: string;
+  /** 規劃的乘車分鐘數（後端有回，舊回應可能沒有）。 */
+  rideMinutes?: number;
   waitInfo: WaitInfo;
   estimatedWaitMinutes: number;
   /** 不可信：TDX 兩方向編號不一致，問 TDX 前要先 `resolveLegDirection`（SDD §6.5）。 */

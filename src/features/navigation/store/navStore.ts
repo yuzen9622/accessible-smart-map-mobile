@@ -13,6 +13,7 @@ import type {
   NavigationSource,
   RerouteStatus,
 } from '../domain/types';
+import type { TransitGuide } from '../domain/transitRide';
 
 /**
  * 移植自 Web `src/stores/useNavStore.ts`（commit 5eadc71），action 語意逐條保留。
@@ -89,6 +90,8 @@ interface NavState {
   viewMode: NavViewMode;
   /** The upcoming step coordinate for preview camera moves. */
   stepCoord: LatLng | null;
+  /** 公車段的等車／搭乘導引（`domain/transitRide.ts`）；目前步驟不在公車段時為 null。 */
+  transitGuide: TransitGuide | null;
 }
 
 interface NavAction {
@@ -139,6 +142,7 @@ interface NavAction {
   setStepListOpen: (v: boolean) => void;
   setViewMode: (v: NavViewMode) => void;
   setStepCoord: (c: LatLng | null) => void;
+  setTransitGuide: (guide: TransitGuide | null) => void;
   reset: () => void;
 }
 
@@ -177,6 +181,7 @@ const initialState: NavState = {
   stepListOpen: false,
   viewMode: '3d',
   stepCoord: null,
+  transitGuide: null,
 };
 
 export const useNavStore = create<NavStore>()((set) => ({
@@ -201,6 +206,7 @@ export const useNavStore = create<NavStore>()((set) => ({
       estimatedArrivalAt: null,
       etaSource: null,
       etaUpdatedAt: null,
+      transitGuide: null,
     }),
   setCurrentStepIndex: (currentStepIndex) => set({ currentStepIndex }),
   setStepMode: (stepMode) => set({ stepMode }),
@@ -307,6 +313,7 @@ export const useNavStore = create<NavStore>()((set) => ({
   setStepListOpen: (stepListOpen) => set({ stepListOpen }),
   setViewMode: (viewMode) => set({ viewMode }),
   setStepCoord: (stepCoord) => set({ stepCoord }),
+  setTransitGuide: (transitGuide) => set({ transitGuide }),
   // 對齊 Web：reset 不動導航開關（Web 的 isNavigating 在另一個 store），只有 stopNavigation 會關。
   reset: () => set((s) => ({ ...initialState, isNavigating: s.isNavigating })),
 }));

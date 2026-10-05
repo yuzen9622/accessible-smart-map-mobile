@@ -33,6 +33,7 @@ import {
   observeLocalNavigationGeometry,
   replaceNavigationGeometryRuntime,
 } from './navigationGeometryRuntime';
+import { createTransitRideRuntime, type TransitRideDeps } from './transitRideRuntime';
 
 /**
  * NavigationController（SDD §6.4）：Web `src/hook/useNavigation.ts`（commit 5eadc71）裡**非鏡頭**的部分，
@@ -78,6 +79,8 @@ export interface NavigationControllerDeps {
   now?: () => number;
   onLegHandoff?: (stepIndex: number, target: LatLng | null) => void;
   onStepChange?: (stepIndex: number) => void;
+  /** 公車段等車／搭乘的播報文字（i18n）；沒有時不播報公車段情境。 */
+  transitSpeechText?: TransitRideDeps['speechText'];
 }
 
 export interface NavigationController {
@@ -111,6 +114,13 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
   let trailingHeading: ReturnType<typeof setTimeout> | null = null;
 
   const spokenAdvisoryKeys = new Set<string>();
+  const transit = createTransitRideRuntime({
+    geometry,
+    route: () => currentRoute(),
+    speak: (text) => speak(text),
+    speechText: deps.transitSpeechText,
+    now,
+  });
 
   function speak(text: string): void {
     // 每次都重新讀開關：播報可能在使用者剛切換之後觸發。
@@ -196,6 +206,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     // （引擎只會往前推，不從 0 起算會停在使用者預覽到的那一步）。
     const promoted = nav.stepMode === 'preview';
     if (promoted) nav.setStepMode('live');
+    transit.observe(position);
     const result = advanceNavigation({
       position,
       geometry: { path: geometry.path, waypoints: geometry.waypoints },
@@ -208,6 +219,8 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       },
       now: now(),
       routeTotalMinutes: currentRoute()?.totalMinutes ?? null,
+      // 公車段還沒上車：停在上車指令（站牌），不因人到了站牌就跳到下車指令。
+      maxStepIndex: transit.maxStepIndex(promoted ? 0 : nav.currentStepIndex),
     });
     if (!result) return;
 
@@ -234,6 +247,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       deps.onLegHandoff?.(result.state.currentStepIndex, target);
     }
     nav.setProgress(result.progress);
+    transit.sync();
     if (result.arrivedNow) nav.setArrived(true);
   }
 
@@ -338,7 +352,14 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     return useNavStore.subscribe((state, previous) => {
       if (state.instructions !== previous.instructions || state.currentStepIndex !== previous.currentStepIndex) {
         const step = state.instructions[state.currentStepIndex];
-        if (step) speak(step.text);
+        // 公車段的上車／下車指令改由等車／搭乘導引播報（含即時分鐘數），不念後端的靜態文字。
+        if (step && !transit.ownsStepSpeech(state.currentStepIndex)) {
+          const prefix =
+            state.instructions === previous.instructions
+              ? transit.alightPrefix(previous.currentStepIndex, state.currentStepIndex)
+              : null;
+          speak(prefix ? `${prefix} ${step.text}` : step.text);
+        }
         if (state.currentStepIndex !== previous.currentStepIndex) deps.onStepChange?.(state.currentStepIndex);
       }
       if (state.arrived && !previous.arrived) speak(deps.arrivedText());
@@ -387,6 +408,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       cleanups.push(subscribeAnnouncements());
       cleanups.push(subscribeSourceChanges());
       cleanups.push(subscribeLocation());
+      cleanups.push(transit.start());
       cleanups.push(
         subscribeRouteSession((state, previous) => {
           // 路線被換掉（重算）：舊路線的 instructions 請求作廢。
@@ -438,7 +460,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       void loadInstructions(false);
       const nav = useNavStore.getState();
       const step = nav.instructions[nav.currentStepIndex];
-      if (step) speak(step.text);
+      if (step && !transit.ownsStepSpeech(nav.currentStepIndex)) speak(step.text);
       queuePosition();
     },
     stop() {

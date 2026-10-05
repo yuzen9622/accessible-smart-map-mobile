@@ -1,5 +1,5 @@
 // bus feature 公開出口（面板畫面、地圖圖層、路線卡的公車 leg 站序）。
-export { useBusStore, busLegKey, type ActiveBusLeg } from './store/busStore';
+export { useBusStore, busLegKey, type ActiveBusLeg, type LegArrival } from './store/busStore';
 export { useLiveBusTracking } from './hooks/useLiveBusTracking';
 export { useBusLegStopEtas } from './hooks/useBusLegStopEtas';
 export { useBusSearch, type BusSearchError, type BusSearchMode, type BusSearchState } from './hooks/useBusSearch';

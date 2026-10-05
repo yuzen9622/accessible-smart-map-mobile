@@ -13,6 +13,7 @@ import { endNavigation } from '../controller/navigationSession';
 import { rerouteStripText, stripStepDistance } from '../domain/hudProgress';
 import { findLegHandoffIndex, isVehicleLegType, resolveActiveLegType } from '../domain/legMode';
 import { stepIcon } from '../domain/navStepIcon';
+import { transitDetail, transitHeadline, transitInstruction, type Translate } from '../domain/transitCopy';
 import { useNavStore } from '../store/navStore';
 
 const ACCENT = ACCENT_FILL;
@@ -50,10 +51,23 @@ export default function NavigationHUD() {
   const advisories = useNavStore((s) => s.advisories);
   const followPaused = useNavStore((s) => s.followPaused);
   const stepMode = useNavStore((s) => s.stepMode);
+  const transitGuide = useNavStore((s) => s.transitGuide);
 
   const step = instructions[currentStepIndex];
   // 第一個定位樣本進來前引擎還沒算出距離：先用這一步的規劃距離，大字不會空著。
   const distanceM = distanceToNextM ?? step?.distanceM ?? null;
+  // 公車段：大字改成等車分鐘數／剩幾站，指示改成含即時分鐘數的導引（後端的上下車指令是靜態文字）。
+  const translate: Translate = (key, options) => t(key, options);
+  const transitHead = transitGuide ? transitHeadline(translate, transitGuide) : null;
+  const transitValue =
+    transitGuide?.phase === 'riding'
+      ? (transitGuide.stopsLeft ?? transitGuide.minutes ?? 0)
+      : transitGuide?.phase === 'waiting'
+        ? (transitGuide.waitMinutes ?? 0)
+        : 0;
+  const transitLine = transitGuide ? transitDetail(translate, transitGuide) : null;
+  const instructionText = transitGuide ? transitInstruction(translate, transitGuide) : step ? stripStepDistance(step.text) : t('preparingNav');
+  const instructionLabel = transitGuide ? [instructionText, transitLine].filter(Boolean).join('，') : step?.text;
   const next = instructions[currentStepIndex + 1];
   const vehicle = isVehicleLegType(resolveActiveLegType(instructions, currentStepIndex));
   const handoff = findLegHandoffIndex(instructions, currentStepIndex) !== null;
@@ -140,15 +154,18 @@ export default function NavigationHUD() {
             <View style={styles.bannerRow}>
               <Icon name={stepIcon(step)} size={64} color={ON_ACCENT_FILL} strokeWidth={2.2} />
               <View style={styles.flex}>
-                {distanceM != null && step ? (
+                {transitHead ? (
+                  <AnimatedNumberText text={transitHead} value={transitValue} fontSize={45} fontWeight="heavy" color={ON_ACCENT_FILL} />
+                ) : distanceM != null && step ? (
                   <AnimatedNumberText text={formatDistance(distanceM)} value={distanceM} fontSize={45} fontWeight="heavy" color={ON_ACCENT_FILL} />
                 ) : null}
                 <Text
                   accessibilityLiveRegion="assertive"
-                  accessibilityLabel={step?.text}
+                  accessibilityLabel={instructionLabel}
                   style={step ? styles.bannerInstruction : styles.bannerTitle}>
-                  {step ? stripStepDistance(step.text) : t('preparingNav')}
+                  {instructionText}
                 </Text>
+                {transitLine ? <Text style={styles.bannerMeta}>{transitLine}</Text> : null}
               </View>
             </View>
             {vehicle ? (

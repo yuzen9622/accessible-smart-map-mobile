@@ -3,7 +3,7 @@
 import type { BusLeg } from '@/features/route';
 
 import { __clearRouteDetailCache } from '../../api/busRouteDetailCache';
-import { fetchLeg } from '../liveBusTracker';
+import { fetchLeg, fetchLegSnapshot, fetchRideArrival } from '../liveBusTracker';
 
 const mockGetBusArrival = jest.fn();
 const mockGetLiveBusPositions = jest.fn();
@@ -345,3 +345,57 @@ describe('fetchLeg TDX directions 2 / 10 / 255 and exact pairing', () => {
   });
 });
 
+describe('fetchLegSnapshot boarding-stop ETA', () => {
+  it('reports the ETA even when the named vehicle has no position yet', async () => {
+    mockGetBusArrival.mockResolvedValue(arrivals([{ estimateMinutes: 12 }]));
+    mockGetLiveBusPositions.mockResolvedValue(positions([]));
+    expect(await fetchLegSnapshot(leg, signal)).toEqual({ buses: [], arrival: { eta: 12 } });
+  });
+
+  it('carries the plate with the ETA from the same record', async () => {
+    mockGetBusArrival.mockResolvedValue(arrivals([{ plateNumb: 'KKA-1234', estimateMinutes: 4 }]));
+    mockGetLiveBusPositions.mockResolvedValue(positions(['KKA-1234']));
+    const snapshot = await fetchLegSnapshot(leg, signal);
+    expect(snapshot.arrival).toEqual({ eta: 4, plate: 'KKA-1234' });
+    expect(snapshot.buses[0]?.plateNumb).toBe('KKA-1234');
+  });
+
+  it('has no ETA when the ride cannot be resolved', async () => {
+    mockGetBusRouteDetail.mockResolvedValue({ ok: true, data: { directions: [] } });
+    expect(await fetchLegSnapshot(leg, signal)).toEqual({ buses: [], arrival: { eta: null } });
+    expect(mockGetBusArrival).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchRideArrival', () => {
+  const alightArrivals = (items: { plateNumb?: string; estimateMinutes: number | null; direction?: 0 | 1 }[]) =>
+    arrivals(items.map((i) => ({ stopName: '國立臺中科技大學', ...i })));
+
+  it("asks the alighting stop and returns the boarded bus's minutes", async () => {
+    mockGetBusArrival.mockResolvedValue(alightArrivals([{ plateNumb: 'KKA-1234', estimateMinutes: 6 }]));
+    expect(await fetchRideArrival(leg, 'KKA-1234', signal)).toBe(6);
+    expect(mockGetBusArrival.mock.calls[0][0]).toMatchObject({ stopName: '國立臺中科技大學', direction: 1 });
+    expect(mockGetLiveBusPositions).not.toHaveBeenCalled();
+  });
+
+  // 下車站的下一班常是前一班車：拿它的分鐘數會把剩餘時間報短。
+  it('ignores an earlier bus arriving first at the alighting stop', async () => {
+    mockGetBusArrival.mockResolvedValue(alightArrivals([{ plateNumb: 'EAL-0386', estimateMinutes: 2 }]));
+    expect(await fetchRideArrival(leg, 'KKA-1234', signal)).toBeNull();
+  });
+
+  it('rejects the plate in the other direction or with an invalid ETA', async () => {
+    mockGetBusArrival.mockResolvedValue(
+      alightArrivals([
+        { plateNumb: 'KKA-1234', estimateMinutes: 3, direction: 0 },
+        { plateNumb: 'KKA-1234', estimateMinutes: null },
+      ]),
+    );
+    expect(await fetchRideArrival(leg, 'KKA-1234', signal)).toBeNull();
+  });
+
+  it('returns null when the request fails', async () => {
+    mockGetBusArrival.mockRejectedValue(new Error('network'));
+    expect(await fetchRideArrival(leg, 'KKA-1234', signal)).toBeNull();
+  });
+});

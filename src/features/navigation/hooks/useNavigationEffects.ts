@@ -168,7 +168,12 @@ export function useNavigationEffects(): void {
   const selectedRoute = useRouteSession((s) => s.selectRoute);
   const busOrdinal = useNavStore((s) => (s.isNavigating ? resolveActiveBusLegOrdinal(s.instructions, s.currentStepIndex) : null));
   useEffect(() => {
-    if (!isNavigating || busOrdinal === null || !selectedRoute) return;
+    if (!isNavigating || !selectedRoute) return;
+    if (busOrdinal === null) {
+      // 最後一段公車已經下車（或路線沒有公車）：停止追蹤，不在步行段繼續每 15 秒查到站與車輛位置。
+      if (useBusStore.getState().activeBusLeg?.key.startsWith('nav:')) useBusStore.getState().setActiveBusLeg(null);
+      return;
+    }
     const busLegs = selectedRoute.route.legs
       .map((leg, legIndex) => ({ leg, legIndex }))
       .filter((item): item is { leg: BusLeg; legIndex: number } => item.leg.type === 'BUS');

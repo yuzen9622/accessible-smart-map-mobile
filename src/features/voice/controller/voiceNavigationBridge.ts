@@ -9,7 +9,6 @@ import {
   geminiOwnsNavigationSpeech,
   handleVoiceRerouteEvent,
   localRerouteCoordinator,
-  startNavigation,
   useNavStore,
 } from '@/features/navigation';
 import { getRouteSessionSnapshot, subscribeRouteSession } from '@/features/route';
@@ -73,12 +72,12 @@ function positionPayload(position: LatLng): VoiceNavigationPosition {
 }
 
 function routeToken(): string | null {
-  const token = getRouteSessionSnapshot().selectRoute?.route.routeToken;
+  const token = (getRouteSessionSnapshot().navigationRoute ?? getRouteSessionSnapshot().selectRoute)?.route.routeToken;
   return typeof token === 'string' && token.length > 0 ? token : null;
 }
 
 function routeIdentity(): { navigationId: string | null; routeVersion: number } {
-  const route = getRouteSessionSnapshot().selectRoute?.route;
+  const route = (getRouteSessionSnapshot().navigationRoute ?? getRouteSessionSnapshot().selectRoute)?.route;
   const nav = useNavStore.getState();
   return { navigationId: route?.navigationId ?? nav.navigationId, routeVersion: route?.routeVersion ?? nav.routeVersion };
 }
@@ -109,7 +108,7 @@ function startVoiceNavigation(event: Extract<VoiceNavigationEvent, { type: 'nav.
   const nav = useNavStore.getState();
   const instructions = event.steps.map(toNavInstruction);
   const totalM = event.steps.reduce((sum, step) => sum + (step.distanceM ?? 0), 0);
-  const route = getRouteSessionSnapshot().selectRoute?.route;
+  const route = (getRouteSessionSnapshot().navigationRoute ?? getRouteSessionSnapshot().selectRoute)?.route;
   // 先切來源再切 isNavigating：導航 controller 啟動時就看到「語音擁有」，不會搶播第一步
   nav.setNavigationSource('voice');
   nav.setNavigationIdentity(route?.navigationId ?? null, route?.routeVersion ?? 0);
@@ -121,9 +120,7 @@ function startVoiceNavigation(event: Extract<VoiceNavigationEvent, { type: 'nav.
   serverStopped = false;
   // 與語音規劃路線（openRoutePanel）一致：關掉聊天 modal 讓使用者看到導航，語音改由浮動 pill 延續
   closeChat();
-  if (nav.isNavigating) {
-    startNavigation();
-  } else {
+  if (!nav.isNavigating) {
     beginNavigation({
       notificationTitle: translate('nativeNavNotificationTitle'),
       notificationBody: translate('nativeNavNotificationBody'),
@@ -284,7 +281,9 @@ export function installVoiceNavigationBridge(target: VoiceNavigationUplink): voi
 
   // 選到的路線換了（含語音改道 replaceSelectedRoute）→ 重新 arm；controller 會在 session.ready 後補送
   subscribeRouteSession((state, previous) => {
-    if (state.selectRoute?.route.routeToken !== previous.selectRoute?.route.routeToken) uplink?.setNavigationRoute(routeToken());
+    const next = state.navigationRoute ?? state.selectRoute;
+    const prev = previous.navigationRoute ?? previous.selectRoute;
+    if (next?.route.routeToken !== prev?.route.routeToken) uplink?.setNavigationRoute(routeToken());
   });
 
   useUserLocationStore.subscribe((state, previous) => {

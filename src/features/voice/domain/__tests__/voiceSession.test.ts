@@ -68,6 +68,8 @@ function createHarness(opts?: {
   location?: { latitude: number; longitude: number } | null;
   resumeState?: VoiceNavigationResumeState | null;
   history?: () => PriorTurn[];
+  conversation?: VoiceSessionDeps['getRouteConversation'];
+  onRouteSyncState?: VoiceSessionDeps['onRouteSyncState'];
 }) {
   const sockets: FakeSocket[] = [];
   const captureCalls: CaptureCall[] = [];
@@ -139,6 +141,8 @@ function createHarness(opts?: {
     getAuthIdentity: () => identity,
     getUserLocation: () => location,
     ...(opts?.history ? { getHistory: opts.history } : {}),
+    getRouteConversation: opts?.conversation,
+    onRouteSyncState: opts?.onRouteSyncState,
     createCapture,
     createPlayback,
     onStatusChange,
@@ -1135,5 +1139,54 @@ describe('VoiceSessionController', () => {
     const frame4 = new ArrayBuffer(10);
     h.captureCalls.at(-1)?.onFrame(frame4);
     expect(h.sockets[1].sent).toContain(frame4);
+  });
+});
+
+// Real transport controller + fake socket/audio: exercises the ordering of untagged PCM and acknowledgements.
+describe('route context synchronization', () => {
+  const ready = { type: 'session.ready', capabilities: { aiRouteContractVersion: 1, routeContextSync: true } };
+  const lastSet = (socket: FakeSocket) => socket.sent.filter((m): m is string => typeof m === 'string').map((m) => JSON.parse(m)).filter((m) => m.type === 'route.context.set').at(-1);
+  const ack = (frame: { requestId: string; selectionVersion: number }, routeId: string | null = 'a') => ({ type: 'route.context.ack', requestId: frame.requestId, selectionVersion: frame.selectionVersion, ok: true, routeId, navigationId: routeId, routeVersion: routeId ? 1 : null });
+  it('clears old playback immediately, gates PCM and mic until latest ack, and does not alter navigation', async () => {
+    let routeContext: { routeToken: string } | null = { routeToken: 'token-a' };
+    const h = createHarness({ conversation: () => ({ routeContractVersion: 1, routeContext }) });
+    h.controller.start(); const socket = h.sockets[0]; socket.triggerOpen();
+    expect(JSON.parse(socket.sent[0] as string)).toMatchObject({ routeContext });
+    socket.triggerMessage(JSON.stringify(ready));
+    const first = lastSet(socket);
+    socket.triggerMessage(new ArrayBuffer(8)); expect(h.playback.play).not.toHaveBeenCalled();
+    socket.triggerMessage(JSON.stringify(ack(first)));
+    h.captureCalls[0].resolve(); await Promise.resolve(); await Promise.resolve();
+    socket.triggerMessage(new ArrayBuffer(8)); expect(h.playback.play).toHaveBeenCalledTimes(1);
+    routeContext = { routeToken: 'token-b' }; h.controller.syncRouteContext();
+    const second = lastSet(socket); expect(second.selectionVersion).toBeGreaterThan(first.selectionVersion);
+    expect(h.playback.clear).toHaveBeenCalled();
+    const sent = socket.sent.length;
+    h.captureCalls[0].onFrame(new ArrayBuffer(4)); expect(socket.sent).toHaveLength(sent);
+    socket.triggerMessage(JSON.stringify(ack(first))); socket.triggerMessage(new ArrayBuffer(8));
+    expect(h.playback.play).toHaveBeenCalledTimes(1);
+    socket.triggerMessage(JSON.stringify(ack(second, 'b'))); socket.triggerMessage(new ArrayBuffer(8));
+    expect(h.playback.play).toHaveBeenCalledTimes(2);
+    expect(socket.sent.filter((x) => typeof x === 'string').join('')).not.toMatch(/nav\.(cancel|start|setRoute)/);
+    routeContext = null; h.controller.syncRouteContext();
+    socket.triggerMessage(JSON.stringify(ack(lastSet(socket), null)));
+    h.controller.end();
+  });
+  it('timeout remains unsynced; retry increments version and does not call a planner', () => {
+    jest.useFakeTimers(); const onRouteSyncState = jest.fn();
+    const h = createHarness({ conversation: () => ({ routeContractVersion: 1, routeContext: { routeToken: 'a' } }), onRouteSyncState });
+    h.controller.start(); const s = h.sockets[0]; s.triggerOpen(); s.triggerMessage(JSON.stringify(ready));
+    const first = lastSet(s); jest.advanceTimersByTime(10_001);
+    expect(onRouteSyncState).toHaveBeenLastCalledWith('error');
+    s.triggerMessage(JSON.stringify(ack(first))); s.triggerMessage(new ArrayBuffer(8));
+    expect(h.playback.play).not.toHaveBeenCalled();
+    h.controller.syncRouteContext(); expect(lastSet(s).selectionVersion).toBe(first.selectionVersion + 1);
+    h.controller.end(); jest.useRealTimers();
+  });
+  it('old ready never authorizes context.set or selected-route audio', () => {
+    const h = createHarness({ conversation: () => ({ routeContractVersion: 1, routeContext: { routeToken: 'a' } }) });
+    h.controller.start(); const s = h.sockets[0]; s.triggerOpen(); s.triggerMessage(JSON.stringify({ type: 'session.ready' }));
+    expect(lastSet(s)).toBeUndefined(); s.triggerMessage(new ArrayBuffer(8));
+    expect(h.playback.play).not.toHaveBeenCalled(); h.controller.end();
   });
 });

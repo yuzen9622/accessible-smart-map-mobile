@@ -23,6 +23,7 @@ export default function VoiceFloatingIndicator() {
   const tones = useSemanticColors();
   const fontScale = useFontScale();
   const pathname = usePathname();
+  const routeSyncState = useVoiceStore((s) => s.routeSyncState);
   const status = useVoiceStore((s) => s.status);
   const isMuted = useVoiceStore((s) => s.isMuted);
   const viewMode = useVoiceStore((s) => s.viewMode);
@@ -30,7 +31,7 @@ export default function VoiceFloatingIndicator() {
   const chatOpen = pathname === '/chat';
 
   if (!shouldShowVoicePill(status.status, chatOpen, viewMode)) return null;
-  const label = getVoiceStatusLabel(status, t);
+  const label = routeSyncState === 'pending' ? t('nativeRouteSyncPending') : routeSyncState === 'error' ? t('nativeRouteSyncError') : getVoiceStatusLabel(status, t);
   const terminal = isTerminalVoiceStatus(status.status);
 
   const expand = () => {
@@ -48,7 +49,7 @@ export default function VoiceFloatingIndicator() {
           style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
           <VoiceWaveform
             level={voiceLevelFor(waveformLevelSource(status.status, isMuted))}
-            mode={terminal ? 'flat' : waveformMode(status.status, isMuted)}
+            mode={terminal || routeSyncState === 'pending' || routeSyncState === 'error' ? 'flat' : waveformMode(status.status, isMuted)}
             color={terminal ? tones.neutral.fg : tones.accent}
             edgeColor={terminal ? tones.neutral.fg : tones.accent}
             height={20}

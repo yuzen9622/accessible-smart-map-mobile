@@ -17,7 +17,7 @@ import { useFontScale } from '@/shared/preferences';
 import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
-import { dismissVoiceSession, endVoiceSession, resumeVoicePlayback, toggleVoiceMute } from '../controller/voiceController';
+import { dismissVoiceSession, endVoiceSession, retryRouteContextSync, resumeVoicePlayback, toggleVoiceMute } from '../controller/voiceController';
 import { waveformLevelSource, waveformMode } from '../domain/audioLevel';
 import { getVoiceStatusLabel, isTerminalVoiceStatus } from '../domain/voiceStatus';
 import { voiceLevelFor } from '../store/voiceLevels';
@@ -102,6 +102,7 @@ export default function VoiceModeView() {
   const fontScale = useFontScale();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
+  const routeSyncState = useVoiceStore((s) => s.routeSyncState);
   const status = useVoiceStore((s) => s.status);
   const transcripts = useVoiceStore((s) => s.transcripts);
   const activeTool = useVoiceStore((s) => s.activeTool);
@@ -120,12 +121,12 @@ export default function VoiceModeView() {
   const flatten = useSharedValue(0);
 
   const terminal = isTerminalVoiceStatus(status.status) || status.status === 'ended';
-  const statusLabel = getVoiceStatusLabel(status, t);
+  const statusLabel = routeSyncState === 'pending' ? t('nativeRouteSyncPending') : routeSyncState === 'error' ? t('nativeRouteSyncError') : getVoiceStatusLabel(status, t);
   const level = voiceLevelFor(waveformLevelSource(status.status, isMuted));
   const mode = waveformMode(status.status, isMuted);
   const latestModelId = [...transcripts].reverse().find((entry) => entry.role === 'model')?.id;
   const hint =
-    status.status === 'connecting'
+    routeSyncState === 'pending' || routeSyncState === 'error' ? null : status.status === 'connecting'
       ? t('chatbot.voice.connectingHint')
       : status.status === 'listening' || status.status === 'ready'
         ? t('chatbot.voice.listeningHint')
@@ -288,7 +289,7 @@ export default function VoiceModeView() {
       <View ref={waveRef} collapsable={false} onLayout={measureWave} style={styles.wave}>
         <VoiceWaveform
           level={level}
-          mode={terminal ? 'flat' : mode}
+          mode={terminal || routeSyncState === 'pending' || routeSyncState === 'error' ? 'flat' : mode}
           color={terminal ? tones.neutral.fg : wave.center}
           edgeColor={terminal ? tones.neutral.bg : wave.edge}
           height={WAVE_HEIGHT}
@@ -296,6 +297,8 @@ export default function VoiceModeView() {
         />
       </View>
 
+      {routeSyncState === 'unsupported' ? <Text style={{ color: colors.textSecondary }}>{t('nativeRouteSyncUnsupported')}</Text> : null}
+      {routeSyncState === 'error' && !terminal ? <Pressable accessibilityRole="button" onPress={retryRouteContextSync}><Text style={{ color: colors.text }}>{t('retry')}</Text></Pressable> : null}
       <Animated.View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, 12) }, controlsStyle]}>
         {terminal ? (
           <ControlButton

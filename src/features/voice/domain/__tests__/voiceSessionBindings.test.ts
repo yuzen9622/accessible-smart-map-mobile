@@ -12,7 +12,6 @@ function makeSinks() {
     publishTool: jest.fn(),
     setMicLevel: jest.fn(),
     executeAction: jest.fn(),
-    computeRoute: jest.fn(() => Promise.resolve()),
     t,
   } satisfies BindingSinks;
 }

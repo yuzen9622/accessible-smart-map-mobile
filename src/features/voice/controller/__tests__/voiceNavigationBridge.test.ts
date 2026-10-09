@@ -107,10 +107,10 @@ describe('voiceNavigationBridge', () => {
     expect(uplink.sendNavigationPosition).toHaveBeenCalledWith({ latitude: 25.04, longitude: 121.52 });
   });
 
-  it('已在本機導航時 nav.start 只重啟導航，不再開一次畫面', () => {
+  it('已在本機導航時 nav.start 不重啟導航或改選候選', () => {
     useNavStore.getState().setIsNavigating(true);
     handleVoiceNavigationEvent(start, 'listening');
-    expect(mockStart).toHaveBeenCalledTimes(1);
+    expect(mockStart).not.toHaveBeenCalled();
     expect(mockBegin).not.toHaveBeenCalled();
   });
 

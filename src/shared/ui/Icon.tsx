@@ -82,6 +82,11 @@ import Trees from 'lucide-react-native/icons/trees';
 import Brain from 'lucide-react-native/icons/brain';
 import AudioLines from 'lucide-react-native/icons/audio-lines';
 import WifiOff from 'lucide-react-native/icons/wifi-off';
+import Eye from 'lucide-react-native/icons/eye';
+import PersonStanding from 'lucide-react-native/icons/person-standing';
+import Baby from 'lucide-react-native/icons/baby';
+import Type from 'lucide-react-native/icons/type';
+import MapPinned from 'lucide-react-native/icons/map-pinned';
 import { View } from 'react-native';
 
 import type { IconName, IconProps } from './Icon.types';
@@ -170,6 +175,11 @@ const ICONS: Record<IconName, LucideIcon> = {
   brain: Brain,
   audioLines: AudioLines,
   wifiOff: WifiOff,
+  eye: Eye,
+  personStanding: PersonStanding,
+  baby: Baby,
+  type: Type,
+  mapPinned: MapPinned,
 };
 
 /**

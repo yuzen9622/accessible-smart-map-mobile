@@ -860,6 +860,13 @@
       "start": "開始設定",
       "browse": "先四處看看"
     },
+    "fontSize": {
+      "title": "選一個舒服的字體大小",
+      "subtitle": "右邊是實際畫面的樣子，之後也能隨時在設定裡調整。",
+      "previewTitle": "最近的捷運站",
+      "previewAddress": "臺北市中正區忠孝西路一段",
+      "previewMeta": "步行 5 分鐘 · 有電梯"
+    },
     "needs": {
       "title": "哪些情況符合你？",
       "subtitle": "可以多選",

@@ -81,7 +81,12 @@ export type IconName =
   | 'trees'
   | 'brain'
   | 'audioLines'
-  | 'wifiOff';
+  | 'wifiOff'
+  | 'eye'
+  | 'personStanding'
+  | 'baby'
+  | 'type'
+  | 'mapPinned';
 
 export interface IconProps {
   name: IconName;

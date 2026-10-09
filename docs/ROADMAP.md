@@ -260,8 +260,8 @@
 - [x] `WebSocket`（`binaryType = "arraybuffer"`）transport port（2026-09-30，`transport/voiceSocket.ts`）
 - [x] 語音模式 UI：浮動指示器、音量、逐字稿、工具呼叫狀態（2026-09-30 模擬器：語音面板、切回文字→地圖膠囊→點膠囊回面板）
 - [x] **async action（`compute-route`）在語音路徑各自接線**（2026-09-30，`voiceController` 的 `computeRoute` sink await；語音叫路線的實測待真機）
-- [ ] 語音導航交接（`NavigationPort.adoptVoiceNavigation`）、斷線重連＋`nav.resume`（只在重連時送）
-- [ ] 與本機 TTS 的喇叭仲裁
+- [x] 語音導航交接、斷線重連＋`nav.resume`（只在重連時送）（2026-09-30，`9667d45`，`features/voice/controller/voiceNavigationBridge.ts`＋測試；未走原規劃的 `NavigationPort.adoptVoiceNavigation`，改以 `installVoiceNavigationBridge` 訂閱 route／location／nav store 並呼叫既有的 `beginNavigation`／`startNavigation`／`endNavigation`；`getVoiceNavigationResumeState` 提供 `nav.resume` 內容）
+- [x] 與本機 TTS 的喇叭仲裁（2026-09-30，`9667d45`，`configureNavigationSpeechOwner` port：語音擁有導航且語音通道活著時本機 TTS 讓位，HUD 喇叭鈕改切語音助理靜音）
 
 ### 出口條件
 
@@ -338,7 +338,7 @@
 - [x] `hazardAdvisory`、`slopeConstraint`（`enforced: false` 顯示 `note`）、WALK `restPoints`／`surfaceType`、指令 `stairs`／`cumulativeDistanceM` 型別與顯示
 - [x] 結構化無障礙評論（表單五欄位、`aggregateAccessibilityScore` 顯示、`minAggregateScore` 參數；UI 篩選入口未做）
 - [x] `INVALID_ROUTE_TOKEN` 時維持幾何導引
-- [ ] 語音 WebSocket 的 `utteranceId`／`transcript.correction`（Phase 4 語音模組一併實作）
+- [x] 語音 WebSocket 的 `utteranceId`／`transcript.correction`（`9667d45`，`voiceSession.ts` 的 `transcript`／`transcript.correction` case＋`transcriptAggregator.ts` 的 `TranscriptCorrection`；`voiceController` 接 `onTranscriptCorrection`）
 - [ ] B-06 分享連結 Universal Links／App Links（後端 #22 仍開啟，v1.x）
 
 ---

@@ -7,6 +7,7 @@ import { useAppTranslation } from '@/shared/i18n';
 import { getLocationPort } from '@/shared/location';
 import { logger } from '@/shared/logger';
 import { useCloseScreen } from '@/shared/navigation';
+import { FONT_SCALE, usePreferencesStore, type FontSizeLevel } from '@/shared/preferences';
 
 import {
   A11Y_SITUATIONS,
@@ -16,8 +17,23 @@ import {
 } from '../domain/a11yProfile';
 import { useOnboardingStore } from '../store/onboardingStore';
 
-export const ONBOARDING_STEP_IDS = ['intro', 'needs', 'location', 'done'] as const;
+export const ONBOARDING_STEP_IDS = ['intro', 'fontSize', 'needs', 'location', 'done'] as const;
 export type OnboardingStepId = (typeof ONBOARDING_STEP_IDS)[number];
+
+const FONT_SIZE_LEVELS: FontSizeLevel[] = ['small', 'medium', 'large', 'mega'];
+const FONT_SIZE_LABEL_KEY: Record<FontSizeLevel, string> = {
+  small: 'nativeFontSmall',
+  medium: 'nativeFontMedium',
+  large: 'nativeFontLarge',
+  mega: 'nativeFontMega',
+};
+
+export interface FontSizeOption {
+  value: FontSizeLevel;
+  label: string;
+  scale: number;
+  selected: boolean;
+}
 
 export type LocationRequestState = 'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported';
 
@@ -29,15 +45,17 @@ export interface SituationOption {
 }
 
 /**
- * Onboarding lite 的畫面邏輯：4 步驟的 step 狀態、輪廓輸入、定位權限請求與完成／略過
- * 的收尾動作。對齊 `features/map/hooks/useNearbyViewModel.ts` 的「view-model hook ＋
- * 純呈現用 4 檔元件」分工——這個 hook 不畫任何東西，只回傳畫面需要的資料與 callback。
+ * Onboarding 的畫面邏輯：5 步驟（intro／fontSize／needs／location／done）的 step 狀態、
+ * 字級偏好、輪廓輸入、定位權限請求與完成／略過的收尾動作。對齊
+ * `features/map/hooks/useNearbyViewModel.ts` 的「view-model hook ＋純呈現用元件」分工——
+ * 這個 hook 不畫任何東西，只回傳畫面需要的資料與 callback。
  *
  * 移植來源：taipei-accessible-map `src/components/Onboarding/OnboardingFlow.tsx`（commit
  * 5eadc71）。與 Web 的差異：
- * - Done 步驟拿掉「找廁所／規劃路線／問 AI」三個快捷卡片——那三個分別要跳進路線規劃、
- *   AI 聊天功能，這兩個 feature 在本 App 都還沒實作（Phase 1.4 只做 onboarding lite），
- *   硬接會導到不存在的路由。Done 步驟只保留「完成」這個唯一動作。
+ * - 新增 `fontSize` 步驟（Web 沒有）：原生才有的 App 層級字級倍率（`shared/preferences`），
+ *   第一次使用就該讓長輩當場選、當場看到實際大小，不要等到找到設定頁才發現字太小。
+ * - Done 步驟的「找廁所／規劃路線／問 AI」三個快捷卡片：Phase 1.4 當時路線規劃與 AI 助理
+ *   都還沒實作，曾經拿掉以免導到不存在的路由；Phase 2／4 上線後這裡補回來，對齊 Web。
  * - 沒有 `dismissWelcomeCard`／`coachMarks`：Web 版首頁還有歡迎卡與三步驟聚光燈導覽，
  *   本 App 首頁（`app/index.tsx`）目前只有地圖本體，沒有對應的 UI 可以聯動。
  * - 定位狀態少了 Web 版靠 `navigator.geolocation` 存在與否判斷的 `unsupported`
@@ -55,6 +73,8 @@ export function useOnboardingFlow() {
   const completeOnboarding = useOnboardingStore((state) => state.completeOnboarding);
   const skipOnboarding = useOnboardingStore((state) => state.skipOnboarding);
   const setLocationPermission = useUserLocationStore((state) => state.setPermission);
+  const fontSize = usePreferencesStore((state) => state.fontSize);
+  const setPreferences = usePreferencesStore((state) => state.setPreferences);
 
   const lastStep = ONBOARDING_STEP_IDS.length - 1;
 
@@ -89,10 +109,22 @@ export function useOnboardingFlow() {
     closeScreen();
   };
 
-  /** 完成引導並直接打開附近設施清單（Web DoneStep 的「找附近的無障礙廁所」；路線與 AI 建議待 Phase 2／4） */
+  /** 完成引導並直接打開附近設施清單（Web DoneStep 的「找附近的無障礙廁所」）。 */
   const finishToNearby = () => {
     finish();
     router.navigate('/nearby');
+  };
+
+  /** 完成引導並直接開始規劃路線（Phase 2 上線後補回 Web DoneStep 的第二張捷徑卡）。 */
+  const finishToPlan = () => {
+    finish();
+    router.navigate('/plan');
+  };
+
+  /** 完成引導並直接打開 AI 助理（Phase 4 上線後補回 Web DoneStep 的第三張捷徑卡）。 */
+  const finishToAi = () => {
+    finish();
+    router.navigate('/chat');
   };
 
   const requestLocation = () => {
@@ -143,6 +175,27 @@ export function useOnboardingFlow() {
       onBrowse: handleSkip,
     },
 
+    fontSize: {
+      title: t('onboarding.fontSize.title'),
+      subtitle: t('onboarding.fontSize.subtitle'),
+      nextLabel: t('onboarding.next'),
+      previewTitle: t('onboarding.fontSize.previewTitle'),
+      previewAddress: t('onboarding.fontSize.previewAddress'),
+      previewMeta: t('onboarding.fontSize.previewMeta'),
+      previewButtonLabel: t('planRoute'),
+      scale: FONT_SCALE[fontSize],
+      options: FONT_SIZE_LEVELS.map(
+        (level): FontSizeOption => ({
+          value: level,
+          label: t(FONT_SIZE_LABEL_KEY[level]),
+          scale: FONT_SCALE[level],
+          selected: level === fontSize,
+        }),
+      ),
+      onSelect: (value: FontSizeLevel) => setPreferences({ fontSize: value }),
+      onNext: goNext,
+    },
+
     needs: {
       title: t('onboarding.needs.title'),
       subtitle: t('onboarding.needs.subtitle'),
@@ -182,8 +235,13 @@ export function useOnboardingFlow() {
 
     done: {
       title: t('onboarding.done.title'),
+      subtitle: t('onboarding.done.subtitle'),
       tryToiletLabel: t('onboarding.done.tryToilet'),
       onTryToilet: finishToNearby,
+      tryRouteLabel: t('onboarding.done.tryRoute'),
+      onTryRoute: finishToPlan,
+      tryAiLabel: t('onboarding.done.tryAi'),
+      onTryAi: finishToAi,
       startLabel: t('onboarding.done.start'),
       onStart: finish,
     },

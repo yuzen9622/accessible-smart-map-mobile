@@ -871,6 +871,13 @@
       "start": "Set up",
       "browse": "Just look around first"
     },
+    "fontSize": {
+      "title": "Pick a comfortable text size",
+      "subtitle": "The card on the right shows what it'll really look like. You can change this any time in settings.",
+      "previewTitle": "Nearest MRT station",
+      "previewAddress": "Section 1, Zhongxiao West Rd, Zhongzheng Dist., Taipei",
+      "previewMeta": "5 min walk · Has elevator"
+    },
     "needs": {
       "title": "Which of these apply to you?",
       "subtitle": "Pick any that fit",

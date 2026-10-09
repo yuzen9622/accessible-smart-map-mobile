@@ -1,6 +1,6 @@
-import { replaceSelectedRoute } from '@/features/route';
+import { markRouteTokenInvalid, replaceNavigationRoute } from '@/features/route';
 import type { AccessibleRoute, NavInstruction, NavInstructionsData } from '@/features/route/domain';
-import type { ApiResponse } from '@/shared/api';
+import { ApiError, type ApiResponse } from '@/shared/api';
 import type { GeoPosition } from '@/shared/location';
 import type { VisibilitySource } from '@/shared/polling';
 
@@ -246,7 +246,7 @@ describe('NavigationController', () => {
 
     // 重算把路線換成 v2（navStore 身分同步更新，就像 applyRouteReplacement 做的）；
     // 套用後以使用者語系重取 v2 的指令。
-    replaceSelectedRoute(makeRoute(2));
+    replaceNavigationRoute(makeRoute(2));
     useNavStore.setState({ routeVersion: 2 });
     await flush();
     expect(fetchInstructions.mock.calls[1][0].routeToken).toBe('token-2');
@@ -399,7 +399,7 @@ describe('NavigationController', () => {
     expect(fetchInstructions).toHaveBeenCalledTimes(1);
 
     // 模擬 applyRouteReplacement：先換路線，再同步更新 navStore 身分與重算原因。
-    replaceSelectedRoute(makeRoute(2));
+    replaceNavigationRoute(makeRoute(2));
     useNavStore.setState({ routeVersion: 2, instructions: [step('重算後（後端語言）', 0)] });
     useNavStore.getState().setLastRerouteReason('OFF_ROUTE');
     await flush();
@@ -484,4 +484,40 @@ describe('NavigationController step mode (live vs preview)', () => {
     expect(useNavStore.getState().currentStepIndex).toBe(0);
     controller.stop();
   });
+});
+
+it('refreshes language with the same token and preserves the current step', async () => {
+  let language: 'zh-TW' | 'en' = 'zh-TW';
+  const { controller, speech, fetchInstructions } = setup({ language: () => language });
+  controller.start(); await flush();
+  useNavStore.setState({ currentStepIndex: 2 });
+  language = 'en'; controller.refreshLanguage(); await flush();
+  expect(fetchInstructions).toHaveBeenLastCalledWith({ routeToken: 'token-1', userHeading: undefined, language: 'en' }, expect.any(AbortSignal));
+  expect(useNavStore.getState().currentStepIndex).toBe(2); expect(speech.stop).toHaveBeenCalled();
+  controller.stop();
+});
+
+it('pauses navigation when another channel invalidates its token and does not retry that token', async () => {
+  const { controller, speech, fetchInstructions } = setup();
+  controller.start(); await flush();
+  speech.speak.mockClear(); speech.stop.mockClear();
+  markRouteTokenInvalid('token-1');
+  expect(useNavStore.getState().instructionError).toBe('expired');
+  expect(speech.stop).toHaveBeenCalled();
+  expect(useMapStore.getState().selectRoute?.route.routeToken).toBe('token-1');
+  fix(25.05, 121.50501); controller.refreshLanguage(); await flush();
+  expect(fetchInstructions).toHaveBeenCalledTimes(1);
+  expect(speech.speak).not.toHaveBeenCalled();
+  expect(useNavStore.getState().arrived).toBe(false);
+  controller.stop();
+});
+
+it.each(['INVALID_ROUTE_TOKEN', 'BAD_INPUT', 'INTERNAL_ERROR'])('surfaces %s and pauses guidance without clearing the preview', async (reason) => {
+  const { controller, speech } = setup({ fetchInstructions: jest.fn(async () => { throw new ApiError('failure', reason === 'INTERNAL_ERROR' ? 500 : 400, reason); }) });
+  controller.start(); await flush();
+  expect(useNavStore.getState().instructionError).toBe(reason === 'INVALID_ROUTE_TOKEN' ? 'expired' : 'unavailable');
+  expect(useMapStore.getState().selectRoute).not.toBeNull();
+  speech.speak.mockClear(); fix(25.05, 121.50501); await flush();
+  expect(speech.speak).not.toHaveBeenCalled(); expect(useNavStore.getState().arrived).toBe(false);
+  controller.stop();
 });

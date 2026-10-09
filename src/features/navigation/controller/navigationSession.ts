@@ -16,7 +16,7 @@ import { startNavigation, stopNavigation } from './navigationLifecycle';
  * Web 的 iOS 羅盤權限步驟不需要：原生羅盤隨定位權限授予。
  */
 export function beginNavigation(texts: BackgroundLocationTexts): void {
-  startNavigation();
+  if (!startNavigation()) return;
   // Web 預設不播報（瀏覽器要使用者手勢才能發聲）；原生沒有這個限制，導航一開始就播報，
   // 使用者可在 HUD 關掉（差異記在 port-ledger）。
   useNavStore.getState().setVoiceEnabled(true);

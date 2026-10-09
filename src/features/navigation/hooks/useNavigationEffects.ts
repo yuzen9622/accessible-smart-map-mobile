@@ -5,7 +5,7 @@ import { AccessibilityInfo } from 'react-native';
 
 import { busLegKey, useBusStore } from '@/features/bus';
 import { mapCamera, useMapUiStore, useUserLocationStore } from '@/features/map';
-import { getRouteSessionSnapshot, useRouteSession } from '@/features/route';
+import { useRouteSession } from '@/features/route';
 import { buildCumulativePath, resolveWaypoints, type BusLeg } from '@/features/route/domain';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
@@ -35,6 +35,7 @@ export function useNavigationEffects(): void {
   useNavigationSession(expoSpeechPort);
   const { t } = useAppTranslation();
   const isNavigating = useNavStore((s) => s.isNavigating);
+  const selectedRoute = useRouteSession((s) => s.navigationRoute);
   const tRef = useRef(t);
   useEffect(() => {
     tRef.current = t;
@@ -99,7 +100,7 @@ export function useNavigationEffects(): void {
   // 鏡頭
   useEffect(() => {
     if (!isNavigating) return;
-    const route = getRouteSessionSnapshot().selectRoute?.route;
+    const route = selectedRoute?.route;
     if (!route) return;
     const cp = buildCumulativePath(route.legs);
     const firstLegType = route.legs[0]?.type;
@@ -162,10 +163,9 @@ export function useNavigationEffects(): void {
       unsubscribeInterrupt();
       mapCamera.stopFollow();
     };
-  }, [isNavigating]);
+  }, [isNavigating, selectedRoute]);
 
   // 導航中追蹤要搭的那段公車（Web useNavigationBusTracking）
-  const selectedRoute = useRouteSession((s) => s.selectRoute);
   const busOrdinal = useNavStore((s) => (s.isNavigating ? resolveActiveBusLegOrdinal(s.instructions, s.currentStepIndex) : null));
   useEffect(() => {
     if (!isNavigating || !selectedRoute) return;

@@ -5,7 +5,7 @@
 // 這裡提供與 Web 同形狀的 `useMapStore` 轉接層：路線經**真實**的 route 公開 API 寫入
 // （`applyComputedRoutes`／`endRouteSession`），讀取用 `getRouteSessionSnapshot`——測試跑的是真的
 // route store，不是一份複製的邏輯。只有 map（相機、使用者位置）以 `fakeMap.ts` 替身取代。
-import { applyComputedRoutes, endRouteSession, getRouteSessionSnapshot } from '@/features/route';
+import { applyComputedRoutes, pinNavigationRoute, endRouteSession, getRouteSessionSnapshot } from '@/features/route';
 import type { AccessibleRoute } from '@/features/route/domain';
 import type { LatLng } from '@/shared/geo';
 
@@ -38,6 +38,7 @@ export const useMapStore = {
     } else if (selectRoute) {
       if (selectRoute.index !== 0) throw new Error('navHarness: 只支援 index 0（真實 applyComputedRoutes 一律選第一條）');
       applyComputedRoutes(null, null, computeRoutes ?? [selectRoute.route]);
+      pinNavigationRoute();
     }
   },
 };

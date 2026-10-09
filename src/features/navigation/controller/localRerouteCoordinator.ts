@@ -1,5 +1,5 @@
 import { useUserLocationStore } from '@/features/map';
-import { getRouteSessionSnapshot, rerouteAccessibleRoute } from '@/features/route';
+import { getRouteSessionSnapshot, rerouteAccessibleRoute, markRouteTokenInvalid } from '@/features/route';
 import type {
   AccessibleRouteRerouteData,
   AccessibleRouteRerouteRequest,
@@ -59,7 +59,7 @@ export interface LocalRerouteCoordinatorDeps {
 
 function defaultReadContext(): LocalRerouteContext {
   const nav = useNavStore.getState();
-  const route = getRouteSessionSnapshot().selectRoute?.route;
+  const route = getRouteSessionSnapshot().navigationRoute?.route;
   const routeNavigationId = route?.navigationId ?? null;
   const routeVersion = route?.routeVersion ?? 0;
   const hasMatchingRuntimeIdentity =
@@ -322,6 +322,7 @@ export class LocalRerouteCoordinator {
           previousRouteVersion: context.routeVersion,
           reason,
           clientRequestId: requestId,
+          language: i18n.language === 'en' ? 'en' : 'zh-TW',
         },
         abortController.signal,
       );
@@ -349,6 +350,10 @@ export class LocalRerouteCoordinator {
       }
       if (!this.isValidResponse(sessionGen, reqGen, context)) {
         return false;
+      }
+      if (error instanceof ApiError && error.reason === 'INVALID_ROUTE_TOKEN' && context.routeToken) {
+        markRouteTokenInvalid(context.routeToken);
+        useNavStore.setState({ instructionError: 'expired' });
       }
       this.setError(
         error instanceof ApiError || error instanceof Error

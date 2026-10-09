@@ -68,3 +68,36 @@ describe('stepIcon — walking and transit legs', () => {
     expect(stepIcon(undefined)).toBe('arrowUp');
   });
 });
+
+it.each([
+  ['ahead', 'arrowUp'], ['ahead-left', 'arrowUpLeft'], ['ahead-right', 'arrowUpRight'],
+  ['left', 'cornerUpLeft'], ['right', 'cornerUpRight'], ['behind-left', 'undo2'],
+  ['behind-right', 'redo2'], ['behind', 'arrowDown'],
+] as const)('maps English direction %s to %s', (relativeDirection, icon) => {
+  expect(stepIcon(instruction({ relativeDirection, type: 'turn' }))).toBe(icon);
+});
+
+it.each([
+  ['Turn right, then continue for about 70 meters', 'cornerUpRight'],
+  ['向右轉，續行約 70 公尺', 'cornerUpRight'],
+  ['Turn left onto Right Street', 'cornerUpLeft'],
+  ['向左轉進入「民族西路」，續行約 1.0 公里', 'cornerUpLeft'],
+  ['Turn slightly left onto Main Street', 'arrowUpLeft'],
+  ['請稍向左轉，續行約 70 公尺', 'arrowUpLeft'],
+  ['Turn slightly right, then immediately follow the next instruction', 'arrowUpRight'],
+  ['稍向右轉進入「民族西路」', 'arrowUpRight'],
+  ['Turn sharply left onto 興雅路', 'undo2'],
+  ['大幅向左轉進入「興雅路」', 'undo2'],
+  ['Turn sharply right, then continue for about 100 meters', 'redo2'],
+  ['請大幅向右轉，續行約 100 公尺', 'redo2'],
+  ['Make a U-turn, then continue for about 20 meters', 'arrowDown'],
+  ['請迴轉，續行約 20 公尺', 'arrowDown'],
+  ['Continue straight toward Turn right Street', 'arrowUp'],
+  ['沿「向右轉街」繼續直行', 'arrowUp'],
+] as const)('uses the maneuver when heading is unavailable: %s', (text, icon) => {
+  expect(stepIcon(instruction({ text }))).toBe(icon);
+});
+
+it('preserves heading-relative arrows when the backend supplies them', () => {
+  expect(stepIcon(instruction({ text: 'Turn right', relativeDirection: 'ahead-right' }))).toBe('arrowUpRight');
+});

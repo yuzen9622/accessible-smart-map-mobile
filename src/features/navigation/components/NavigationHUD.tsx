@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +33,7 @@ const THEN_TEXT = 'rgba(255,255,255,0.9)';
  */
 export default function NavigationHUD() {
   const { t } = useAppTranslation();
+  const instructionError = useNavStore((s) => s.instructionError);
   const colors = useThemeColors();
   const semantic = useSemanticColors();
   const tones = { ok: semantic.ok.fg, warn: semantic.warn.fg, danger: semantic.danger.fg };
@@ -99,7 +101,14 @@ export default function NavigationHUD() {
       {/* 導航中橫幅是實心主色，狀態列一律淺色字 */}
       <StatusBar style="light" />
       <View pointerEvents="box-none" style={styles.top}>
-        {arrived ? (
+        {instructionError ? (
+          <View style={[styles.banner, { paddingTop: insets.top + 8 }]}>
+            <Text accessibilityLiveRegion="assertive" style={styles.bannerInstruction}>{t(instructionError === 'expired' ? 'nativeRouteTokenExpired' : 'nativeInstructionsUnavailable')}</Text>
+            <Pressable accessibilityRole="button" onPress={() => { endNavigation(); router.navigate('/plan'); }} style={styles.arrivedButton}>
+              <Text style={styles.arrivedButtonText}>{t('nativePlanAgain')}</Text>
+            </Pressable>
+          </View>
+        ) : arrived ? (
           <View style={[styles.banner, { paddingTop: insets.top + 8 }]}>
             <View accessible accessibilityLiveRegion="assertive" style={styles.bannerRow}>
               <Icon name="circleCheck" size={64} color={ON_ACCENT_FILL} />

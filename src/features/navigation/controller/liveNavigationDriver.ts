@@ -45,7 +45,7 @@ export function startLiveNavigationDriver(
 
   const sync = () => {
     const s = useNavStore.getState();
-    if (!s.isNavigating || s.arrived) {
+    if (!s.isNavigating || s.arrived || s.instructionError) {
       end();
       return;
     }

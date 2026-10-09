@@ -84,3 +84,13 @@ describe('startLiveNavigationDriver', () => {
     stop();
   });
 });
+
+it('removes stale lock-screen guidance when the token expires', () => {
+  const { port, calls } = fakePort();
+  useNavStore.getState().setInstructions([step('A')]);
+  useNavStore.getState().setIsNavigating(true);
+  const stop = startLiveNavigationDriver(port);
+  useNavStore.setState({ instructionError: 'expired' });
+  expect(calls.map((call) => call.kind)).toEqual(['start', 'end']);
+  stop();
+});

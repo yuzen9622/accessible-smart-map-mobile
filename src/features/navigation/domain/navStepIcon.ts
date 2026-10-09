@@ -9,25 +9,49 @@ import { isVehicleLegType } from './legMode';
 
 export type NavStepIconName = 'arrowDown' | 'arrowUp' | 'arrowUpDown' | 'arrowUpLeft' | 'arrowUpRight' | 'bike' | 'bus' | 'car' | 'cornerUpLeft' | 'cornerUpRight' | 'flag' | 'navigation' | 'redo2' | 'squareParking' | 'tramFront' | 'undo2';
 
+// Without userHeading the backend intentionally returns relativeDirection: null.
+// Match only the leading maneuver in its bilingual templates, never a street name
+// or a later instruction, so a known turn does not silently become a straight arrow.
+const TEXT_DIRECTIONS: readonly [RegExp, NavStepIconName][] = [
+  [/^(?:Turn slightly left\b|(?:請)?稍向左轉)/i, 'arrowUpLeft'],
+  [/^(?:Turn slightly right\b|(?:請)?稍向右轉)/i, 'arrowUpRight'],
+  [/^(?:Turn sharply left\b|(?:請)?大幅向左轉)/i, 'undo2'],
+  [/^(?:Turn sharply right\b|(?:請)?大幅向右轉)/i, 'redo2'],
+  [/^(?:Turn left\b|向左轉)/i, 'cornerUpLeft'],
+  [/^(?:Turn right\b|向右轉)/i, 'cornerUpRight'],
+  [/^(?:Make a U-turn\b|請迴轉)/i, 'arrowDown'],
+];
+
 /** Direction arrows, shared by every travel mode — a right turn looks the
  * same whether the user is walking or driving it. */
 function directionIcon(step: NavInstruction): NavStepIconName {
+  if (step.relativeDirection == null) {
+    return TEXT_DIRECTIONS.find(([pattern]) => pattern.test(step.text.trim()))?.[1] ?? 'arrowUp';
+  }
   switch (step.relativeDirection) {
     case '正前方':
+    case 'ahead':
       return 'arrowUp';
     case '左前方':
+    case 'ahead-left':
       return 'arrowUpLeft';
     case '右前方':
+    case 'ahead-right':
       return 'arrowUpRight';
     case '左側':
+    case 'left':
       return 'cornerUpLeft';
     case '右側':
+    case 'right':
       return 'cornerUpRight';
     case '左後方':
+    case 'behind-left':
       return 'undo2';
     case '右後方':
+    case 'behind-right':
       return 'redo2';
     case '正後方':
+    case 'behind':
       return 'arrowDown';
     default:
       return 'arrowUp';

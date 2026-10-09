@@ -18,9 +18,9 @@ describe('sheetConfig', () => {
     expect(sheetConfig(false, '/explore')).toEqual({ detents: [0.15, 0.5, 1], initialDetentIndex: 0 });
   });
 
-  it('地點／設施詳情不給 full，直接落在 half', () => {
+  it('地點／設施詳情給 peek／half／full，落在 half（full 讓內容能正常滑動）', () => {
     for (const path of ['/loc/25.04,121.51', '/place/osm:1', '/facility/abc']) {
-      expect(sheetConfig(false, path)).toEqual({ detents: [0.15, 0.5], initialDetentIndex: 1 });
+      expect(sheetConfig(false, path)).toEqual({ detents: [0.15, 0.5, 1], initialDetentIndex: 1 });
     }
   });
 

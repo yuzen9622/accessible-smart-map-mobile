@@ -257,13 +257,17 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
           <Text style={[routeStyles.bodyText, { color: colors.textSecondary }]}>{model.labels.loading}</Text>
         </View>
       ) : (
+        // 不用 `model.canStart`（那是自動算路用的內部閘門，還要求已有定位／目的地）：缺定位或目的地時
+        // 按鈕仍要可以按——`model.onStart` 自己會補上對應的錯誤訊息（見 `useRoutePlanViewModel.start`），
+        // 不然按鈕會無聲地停用，使用者只會覺得「按了沒反應」，看不出原因。這裡只在真的有非同步操作
+        // 進行中（地點解析）時才擋，避免重複送出。
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={model.labels.start}
-          accessibilityState={{ disabled: !model.canStart }}
-          disabled={!model.canStart}
+          accessibilityState={{ disabled: model.resolving }}
+          disabled={model.resolving}
           onPress={model.onStart}
-          style={[routeStyles.primaryButton, !model.canStart && routeStyles.disabled]}>
+          style={[routeStyles.primaryButton, model.resolving && routeStyles.disabled]}>
           <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
           <Text style={routeStyles.primaryButtonText}>{model.labels.start}</Text>
         </Pressable>

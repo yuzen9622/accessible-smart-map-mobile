@@ -20,7 +20,7 @@ export function sheetBottomInset(detentIndex: number, windowHeight: number): num
   return Math.round(fraction * windowHeight);
 }
 
-/** 地點／設施詳情的路由前綴：點到地點時 sheet 只開到 half，讓使用者看得到自己點的位置。 */
+/** 地點／設施詳情的路由前綴：點到地點時 sheet 落在 half，讓使用者看得到自己點的位置。 */
 const PLACE_DETAIL_PREFIXES = ['/loc/', '/place/', '/facility/'] as const;
 
 export function isPlaceDetailPath(pathname: string): boolean {
@@ -35,14 +35,19 @@ export interface SheetConfig {
 /**
  * 依情境決定 sheet 可用 detent 與落點：
  * - 導航中：較低的 peek（只露出收合列）／half（full 會蓋住 HUD）。
- * - 地點詳情：peek／half 並直接落在 half（不給 full，地圖上的點才看得到）。
+ * - 地點詳情：peek／half／full，落在 half（先看得到自己點的位置，但仍可往上拉）。
  * - 其他：peek／half／full，落在 peek。
  * 換 allowed detents 時原生 sheet 會重新落在 `initialDetentIndex`，且不會發 sheetDetentChange。
+ *
+ * 地點詳情過去不給 full（只有 peek／half 兩檔），但那會讓 sheet 停在「已是最大 detent」的狀態——
+ * iOS `UISheetPresentationController` 在最大 detent 時才會把往上拖曳的手勢交給內容的
+ * `ScrollView` 接手；只有兩檔時使用者會卡在「拖不動 sheet、也滑不動內容」。保留 full 選項
+ * 讓手勢交接正常運作，使用者一樣可以把 sheet 拉到底看完整段內容。
  */
 export function sheetConfig(isNavigating: boolean, pathname: string): SheetConfig {
   if (isNavigating) return { detents: [NAV_PEEK_DETENT, SHEET_DETENTS[SHEET_UNDIMMED_DETENT_INDEX]], initialDetentIndex: 0 };
   if (isPlaceDetailPath(pathname)) {
-    return { detents: SHEET_DETENTS.slice(0, SHEET_UNDIMMED_DETENT_INDEX + 1), initialDetentIndex: SHEET_UNDIMMED_DETENT_INDEX };
+    return { detents: [...SHEET_DETENTS], initialDetentIndex: SHEET_UNDIMMED_DETENT_INDEX };
   }
   return { detents: [...SHEET_DETENTS], initialDetentIndex: 0 };
 }

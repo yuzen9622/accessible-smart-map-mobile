@@ -112,6 +112,8 @@ export interface PlaceDetailModel {
   /** 「3 / 4 已確認」；清單為空時為 null */
   checklistConfirmedLabel: string | null;
   reportLabel: string;
+  /** 回報這個地點的現場狀況（障礙、施工、資料錯誤）：開危險通報並帶入地點座標 */
+  placeReport: { title: string; subtitle: string; accessibilityLabel: string; onPress: () => void };
   /** 「⋯」選單（回到此地點、複製連結） */
   moreLabel: string;
   cancelLabel: string;
@@ -206,6 +208,15 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   // 只經路由參數傳遞，place 不 import route feature（sheet 路由是兩者之間唯一的介面）。
   const handlePlanRoute = () => {
     router.navigate({ pathname: '/plan', params: { destLat: String(lat), destLng: String(lng), destName: title } });
+  };
+
+  // 對齊 Web `PlaceContent` 的回報交接：以地點座標（不是使用者 GPS）開通報表單，描述預填地點名稱。
+  // 只經路由參數傳遞，place 不 import hazard feature。
+  const handleReport = () => {
+    router.navigate({
+      pathname: '/hazard-report',
+      params: { lat: String(lat), lng: String(lng), description: t('nativeFacilityReportDescription', { name: title }) },
+    });
   };
 
   const handleRecenter = () => {
@@ -329,6 +340,12 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     checklistConfirmedLabel:
       checklist.length > 0 ? t('nativePlaceA11yConfirmed', { confirmed: confirmedCount, total: checklist.length }) : null,
     reportLabel: t('nativePlaceIKnow'),
+    placeReport: {
+      title: t('nativePlaceReportTitle'),
+      subtitle: t('nativePlaceReportSubtitle'),
+      accessibilityLabel: t('nativeFacilityReportLabel', { name: title }),
+      onPress: handleReport,
+    },
     moreLabel: t('nativePlaceMoreActions'),
     cancelLabel: t('cancel'),
     links,

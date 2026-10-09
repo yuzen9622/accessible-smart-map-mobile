@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { ACCENT_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors, type ToneColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
@@ -137,12 +137,14 @@ export function Bullets({ items }: { items: string[] }) {
 
 export function KeyValue({ label, value }: { label: string; value: string }) {
   const colors = useThemeColors();
+  // 大字級時左右並排會把標籤擠成一字一行：改成上下堆疊
+  const stacked = useWindowDimensions().fontScale >= 1.4;
   return (
-    <View accessible accessibilityLabel={`${label}：${value}`} style={styles.keyValue}>
-      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.small, styles.flex, { color: colors.textSecondary }]}>
+    <View accessible accessibilityLabel={`${label}：${value}`} style={stacked ? styles.keyValueStacked : styles.keyValue}>
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.small, !stacked && styles.flex, { color: colors.textSecondary }]}>
         {label}
       </Text>
-      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.small, styles.keyValueValue, { color: colors.text }]}>
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.small, !stacked && styles.keyValueValue, { color: colors.text }]}>
         {value}
       </Text>
     </View>
@@ -183,5 +185,6 @@ const styles = StyleSheet.create({
   bullets: { gap: 6 },
   bulletRow: { flexDirection: 'row', gap: 8 },
   keyValue: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  keyValueStacked: { gap: 2 },
   keyValueValue: { textAlign: 'right', flexShrink: 1 },
 });

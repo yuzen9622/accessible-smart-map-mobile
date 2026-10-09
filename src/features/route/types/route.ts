@@ -409,6 +409,36 @@ export interface AccessibleRoute {
 export type RouteMode = 'wheelchair' | 'elderly' | 'visual_impaired' | 'normal';
 export type TravelMode = 'transit' | 'drive' | 'motorcycle' | 'walk';
 
+export type RouteLanguage = 'zh-TW' | 'en';
+export type RouteContextInput = { routeToken: string } | null;
+export interface RoutingPreferences {
+  mode?: RouteMode;
+  transitPreference?: 'none' | 'bus' | 'rail' | 'metro';
+  departureTime?: string;
+  avoidStairs?: boolean;
+  requireElevator?: boolean;
+}
+export interface EffectiveRoutePreferences extends RoutingPreferences {
+  mode: RouteMode;
+  travelMode: TravelMode;
+  transitPreference: NonNullable<RoutingPreferences['transitPreference']>;
+  maxTransfers: number;
+  avoidStairs: boolean;
+  requireElevator: boolean;
+  needsAccessibleToilet?: boolean;
+  needsHandrail?: boolean;
+  maxSlopePercent?: number;
+}
+export interface AiRoutePlan extends AccessibleRouteData {
+  routeContractVersion: 1;
+  ok: true;
+  planId: string;
+  selectedRouteId: string;
+  origin: { name: string; lat: number; lng: number };
+  destination: { name: string; lat: number; lng: number };
+  effectivePreferences: EffectiveRoutePreferences;
+}
+
 export interface RouteIntent {
   from: string;
   to: string;
@@ -454,17 +484,22 @@ export interface AccessibleRouteRequest {
   mode?: RouteMode;
   travelMode?: TravelMode;
   maxTransfers?: number;
+  transitPreference?: RoutingPreferences['transitPreference'];
   departureTime?: string;
   format?: 'standard' | 'compact';
   /** 硬性條件：只在使用者明確開啟時才送；送 `false` 會覆蓋 `mode` 預設（輪椅的保護），沒選過就整個欄位別送。 */
   avoidStairs?: boolean;
   requireElevator?: boolean;
+  needsAccessibleToilet?: boolean;
+  needsHandrail?: boolean;
+  maxSlopePercent?: number;
 }
 
 // --- 導航指令（/a11y/route/instructions） ---
 export type NavInstructionType = 'turn' | 'transit_board' | 'transit_alight' | 'facility' | 'depart' | 'arrive';
 
 export type RelativeDirection =
+  | 'ahead' | 'ahead-right' | 'right' | 'behind-right' | 'behind' | 'behind-left' | 'left' | 'ahead-left'
   | '正前方'
   | '左前方'
   | '右前方'
@@ -506,12 +541,13 @@ export interface NavInstructionsData {
 export interface NavInstructionsRequest {
   routeToken: string;
   userHeading?: number;
-  language?: string;
+  language?: RouteLanguage;
 }
 
 export type RerouteReason = 'OFF_ROUTE' | 'FACILITY_OUTAGE' | 'CONFIRMED_HAZARD' | 'TRANSIT_DISRUPTION' | 'MANUAL';
 
 export interface AccessibleRouteRerouteRequest {
+  language?: RouteLanguage;
   routeToken: string;
   currentPosition: {
     latitude: number;

@@ -1,5 +1,6 @@
 // Web 版 useComputeRoute 沒有測試；邏輯抽成純函式後補上，守住 strict schema 與錯誤分類。
 import type { WalkLeg } from '../../types/route';
+import { routePlanFixture } from '@/features/ai/domain/testing/routePlanFixture';
 import {
   MAX_ROUTE_METERS,
   classifyRouteError,
@@ -16,6 +17,21 @@ const KAOHSIUNG = { lat: 22.6273, lng: 120.3014 };
 const TOKYO = { lat: 35.6812, lng: 139.7671 };
 
 describe('planRouteRequest', () => {
+  it('preserves canonical false, none, future departure and accessibility preferences on explicit replan', () => {
+    const canonicalPreferences = {
+      ...routePlanFixture().effectivePreferences, transitPreference: 'none' as const, maxTransfers: 0,
+      avoidStairs: false, requireElevator: false, needsAccessibleToilet: true, needsHandrail: false, maxSlopePercent: 5,
+    };
+    const plan = planRouteRequest({ origin: TAIPEI_MAIN, destination: CITY_HALL, mode: canonicalPreferences.mode, canonicalPreferences }, null);
+    expect(plan.ok && plan.request).toMatchObject({
+      avoidStairs: false, requireElevator: false, transitPreference: 'none', maxTransfers: 0,
+      departureTime: canonicalPreferences.departureTime, needsAccessibleToilet: true, needsHandrail: false, maxSlopePercent: 5,
+    });
+    expect(plan.ok && 'canonicalPreferences' in plan.request).toBe(false);
+    const changed = planRouteRequest({ origin: TAIPEI_MAIN, destination: CITY_HALL, mode: 'elderly', canonicalPreferences }, null);
+    expect(changed.ok && 'avoidStairs' in changed.request).toBe(false);
+    expect(changed.ok && 'requireElevator' in changed.request).toBe(false);
+  });
   it('sends hard accessibility constraints only when enabled', () => {
     const on = planRouteRequest(
       { origin: TAIPEI_MAIN, destination: CITY_HALL, mode: 'elderly', avoidStairs: true, requireElevator: true },

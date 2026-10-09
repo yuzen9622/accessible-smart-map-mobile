@@ -16,7 +16,7 @@ import {
 import { adaptRoutePreviewRoutes } from '../domain/routePreviewAdapter';
 import { hasRouteSession } from '../domain/routeSession';
 import { useRouteSessionStore } from '../store/routeSessionStore';
-import type { AccessibleRoute } from '../types/route';
+import type { AiRoutePlan, AccessibleRoute } from '../types/route';
 
 /**
  * `RouteSessionPort`（SDD §4.3）：路線面板、AI 聊天、語音、SOS、深層連結都經過這裡算路與結束 session，
@@ -30,7 +30,7 @@ import type { AccessibleRoute } from '../types/route';
  *   開始時 abort 上一個並把 `requestSeq` +1，await 之後世代不符就丟棄。`endRouteSession`、
  *   `applyComputedRoutes`、距離過遠的新請求也會推進世代。Web 沒有這層保護，結束路線後才回來的
  *   回應會把 session 復活。
- * - `computeRoute` 是 async 且會 resolve 出結果：AI 與語音兩條路徑都必須 await 它（SDD §6.6 雙路徑不變量）。
+ * - `computeRoute` 用於手動規劃；AI 與語音直接套用後端已規劃的完整結果。
  */
 export type ComputeRouteResult =
   | { ok: true; routes: AccessibleRoute[] }
@@ -46,7 +46,7 @@ function invalidate(): number {
   inflight?.abort();
   inflight = null;
   const seq = useRouteSessionStore.getState().requestSeq + 1;
-  useRouteSessionStore.setState({ requestSeq: seq });
+  useRouteSessionStore.setState((state) => ({ requestSeq: seq, selectionGeneration: state.selectionGeneration + 1 }));
   return seq;
 }
 
@@ -59,6 +59,11 @@ function beginRequest(): { seq: number; signal: AbortSignal } {
     lastFailure: null,
     // 對齊 Web `setComputeRoutes(null)`：清掉上一次的結果與附屬資料，但保留起訖點。
     computeRoutes: null,
+    selectRoute: null,
+    planId: null,
+    plan: null,
+    selectedRouteId: null,
+    effectivePreferences: null,
     metroAlerts: null,
     transitAlerts: null,
     routeWaypoints: [],
@@ -116,12 +121,14 @@ export async function computeRoute(params: ComputeRouteParams): Promise<ComputeR
     useRouteSessionStore.setState({
       isLoading: false,
       lastFailure: null,
+      selectionGeneration: useRouteSessionStore.getState().selectionGeneration + 1,
       computeRoutes: routes,
       computedFor: null,
       metroAlerts: data.metroAlerts ?? null,
       transitAlerts: data.transitAlerts ?? null,
       slopeConstraint: data.slopeConstraint ?? null,
       selectRoute: { index: 0, route: routes[0] },
+      selectedRouteId: routes[0].routeId,
       routeWaypoints: waypoints,
     });
     fitCamera(routes[0], {
@@ -145,6 +152,9 @@ function commitExternalRoutes(origin: LatLng | null, destination: LatLng | null,
     lastFailure: null,
     computeRoutes: routes,
     computedFor: null,
+    origin, destination,
+    planId: null, plan: null, effectivePreferences: null, planningPreferences: null,
+    selectedRouteId: routes[0].routeId,
     selectRoute: { index: 0, route: routes[0] },
     routeWaypoints: [],
     metroAlerts: null,
@@ -213,6 +223,8 @@ export function replaceSelectedRoute(route: AccessibleRoute): boolean {
   const index = selectRoute.index;
   useRouteSessionStore.setState({
     selectRoute: { index, route },
+    selectedRouteId: route.routeId, requestSeq: useRouteSessionStore.getState().requestSeq + 1,
+    selectionGeneration: useRouteSessionStore.getState().selectionGeneration + 1,
     computeRoutes: computeRoutes ? computeRoutes.map((item, i) => (i === index ? route : item)) : null,
   });
   return true;
@@ -241,4 +253,82 @@ export function endRouteSession(): void {
 
 export function hasActiveRouteSession(): boolean {
   return hasRouteSession(useRouteSessionStore.getState());
+}
+
+/** Apply a validated AI plan in one store notification; no planner is called. */
+export function applyAiRoutePlan(plan: AiRoutePlan): void {
+  const index = plan.routes.findIndex((route) => route.routeId === plan.selectedRouteId);
+  if (index < 0) throw new Error('INVALID_ROUTE_PLAN');
+  inflight?.abort();
+  inflight = null;
+  useRouteSessionStore.setState((state) => ({
+    requestSeq: state.requestSeq + 1,
+    selectionGeneration: state.selectionGeneration + 1,
+    plan, planId: plan.planId, selectedRouteId: plan.selectedRouteId,
+    effectivePreferences: plan.effectivePreferences,
+    planningPreferences: plan.effectivePreferences,
+    origin: plan.origin, originName: plan.origin.name,
+    destination: plan.destination, destinationName: plan.destination.name,
+    computeRoutes: plan.routes, selectRoute: { index, route: plan.routes[index] },
+    metroAlerts: plan.metroAlerts ?? null, transitAlerts: plan.transitAlerts ?? null,
+    slopeConstraint: plan.slopeConstraint ?? null, routeWaypoints: plan.waypoints ?? [],
+    travelMode: plan.effectivePreferences.travelMode, routeMode: plan.effectivePreferences.mode,
+    computedFor: null, isLoading: false, lastFailure: null,
+  }));
+}
+
+export function invalidateRouteConversations(): void {
+  useRouteSessionStore.setState((state) => ({ selectionGeneration: state.selectionGeneration + 1 }));
+}
+
+export function canNavigateRoute(route: AccessibleRoute | undefined): boolean {
+  const token = typeof route?.routeToken === 'string' ? route.routeToken.trim() : '';
+  return Boolean(token && token.length <= 256 && !useRouteSessionStore.getState().invalidRouteTokens.includes(token));
+}
+
+export function getRouteConversationInput() {
+  const state = useRouteSessionStore.getState();
+  const route = state.selectRoute?.route;
+  return {
+    routeContractVersion: 1 as const,
+    routeContext: !state.isLoading && canNavigateRoute(route) ? { routeToken: route!.routeToken!.trim() } : null,
+  };
+}
+
+export function markRouteTokenInvalid(token: string): void {
+  token = token.trim();
+  useRouteSessionStore.setState((state) => ({
+    invalidRouteTokens: [...new Set([...state.invalidRouteTokens, token])],
+    selectionGeneration: state.selectionGeneration + 1,
+  }));
+}
+
+export function pinNavigationRoute(): boolean {
+  const selected = useRouteSessionStore.getState().selectRoute;
+  if (!canNavigateRoute(selected?.route)) return false;
+  useRouteSessionStore.setState({ navigationRoute: selected });
+  return true;
+}
+
+export function clearNavigationRoute(): void {
+  useRouteSessionStore.setState({ navigationRoute: null });
+}
+
+/** A replacement follows its navigation identity, even while another candidate is viewed. */
+export function replaceNavigationRoute(route: AccessibleRoute): boolean {
+  const state = useRouteSessionStore.getState();
+  const active = state.navigationRoute;
+  if (!active?.route.navigationId || active.route.navigationId !== route.navigationId) return false;
+  const viewingActive = state.selectRoute?.route.navigationId === active.route.navigationId;
+  const index = state.computeRoutes?.findIndex((item) => item.navigationId === active.route.navigationId) ?? -1;
+  useRouteSessionStore.setState({
+    navigationRoute: { index: active.index, route },
+    computeRoutes: state.computeRoutes?.map((item, i) => i === index ? route : item) ?? null,
+    ...(viewingActive ? {
+      selectRoute: { index: index < 0 ? active.index : index, route }, selectedRouteId: route.routeId,
+      requestSeq: state.requestSeq + 1,
+      selectionGeneration: state.selectionGeneration + 1,
+    } : {}),
+  });
+  return true;
 }

@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import type { LatLng } from '@/shared/geo';
 
 import type { RouteFailureKind } from '../domain/routeRequest';
-import type { AccessibleRoute, MatchedAlert, MetroAlertResult, RouteMode, SlopeConstraint, TravelMode } from '../types/route';
+import type { AiRoutePlan, EffectiveRoutePreferences, AccessibleRoute, MatchedAlert, MetroAlertResult, RouteMode, SlopeConstraint, TravelMode } from '../types/route';
 
 /**
  * 移植自 Web `src/stores/map/createRouteSlice.ts`（commit 5eadc71）的路線欄位；拆出 route feature
@@ -22,6 +22,14 @@ export interface SelectedRoute {
 }
 
 export interface RouteSessionState {
+  planId: string | null;
+  selectedRouteId: string | null;
+  effectivePreferences: EffectiveRoutePreferences | null;
+  /** 表單輸入保留至下一次明確修改；請求開始時不能回退個人預設而觸發第二次規劃。 */
+  planningPreferences: EffectiveRoutePreferences | null;
+  plan: AiRoutePlan | null;
+  navigationRoute: SelectedRoute | null;
+  invalidRouteTokens: string[];
   origin: LatLng | null;
   originName: string;
   destination: LatLng | null;
@@ -41,6 +49,8 @@ export interface RouteSessionState {
   computedFor: string | null;
   /** 每次開始算路或結束 session 都 +1；晚到的回應比對不上就丟掉。 */
   requestSeq: number;
+  /** Conversation results are invalidated independently of an in-flight manual HTTP request. */
+  selectionGeneration: number;
   /**
    * 規劃表單的偏好（Web `RoutePlanContent` 的 local state）。刻意不在 CLEARED_SESSION：
    * 結束一條路線不代表使用者改了交通方式。`routeMode` 為 null 時跟隨 onboarding 需求輪廓。
@@ -66,6 +76,13 @@ export interface RouteSessionState {
 // 刻意**不含**地點詳情（place feature 的 selectedPlace）：使用者可能在看無關地點時按 pill 的 ✕，
 // 把他正在看的面板清空是錯的。
 const CLEARED_SESSION = {
+  planId: null,
+  selectedRouteId: null,
+  effectivePreferences: null,
+  planningPreferences: null,
+  plan: null,
+  navigationRoute: null,
+  invalidRouteTokens: [],
   origin: null,
   originName: '',
   destination: null,
@@ -84,6 +101,7 @@ const CLEARED_SESSION = {
 export const useRouteSessionStore = create<RouteSessionState>()((set, get) => ({
   ...CLEARED_SESSION,
   requestSeq: 0,
+  selectionGeneration: 0,
   travelMode: 'transit',
   routeMode: null,
 
@@ -97,9 +115,10 @@ export const useRouteSessionStore = create<RouteSessionState>()((set, get) => ({
     const routes = get().computeRoutes;
     const route = routes?.[index];
     if (!route) return;
-    set({ selectRoute: { index, route } });
+    if (get().selectRoute?.route === route) return;
+    set({ selectRoute: { index, route }, selectedRouteId: route.routeId, requestSeq: get().requestSeq + 1, selectionGeneration: get().selectionGeneration + 1 });
   },
   setTravelMode: (travelMode) => set({ travelMode }),
   setRouteMode: (routeMode) => set({ routeMode }),
-  endRouteSession: () => set((s) => ({ ...CLEARED_SESSION, requestSeq: s.requestSeq + 1 })),
+  endRouteSession: () => set((s) => ({ ...CLEARED_SESSION, requestSeq: s.requestSeq + 1, selectionGeneration: s.selectionGeneration + 1 })),
 }));

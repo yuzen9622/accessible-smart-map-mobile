@@ -1,6 +1,14 @@
 // RouteSessionPort（SDD §4.3）：其他 feature 只經過這些函式算路／結束路線，不直接寫 store。
 export {
   applyComputedRoutes,
+  applyAiRoutePlan,
+  getRouteConversationInput,
+  invalidateRouteConversations,
+  pinNavigationRoute,
+  clearNavigationRoute,
+  markRouteTokenInvalid,
+  canNavigateRoute,
+  replaceNavigationRoute,
   computeRoute,
   endRouteSession,
   hasActiveRouteSession,

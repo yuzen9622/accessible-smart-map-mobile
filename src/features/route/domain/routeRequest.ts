@@ -4,7 +4,7 @@
 
 import { haversineMeters, type LatLng } from '@/shared/geo';
 
-import type { AccessibleRouteRequest, ApiCoordinate, RouteLeg, RouteMode, TravelMode } from '../types/route';
+import type { AccessibleRouteRequest, ApiCoordinate, EffectiveRoutePreferences, RouteLeg, RouteMode, TravelMode } from '../types/route';
 
 // 直線距離超過這個值已遠超任何國內行程（台北–高雄約 300 km），幾乎可以確定起訖點不在服務範圍——
 // 在這裡擋下能給出準確的「距離過遠」訊息，而不是暗示重試有用的「失敗，請再試一次」。
@@ -20,6 +20,8 @@ export interface ComputeRouteParams {
   /** 使用者明確開啟才傳 true；未開啟就不要傳，讓後端沿用 `mode` 預設。 */
   avoidStairs?: boolean;
   requireElevator?: boolean;
+  /** 使用者明確重新規劃時，沿用上一份後端確認的條件。 */
+  canonicalPreferences?: EffectiveRoutePreferences;
 }
 
 export type RoutePlanResult =
@@ -66,6 +68,18 @@ export function planRouteRequest(params: ComputeRouteParams, userLocation: LatLn
   if (query) request.query = query;
   if (mode) request.mode = mode;
   if (travelMode) request.travelMode = travelMode;
+  const preferences = params.canonicalPreferences;
+  if (preferences) {
+    request.transitPreference = preferences.transitPreference;
+    request.maxTransfers = preferences.maxTransfers;
+    if (preferences.departureTime !== undefined) request.departureTime = preferences.departureTime;
+    if (preferences.needsAccessibleToilet !== undefined) request.needsAccessibleToilet = preferences.needsAccessibleToilet;
+    if (preferences.needsHandrail !== undefined) request.needsHandrail = preferences.needsHandrail;
+    if (preferences.maxSlopePercent !== undefined) request.maxSlopePercent = preferences.maxSlopePercent;
+    // 同模式的明確 false 也是條件；改模式時保留 true，缺值交回新模式的無障礙預設。
+    if (preferences.mode === mode || preferences.avoidStairs) request.avoidStairs = preferences.avoidStairs;
+    if (preferences.mode === mode || preferences.requireElevator) request.requireElevator = preferences.requireElevator;
+  }
   if (params.avoidStairs) request.avoidStairs = true;
   if (params.requireElevator) request.requireElevator = true;
   if (here) request.userLocation = toApiCoordinate(here);

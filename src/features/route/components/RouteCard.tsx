@@ -1,3 +1,5 @@
+import { useRouteSessionStore } from '../store/routeSessionStore';
+import { canNavigateRoute } from '../controller/routeSessionPort';
 import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
@@ -58,6 +60,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
   const colors = useThemeColors();
   const tones = routeTones(useColorScheme() === 'dark');
   const { t } = useAppTranslation();
+  useRouteSessionStore((state) => state.invalidRouteTokens);
   // hazardAdvisory 缺漏＝後端沒有完整比對結果，不是「沒有危險」；只在後端明確列出時才顯示。
   const advisory = route.hazardAdvisory;
   const hazardBlocking = (advisory?.blockingOnRoute ?? 0) > 0;
@@ -240,9 +243,13 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
               </View>
             </View>
           ) : null}
+          {!canNavigateRoute(route) ? <Text accessibilityLiveRegion="polite" style={{ color: tones.warn }}>{t('nativeRouteTokenUnavailable')}</Text> : null}
+          {route.legs.some((leg) => !leg.polyline?.length) ? <Text style={{ color: colors.textSecondary }}>{t('nativeRouteGeometryMissing')}</Text> : null}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('startNav')}
+            disabled={!canNavigateRoute(route)}
+            accessibilityState={{ disabled: !canNavigateRoute(route) }}
             onPress={onStartNavigation}
             style={routeStyles.primaryButton}>
             <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />

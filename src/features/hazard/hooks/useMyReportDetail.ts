@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import { mapCamera } from '@/features/map';
@@ -26,6 +26,7 @@ export function resubmitHazardReport(report: HazardReport): void {
  */
 export function useMyReportDetail(id: string | undefined) {
   const { t, i18n } = useAppTranslation();
+  const navigation = useNavigation();
   const listed = useMyReport(id);
   const [fetched, setFetched] = useState<HazardReport | null>(null);
   const [failure, setFailure] = useState<'notFound' | 'network' | null>(null);
@@ -78,7 +79,8 @@ export function useMyReportDetail(id: string | undefined) {
     hasDescription: Boolean(report.description?.trim()),
     coordinates: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
     showOnMap: () => {
-      // 回到地圖（關掉設定 modal）並打開這筆回報的地圖詳情，相機由詳情頁移過去
+      // 先關掉整個設定 modal（parent＝root stack），再打開這筆回報的地圖詳情；直接 navigate 只會把設定 stack 退回首頁
+      navigation.getParent()?.goBack();
       mapCamera.flyTo([lng, lat], 17);
       router.navigate({ pathname: '/hazard/[id]', params: { id: report._id } });
     },

@@ -1,7 +1,7 @@
 import { Camera, Layer, Map, NativeUserLocation } from '@maplibre/maplibre-react-native';
 import { router, useFocusEffect, usePathname } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Keyboard, StyleSheet, View, useColorScheme } from 'react-native';
+import { Animated, Keyboard, StyleSheet, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTranslation } from '@/shared/i18n';
@@ -86,6 +86,14 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
   const pathname = usePathname();
   // 一次拖曳手勢的起點；拖得夠遠就把 sheet 收到最小（每個手勢只收一次）
   const panStart = useRef<{ sample: ViewportSample; collapsed: boolean } | null>(null);
+  // 分類篩選預設收起，點 MapControls 的篩選鈕才展開那排 chips（平常不佔地圖版面）
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  // 使用者正在拖曳／縮放地圖時，淡出非必要的浮動控制（篩選 chips、定位/3D/篩選鈕），
+  // 讓地圖在操作當下盡量乾淨；放開後淡回。SOS、路線膠囊等安全／狀態相關資訊不淡出。
+  const [controlsOpacity] = useState(() => new Animated.Value(1));
+  const fadeControls = (toValue: number) => {
+    Animated.timing(controlsOpacity, { toValue, duration: 160, useNativeDriver: true }).start();
+  };
   useLocationTracking();
   useFacilitiesLoader();
 
@@ -126,6 +134,9 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
   const layerChips = (
     <LayerChips
       label={t('nativeMapLayers')}
+      expanded={filtersExpanded}
+      toggleLabel={filtersExpanded ? t('nativeMapFiltersHide') : t('nativeMapFiltersShow')}
+      onToggleExpanded={() => setFiltersExpanded((value) => !value)}
       chips={[
         ...(['elevator', 'toilet', 'ramp'] as const).map((category) => ({
           key: category,
@@ -161,6 +172,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
         onRegionWillChange={(event) => {
           const { userInteraction, center, zoom, bounds } = event.nativeEvent;
           panStart.current = userInteraction ? { sample: { center, zoom, bounds }, collapsed: false } : null;
+          if (userInteraction) fadeControls(0.25);
         }}
         onRegionIsChanging={(event) => {
           const start = panStart.current;
@@ -174,6 +186,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
         }}
         onRegionDidChange={(event) => {
           panStart.current = null;
+          fadeControls(1);
           useMapUiStore.getState().setZoom(event.nativeEvent.zoom);
         }}
         onPress={(event) => {
@@ -225,17 +238,17 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
       {!navigationMode && pathname === '/explore' ? (
         SheetEdgeFollower ? (
           <SheetEdgeFollower pointerEvents="box-none" gap={4} style={styles.chipsFollower}>
-            {layerChips}
+            <Animated.View style={{ opacity: controlsOpacity }}>{layerChips}</Animated.View>
           </SheetEdgeFollower>
         ) : sheetDetentIndex <= 1 ? (
           <View pointerEvents="box-none" style={[styles.chips, { bottom: sheetInset + 4 }]}>
-            {layerChips}
+            <Animated.View style={{ opacity: controlsOpacity }}>{layerChips}</Animated.View>
           </View>
         ) : null
       ) : null}
       {overlays}
       {navigationMode ? null : (
-      <View style={[styles.controls, { top: insets.top + 56 }]}>
+      <Animated.View style={[styles.controls, { top: insets.top + 56, opacity: controlsOpacity }]}>
         <MapControls
           actions={[
             {
@@ -254,7 +267,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
             },
           ]}
         />
-      </View>
+      </Animated.View>
       )}
     </View>
   );

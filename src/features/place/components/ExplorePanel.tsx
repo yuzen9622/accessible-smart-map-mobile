@@ -95,7 +95,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
         </Pressable>
       </View>
 
-      {model.mode === 'history' ? (
+      {!model.showBrand ? null : model.mode === 'history' ? (
         <>
           {/* 常去地點：收藏前三筆＋「新增」，一排等寬圓鈕（設計 1b）；放大字級時標籤換行不裁切 */}
           <View style={styles.shortcutsRow}>

@@ -87,6 +87,7 @@ import PersonStanding from 'lucide-react-native/icons/person-standing';
 import Baby from 'lucide-react-native/icons/baby';
 import Type from 'lucide-react-native/icons/type';
 import MapPinned from 'lucide-react-native/icons/map-pinned';
+import ListFilter from 'lucide-react-native/icons/list-filter';
 import { View } from 'react-native';
 
 import type { IconName, IconProps } from './Icon.types';
@@ -180,6 +181,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   baby: Baby,
   type: Type,
   mapPinned: MapPinned,
+  listFilter: ListFilter,
 };
 
 /**

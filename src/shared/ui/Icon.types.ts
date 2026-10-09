@@ -86,7 +86,8 @@ export type IconName =
   | 'personStanding'
   | 'baby'
   | 'type'
-  | 'mapPinned';
+  | 'mapPinned'
+  | 'listFilter';
 
 export interface IconProps {
   name: IconName;

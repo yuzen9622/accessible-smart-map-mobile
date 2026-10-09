@@ -1127,6 +1127,8 @@
   "nativeRouteChipElevators": "{{count}} elevators",
   "nativeRouteSelectHint": "Double tap to select this route",
   "nativeMapLayers": "Map layers",
+  "nativeMapFiltersShow": "Show filters",
+  "nativeMapFiltersHide": "Hide filters",
   "nativeWhereTo": "Where to?",
   "nativeHomeAddShortcut": "Add",
   "nativeHomeNearbySummary": "Within a 5-min walk: {{parts}}",

@@ -1112,6 +1112,8 @@
   "nativeRouteChipElevators": "經 {{count}} 部電梯",
   "nativeRouteSelectHint": "點兩下選擇這條路線",
   "nativeMapLayers": "地圖圖層",
+  "nativeMapFiltersShow": "顯示篩選",
+  "nativeMapFiltersHide": "隱藏篩選",
   "nativeWhereTo": "去哪裡？",
   "nativeHomeAddShortcut": "新增",
   "nativeHomeNearbySummary": "步行 5 分鐘內：{{parts}}",

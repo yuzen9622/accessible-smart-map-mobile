@@ -1,6 +1,6 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 
-import { HazardReportScreen } from '@/features/hazard';
+import { HazardReportScreen, isHazardType } from '@/features/hazard';
 import { useAppTranslation } from '@/shared/i18n';
 import { HeaderCloseButton } from '@/shared/ui';
 
@@ -10,14 +10,19 @@ function toNumber(value: string | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-/** 危險通報（root modal）。可帶 `lat`／`lng`／`description`（從地點詳情「回報此處」）。 */
+/** 危險通報（root modal）。可帶 `lat`／`lng`／`description`（從地點詳情「回報此處」）與 `hazardType`（重新回報）。 */
 export default function HazardReportRoute() {
   const { t } = useAppTranslation();
-  const params = useLocalSearchParams<{ lat?: string; lng?: string; description?: string }>();
+  const params = useLocalSearchParams<{ lat?: string; lng?: string; description?: string; hazardType?: string }>();
   return (
     <>
       <Stack.Screen options={{ title: t('hazardReport'), headerLeft: () => <HeaderCloseButton /> }} />
-      <HazardReportScreen lat={toNumber(params.lat)} lng={toNumber(params.lng)} description={params.description} />
+      <HazardReportScreen
+        lat={toNumber(params.lat)}
+        lng={toNumber(params.lng)}
+        description={params.description}
+        hazardType={isHazardType(params.hazardType) ? params.hazardType : undefined}
+      />
     </>
   );
 }

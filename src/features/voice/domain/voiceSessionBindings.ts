@@ -1,9 +1,3 @@
-// 移植自 Web `src/lib/voice/voiceSessionBindings.ts`（commit f5027af）。與 Web 的差異：
-// - Web 直接 import `executeAction`（有副作用的 UI 執行器）；原生 domain 不能依賴 controller，改由 sinks 注入：
-//   `executeAction(action)` 執行同步 UI action，`computeRoute(origin, destination)` 是獨立的 async sink
-//   （SDD §6.6 雙路徑不變量：async action 由語音與聊天兩條路徑各自 await，不進 executeAction）。
-// - `mapToolToActions` 多收一個 `t`（標記預設標題翻譯）。
-// - 保留 Web 語意：`close-chat` 在語音中略過（語音面板本身就是聊天面板的一部分）。
 /**
  * Pure closure module carrying every piece of wiring logic between
  * `useVoiceSession` and `VoiceSessionController` (plan
@@ -14,8 +8,8 @@
  * stable ref and forwards controller callbacks straight into it.
  */
 
-import { mapToolToActions, type LatLng, type Translate, type UIAction } from '@/features/ai/domain';
-import { logger } from '@/shared/logger';
+import { mapToolToActions, type Translate, type UIAction } from '@/features/ai/domain';
+import { isRouteTool } from '@/features/ai/domain/routePlan';
 import { isMicActiveStatus, wrapFrameHandler } from './audioLevel';
 import {
   type AggEntry,
@@ -45,14 +39,9 @@ export interface BindingSinks {
   /** Bind to `voiceLevels.mic`（store/voiceLevels.ts，SharedValue，不經過 React）. */
   setMicLevel(level: number): void;
   /** 執行同步 UI action（原生：`features/ai/controller/actionExecutor` 的 executeAction）。 */
-  executeAction(action: UIAction): void;
-  /**
-   * 規劃路線（async，不進 executeAction）。回傳的 Promise 由 bindings 接手 await；
-   * 呼叫端在這裡做「算路 → 更新 route store／sheet」。
-   */
-  computeRoute(origin: LatLng, destination: LatLng): Promise<unknown>;
-  /** computeRoute 失敗時通知（選用）；未提供則只 console.warn。 */
-  onComputeRouteError?(error: unknown): void;
+  executeAction(action: UIAction): { ok: boolean } | void;
+  getRouteGeneration?(): number;
+  onRouteError?(): void;
   /** i18n 翻譯器，傳給 `mapToolToActions`。 */
   t: Translate;
 }
@@ -84,6 +73,8 @@ export function createVoiceBindings(sinks: BindingSinks): VoiceBindings {
   let agg: AggState = emptyAggState();
   let currentStatus: VoiceStatusName = 'idle';
   let muted = false;
+  const calls = new Map<string, { name: string; turnId?: string; generation: number }>();
+  const applied = new Set<string>();
 
   function onTranscript(transcript: TranscriptFragment): void {
     agg = appendFragment(agg, transcript);
@@ -107,6 +98,7 @@ export function createVoiceBindings(sinks: BindingSinks): VoiceBindings {
   }
 
   function onStatusChange(status: VoiceStatus): void {
+    if (['connecting', 'reconnecting', 'ended', 'error', 'needs-login'].includes(status.status)) { calls.clear(); applied.clear(); }
     agg = applyStatusTransition(agg, currentStatus, status.status);
     // 重連後伺服器 utteranceId 重新編號，舊 id 必須失效（見 detachUtteranceIds）。
     if (status.status === 'reconnecting') agg = detachUtteranceIds(agg);
@@ -119,31 +111,30 @@ export function createVoiceBindings(sinks: BindingSinks): VoiceBindings {
   }
 
   function onToolEvent(event: VoiceToolEvent): void {
-    sinks.publishTool(event);
-
-    if (event.type === 'result' && event.result != null) {
-      const actions = mapToolToActions(event.name, event.result, event.args, sinks.t);
-      for (const action of actions) {
-        if (action.type === 'close-chat') continue;
-        if (action.type === 'compute-route') {
-          void runComputeRoute(action.origin, action.destination);
-          continue;
-        }
-        sinks.executeAction(action);
-      }
+    if (event.type === 'call') {
+      if (event.callId && !calls.has(event.callId)) calls.set(event.callId, { name: event.name, turnId: event.turnId, generation: sinks.getRouteGeneration?.() ?? 0 });
+      sinks.publishTool(event); return;
     }
-  }
-
-  async function runComputeRoute(origin: LatLng, destination: LatLng): Promise<void> {
+    if (event.callId && applied.has(event.callId)) return;
+    const call = event.callId ? calls.get(event.callId) : undefined;
+    if (isRouteTool(event.name) && (!call || !event.turnId || call.turnId !== event.turnId || call.name !== event.name || call.generation !== (sinks.getRouteGeneration?.() ?? 0))) {
+      sinks.onRouteError?.(); return;
+    }
+    if (isRouteTool(event.name) && (event.result == null || event.ok === false)) { sinks.onRouteError?.(); return; }
     try {
-      await sinks.computeRoute(origin, destination);
-    } catch (error) {
-      if (sinks.onComputeRouteError) {
-        sinks.onComputeRouteError(error);
-      } else {
-        logger.warn('[voiceSessionBindings] computeRoute failed', error);
+      if (event.result != null) {
+        for (const action of mapToolToActions(event.name, event.result, event.args, sinks.t)) {
+          if (action.type === 'close-chat') continue;
+          if (action.type === 'route-error' || sinks.executeAction(action)?.ok === false) { sinks.onRouteError?.(); return; }
+        }
       }
+    } catch (error) {
+      if (!isRouteTool(event.name)) throw error;
+      sinks.onRouteError?.();
+      return;
     }
+    if (event.callId) applied.add(event.callId);
+    sinks.publishTool(isRouteTool(event.name) ? { ...event, result: undefined, args: undefined } : event);
   }
 
   function wrapCaptureFrame(
@@ -167,6 +158,8 @@ export function createVoiceBindings(sinks: BindingSinks): VoiceBindings {
   }
 
   function reset(): void {
+    calls.clear();
+    applied.clear();
     agg = emptyAggState();
     currentStatus = 'idle';
     muted = false;

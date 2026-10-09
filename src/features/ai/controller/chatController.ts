@@ -3,13 +3,16 @@ import { AccessibilityInfo } from 'react-native';
 import { useUserLocationStore } from '@/features/map';
 import { logger } from '@/shared/logger';
 
+import { getRouteSessionSnapshot, subscribeRouteSession, invalidateRouteConversations } from '@/features/route';
+import { getRouteConversationRequest } from './routeConversation';
+import { isRouteTool } from '../domain/routePlan';
 import { streamChat } from '../api/aiApi';
 import { applyStreamSignal, settleBubble, type ChatStreamSignal } from '../domain/chatStream';
 import { toChatHistory, toPriorTurns } from '../domain/conversationHistory';
 import { mapToolToActions } from '../domain/toolActionMapper';
 import type { PriorTurn, Translate, VoiceTurn } from '../domain/types';
 import { useChatStore, type ChatEntry } from '../store/chatStore';
-import { computeRouteAction, executeAction, openRoutePanel } from './actionExecutor';
+import { executeAction } from './actionExecutor';
 
 /**
  * 聊天路徑的 controller（對應 Web `src/hook/useAIChat.ts` 的 handleSend／stopStreaming／clearAll）。
@@ -18,8 +21,7 @@ import { computeRouteAction, executeAction, openRoutePanel } from './actionExecu
  * 使用者再打開聊天時看得到完整回答。
  *
  * 與 Web 的差異：
- * - `compute-route` **await** 結果（SDD §6.6 雙路徑不變量）：成功才關聊天、切路線面板；失敗在該則回覆下附提示。
- *   Web 同時收到的 `switch-panel` 會不等算路結果就關聊天，這裡在有 `compute-route` 時不執行它。
+ * - AI 路線只套用已驗證的後端結果；換選或取消後中止舊回覆。
  * - 後端的 `error` 事件會顯示成錯誤訊息（Web 不解析，變成空白回覆）；429 另有「稍後再試」文案。
  * - 不送 system prompt（後端會丟掉，見 `api/aiApi.ts`）。
  */
@@ -43,45 +45,6 @@ function findEntry(id: string): ChatEntry | undefined {
 }
 
 
-async function runComputeRoute(
-  entryId: string,
-  action: { origin: { lat: number; lng: number }; destination: { lat: number; lng: number } },
-  signal: AbortSignal,
-  t: Translate,
-) {
-  try {
-    const result = await computeRouteAction(action.origin, action.destination);
-    // 使用者已停止／清除對話（含登出）：路線照樣留在 session，但不再關聊天、跳頁或附提示
-    if (signal.aborted) return;
-    if (result.ok) {
-      openRoutePanel();
-      return;
-    }
-    // superseded＝使用者之後又自己規劃了別條路，不是失敗
-    if (result.failure === 'superseded') return;
-    const notice = t(result.failure === 'too-far' ? 'nativeAiRouteTooFar' : 'nativeAiRouteFailed');
-    updateEntry(entryId, (entry) => ({ ...entry, notice }));
-    AccessibilityInfo.announceForAccessibility(notice);
-  } catch (error) {
-    logger.warn('[ai] compute-route failed', error);
-    updateEntry(entryId, (entry) => ({ ...entry, notice: t('nativeAiRouteFailed') }));
-  }
-}
-
-function runToolActions(entryId: string, name: string, result: unknown, signal: AbortSignal, t: Translate): void {
-  const entry = findEntry(entryId);
-  const args = [...(entry?.toolActivities ?? [])].reverse().find((activity) => activity.name === name)?.args;
-  const actions = mapToolToActions(name, result, args, t);
-  const computing = actions.some((action) => action.type === 'compute-route');
-  for (const action of actions) {
-    if (action.type === 'compute-route') {
-      void runComputeRoute(entryId, action, signal, t);
-    } else if (!(computing && action.type === 'switch-panel')) {
-      executeAction(action);
-    }
-  }
-}
-
 type ErrorSignal = Extract<ChatStreamSignal, { type: 'error' }>;
 
 function errorText(signal: ErrorSignal | null, t: Translate): string {
@@ -103,6 +66,18 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
   const controller = new AbortController();
   inflight = controller;
   const startedAt = Date.now();
+  let applying = false;
+  const calls = new Map<string, { name: string; args: string; generation: number }>();
+  const applied = new Set<string>();
+  const unsubscribe = subscribeRouteSession((state, previous) => {
+    if (!applying && state.selectionGeneration !== previous.selectionGeneration) controller.abort();
+  });
+  const failRoute = () => {
+    const notice = t('nativeAiRouteUnavailable');
+    updateEntry(assistant.id, (entry) => ({ ...entry, notice }));
+    AccessibilityInfo.announceForAccessibility(notice);
+    controller.abort();
+  };
   const position = useUserLocationStore.getState().position;
   // 放在物件裡：在 callback 內賦值的 `let` 會被 TS 窄化成初始的 null
   const outcome: { error: ErrorSignal | null; failed: boolean } = { error: null, failed: false };
@@ -111,6 +86,7 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
     await streamChat(
       {
         messages,
+        ...getRouteConversationRequest(),
         temperature: 0.7,
         ...(position ? { userLocation: { latitude: position.lat, longitude: position.lng } } : {}),
       },
@@ -122,14 +98,26 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
           return;
         }
         if (signal.type === 'done') return;
-        updateEntry(assistant.id, (entry) => ({ ...entry, ...applyStreamSignal(entry, signal) }));
-        if (signal.type !== 'tool-result') return;
-        // 地圖／面板動作失敗不能中斷串流：回答文字還在路上
-        try {
-          runToolActions(assistant.id, signal.name, signal.result, controller.signal, t);
-        } catch (error) {
-          logger.warn('[ai] tool action failed', signal.name, error);
+        if (signal.type === 'tool-call' && signal.callId && !calls.has(signal.callId)) {
+          calls.set(signal.callId, { name: signal.name, args: signal.args, generation: getRouteSessionSnapshot().selectionGeneration });
         }
+        if (signal.type === 'tool-result') {
+          if (signal.callId && applied.has(signal.callId)) return;
+          const call = signal.callId ? calls.get(signal.callId) : undefined;
+          if (isRouteTool(signal.name) && (!call || call.name !== signal.name || call.generation !== getRouteSessionSnapshot().selectionGeneration)) {
+            failRoute(); return;
+          }
+          try {
+            applying = true;
+            for (const action of mapToolToActions(signal.name, signal.result, call?.args, t)) {
+              if (!executeAction(action).ok) { failRoute(); return; }
+            }
+            if (signal.callId) applied.add(signal.callId);
+          } catch {
+            failRoute(); return;
+          } finally { applying = false; }
+        }
+        updateEntry(assistant.id, (entry) => ({ ...entry, ...applyStreamSignal(entry, signal) }));
       },
       controller.signal,
     );
@@ -140,6 +128,7 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
       logger.warn('[ai] chat stream failed', error);
     }
   } finally {
+    unsubscribe();
     if (inflight === controller) inflight = null;
     const current = findEntry(assistant.id);
     if (current) {
@@ -176,8 +165,8 @@ export function appendVoiceTurns(turns: VoiceTurn[]): void {
           ? {
               toolActivities: turn.tools.map((tool) => ({
                 name: tool.name,
-                args: tool.args,
-                result: tool.result,
+                args: isRouteTool(tool.name) ? undefined : tool.args,
+                result: isRouteTool(tool.name) ? undefined : tool.result,
                 summary: tool.summary,
                 status: 'done' as const,
               })),
@@ -197,11 +186,13 @@ export function getVoiceHistory(): PriorTurn[] {
 /** 停止產生：保留已顯示的部分（Web `stopStreaming`）。 */
 export function stopChatStreaming(): void {
   inflight?.abort();
+  invalidateRouteConversations();
 }
 
 /** 清除對話（Web `clearAll`）：中止進行中的請求並清掉地圖上的 AI 結果。登出時也要呼叫。 */
 export function clearChat(): void {
   inflight?.abort();
+  invalidateRouteConversations();
   inflight = null;
   useChatStore.setState({ entries: [], isLoading: false });
   executeAction({ type: 'clear-markers' });

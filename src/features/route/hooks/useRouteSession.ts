@@ -3,7 +3,7 @@ import { useRouteSessionStore, type RouteSessionState } from '../store/routeSess
 /** 唯讀的狀態欄位；寫入一律經過 `RouteSessionPort`（`computeRoute`／`endRouteSession` 等）。 */
 export type RouteSessionView = Omit<
   RouteSessionState,
-  'setOrigin' | 'setDestination' | 'swapEndpoints' | 'selectRouteIndex' | 'setTravelMode' | 'setRouteMode' | 'endRouteSession' | 'requestSeq'
+  'setOrigin' | 'setDestination' | 'swapEndpoints' | 'selectRouteIndex' | 'setTravelMode' | 'setRouteMode' | 'endRouteSession'
 >;
 
 /**

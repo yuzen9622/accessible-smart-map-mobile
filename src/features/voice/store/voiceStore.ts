@@ -12,6 +12,7 @@ export interface VoiceLaunchOrigin {
 }
 
 interface VoiceStore extends VoiceViewState {
+  routeSyncState: import('../domain/routeContextSync').RouteSyncState;
   setViewMode: (mode: VoiceViewMode) => void;
   /** 只給過場動畫用；語音畫面播完開場動畫就清掉。 */
   launchOrigin: VoiceLaunchOrigin | null;
@@ -25,6 +26,7 @@ interface VoiceStore extends VoiceViewState {
  */
 export const useVoiceStore = create<VoiceStore>((set) => ({
   ...initialVoiceViewState,
+  routeSyncState: 'idle',
   setViewMode: (viewMode) => set({ viewMode }),
   launchOrigin: null,
   setLaunchOrigin: (launchOrigin) => set({ launchOrigin }),

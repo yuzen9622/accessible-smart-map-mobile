@@ -4,10 +4,12 @@ import { StyleSheet } from 'react-native';
 import { useAppTranslation } from '@/shared/i18n';
 import { FormButton, FormInput, FormScreen, FormSection, FormSegmented, FormText } from '@/shared/ui';
 
+import HazardReportResult from './HazardReportResult';
 import type { HazardReportPanelProps } from './HazardReportPanel.types';
 
 export default function HazardReportPanel({ model }: HazardReportPanelProps) {
   const { t } = useAppTranslation();
+  if (model.result) return <HazardReportResult model={model} result={model.result} />;
   return (
     <FormScreen>
       {!model.loggedIn ? (

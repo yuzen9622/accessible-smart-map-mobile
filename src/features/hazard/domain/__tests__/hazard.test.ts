@@ -6,7 +6,7 @@ import {
   photoFileName,
   validateHazardPhoto,
 } from '../hazardPhoto';
-import { isHazardReport } from '../types';
+import { isHazardReport, type HazardReport } from '../types';
 
 // 照片驗證案例移植自 Web `HazardReportPanel.test.ts`（commit f82cda8）的 P2-5 區塊；
 // 「report location」兩個案例驗的是 Web 元件 SSR 輸出，原生改由 `hazardDraft` 的地點快照處理（見 port-ledger）。
@@ -70,11 +70,14 @@ describe('error mapping', () => {
     expect(voteErrorKey('whatever')).toBe('hazardVoteFailed');
   });
 
-  it('only pending reports by someone else can be voted on', () => {
-    expect(canVote({ status: 'pending', reporterId: 'a' }, 'b')).toBe(true);
-    expect(canVote({ status: 'pending', reporterId: 'a' }, 'a')).toBe(false);
-    expect(canVote({ status: 'verified' }, null)).toBe(false);
-    expect(canVote({ status: 'pending' }, null)).toBe(true);
+  const base = { _id: 'r', hazardType: 'obstacle', reportedLocation: { type: 'Point', coordinates: [121.5, 25.03] } } satisfies Omit<HazardReport, 'status'>;
+  it('only reviewing or verified reports by someone else can be voted on', () => {
+    const reviewing = { ...base, status: 'pending', aiReview: { state: 'processing' } } as const;
+    expect(canVote({ ...reviewing, reporterId: 'a' }, 'b')).toBe(true);
+    expect(canVote({ ...reviewing, reporterId: 'a' }, 'a')).toBe(false);
+    expect(canVote({ ...base, status: 'verified' }, null)).toBe(true);
+    expect(canVote({ ...base, status: 'rejected' }, null)).toBe(false);
+    expect(canVote({ ...base, status: 'pending', aiReview: { state: 'completed', decision: 'needs_evidence' } }, null)).toBe(false);
   });
 });
 
@@ -91,5 +94,11 @@ describe('isHazardReport', () => {
     expect(isHazardReport(report)).toBe(true);
     expect(isHazardReport({ ...report, hazardType: 'ufo' })).toBe(false);
     expect(isHazardReport({ ...report, reportedLocation: { coordinates: [1] } })).toBe(false);
+  });
+
+  // 實際 `/reports/mine` 回應：沒填描述是 `description: null`、`expectedUntil: null`，不能因此整筆被濾掉
+  it('accepts null description and expectedUntil from the backend', () => {
+    expect(isHazardReport({ ...report, description: null, expectedUntil: null, hasPhoto: true, aiReview: { state: 'queued' } })).toBe(true);
+    expect(isHazardReport({ ...report, description: 42 })).toBe(false);
   });
 });

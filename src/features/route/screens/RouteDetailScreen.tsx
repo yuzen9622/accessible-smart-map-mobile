@@ -1,3 +1,4 @@
+import { canNavigateRoute } from '../controller/routeSessionPort';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -33,6 +34,7 @@ export interface RouteDetailScreenProps {
  */
 export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, renderExplanation }: RouteDetailScreenProps) {
   const { t } = useAppTranslation();
+  useRouteSessionStore((state) => state.invalidRouteTokens);
   const colors = useThemeColors();
   const { index } = useLocalSearchParams<{ index: string }>();
   const routeIndex = Number(index);
@@ -48,10 +50,11 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
           style={{ backgroundColor: colors.background }}
           contentContainerStyle={routeStyles.content}
           contentInsetAdjustmentBehavior="automatic">
-          <Pressable accessibilityRole="button" accessibilityLabel={t('startNav')} onPress={onStartNavigation} style={routeStyles.primaryButton}>
+          <Pressable disabled={!canNavigateRoute(route)} accessibilityState={{ disabled: !canNavigateRoute(route) }} accessibilityRole="button" accessibilityLabel={t('startNav')} onPress={onStartNavigation} style={routeStyles.primaryButton}>
             <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
             <Text style={routeStyles.primaryButtonText}>{t('startNav')}</Text>
           </Pressable>
+          {!canNavigateRoute(route) ? <Text style={{ color: colors.textSecondary }}>{t('nativeRouteTokenUnavailable')}</Text> : null}
           {renderExplanation ? renderExplanation(route) : null}
           <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.text }]}>
             {route.routeName}

@@ -3,17 +3,16 @@ import { AccessibilityInfo, Platform } from 'react-native';
 
 import {
   appendVoiceTurns,
-  computeRouteAction,
+  getRouteConversationRequest,
   executeAction,
   getVoiceHistory,
-  openRoutePanel,
   type Translate,
 } from '@/features/ai';
 import { VOICE_HISTORY_LIMIT } from '@/features/ai/domain';
 import { useAuthStore } from '@/features/auth';
 import { useUserLocationStore } from '@/features/map';
+import { getRouteSessionSnapshot, subscribeRouteSession, invalidateRouteConversations, markRouteTokenInvalid } from '@/features/route';
 import { getAuthPort } from '@/shared/api';
-import { logger } from '@/shared/logger';
 
 import { createCapture } from '../audio/audioCapture';
 import { createPlayback } from '../audio/audioPlayback';
@@ -40,8 +39,7 @@ import {
  * 語音對話的 controller（對應 Web `src/hook/useVoiceSession.ts`＋`VoiceSessionHost` 的 session 部分）。
  *
  * 模組層單例：語音 session 跨畫面存活（關掉聊天 modal、切到路線面板時仍在對話），UI 只讀 `useVoiceStore`。
- * - 聊天與語音是兩條獨立路徑（SDD §6.6）：工具結果經 bindings 的 `executeAction`，`compute-route` 由這裡 await，
- *   成功才切路線面板（語音沒有 modal 要關，但會蓋掉聊天 modal）。
+ * - 聊天與語音共用已驗證的路線 action；成功套用同一份結果後才切路線面板。
  * - 登出或換帳號時結束 session（Web `useAuthStore.subscribe`）。
  * - 結束（ended／error／needs-login）時釋放 audio session，把喇叭交還導航 TTS。
  *
@@ -119,12 +117,8 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
     },
     setMicLevel: (level) => voiceLevels.mic.set(level),
     executeAction,
-    computeRoute: async (origin, destination) => {
-      const result = await computeRouteAction(origin, destination);
-      if (result.ok) openRoutePanel();
-      return result;
-    },
-    onComputeRouteError: (error) => logger.warn('[voice] compute-route failed', error),
+    getRouteGeneration: () => getRouteSessionSnapshot().selectionGeneration,
+    onRouteError: () => { controller?.rejectRouteResponse(); controller?.end(); },
     get t() {
       return translate;
     },
@@ -143,6 +137,9 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
       return position ? { latitude: position.lat, longitude: position.lng } : null;
     },
     getHistory: sharedHistory,
+    getRouteConversation: getRouteConversationRequest,
+    onInvalidRouteToken: markRouteTokenInvalid,
+    onRouteSyncState: (routeSyncState) => useVoiceStore.setState({ routeSyncState }),
     createCapture: (onFrame) => {
       echoGate.clear();
       gateForward = onFrame;
@@ -162,6 +159,9 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
     onToolEvent: b.onToolEvent,
     onNavigationEvent: (event) => handleVoiceNavigationEvent(event, c.getStatus().status),
     getNavigationResumeState: getVoiceNavigationResumeState,
+  });
+  subscribeRouteSession((state, previous) => {
+    if (state.selectRoute?.route !== previous.selectRoute?.route || state.isLoading !== previous.isLoading || state.invalidRouteTokens !== previous.invalidRouteTokens) c.syncRouteContext();
   });
   controller = c;
   bindings = b;
@@ -195,13 +195,14 @@ export function startVoiceSession(t: Translate): void {
   b.reset();
   toolMarks = [];
   merged = false;
-  useVoiceStore.setState((state) => ({ ...reduceSessionBoundary(state), activeTool: null, viewMode: 'panel' }));
+  useVoiceStore.setState((state) => ({ ...reduceSessionBoundary(state), routeSyncState: 'idle', activeTool: null, viewMode: 'panel' }));
   armCurrentRoute();
   c.start();
 }
 
 export function endVoiceSession(): void {
   controller?.end();
+  invalidateRouteConversations();
   useVoiceStore.setState((state) => reduceSessionBoundary(state));
 }
 
@@ -220,6 +221,8 @@ function setVoiceMuted(muted: boolean): void {
 export function toggleVoiceMute(): void {
   setVoiceMuted(reduceToggleMute(useVoiceStore.getState()).isMuted);
 }
+
+export function retryRouteContextSync(): void { controller?.syncRouteContext(); }
 
 export function resumeVoicePlayback(): void {
   controller?.resumePlayback();

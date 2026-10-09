@@ -1,9 +1,8 @@
-import { Image } from 'expo-image';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { scaledSize, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, scaledSize, useThemeColors } from '@/shared/theme';
 import { ErrorState, Icon, type IconName } from '@/shared/ui';
 
 import type { HazardDetailModel } from '../hooks/useHazardDetail';
@@ -21,7 +20,7 @@ function VoteButton({ label, icon, onPress, disabled }: { label: string; icon: I
       onPress={onPress}
       style={({ pressed }) => [styles.vote, { backgroundColor: colors.backgroundElement }, (pressed || disabled) && styles.dim]}>
       <Icon name={icon} color={colors.text} />
-      <Text style={{ color: colors.text, fontSize: scaledSize(15, scale), fontWeight: '600' }}>{label}</Text>
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.text, fontSize: scaledSize(15, scale), fontWeight: '600' }}>{label}</Text>
     </Pressable>
   );
 }
@@ -59,19 +58,18 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
       <View style={styles.header}>
         <Icon name="alert" size={22} color={HAZARD_COLORS[report.hazardType]} />
-        <Text accessibilityRole="header" style={[styles.title, { color: colors.text, fontSize: scaledSize(20, scale) }]}>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} accessibilityRole="header" style={[styles.title, { color: colors.text, fontSize: scaledSize(20, scale) }]}>
           {model.typeLabel}
         </Text>
       </View>
-      {model.severityLabel ? <Text style={{ color: colors.text, fontSize: scaledSize(16, scale) }}>{model.severityLabel}</Text> : null}
-      <Text style={{ color: colors.textSecondary, fontSize: scaledSize(14, scale) }}>{model.statusText}</Text>
-      {report.description ? <Text style={{ color: colors.text, fontSize: scaledSize(16, scale) }}>{report.description}</Text> : null}
-      {report.photoUrl ? (
-        <Image source={{ uri: report.photoUrl }} style={styles.photo} contentFit="cover" accessibilityLabel={t('hazardPhoto')} />
-      ) : null}
-      {model.createdText ? <Text style={{ color: colors.textSecondary, fontSize: scaledSize(13, scale) }}>{model.createdText}</Text> : null}
+      {model.severityLabel ? <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.text, fontSize: scaledSize(16, scale) }}>{model.severityLabel}</Text> : null}
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(14, scale) }}>{model.statusText}</Text>
+      {/* 照片只開放回報者本人（後端 `/reports/:id/photo` 授權）：公開詳情不顯示，本人到「我的回報」查看 */}
+      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(14, scale) }}>{model.reviewText}</Text>
+      {report.description ? <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.text, fontSize: scaledSize(16, scale) }}>{report.description}</Text> : null}
+      {model.createdText ? <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(13, scale) }}>{model.createdText}</Text> : null}
       {model.voted ? (
-        <Text style={{ color: colors.textSecondary, fontSize: scaledSize(15, scale) }}>{t('hazardVoted')}</Text>
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(15, scale) }}>{t('hazardVoted')}</Text>
       ) : model.canVote ? (
         <View style={styles.votes}>
           <VoteButton label={t('confirmHazard')} icon="thumbsUp" disabled={model.voting} onPress={model.confirm} />
@@ -87,7 +85,6 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingTop: 20, gap: 10 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   title: { fontWeight: '700' },
-  photo: { width: '100%', height: 220, borderRadius: 12 },
   votes: { flexDirection: 'row', gap: 10, marginTop: 6 },
   vote: { flex: 1, minHeight: 48, borderRadius: 12, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' },
   dim: { opacity: 0.5 },

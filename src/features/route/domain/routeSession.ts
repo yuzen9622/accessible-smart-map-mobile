@@ -1,3 +1,5 @@
+import type { EffectiveRoutePreferences } from '../types/route';
+
 // 移植自 Web `src/lib/route/routeSession.ts`（commit 5eadc71），邏輯逐行保留。
 // 差異：Web 的 `SheetMode` 是 store 裡的一份狀態；本 App 的 sheet 狀態由 Expo Router
 // 目前的 sheet 路由推導（SDD §4.5），所以這裡只宣告判斷需要的面板種類，呼叫端負責從路由換算。
@@ -85,6 +87,7 @@ export function planRequestKey(args: {
   routeMode: string;
   avoidStairs: boolean;
   requireElevator: boolean;
+  canonicalPreferences?: EffectiveRoutePreferences | null;
 }): string | null {
   if (!args.destination) return null;
   const point = (p: { lat: number; lng: number }) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
@@ -95,5 +98,6 @@ export function planRequestKey(args: {
     args.routeMode,
     args.avoidStairs ? 'no-stairs' : 'stairs',
     args.requireElevator ? 'elevator' : 'any',
+    ...(args.canonicalPreferences ? [JSON.stringify(args.canonicalPreferences)] : []),
   ].join('|');
 }

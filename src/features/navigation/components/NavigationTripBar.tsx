@@ -30,6 +30,7 @@ export default function NavigationTripBar() {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   const now = useNow(30_000);
+  const instructionError = useNavStore((s) => s.instructionError);
 
   const remainingM = useNavStore((s) => s.remainingM);
   const routeTotalM = useNavStore((s) => s.routeTotalM);
@@ -46,9 +47,12 @@ export default function NavigationTripBar() {
     else useNavStore.getState().setVoiceEnabled(toggle.nextActive);
   };
   const viewMode = useNavStore((s) => s.viewMode);
-  const routeTotalMinutes = useRouteSession((s) => s.selectRoute?.route.totalMinutes ?? null);
+  const routeTotalMinutes = useRouteSession((s) => s.navigationRoute?.route.totalMinutes ?? null);
 
-  const progress = hudProgress({ remainingDurationSec, remainingM, routeTotalM, routeTotalMinutes, estimatedArrivalAt, now });
+  const progress = instructionError
+    ? { remainMinutes: null, arrivalAt: null }
+    : hudProgress({ remainingDurationSec, remainingM, routeTotalM, routeTotalMinutes, estimatedArrivalAt, now });
+  const visibleRemainingM = instructionError ? null : remainingM;
   const etaText =
     progress.arrivalAt != null
       ? t('nativeEtaArriveShort', {
@@ -77,7 +81,7 @@ export default function NavigationTripBar() {
         accessible
         accessibilityLabel={[
           progress.remainMinutes != null ? t('minutesLeft', { count: progress.remainMinutes }) : null,
-          remainingM != null ? formatDistance(remainingM) : null,
+          visibleRemainingM != null ? formatDistance(visibleRemainingM) : null,
           etaLongText,
         ]
           .filter(Boolean)
@@ -99,7 +103,7 @@ export default function NavigationTripBar() {
         </View>
         {/* 限一行：換行會把左欄撐高，整列超出 peek detent、按鈕就不再垂直置中 */}
         <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-          {[etaText, remainingM != null ? formatDistance(remainingM) : null].filter(Boolean).join(' · ')}
+          {[etaText, visibleRemainingM != null ? formatDistance(visibleRemainingM) : null].filter(Boolean).join(' · ')}
         </Text>
       </View>
       <Pressable

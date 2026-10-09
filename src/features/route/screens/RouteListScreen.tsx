@@ -1,5 +1,5 @@
 import { Stack, router } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useThemeColors } from '@/shared/theme';
@@ -26,6 +26,7 @@ export default function RouteListScreen({ onStartNavigation }: RouteListScreenPr
   const colors = useThemeColors();
   const routes = useRouteSessionStore((s) => s.computeRoutes);
   const selected = useRouteSessionStore((s) => s.selectRoute);
+  const preferences = useRouteSessionStore((s) => s.effectivePreferences);
   const slope = useRouteSessionStore((s) => s.slopeConstraint);
 
   return (
@@ -38,6 +39,15 @@ export default function RouteListScreen({ onStartNavigation }: RouteListScreenPr
           style={{ backgroundColor: colors.background }}
           contentContainerStyle={routeStyles.content}
           contentInsetAdjustmentBehavior="automatic">
+          <Pressable accessibilityRole="button" onPress={() => router.navigate('/plan')} style={routeStyles.primaryButton}>
+            <Text style={routeStyles.primaryButtonText}>{t('nativePlanAgain')}</Text>
+          </Pressable>
+          {preferences ? <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>
+            {t('nativeEffectiveRoute', { mode: t(`nativeRouteMode_${preferences.mode}`), travel: t(`nativeTravel_${preferences.travelMode}`), transit: t(`nativeTransit_${preferences.transitPreference}`) })}
+            {preferences.departureTime ? ` · ${new Date(preferences.departureTime).toLocaleString()}` : ''}
+            {preferences.avoidStairs ? ` · ${t('nativeAvoidStairs')}` : ''}
+            {preferences.requireElevator ? ` · ${t('nativeRequireElevator')}` : ''}
+          </Text> : null}
           {slope && !slope.enforced ? (
             <View accessible style={routeStyles.row}>
               <Icon name="alert" size={16} color={colors.textSecondary} />

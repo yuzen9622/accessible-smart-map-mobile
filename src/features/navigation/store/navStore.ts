@@ -42,6 +42,7 @@ export interface NavProgressUpdate {
  * map. Consumers here subscribe with selectors (useNavStore(s => s.field)).
  */
 interface NavState {
+  instructionError: 'expired' | 'unavailable' | null;
   /** 導航進行中（Web `useMapStore.isNavigating`）。 */
   isNavigating: boolean;
   /** Which state machine owns step advancement for the active navigation. */
@@ -151,6 +152,7 @@ type NavStore = NavState & NavAction;
 const ADVISORY_MAX = 3;
 
 const initialState: NavState = {
+  instructionError: null,
   isNavigating: false,
   navigationSource: 'local',
   navigationId: null,

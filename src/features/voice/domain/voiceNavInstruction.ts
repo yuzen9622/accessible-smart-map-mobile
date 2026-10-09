@@ -5,7 +5,7 @@ import type { NavInstruction, NavInstructionType, RelativeDirection } from '@/fe
 import type { VoiceNavStep } from './voiceSession';
 
 const INSTRUCTION_TYPES: readonly NavInstructionType[] = ['turn', 'transit_board', 'transit_alight', 'facility', 'depart', 'arrive'];
-const RELATIVE_DIRECTIONS: readonly Exclude<RelativeDirection, null>[] = ['正前方', '左前方', '右前方', '左側', '右側', '左後方', '右後方', '正後方'];
+const RELATIVE_DIRECTIONS: readonly Exclude<RelativeDirection, null>[] = ['正前方', '左前方', '右前方', '左側', '右側', '左後方', '右後方', '正後方', 'ahead', 'ahead-right', 'right', 'behind-right', 'behind', 'behind-left', 'left', 'ahead-left'];
 
 function isInstructionType(value: unknown): value is NavInstructionType {
   return typeof value === 'string' && INSTRUCTION_TYPES.some((type) => type === value);
@@ -26,6 +26,9 @@ export function toNavInstruction(step: VoiceNavStep): NavInstruction {
     streetName: step.streetName ?? null,
     legType: step.legType,
     // 語音指令沒有 polyline 索引；導航 controller 的 withSyntheticPolylineIndices 會補
-    polylineIndex: null,
+    polylineIndex: step.polylineIndex ?? null,
+    ...(step.legIndex != null ? { legIndex: step.legIndex } : {}),
+    ...(step.cumulativeDistanceM != null ? { cumulativeDistanceM: step.cumulativeDistanceM } : {}),
+    ...(step.stairs != null ? { stairs: step.stairs } : {}),
   };
 }

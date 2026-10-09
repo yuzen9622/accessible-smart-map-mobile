@@ -1,5 +1,6 @@
+import { RouteContextSync, type RouteContextAck, type RouteSyncState } from './routeContextSync';
 import type { PriorTurn } from '@/features/ai/domain';
-import type { AccessibleRoute, NavInstruction } from '@/features/route/domain';
+import type { RouteContextInput, RoutingPreferences, AccessibleRoute, NavInstruction } from '@/features/route/domain';
 import { logger } from '@/shared/logger';
 
 // 移植自 Web `src/lib/voice/voiceSession.ts`（commit f5027af），近原樣。與 Web 的差異：
@@ -27,6 +28,9 @@ import { logger } from '@/shared/logger';
 /** Client -> server: must be the first message, sent within 5s of open. */
 interface SessionStartMessage {
   type: 'session.start';
+  routeContractVersion?: 1;
+  routeContext?: RouteContextInput;
+  routingPreferences?: RoutingPreferences;
   token: string;
   userLocation?: { latitude: number; longitude: number };
   /** 先前的對話（使用者從打字切到語音、或語音重連）；後端放進 Live 的系統提示。 */
@@ -85,6 +89,7 @@ export interface VoiceNavigationResumeState {
 /** Server -> client: auth + Gemini connect done, client may now send audio. */
 interface SessionReadyMessage {
   type: 'session.ready';
+  capabilities?: { aiRouteContractVersion?: number; routeContextSync?: boolean };
 }
 
 interface TranscriptMessage {
@@ -104,11 +109,16 @@ interface TranscriptCorrectionMessage {
 
 interface ToolCallMessage {
   type: 'tool_call';
+  callId?: string;
+  turnId?: string;
+  args?: unknown;
   name: string;
 }
 
 interface ToolResultMessage {
   type: 'tool_result';
+  callId?: string;
+  turnId?: string;
   name: string;
   ok: boolean;
   durationMs: number;
@@ -131,6 +141,10 @@ interface ErrorMessage {
 }
 
 export interface VoiceNavStep {
+  legIndex?: number;
+  polylineIndex?: number | null;
+  cumulativeDistanceM?: number;
+  stairs?: boolean;
   index: number;
   instruction: string;
   legType: 'WALK' | 'DRIVE' | 'MOTORCYCLE' | 'BUS' | 'METRO' | 'THSR' | 'TRA';
@@ -417,6 +431,8 @@ export interface VoiceStatus {
 }
 
 export interface VoiceToolEvent {
+  callId?: string;
+  turnId?: string;
   type: 'call' | 'result';
   name: string;
   ok?: boolean;
@@ -449,6 +465,9 @@ export interface VoiceSessionDeps {
   getUserLocation(): { latitude: number; longitude: number } | null;
   /** 每次送 `session.start`（含重連）時讀一次：目前為止的共用對話。 */
   getHistory?(): PriorTurn[];
+  getRouteConversation?(): { routeContractVersion: 1; routeContext: RouteContextInput; routingPreferences?: RoutingPreferences };
+  onRouteSyncState?(state: RouteSyncState): void;
+  onInvalidRouteToken?(token: string): void;
   createCapture(onFrame: (frame: ArrayBuffer) => void): Promise<VoiceCapture>;
   createPlayback(): VoicePlayback;
   onStatusChange(status: VoiceStatus): void;
@@ -502,6 +521,26 @@ export class VoiceSessionController {
   private muted = false;
   /** Latest selected HTTP route capability; re-armed after every reconnect. */
   private routeToken: string | null = null;
+  private contextSync: RouteContextSync | null = null;
+  private contextSupported = false;
+  private socketReady = false;
+  private contextBlocked = false;
+
+  syncRouteContext(): void {
+    if (!this.sessionActive || !this.deps.getRouteConversation) return;
+    this.contextBlocked = true;
+    this.playback?.clear();
+    this.deps.onInterrupted?.();
+    if (!this.socketReady) return;
+    this.contextSync?.set(this.deps.getRouteConversation().routeContext, this.contextSupported);
+  }
+
+  rejectRouteResponse(): void {
+    this.contextBlocked = true;
+    this.playback?.clear();
+    this.contextSync?.fail();
+  }
+
 
   /**
    * True once this session has seen a `session.ready`. Every later ready is
@@ -636,6 +675,9 @@ export class VoiceSessionController {
     this.sessionActive = false;
     this.muted = false;
     this.clearReconnectTimer();
+    this.contextSync?.dispose();
+    this.contextSync = null;
+    this.socketReady = false;
     this.stopCapture();
 
     const playback = this.playback;
@@ -702,12 +744,23 @@ export class VoiceSessionController {
     this.generation += 1;
     const gen = this.generation;
 
+    this.contextSync?.dispose();
+    this.socketReady = false;
+    this.contextSupported = false;
+    this.contextBlocked = Boolean(this.deps.getRouteConversation);
+    this.contextSync = new RouteContextSync(
+      (frame) => this.socket?.send(JSON.stringify(frame)),
+      (state) => {
+        this.contextBlocked = state !== 'synced';
+        this.deps.onRouteSyncState?.(state);
+      },
+    );
     const socket = this.deps.createSocket(this.deps.wsUrl);
     this.socket = socket;
 
     socket.onopen = () => {
       if (gen !== this.generation) return; // stale
-      const message: SessionStartMessage = { type: 'session.start', token };
+      const message: SessionStartMessage = { type: 'session.start', token, ...this.deps.getRouteConversation?.() };
       if (location) message.userLocation = location;
       const history = this.deps.getHistory?.() ?? [];
       if (history.length > 0) message.history = history;
@@ -721,6 +774,7 @@ export class VoiceSessionController {
     if (gen !== this.generation) return; // stale socket
 
     if (data instanceof ArrayBuffer) {
+      if (this.contextBlocked) return;
       // Downlink audio: never JSON-parsed, forwarded to playback in
       // arrival order (§5.9).
       this.playback?.play(data);
@@ -739,14 +793,14 @@ export class VoiceSessionController {
       } catch {
         logger.warn(
           '[voiceSession] Failed to parse text message, discarding',
-          data,
+          typeof data,
         );
         return;
       }
       if (!isServerEvent(parsed)) {
         logger.warn(
           '[voiceSession] Text message is not an event object, discarding',
-          data,
+          typeof data,
         );
         return;
       }
@@ -763,7 +817,23 @@ export class VoiceSessionController {
 
   private dispatchEvent(gen: number, message: ServerEventMessage): void {
     switch (message.type) {
+      case 'route.context.ack': {
+        const ack = message as RouteContextAck;
+        if (this.contextSync?.ack(ack) && ack.ok === false && ack.reason === 'INVALID_ROUTE_TOKEN') {
+          const token = this.deps.getRouteConversation?.().routeContext?.routeToken;
+          if (token) this.deps.onInvalidRouteToken?.(token);
+        }
+        return;
+      }
       case 'session.ready': {
+        this.socketReady = true;
+        const capabilities = (message as SessionReadyMessage).capabilities;
+        this.contextSupported = capabilities?.aiRouteContractVersion === 1 && capabilities.routeContextSync === true;
+        if (this.deps.getRouteConversation) {
+          this.syncRouteContext();
+          // Legacy voice remains usable for general conversation, with route features disabled.
+          if (!this.contextSupported && !this.deps.getRouteConversation().routeContext) this.contextBlocked = false;
+        }
         const isReconnect = this.hasBeenReady;
         this.hasBeenReady = true;
         this.reconnectDelay = RECONNECT_INITIAL_DELAY_MS; // reset backoff on success
@@ -782,6 +852,7 @@ export class VoiceSessionController {
         return;
       }
       case 'transcript': {
+        if (this.contextBlocked) return;
         const m = message as TranscriptMessage;
         this.deps.onTranscript({
           role: m.role,
@@ -801,14 +872,17 @@ export class VoiceSessionController {
         return;
       }
       case 'tool_call': {
+        if (this.contextBlocked) return;
         const m = message as ToolCallMessage;
-        this.deps.onToolEvent({ type: 'call', name: m.name });
+        this.deps.onToolEvent({ type: 'call', name: m.name, callId: m.callId, turnId: m.turnId, args: m.args });
         return;
       }
       case 'tool_result': {
+        if (this.contextBlocked) return;
         const m = message as ToolResultMessage;
         this.deps.onToolEvent({
           type: 'result',
+          callId: m.callId, turnId: m.turnId,
           name: m.name,
           ok: m.ok,
           durationMs: m.durationMs,
@@ -923,6 +997,7 @@ export class VoiceSessionController {
 
   private sendAudio(gen: number, frame: ArrayBuffer): void {
     if (gen !== this.generation) return; // stale capture, discarded
+    if (this.contextBlocked) return;
     if (this.muted) return; // muted: discard microphone frames
     // §6: never send binary before `ready` — only listening/model-speaking
     // are reachable post-ready states in which uplink audio is valid.
@@ -937,6 +1012,10 @@ export class VoiceSessionController {
   private handleClose(gen: number, code: number, reason: string): void {
     if (gen !== this.generation) return; // stale socket's close — no-op
 
+    this.generation += 1;
+    this.socketReady = false;
+    this.contextSync?.dispose();
+    this.contextBlocked = Boolean(this.deps.getRouteConversation);
     // §6: any close, current-generation, immediately releases mic + playback.
     this.stopCapture();
     this.playback?.clear();

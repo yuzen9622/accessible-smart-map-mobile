@@ -39,7 +39,7 @@ export function replaceNavigationGeometryRuntime(
  */
 export function observeLocalNavigationGeometry(runtime: NavigationGeometryRuntime): () => void {
   const sync = () => {
-    const route = getRouteSessionSnapshot().selectRoute?.route;
+    const route = getRouteSessionSnapshot().navigationRoute?.route;
     const nav = useNavStore.getState();
     if (nav.navigationSource === 'voice') {
       runtime.path = null;
@@ -56,7 +56,7 @@ export function observeLocalNavigationGeometry(runtime: NavigationGeometryRuntim
 
   sync();
   const unsubscribeRoute = subscribeRouteSession((state, previous) => {
-    if (state.selectRoute?.route !== previous.selectRoute?.route) sync();
+    if (state.navigationRoute?.route !== previous.navigationRoute?.route) sync();
   });
   const unsubscribeNav = useNavStore.subscribe((state, previous) => {
     if (

@@ -274,6 +274,27 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
         </View>
       ) : null}
 
+      {/* 每個地點都能回報現場狀況（障礙物、施工、資料錯誤）；放在無障礙資訊之後，看完現況再決定要不要回報 */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={model.placeReport.accessibilityLabel}
+        accessibilityHint={model.placeReport.subtitle}
+        onPress={model.placeReport.onPress}
+        style={({ pressed }) => [groupStyle, styles.reportRow, pressed && styles.pressed]}>
+        <View style={[styles.reportIcon, { width: scaled(36), height: scaled(36), backgroundColor: PLACE_WARN_SURFACE }]}>
+          <Icon name="alert" size={scaled(18)} color={toneColors.warn} />
+        </View>
+        <View style={styles.flex}>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.reportTitle, { color: colors.text }]}>
+            {model.placeReport.title}
+          </Text>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.nearbyMeta, { color: colors.textSecondary }]}>
+            {model.placeReport.subtitle}
+          </Text>
+        </View>
+        <Icon name="chevronRight" size={scaled(16)} color={colors.textSecondary} />
+      </Pressable>
+
       <View style={styles.section}>
         <SectionHeader title={model.nearbyTitle} color={colors.text} stacked={largeText} />
         {model.nearbyRows.length > 0 ? (
@@ -469,6 +490,9 @@ const styles = StyleSheet.create({
   nearbyText: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10, paddingRight: 14 },
   nearbyName: { fontSize: TYPE.body, fontWeight: '500' },
   nearbyMeta: { fontSize: TYPE.subhead, marginTop: 2 },
+  reportRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, minHeight: MIN_TOUCH },
+  reportIcon: { borderRadius: RADIUS.small, alignItems: 'center', justifyContent: 'center' },
+  reportTitle: { fontSize: TYPE.body, fontWeight: '600' },
   nearbyDistance: { fontSize: TYPE.subhead, fontVariant: ['tabular-nums'] },
   nearbyIcon: { width: 30, height: 30, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
   checklistRow: { flexDirection: 'row', gap: 4, paddingVertical: 16, paddingHorizontal: 8 },

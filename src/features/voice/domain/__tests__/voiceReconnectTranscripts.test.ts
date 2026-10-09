@@ -34,7 +34,6 @@ describe('bindings on reconnect', () => {
       publishTool: () => {},
       setMicLevel: () => {},
       executeAction: () => {},
-      computeRoute: () => Promise.resolve(),
       t,
     };
     const bindings = createVoiceBindings(sinks);

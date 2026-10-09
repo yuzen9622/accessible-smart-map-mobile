@@ -156,6 +156,7 @@ export async function rerouteAccessibleRoute(
     previousRouteVersion: request.previousRouteVersion,
     reason: request.reason,
     clientRequestId: request.clientRequestId,
+    ...(request.language ? { language: request.language } : {}),
   };
   const response = await fetchRequest(url('/api/v1/a11y/accessible-route/reroute'), {
     method: 'POST',

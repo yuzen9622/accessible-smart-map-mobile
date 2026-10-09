@@ -1,4 +1,4 @@
-import { getRouteSessionSnapshot, replaceSelectedRoute } from '@/features/route';
+import { getRouteSessionSnapshot, replaceNavigationRoute } from '@/features/route';
 import type { AccessibleRoute, AccessibleRouteRerouteData, NavInstruction } from '@/features/route/domain';
 
 import type { NavRerouteReason } from '../domain/types';
@@ -7,7 +7,7 @@ import { useNavStore } from '../store/navStore';
 /**
  * 移植自 Web `src/lib/navigation/rerouteCoordinator.ts`（commit 5eadc71），版本比對與套用順序逐行保留。
  * 差異：Web 直接寫 `useMapStore` 的 `selectRoute`／`computeRoutes`；本版經 route 公開的
- * `replaceSelectedRoute` 換路線（route session 已結束時它會拒絕，不會把 session 復活）。
+ * `replaceNavigationRoute` 換路線（route session 已結束時它會拒絕，不會把 session 復活）。
  */
 
 export interface RouteReplacement {
@@ -59,7 +59,7 @@ export function normalizeRerouteReplacement(
  */
 export function applyRouteReplacement(replacement: RouteReplacement): boolean {
   const nav = useNavStore.getState();
-  const currentRoute = getRouteSessionSnapshot().selectRoute?.route;
+  const currentRoute = getRouteSessionSnapshot().navigationRoute?.route;
   const currentNavigationId = currentRoute?.navigationId ?? null;
   const currentVersion = currentRoute?.routeVersion ?? 0;
   if (
@@ -86,7 +86,7 @@ export function applyRouteReplacement(replacement: RouteReplacement): boolean {
     0,
   );
 
-  if (!replaceSelectedRoute(route)) return false;
+  if (!replaceNavigationRoute(route)) return false;
   useNavStore.setState({
     navigationId: replacement.navigationId,
     routeVersion: replacement.routeVersion,
@@ -115,7 +115,7 @@ export function handleVoiceRerouteEvent(
   event: VoiceRerouteCoordinatorEvent,
 ): boolean | null {
   const nav = useNavStore.getState();
-  const currentRoute = getRouteSessionSnapshot().selectRoute?.route;
+  const currentRoute = getRouteSessionSnapshot().navigationRoute?.route;
   const currentNavigationId = currentRoute?.navigationId ?? null;
   const currentVersion = currentRoute?.routeVersion ?? 0;
   const matchesCurrentVoiceRoute =

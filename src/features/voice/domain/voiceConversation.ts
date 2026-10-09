@@ -2,6 +2,7 @@
 // 語音（重新）連線時把聊天紀錄＋這段語音已講的內容當 `session.start.history` 送給後端。
 import { TURN_TEXT_LIMIT, clampToolSummary, type PriorTurn, type ToolSummary, type VoiceTurn } from '@/features/ai/domain';
 
+import { isRouteTool } from '@/features/ai/domain/routePlan';
 import type { VoiceToolEvent } from './voiceSession';
 
 /** 一筆語音工具結果，`at` 是當下逐字稿的筆數：工具歸到那之後第一則助理回答。 */
@@ -26,7 +27,7 @@ export function toolMarkOf(event: VoiceToolEvent, transcriptCount: number): Voic
   if (event.type !== 'result' || event.ok === false) return null;
   const summary = typeof event.summary === 'string' ? event.summary.trim() : '';
   if (!summary && event.result === undefined) return null;
-  return { at: transcriptCount, name: event.name, summary, args: event.args, result: event.result };
+  return { at: transcriptCount, name: event.name, summary, args: isRouteTool(event.name) ? undefined : event.args, result: isRouteTool(event.name) ? undefined : event.result };
 }
 
 /**

@@ -171,7 +171,7 @@
           "isAndroidBackgroundLocationEnabled": true,
           "locationAlwaysAndWhenInUsePermission": "導航進行中切到背景或鎖定螢幕時，持續更新你的位置以播報下一步；只在導航時使用。Your location keeps updating during navigation while the app is in the background, so turn-by-turn guidance continues. Used only while navigating.",
           "locationAlwaysPermission": "導航進行中切到背景或鎖定螢幕時，持續更新你的位置以播報下一步；只在導航時使用。Your location keeps updating during navigation while the app is in the background, so turn-by-turn guidance continues. Used only while navigating.",
-          "motionUsagePermission": false,
+          "motionUsagePermission": "允許使用裝置動作感測，以支援地圖方向與導航互動。Motion sensor access supports map orientation and navigation interactions.",
           "isAndroidForegroundServiceEnabled": true
         }
       ],

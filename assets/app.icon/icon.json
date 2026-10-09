@@ -18,7 +18,7 @@
             },
             {
               "appearance" : "dark",
-              "value" : 0
+              "value" : 1
             }
           ],
           "position-specializations" : [
@@ -64,6 +64,7 @@
       }
     },
     {
+      "hidden" : false,
       "layers" : [
         {
           "hidden" : false,
@@ -92,6 +93,7 @@
           ]
         }
       ],
+      "opacity" : 0,
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5

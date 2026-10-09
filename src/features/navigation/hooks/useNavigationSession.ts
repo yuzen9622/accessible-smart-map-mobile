@@ -21,6 +21,7 @@ import { useNavStore } from '../store/navStore';
  * 在那之前預設不發聲。
  */
 export function useNavigationSession(speech: SpeechPort = silentSpeech): void {
+  const activeController = useRef<NavigationController | null>(null);
   const isNavigating = useNavStore((s) => s.isNavigating);
   const { i18n, t } = useAppTranslation();
   const translate: Translate = (key, options) => t(key, options);
@@ -29,6 +30,8 @@ export function useNavigationSession(speech: SpeechPort = silentSpeech): void {
   useEffect(() => {
     env.current = { speech, language: i18n.language, arrived: t('arrivedDesc'), translate };
   });
+
+  useEffect(() => { activeController.current?.refreshLanguage(); }, [i18n.language]);
 
   useEffect(() => {
     if (!isNavigating) return;
@@ -47,7 +50,8 @@ export function useNavigationSession(speech: SpeechPort = silentSpeech): void {
       geminiOwnsSpeech: () => getNavigationSpeechOwner().geminiOwnsSpeech(),
       subscribeSpeechOwner,
     });
+    activeController.current = controller;
     controller.start();
-    return () => controller.stop();
+    return () => { activeController.current = null; controller.stop(); };
   }, [isNavigating]);
 }

@@ -1,0 +1,7 @@
+# RNAudioAPI downloads these versioned static libraries during pod install.
+# A clean CI install has no binaries; EAS fingerprints again after pod install.
+# Keep package.json, the download script (including its release tag), headers,
+# native source and patches fingerprinted so native changes still change runtime.
+node_modules/react-native-audio-api/common/cpp/audioapi/external/iphoneos/**/*
+node_modules/react-native-audio-api/common/cpp/audioapi/external/iphonesimulator/**/*
+node_modules/react-native-audio-api/common/cpp/audioapi/external/macosx/**/*

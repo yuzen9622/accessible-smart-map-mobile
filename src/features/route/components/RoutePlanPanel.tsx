@@ -237,6 +237,9 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
 
       {model.results ? (
         <View style={routeStyles.section}>
+          <Pressable accessibilityRole="button" onPress={model.onStart} style={routeStyles.primaryButton}>
+            <Text style={routeStyles.primaryButtonText}>{model.labels.replan}</Text>
+          </Pressable>
           {model.results.routes.map((route, index) => (
             <RouteCard
               key={route.routeId || String(index)}

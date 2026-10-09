@@ -87,6 +87,7 @@ export interface RoutePlanModel {
     travelMode: string;
     a11yMode: string;
     start: string;
+    replan: string;
     loading: string;
     chooseDestination: string;
     startNav: string;
@@ -125,8 +126,12 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const storedTravelMode = useRouteSessionStore((s) => s.travelMode);
   const storedRouteMode = useRouteSessionStore((s) => s.routeMode);
   const profileRouteMode = useOnboardingStore((s) => s.profile.routeMode);
-  const profileAvoidStairs = useOnboardingStore((s) => s.profile.avoidStairs);
-  const profileRequireElevator = useOnboardingStore((s) => s.profile.requireElevator);
+  const aiPlan = useRouteSessionStore((s) => s.plan);
+  const planningPreferences = useRouteSessionStore((s) => s.planningPreferences);
+  const defaultAvoidStairs = useOnboardingStore((s) => s.profile.avoidStairs);
+  const defaultRequireElevator = useOnboardingStore((s) => s.profile.requireElevator);
+  const profileAvoidStairs = planningPreferences?.avoidStairs ?? defaultAvoidStairs;
+  const profileRequireElevator = planningPreferences?.requireElevator ?? defaultRequireElevator;
   const position = useUserLocationStore((s) => s.position);
   const computeRoutes = useRouteSessionStore((s) => s.computeRoutes);
   const computedFor = useRouteSessionStore((s) => s.computedFor);
@@ -162,8 +167,13 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     routeMode,
     avoidStairs: profileAvoidStairs,
     requireElevator: profileRequireElevator,
+    canonicalPreferences: planningPreferences,
   });
-  const resultsFresh = requestKey !== null && computedFor === requestKey && computeRoutes !== null;
+  const aiRequestKey = aiPlan ? planRequestKey({ origin: aiPlan.origin, destination: aiPlan.destination,
+    travelMode: aiPlan.effectivePreferences.travelMode, routeMode: aiPlan.effectivePreferences.mode,
+    avoidStairs: aiPlan.effectivePreferences.avoidStairs, requireElevator: aiPlan.effectivePreferences.requireElevator,
+    canonicalPreferences: aiPlan.effectivePreferences }) : null;
+  const resultsFresh = requestKey !== null && (computedFor === requestKey || aiRequestKey === requestKey) && computeRoutes !== null;
   // 每組條件只自動算一次：失敗時停在錯誤訊息＋重試鈕，不會一直重打 API
   const autoAttempted = useRef<string | null>(null);
 
@@ -207,6 +217,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       travelMode,
       avoidStairs: profileAvoidStairs,
       requireElevator: profileRequireElevator,
+      canonicalPreferences: planningPreferences ?? undefined,
     });
     if (result.ok) {
       useRouteSessionStore.setState({ computedFor: key });
@@ -234,7 +245,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   };
 
   // 起訖點與模式齊全、而且和現有結果對不上時自動算路（編輯起訖點途中不算）
-  const autoReady = canStart && editing === null && !resultsFresh;
+  const autoReady = !aiPlan && canStart && editing === null && !resultsFresh;
   const autoPlan = useEffectEvent((key: string | null) => void runPlan(key));
   useEffect(() => {
     if (!autoReady || autoAttempted.current === requestKey) return;
@@ -323,6 +334,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       travelMode: t('nativeRouteTravelMode'),
       a11yMode: t('a11yModeLabel'),
       start: t('searchRoute'),
+      replan: t('nativePlanAgain'),
       loading: t('loadingRoute'),
       chooseDestination: t('chooseDestination'),
       startNav: t('startNav'),

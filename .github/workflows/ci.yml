@@ -2,8 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, testflight]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   check:
@@ -18,3 +22,59 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint -- --max-warnings 0
       - run: npm test -- --ci
+
+  testflight:
+    name: Build and upload TestFlight
+    needs: check
+    if: github.ref == 'refs/heads/testflight' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    concurrency:
+      group: testflight-ios-production
+      cancel-in-progress: false
+    env:
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Add the EXPO_TOKEN repository secret before releasing TestFlight."
+            exit 1
+          fi
+      - run: npm ci
+      - name: Build iOS production app
+        id: build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx --yes eas-cli@24.12.0 build --platform ios --profile production --non-interactive --wait --json > "$RUNNER_TEMP/eas-build.json"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const builds = JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, 'eas-build.json'), 'utf8'));
+          const build = builds.find(item => item.platform === 'IOS');
+          if (!build || build.status !== 'FINISHED' || !/^[0-9a-f-]{36}$/i.test(build.id)) {
+            throw new Error('Expected one finished iOS build with a valid ID; submission stopped.');
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `build_id=${build.id}\n`);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            `## TestFlight build\n\nCommit: ${process.env.GITHUB_SHA}\n\nBuild ID: ${build.id}\n\nVersion: ${build.appVersion} (${build.appBuildVersion})\n\nBackend: https://map.yuzen.dev\n`);
+          NODE
+      - name: Submit this build to TestFlight
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_BUILD_ID: ${{ steps.build.outputs.build_id }}
+        run: |
+          npx --yes eas-cli@24.12.0 submit --platform ios --profile production --id "$EAS_BUILD_ID" --non-interactive --wait --groups "Team (Expo)"
+          echo 'Upload finished. Apple processing and tester availability must be confirmed in App Store Connect.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Read Apple processing status
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@24.12.0 submit:status --platform ios --profile production --json --non-interactive

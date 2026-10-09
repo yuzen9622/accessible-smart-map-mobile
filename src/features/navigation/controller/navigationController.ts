@@ -1,5 +1,5 @@
 import { useUserLocationStore } from '@/features/map';
-import { getRouteInstructions, getRouteSessionSnapshot, subscribeRouteSession } from '@/features/route';
+import { getRouteInstructions, getRouteSessionSnapshot, subscribeRouteSession, markRouteTokenInvalid } from '@/features/route';
 import {
   buildCumulativePath,
   projectToPath,
@@ -11,7 +11,7 @@ import {
 import { ApiError, type ApiResponse } from '@/shared/api';
 import type { LatLng } from '@/shared/geo';
 import type { LocationPort } from '@/shared/location';
-import { logger } from '@/shared/logger';
+import { instructionProgress } from '../domain/instructionProgress';
 import type { VisibilitySource } from '@/shared/polling';
 
 import { selectAdvisoryAnnouncement } from '../domain/advisorySpeech';
@@ -86,6 +86,7 @@ export interface NavigationControllerDeps {
 export interface NavigationController {
   start(): void;
   stop(): void;
+  refreshLanguage(): void;
 }
 
 const HEADING_WRITE_MS = 80;
@@ -94,6 +95,7 @@ const COMPASS_FRESH_MS = 1500;
 const COMPASS_MIN_DELTA_DEG = 1;
 
 export function createNavigationController(deps: NavigationControllerDeps): NavigationController {
+  let loadedLanguage = deps.language();
   const now = deps.now ?? Date.now;
   const fetchInstructions = deps.fetchInstructions ?? getRouteInstructions;
   const geminiOwnsSpeech = deps.geminiOwnsSpeech ?? (() => false);
@@ -123,6 +125,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
   });
 
   function speak(text: string): void {
+    if (useNavStore.getState().instructionError || loadedLanguage !== deps.language()) return;
     // 每次都重新讀開關：播報可能在使用者剛切換之後觸發。
     const maySpeak = shouldSpeakLocally({
       geminiOwnsSpeech: geminiOwnsSpeech(),
@@ -134,7 +137,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
   }
 
   function currentRoute(): AccessibleRoute | null {
-    return getRouteSessionSnapshot().selectRoute?.route ?? null;
+    return getRouteSessionSnapshot().navigationRoute?.route ?? null;
   }
 
   function resetHeading(): void {
@@ -192,6 +195,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
 
   function processPosition(): void {
     positionQueued = false;
+    if (useNavStore.getState().instructionError) return;
     if (!running) return;
     const { position, course } = useUserLocationStore.getState();
     if (!position) return;
@@ -246,7 +250,11 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       const target = geometry.waypoints[result.state.currentStepIndex]?.coord ?? position;
       deps.onLegHandoff?.(result.state.currentStepIndex, target);
     }
-    nav.setProgress(result.progress);
+    const progress = instructionProgress(nav.instructions, result.state.currentStepIndex, {
+      alongM: (geometry.path.cumM.at(-1) ?? 0) - result.progress.remainingM, waypoints: geometry.waypoints,
+    });
+    if (progress) nav.setRouteTotalM(progress.totalM);
+    nav.setProgress({ ...result.progress, ...(progress ? { remainingM: progress.remainingM } : {}) });
     transit.sync();
     if (result.arrivedNow) nav.setArrived(true);
   }
@@ -294,10 +302,10 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
   }
 
   /**
-   * @param afterReroute 重算套用後的重取：重算請求沒有 `language` 欄位，回應的指令語言由後端決定，
-   *   所以用使用者語系再取一次（Web 在路線換掉時也會重取）。保留重算原因與警報，不像 Web 那樣清掉。
+   * @param afterReroute 依替換後的 token 重取完整指引，保留重算原因與警報。
+   * @param languageOnly 只換文案，保留步驟、進度與警報。
    */
-  async function loadInstructions(tookOverFromVoice: boolean, afterReroute = false): Promise<void> {
+  async function loadInstructions(tookOverFromVoice: boolean, afterReroute = false, languageOnly = false): Promise<void> {
     const route = currentRoute();
     if (!route || useNavStore.getState().navigationSource === 'voice') return;
     // 開場先裝好路徑，instructions 回來前進度也能以幾何估（Web intro effect 做同一件事）。
@@ -305,25 +313,32 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     if (tookOverFromVoice) applyCarriedInstructions(route);
 
     const routeToken = route.routeToken;
-    if (!routeToken) return;
+    if (!routeToken) { useNavStore.setState({ instructionError: 'unavailable' }); return; }
+    if (getRouteSessionSnapshot().invalidRouteTokens.includes(routeToken.trim())) {
+      useNavStore.setState({ instructionError: 'expired' });
+      return;
+    }
     abortInstructions();
     const controller = new AbortController();
     instructionsAbort = controller;
+    const requestedLanguage = deps.language();
+    useNavStore.setState({ instructionError: null });
     try {
       const res = await fetchInstructions(
-        { routeToken, userHeading: useNavStore.getState().userHeading ?? undefined, language: deps.language() },
+        { routeToken, userHeading: useNavStore.getState().userHeading ?? undefined, language: requestedLanguage },
         controller.signal,
       );
       // 等待期間路線被換掉（重算）或改由語音接手：這份回應描述的已不是目前的導航（Web 以 cancelled 旗標丟掉）。
       if (
-        controller.signal.aborted ||
+        controller.signal.aborted || requestedLanguage !== deps.language() ||
         !running ||
         currentRoute() !== route ||
         useNavStore.getState().navigationSource !== 'local'
       ) {
         return;
       }
-      if (!res.ok || !res.data?.instructions) return;
+      if (!res.ok || !res.data?.instructions.length) { useNavStore.setState({ instructionError: 'unavailable' }); return; }
+      loadedLanguage = requestedLanguage;
       replaceNavigationGeometryRuntime(geometry, route, res.data.instructions);
       const cp = geometry.path;
       if (!cp) return;
@@ -332,17 +347,20 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       // setInstructions 會清掉警報（換路線就失效），但從語音接手不是換路線，警報要保留。
       const carriedAdvisories = tookOverFromVoice || afterReroute ? nav.advisories : [];
       const carriedReason = afterReroute ? nav.lastRerouteReason : null;
-      nav.setInstructions(res.data.instructions, res.data.warnings ?? []);
+      if (languageOnly) {
+        // Same route, same indices: replace copy without resetting progress or advisories.
+        useNavStore.setState({ instructions: res.data.instructions, warnings: res.data.warnings ?? [], instructionError: null });
+      } else nav.setInstructions(res.data.instructions, res.data.warnings ?? []);
       if (carriedAdvisories.length > 0) useNavStore.getState().pushAdvisories(carriedAdvisories);
       if (carriedReason) useNavStore.getState().setLastRerouteReason(carriedReason);
-      useNavStore.getState().setRouteTotalM(cp.cumM[cp.cumM.length - 1] ?? null);
+      useNavStore.getState().setRouteTotalM(instructionProgress(res.data.instructions, 0)?.totalM ?? cp.cumM[cp.cumM.length - 1] ?? null);
       if (tookOverFromVoice) queuePosition();
     } catch (error) {
-      // Web 同樣吞掉：沒有指令時 HUD 以路線幾何顯示，使用者仍可手動切步驟。
-      // `INVALID_ROUTE_TOKEN`＝routeToken 過期（30 分鐘）或無效，重試同一個 token 不會成功，維持幾何導引。
-      if (error instanceof ApiError && error.reason === 'INVALID_ROUTE_TOKEN') {
-        logger.warn('[navigation] routeToken expired; falling back to geometry-based guidance');
-      }
+      if (controller.signal.aborted || !running || currentRoute() !== route) return;
+      deps.speech.stop();
+      const expired = error instanceof ApiError && error.reason === 'INVALID_ROUTE_TOKEN';
+      if (expired) markRouteTokenInvalid(routeToken);
+      useNavStore.setState({ instructionError: expired ? 'expired' : 'unavailable' });
     } finally {
       if (instructionsAbort === controller) instructionsAbort = null;
     }
@@ -350,6 +368,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
 
   function subscribeAnnouncements(): () => void {
     return useNavStore.subscribe((state, previous) => {
+      if (state.instructionError && state.instructionError !== previous.instructionError) deps.speech.stop();
       if (state.instructions !== previous.instructions || state.currentStepIndex !== previous.currentStepIndex) {
         const step = state.instructions[state.currentStepIndex];
         // 公車段的上車／下車指令改由等車／搭乘導引播報（含即時分鐘數），不念後端的靜態文字。
@@ -395,6 +414,11 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
   }
 
   return {
+    refreshLanguage() {
+      deps.speech.stop();
+      abortInstructions();
+      if (running) void loadInstructions(false, false, true);
+    },
     start() {
       if (running) return;
       running = true;
@@ -411,10 +435,16 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       cleanups.push(transit.start());
       cleanups.push(
         subscribeRouteSession((state, previous) => {
+          const activeToken = state.navigationRoute?.route.routeToken?.trim();
+          if (activeToken && state.invalidRouteTokens.includes(activeToken)) {
+            abortInstructions();
+            useNavStore.setState({ instructionError: 'expired' });
+            return;
+          }
           // 路線被換掉（重算）：舊路線的 instructions 請求作廢。
-          if (state.selectRoute?.route === previous.selectRoute?.route) return;
+          if (state.navigationRoute?.route === previous.navigationRoute?.route) return;
           abortInstructions();
-          const next = state.selectRoute?.route;
+          const next = state.navigationRoute?.route;
           if (!next) return;
           // applyRouteReplacement 先換路線、再更新 navStore 身分：等這一輪同步寫入結束再判斷。
           void (async () => {

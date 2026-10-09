@@ -25,10 +25,31 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
-      "environment": "production"
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_END_POINT": "https://map.yuzen.dev",
+        "EXPO_PUBLIC_SHARE_BASE_URL": "https://map.yuzen.dev",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://map.yuzen.dev/zh-TW/policies/privacy-policy",
+        "EXPO_PUBLIC_TERMS_URL": "https://map.yuzen.dev/zh-TW/policies/terms-of-use"
+      }
+    },
+    "testflight-dev": {
+      "extends": "production",
+      "distribution": "store",
+      "channel": "testflight-dev",
+      "env": {
+        "EXPO_PUBLIC_END_POINT": "https://map-dev.yuzen.dev",
+        "EXPO_PUBLIC_SHARE_BASE_URL": "https://map-dev.yuzen.dev",
+        "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://map-dev.yuzen.dev/zh-TW/policies/privacy-policy",
+        "EXPO_PUBLIC_TERMS_URL": "https://map-dev.yuzen.dev/zh-TW/policies/terms-of-use"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6820790448"
+      }
+    }
   }
 }

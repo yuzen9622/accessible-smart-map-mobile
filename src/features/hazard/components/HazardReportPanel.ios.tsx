@@ -6,12 +6,19 @@ import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useAppTranslation } from '@/shared/i18n';
 import { FormPrimaryButton, KeyboardAvoidingHost } from '@/shared/ui';
 
+import HazardReportResult from './HazardReportResult';
 import type { HazardReportPanelProps } from './HazardReportPanel.types';
 
 const secondary = [font({ textStyle: 'footnote' }), foregroundStyle({ type: 'hierarchical', style: 'secondary' })];
 
 /** iOS：SwiftUI Form；照片預覽以 RNHostView 嵌入 expo-image。 */
 export default function HazardReportPanel({ model }: HazardReportPanelProps) {
+  if (model.result) return <HazardReportResult model={model} result={model.result} />;
+  // 結果頁「重新回報」回到表單時重新掛載，讓 SwiftUI 欄位的原生狀態跟著清空
+  return <ReportForm model={model} />;
+}
+
+function ReportForm({ model }: HazardReportPanelProps) {
   const { t } = useAppTranslation();
   const descriptionState = useNativeState(model.description);
   // RNHostView matchContents 以子元件尺寸為準，百分比寬度會解析成 0：以視窗寬扣掉 Form 左右內距

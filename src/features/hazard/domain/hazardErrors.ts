@@ -1,3 +1,6 @@
+import { hazardCanConfirm } from './review';
+import type { HazardReport } from './types';
+
 /**
  * 後端錯誤 reason → i18n key，對齊 Web `HazardReportPanel.handleSubmit` 與 `HazardWrapper` 投票（commit f82cda8）。
  */
@@ -8,7 +11,14 @@ export function submitErrorKey(reason: string | undefined, code: number | undefi
     case 'INVALID_PHOTO_TYPE':
       return 'invalidImageType';
     case 'PHOTO_TOO_LARGE':
+    case 'IMAGE_TOO_LARGE':
       return 'imageTooLarge';
+    case 'IMAGE_INVALID':
+      return 'hazardImageInvalid';
+    case 'IMAGE_UNSUPPORTED':
+      return 'hazardImageUnsupported';
+    case 'REPORT_COMMIT_UNCERTAIN':
+      return 'hazardReviewUncertain';
     case 'EXIF_TOO_OLD':
       return 'exifTooOld';
     case 'EXIF_GPS_MISMATCH':
@@ -47,7 +57,7 @@ export const SEVERITY_LABEL_KEY = {
   blocking: 'severityBlocking',
 } as const;
 
-/** 只有「待確認」且不是自己回報的才能投票（Web `HazardWrapper`）。 */
-export function canVote(report: { status: string; reporterId?: string }, userId: string | null): boolean {
-  return report.status === 'pending' && (!userId || report.reporterId !== userId);
+/** 審核中或已核可、且不是自己回報的才能投票（Web `HazardWrapper`／`hazardCanConfirm`）。 */
+export function canVote(report: HazardReport, userId: string | null): boolean {
+  return hazardCanConfirm(report) && (!userId || report.reporterId !== userId);
 }

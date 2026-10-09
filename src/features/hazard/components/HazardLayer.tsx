@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { useUserLocationStore } from '@/features/map';
 
 import { refreshNearbyHazards, useHazardLayerStore } from '../controller/hazardLayerController';
+import { hazardExpired } from '../domain/review';
 import { reportLatLng, type HazardReport } from '../domain/types';
 
 /** 顏色對齊 Web `HazardReportPanel` 的類型圖示（amber／orange／red）。 */
@@ -15,7 +16,7 @@ function toCollection(reports: HazardReport[]): FeatureCollection<Point, { id: s
   return {
     type: 'FeatureCollection',
     features: reports
-      .filter((r) => r.status === 'pending' || r.status === 'verified')
+      .filter((r) => (r.status === 'pending' || r.status === 'verified') && !hazardExpired(r))
       .map((r) => {
         const { lat, lng } = reportLatLng(r);
         return {

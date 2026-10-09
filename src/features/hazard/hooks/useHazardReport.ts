@@ -11,17 +11,28 @@ import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import { useCloseScreen } from '@/shared/navigation';
 
-import { createHazardReport } from '../api/hazardApi';
+import { createHazardReport, uncertainReportId } from '../api/hazardApi';
 import { pickHazardPhoto, type HazardPhoto } from '../controller/photoPicker';
 import { HAZARD_TYPE_LABEL_KEY, SEVERITY_LABEL_KEY, submitErrorKey } from '../domain/hazardErrors';
-import { HAZARD_SEVERITIES, HAZARD_TYPES, type HazardSeverity, type HazardType } from '../domain/types';
+import { HAZARD_SEVERITIES, HAZARD_TYPES, type HazardReport, type HazardSeverity, type HazardType } from '../domain/types';
 import { refreshNearbyHazards } from '../controller/hazardLayerController';
+import { hazardResubmitPreset } from '../domain/review';
+import { invalidateMyReports } from './useMyReports';
 
 export interface HazardReportParams {
   /** 從地點詳情「回報此處」帶入的地點（快照：之後的 GPS 更新不會蓋掉使用者選的地點，對齊 Web `pendingReportContext`）。 */
   lat?: number;
   lng?: number;
   description?: string;
+  /** 重新回報（審核要求補證據）時沿用原本的類型。 */
+  hazardType?: HazardType;
+}
+
+/** 送出後的結果頁：`report` 為 null 代表寫入結果不確定，只拿到編號，由結果頁輪詢查詢。 */
+export interface HazardSubmitResult {
+  reportId: string;
+  report: HazardReport | null;
+  merged: boolean;
 }
 
 const ADDRESS_REQUERY_METERS = 30;
@@ -36,13 +47,16 @@ export function useHazardReport(params: HazardReportParams) {
   const loggedIn = useAuthStore(selectIsLoggedIn);
   const gps = useUserLocationStore((s) => s.position);
   const handoff = params.lat !== undefined && params.lng !== undefined ? { lat: params.lat, lng: params.lng } : null;
-  const location: LatLng | null = handoff ?? gps;
+  // 結果頁「重新拍照回報」會換成原回報的座標
+  const [retryLocation, setRetryLocation] = useState<LatLng | null>(null);
+  const location: LatLng | null = retryLocation ?? handoff ?? gps;
 
-  const [hazardType, setHazardType] = useState<HazardType>(handoff ? 'data_error' : 'obstacle');
+  const [hazardType, setHazardType] = useState<HazardType>(params.hazardType ?? (handoff ? 'data_error' : 'obstacle'));
   const [severity, setSeverity] = useState<HazardSeverity>('difficult');
   const [description, setDescription] = useState(params.description ?? '');
   const [photo, setPhoto] = useState<HazardPhoto | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<HazardSubmitResult | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [addressFailed, setAddressFailed] = useState(false);
   const anchor = useRef<LatLng | null>(null);
@@ -108,11 +122,25 @@ export function useHazardReport(params: HazardReportParams) {
         photo: { uri: photo.uri, name: photo.name, type: photo.type },
       });
       AccessibilityInfo.announceForAccessibility(t('reportSuccess'));
-      Alert.alert(t('reportSuccess'), result.merged ? t('nativeHazardMerged') : t('nativeHazardPendingReview'));
       void refreshNearbyHazards(true);
-      closeScreen();
+      invalidateMyReports();
+      if (result.report) {
+        setPhoto(null);
+        setResult({ reportId: result.report._id, report: result.report, merged: result.merged });
+      } else {
+        // 後端成功但沒回傳回報（舊版）：無從追蹤審核，維持原本的提示後關閉
+        Alert.alert(t('reportSuccess'), result.merged ? t('nativeHazardMerged') : t('nativeHazardPendingReview'));
+        closeScreen();
+      }
     } catch (error) {
       logger.warn('[hazard] submit failed', error);
+      const reportId = uncertainReportId(error);
+      if (reportId) {
+        // 寫入結果不確定：改查詢這個編號，避免使用者立刻重送一筆重複回報
+        setPhoto(null);
+        setResult({ reportId, report: null, merged: false });
+        return;
+      }
       const key = error instanceof ApiError ? submitErrorKey(error.reason, error.code) : 'reportFailed';
       Alert.alert(t(key));
     } finally {
@@ -120,9 +148,29 @@ export function useHazardReport(params: HazardReportParams) {
     }
   };
 
+  /** 回到空白表單（保留類型與嚴重度）；`report` 有值時套用重新回報的預設值。 */
+  const restart = (report?: HazardReport) => {
+    if (report) {
+      const preset = hazardResubmitPreset(report);
+      setHazardType(preset.hazardType);
+      setRetryLocation({ lat: preset.lat, lng: preset.lng });
+    }
+    setDescription('');
+    setPhoto(null);
+    setResult(null);
+  };
+
   return {
     loggedIn,
     login: () => router.navigate('/auth'),
+    result,
+    restart,
+    done: closeScreen,
+    openMyReports: (reportId: string) => {
+      // 先關掉通報 modal 再開設定：從「我的回報」重新回報時設定 modal 還在底下，navigate 會回到它而不是再疊一層
+      closeScreen();
+      router.navigate({ pathname: '/settings/report/[id]', params: { id: reportId } });
+    },
     hazardType,
     typeChoices: HAZARD_TYPES.map((value) => ({ value, label: t(HAZARD_TYPE_LABEL_KEY[value]) })),
     setHazardType,

@@ -1,6 +1,6 @@
 // 移植自 Web `src/lib/ai/uiAction.ts`（commit f5027af）。SheetMode 改自 route domain；AiResultMarker 改為原生的 `AiMarker`
 // （Web 的 `target` 帶 PlaceResult／Marker 物件供開面板，原生由呼叫端依 `kind`／`googlePlaceId` 開對應畫面）。
-import type { AccessibleRoute, SheetMode } from '@/features/route/domain';
+import type { AccessibleRoute, AiRoutePlan, SheetMode } from '@/features/route/domain';
 import type { LatLng } from '@/shared/geo';
 
 export type { LatLng };
@@ -41,15 +41,10 @@ interface FlyToAction {
 
 interface ShowRouteAction {
   type: 'show-route';
+  plan?: AiRoutePlan;
   origin: LatLng;
   destination: LatLng;
   routes: AccessibleRoute[];
-}
-
-interface ComputeRouteAction {
-  type: 'compute-route';
-  origin: LatLng;
-  destination: LatLng;
 }
 
 // ── Panel ──
@@ -66,11 +61,11 @@ interface CloseChatAction {
 // ── Union ──
 
 export type UIAction =
+  | { type: 'route-error' }
   | ShowMarkersAction
   | ClearMarkersAction
   | FlyToAction
   | ShowRouteAction
-  | ComputeRouteAction
   | SwitchPanelAction
   | CloseChatAction;
 

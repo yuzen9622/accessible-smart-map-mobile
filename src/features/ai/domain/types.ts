@@ -1,7 +1,10 @@
 // 移植自 Web `src/stores/useChatStore.ts`（ToolActivity／ChatBubble）、`src/lib/api/ai.ts`（ChatMessage／AgentChatRequest）、
 // `src/types/memory.ts`（commit f5027af）。sessionStorage 持久化不搬（原生由 store 決定）。
 
+import type { RouteContextInput, RoutingPreferences } from '@/features/route/domain';
+
 export interface ToolActivity {
+  callId?: string;
   name: string;
   args?: unknown;
   result?: unknown;
@@ -58,6 +61,9 @@ export interface PriorTurn {
 }
 
 export type AgentChatRequest = {
+  routeContractVersion?: 1;
+  routeContext?: RouteContextInput;
+  routingPreferences?: RoutingPreferences;
   messages: ChatMessage[];
   model?: string;
   stream?: boolean;

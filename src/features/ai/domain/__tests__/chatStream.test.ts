@@ -206,3 +206,13 @@ describe('applyStreamSignal', () => {
     expect(applyStreamSignal(b, { type: 'error', code: null, message: '' })).toBe(b);
   });
 });
+
+it('correlates concurrent same-name calls by callId and retains only route summaries', () => {
+  let bubble: ChatBubble = { role: 'assistant', content: '' };
+  bubble = applyToolCall(bubble, 'plan_route', '{"origin":"A"}', 'a');
+  bubble = applyToolCall(bubble, 'plan_route', '{"origin":"B"}', 'b');
+  bubble = applyToolResult(bubble, 'plan_route', { routeToken: 'secret' }, 'B summary', 'b');
+  bubble = applyToolResult(bubble, 'plan_route', { routeToken: 'secret' }, 'A summary', 'a');
+  expect(bubble.toolActivities).toMatchObject([{ callId: 'a', summary: 'A summary' }, { callId: 'b', summary: 'B summary' }]);
+  expect(JSON.stringify(bubble)).not.toContain('secret');
+});

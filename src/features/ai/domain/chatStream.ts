@@ -4,13 +4,14 @@
 //   這裡依 event 名稱解讀，並保留 Web 的舊格式（event 為 message、`[DONE]`、`{text}`、OpenAI delta）當容錯。
 // - `applyToken`／`applyToolCall`／`applyToolResult`／`settleBubble`：逐項對照 Web `src/hook/useAIChat.ts`（commit f5027af）
 //   的 onChunk／onToolCall／finally 對 assistant bubble 的改動。
+import { isRouteTool } from './routePlan';
 import { isRec } from './aiResults';
 import type { ChatBubble, ToolActivity } from './types';
 
 export type ChatStreamSignal =
   | { type: 'token'; text: string }
-  | { type: 'tool-call'; name: string; args: string }
-  | { type: 'tool-result'; name: string; result: unknown; summary?: string }
+  | { type: 'tool-call'; callId?: string; name: string; args: string }
+  | { type: 'tool-result'; callId?: string; name: string; result: unknown; summary?: string }
   | { type: 'error'; code: number | null; message: string }
   | { type: 'done' };
 
@@ -75,7 +76,7 @@ export function interpretChatSseEvent(event: SseEventLike): ChatStreamSignal | n
     case 'tool_call': {
       const payload = parseJson(event.data);
       if (!isRec(payload) || typeof payload.name !== 'string' || !payload.name) return null;
-      return { type: 'tool-call', name: payload.name, args: argsToString(payload.args) };
+      return { type: 'tool-call', callId: typeof payload.callId === 'string' ? payload.callId : undefined, name: payload.name, args: argsToString(payload.args) };
     }
 
     case 'tool_result': {
@@ -84,6 +85,7 @@ export function interpretChatSseEvent(event: SseEventLike): ChatStreamSignal | n
       return {
         type: 'tool-result',
         name: payload.name,
+        callId: typeof payload.callId === 'string' ? payload.callId : undefined,
         result: payload.result,
         ...(typeof payload.summary === 'string' && payload.summary ? { summary: payload.summary } : {}),
       };
@@ -135,9 +137,11 @@ function upsertActivity(
   result: unknown,
   isDone: boolean,
   summary?: string,
+  callId?: string,
 ): ChatBubble {
   const existing = bubble.toolActivities ? [...bubble.toolActivities] : [];
-  const idx = existing.findIndex((a) => a.name === name && a.status === 'running');
+  const idx = existing.findIndex((a) => callId ? a.callId === callId : a.name === name && a.status === 'running');
+  if (isRouteTool(name)) { args = undefined; result = undefined; }
   const status: ToolActivity['status'] = isDone ? 'done' : 'running';
 
   if (idx !== -1) {
@@ -146,25 +150,25 @@ function upsertActivity(
   }
   return {
     ...bubble,
-    toolActivities: [...(markDone(existing) ?? []), { name, args, result, status, ...(summary ? { summary } : {}) }],
+    toolActivities: [...(markDone(existing) ?? []), { name, callId, args, result, status, ...(summary ? { summary } : {}) }],
   };
 }
 
 /** 新的工具呼叫：把先前仍在跑的活動標為完成，再加一筆 running；同名 running 則更新 args。 */
-export function applyToolCall(bubble: ChatBubble, name: string, args: string): ChatBubble {
-  return upsertActivity(bubble, name, args, undefined, false);
+export function applyToolCall(bubble: ChatBubble, name: string, args: string, callId?: string): ChatBubble {
+  return upsertActivity(bubble, name, args, undefined, false, undefined, callId);
 }
 
 /**
  * 工具結果：對到同名 running 的活動就補上 result 並標完成（args 沿用呼叫時的）；對不到（例如 tool_call 漏掉，
  * 或已被 token 標為完成）就照 Web 的行為新增一筆已完成活動，args 取同名最近一次呼叫的 args（Web 的 customToolArgsMap），沒有則空字串。
  */
-export function applyToolResult(bubble: ChatBubble, name: string, result: unknown, summary?: string): ChatBubble {
+export function applyToolResult(bubble: ChatBubble, name: string, result: unknown, summary?: string, callId?: string): ChatBubble {
   const activities = bubble.toolActivities ?? [];
-  const running = activities.find((a) => a.name === name && a.status === 'running');
+  const running = activities.find((a) => callId ? a.callId === callId : a.name === name && a.status === 'running');
   const lastSameName = [...activities].reverse().find((a) => a.name === name);
   const args = running?.args ?? lastSameName?.args ?? '';
-  return upsertActivity(bubble, name, args, result, true, summary);
+  return upsertActivity(bubble, name, args, result, true, summary, callId);
 }
 
 /** 串流結束（含中止／出錯）：不再串流、所有工具視為完成、記錄耗時。`content` 給出錯時的預設文案。 */
@@ -189,9 +193,9 @@ export function applyStreamSignal(bubble: ChatBubble, signal: ChatStreamSignal):
     case 'token':
       return applyToken(bubble, signal.text);
     case 'tool-call':
-      return applyToolCall(bubble, signal.name, signal.args);
+      return applyToolCall(bubble, signal.name, signal.args, signal.callId);
     case 'tool-result':
-      return applyToolResult(bubble, signal.name, signal.result, signal.summary);
+      return applyToolResult(bubble, signal.name, signal.result, signal.summary, signal.callId);
     default:
       return bubble;
   }

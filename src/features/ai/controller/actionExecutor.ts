@@ -1,8 +1,7 @@
 import { router } from 'expo-router';
 
 import { mapCamera } from '@/features/map';
-import { useOnboardingStore } from '@/features/onboarding';
-import { applyComputedRoutes, computeRoute, fitSelectedRoute, type ComputeRouteResult } from '@/features/route';
+import { applyAiRoutePlan, applyComputedRoutes, fitSelectedRoute } from '@/features/route';
 import type { LatLng } from '@/shared/geo';
 
 import type { ToolResultItem } from '../domain/toolResultCards';
@@ -13,8 +12,7 @@ import { useAiResultStore } from '../store/aiResultStore';
  * AI UI action 的執行者（對應 Web `src/lib/ai/actionExecutor.ts`）：只經過 port（`mapCamera`、`RouteSessionPort`、
  * Expo Router）改畫面，不碰別的 feature 的 store（SDD §4.3）。聊天與語音共用這一份（§6.6 雙路徑）。
  *
- * `compute-route` 是唯一的 async action：`executeAction` 只回 `skipped`，呼叫端必須改呼叫
- * `computeRouteAction` 並 await（Web 語音端曾漏接 → 路線面板永久轉圈）。
+ * AI 結果只套用後端路線；手動規劃由 route feature 負責。
  */
 
 const MARKER_EDGE = { top: 80, left: 48, right: 48 };
@@ -79,8 +77,11 @@ export function executeAction(action: UIAction): ActionResult {
     case 'fly-to':
       mapCamera.flyTo(lngLat(action.position), action.zoom ?? 17);
       return { ok: true };
+    case 'route-error':
+      return { ok: false, skipped: 'invalid-route-plan' };
     case 'show-route':
-      applyComputedRoutes(action.origin, action.destination, action.routes);
+      if (action.plan) applyAiRoutePlan(action.plan);
+      else applyComputedRoutes(action.origin, action.destination, action.routes);
       fitSelectedRoute();
       openRoutePanel();
       return { ok: true };
@@ -91,25 +92,7 @@ export function executeAction(action: UIAction): ActionResult {
     case 'close-chat':
       closeChat();
       return { ok: true };
-    case 'compute-route':
-      return { ok: false, skipped: 'async-needs-caller' };
   }
-}
-
-/**
- * `compute-route`：套用使用者的需求輪廓算路並 await 結果。切不切到路線面板由呼叫端決定
- * （聊天在使用者已停止／清除對話時不該再跳頁；語音路徑自己開），失敗也由呼叫端告知使用者。
- */
-export async function computeRouteAction(origin: LatLng, destination: LatLng): Promise<ComputeRouteResult> {
-  const profile = useOnboardingStore.getState().profile;
-  const result = await computeRoute({
-    origin,
-    destination,
-    mode: profile.routeMode,
-    ...(profile.avoidStairs ? { avoidStairs: true } : {}),
-    ...(profile.requireElevator ? { requireElevator: true } : {}),
-  });
-  return result;
 }
 
 /**

@@ -34,6 +34,20 @@ it('SSE applies one complete plan, retains canonical metadata, and never calls t
   expect(JSON.stringify(useChatStore.getState())).not.toContain('polyline');
 });
 
+it('applies a second route tool call in the same turn after the first one already advanced the generation', async () => {
+  // 先查附近地點再規劃路線：同一輪對話裡兩個路線工具呼叫，第一個套用時會自己把 selectionGeneration
+  // 往前推一格；第二個不該被這個「自己造成的」變動誤判成過期（真實案例：使用者回報規劃路線一直失敗）。
+  const call2 = { type: 'tool-call' as const, name: 'planAccessibleRoute', callId: 'call-2', args: '{}' };
+  const plan2 = { ...routePlanFixture(), planId: 'plan-b', destination: { name: '大慶', lat: 24.2, lng: 120.2 } };
+  const result2 = { type: 'tool-result' as const, name: call2.name, callId: call2.callId, summary: '方案摘要 2', result: plan2 };
+  request.mockImplementation(async (_input, emit) => {
+    emit(call); emit(call2); emit(result()); emit(result2);
+  });
+  await sendChatMessage('目前位置到最近車站', t);
+  expect(getRouteSessionSnapshot().planId).toBe('plan-b');
+  expect(useChatStore.getState().entries.at(-1)?.notice).toBeUndefined();
+});
+
 it.each(['selection', 'clear', 'stop', 'manual'] as const)('discards late SSE after %s', async (action) => {
   applyAiRoutePlan(routePlanFixture());
   request.mockImplementation(async (_input, emit, signal) => {

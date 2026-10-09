@@ -67,7 +67,14 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
   inflight = controller;
   const startedAt = Date.now();
   let applying = false;
-  const calls = new Map<string, { name: string; args: string; generation: number }>();
+  // 這一輪自己認定「目前正確」的 generation：每次這一輪自己成功套用路線工具結果後都會同步更新。
+  // 一輪對話常常連續發兩個路線工具呼叫（例如先查附近地點、再規劃到其中一個候選站）；比對時要拿
+  // 「即時讀出來的 generation」跟這個值比，而不是跟某個工具呼叫當下捕捉到的舊值比——不然前一個
+  // 工具結果套用時自己推進的 generation，會把後一個呼叫誤判成「被使用者從外面打斷」而判定過期。
+  // 只有這一輪以外的變動（使用者另外選了路線、清除、手動算路）才算真的過期，那種情況下面的
+  // `subscribeRouteSession` 會在 `!applying` 時直接中止整個串流；這裡的比對只是第二層防線。
+  let ownGeneration = getRouteSessionSnapshot().selectionGeneration;
+  const calls = new Map<string, { name: string; args: string }>();
   const applied = new Set<string>();
   const unsubscribe = subscribeRouteSession((state, previous) => {
     if (!applying && state.selectionGeneration !== previous.selectionGeneration) controller.abort();
@@ -99,12 +106,12 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
         }
         if (signal.type === 'done') return;
         if (signal.type === 'tool-call' && signal.callId && !calls.has(signal.callId)) {
-          calls.set(signal.callId, { name: signal.name, args: signal.args, generation: getRouteSessionSnapshot().selectionGeneration });
+          calls.set(signal.callId, { name: signal.name, args: signal.args });
         }
         if (signal.type === 'tool-result') {
           if (signal.callId && applied.has(signal.callId)) return;
           const call = signal.callId ? calls.get(signal.callId) : undefined;
-          if (isRouteTool(signal.name) && (!call || call.name !== signal.name || call.generation !== getRouteSessionSnapshot().selectionGeneration)) {
+          if (isRouteTool(signal.name) && (!call || call.name !== signal.name || getRouteSessionSnapshot().selectionGeneration !== ownGeneration)) {
             failRoute(); return;
           }
           try {
@@ -113,6 +120,9 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
               if (!executeAction(action).ok) { failRoute(); return; }
             }
             if (signal.callId) applied.add(signal.callId);
+            // 這次套用如果是路線工具，自己的 generation 會往前推一格；同步基準值，
+            // 這樣同一輪後面的路線工具呼叫才不會被自己剛才的套用誤判成過期。
+            ownGeneration = getRouteSessionSnapshot().selectionGeneration;
           } catch {
             failRoute(); return;
           } finally { applying = false; }

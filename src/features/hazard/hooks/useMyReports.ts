@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { create } from 'zustand';
 
 import { useAuthStore } from '@/features/auth';
@@ -39,7 +39,8 @@ const useMyReportsStore = create<MyReportsState>(() => ({ ownerId: null, ...EMPT
 
 let inflight: AbortController | null = null;
 
-async function load(ownerId: string, mode: 'reset' | 'more' | 'refresh'): Promise<void> {
+/** `silent`：回到列表時背景更新第一頁，不顯示轉圈（審核狀態可能在別頁變了）。 */
+async function load(ownerId: string, mode: 'reset' | 'more' | 'refresh' | 'silent'): Promise<void> {
   const state = useMyReportsStore.getState();
   if (state.ownerId !== ownerId) {
     inflight?.abort();
@@ -51,19 +52,27 @@ async function load(ownerId: string, mode: 'reset' | 'more' | 'refresh'): Promis
   const cursor = mode === 'more' ? useMyReportsStore.getState().nextCursor : null;
   const controller = new AbortController();
   inflight = controller;
-  useMyReportsStore.setState(mode === 'refresh' ? { refreshing: true, error: false } : { loading: true, error: false });
+  if (mode === 'refresh') useMyReportsStore.setState({ refreshing: true, error: false });
+  else if (mode !== 'silent') useMyReportsStore.setState({ loading: true, error: false });
   try {
     const page = await getMyHazardReports(cursor, controller.signal);
     if (controller.signal.aborted || useMyReportsStore.getState().ownerId !== ownerId) return;
     useMyReportsStore.setState((s) => {
       // 分頁之間可能因新回報插入而重複：以 _id 去重，保留先出現（較新）的那筆
       const merged = new Map((mode === 'more' ? [...s.reports, ...page.reports] : page.reports).map((r) => [r._id, r]));
+      if (mode === 'silent' && s.loaded) {
+        // 只更新第一頁的資料，保留已載入的後續頁與 cursor
+        const fresh = new Map(page.reports.map((r) => [r._id, r]));
+        const kept = s.reports.filter((r) => !fresh.has(r._id));
+        return { reports: [...page.reports, ...kept] };
+      }
       return { reports: [...merged.values()], nextCursor: page.nextCursor, loaded: true };
     });
   } catch (error) {
     if (controller.signal.aborted) return;
     logger.warn('[hazard] my reports failed', error);
-    if (useMyReportsStore.getState().ownerId === ownerId) useMyReportsStore.setState({ error: true });
+    // 背景更新失敗就保留目前的列表，不蓋成錯誤畫面
+    if (mode !== 'silent' && useMyReportsStore.getState().ownerId === ownerId) useMyReportsStore.setState({ error: true });
   } finally {
     if (inflight === controller) {
       inflight = null;
@@ -114,15 +123,15 @@ export function useMyReports() {
   const state = useMyReportsStore();
   const [now, setNow] = useState(() => Date.now());
 
-  useEffect(() => {
-    if (userId) void load(userId, 'reset');
-  }, [userId]);
-
-  // 送出新回報後 store 被標成過期（invalidateMyReports）：列表還掛在設定 stack 裡時要自己重抓
-  const stale = userId !== null && state.ownerId === userId && !state.loaded && !state.loading && !state.refreshing && !state.error;
-  useEffect(() => {
-    if (userId && stale) void load(userId, 'reset');
-  }, [userId, stale]);
+  // 每次回到列表（首次進入、從詳情返回、關掉通報 modal）都更新：首次或被標成過期（invalidateMyReports）時整頁重抓，
+  // 否則背景更新第一頁——審核狀態可能在詳情或送出結果頁裡已經變了。useFocusEffect 需要穩定的 callback。
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) return;
+      const current = useMyReportsStore.getState();
+      void load(userId, current.ownerId === userId && current.loaded ? 'silent' : 'reset');
+    }, [userId]),
+  );
 
   // 過期是時間邊界：停在列表上也要更新狀態膠囊
   useEffect(() => {

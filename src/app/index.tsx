@@ -75,6 +75,7 @@ export default function Index() {
 
 const styles = StyleSheet.create({
   pill: { position: 'absolute', left: 16, right: 72, alignItems: 'flex-start' },
-  sos: { position: 'absolute', right: 12 },
+  // 跟 MapControls（定位／3D）的右邊界對齊——兩處以前差 4pt，三顆在螢幕右側疊成一欄時那條邊看起來沒對齊。
+  sos: { position: 'absolute', right: 16 },
   voice: { position: 'absolute', left: 16, right: 80, alignItems: 'flex-start', gap: 8 },
 });

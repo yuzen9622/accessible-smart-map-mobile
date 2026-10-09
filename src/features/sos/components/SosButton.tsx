@@ -2,10 +2,9 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { DANGER_FILL } from '@/shared/theme';
 
 import { selectSosInProgress, useSosStore } from '../store/sosStore';
-
-const SOS_RED = '#C62828';
 
 /**
  * 地圖上的 SOS 浮動按鈕（SDD §4.4 MapControls、§10：SOS 主按鈕 ≥ 64 pt）。一下就開 SOS 畫面並開始 5 秒倒數
@@ -36,7 +35,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: SOS_RED,
+    backgroundColor: DANGER_FILL,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',

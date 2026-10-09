@@ -95,4 +95,10 @@ describe('isHazardReport', () => {
     expect(isHazardReport({ ...report, hazardType: 'ufo' })).toBe(false);
     expect(isHazardReport({ ...report, reportedLocation: { coordinates: [1] } })).toBe(false);
   });
+
+  // 實際 `/reports/mine` 回應：沒填描述是 `description: null`、`expectedUntil: null`，不能因此整筆被濾掉
+  it('accepts null description and expectedUntil from the backend', () => {
+    expect(isHazardReport({ ...report, description: null, expectedUntil: null, hasPhoto: true, aiReview: { state: 'queued' } })).toBe(true);
+    expect(isHazardReport({ ...report, description: 42 })).toBe(false);
+  });
 });

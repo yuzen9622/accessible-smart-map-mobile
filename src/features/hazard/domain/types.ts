@@ -42,7 +42,8 @@ export interface HazardReport {
   severity?: HazardSeverity;
   expectedUntil?: string | null;
   reportedLocation: { type: 'Point'; coordinates: [number, number] };
-  description?: string;
+  /** 沒填時後端回 `null`（不是省略欄位） */
+  description?: string | null;
   /** 照片端點 `GET /reports/:id/photo` 是否有圖；公開 DTO 不再給 Storage URL。 */
   hasPhoto?: boolean;
   status: HazardStatus;
@@ -68,6 +69,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const optStr = (v: unknown) => v === undefined || typeof v === 'string';
+// 後端以 `null` 表示「沒填描述」，與省略欄位同義
+const optNullableStr = (v: unknown) => v === null || optStr(v);
 const optNum = (v: unknown) => v === undefined || (typeof v === 'number' && Number.isFinite(v));
 
 export function isHazardReport(v: unknown): v is HazardReport {
@@ -80,7 +83,7 @@ export function isHazardReport(v: unknown): v is HazardReport {
   const [lng, lat] = loc.coordinates;
   if (typeof lng !== 'number' || typeof lat !== 'number') return false;
   if (v.aiReview !== undefined && !isAiReview(v.aiReview)) return false;
-  return optStr(v.description) && optStr(v.reporterId) && optNum(v.confirmCount) && optNum(v.denyCount) && optStr(v.createdAt);
+  return optNullableStr(v.description) && optStr(v.reporterId) && optNum(v.confirmCount) && optNum(v.denyCount) && optStr(v.createdAt);
 }
 
 const REVIEW_STATES: readonly HazardReviewState[] = ['queued', 'processing', 'completed', 'failed', 'cancelled'];

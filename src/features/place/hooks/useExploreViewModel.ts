@@ -38,14 +38,21 @@ export interface ExploreRow {
   /** 任何一列正在 resolving 時，其餘列一併停用（對齊原本 `resolvingId` 互斥行為）。 */
   disabled: boolean;
   onPress: () => void;
+  /** 只有最近搜尋列才有：直接在這一列刪除這筆紀錄。 */
+  onDelete?: () => void;
+  deleteA11yLabel?: string;
 }
 
-export type ExploreMode = 'history' | 'results';
+/**
+ * `idle`：預設首頁（快速服務／附近摘要／常去地點）。`history`：搜尋框取得焦點但還沒打字，
+ * 顯示最近搜尋（可逐筆刪除）。`results`：已輸入關鍵字，顯示自動完成結果。
+ */
+export type ExploreMode = 'idle' | 'history' | 'results';
 
 export interface ExploreQuickAction {
-  key: 'assistant' | 'plan' | 'bus' | 'hazard';
+  key: 'assistant' | 'bus' | 'hazard';
   label: string;
-  iconName: 'sparkles' | 'navigation' | 'bus' | 'alert';
+  iconName: 'sparkles' | 'bus' | 'alert';
   onPress: () => void;
 }
 
@@ -80,8 +87,10 @@ const SAVED_CATEGORY_ICON: Record<SavedPlaceCategory, IconName> = {
 export interface ExploreViewModel {
   query: string;
   onQueryChange: (text: string) => void;
-  /** 點進搜尋框：sheet 展開到全高（Apple 地圖），鍵盤才不會蓋住結果。 */
+  /** 點進搜尋框：sheet 展開到全高（Apple 地圖），鍵盤才不會蓋住結果；且在還沒打字時切到 `history` 模式。 */
   onSearchFocus: () => void;
+  /** 離開搜尋框、且還沒打字：切回 `idle` 首頁。已有查詢字串時交給 `mode` 自己判斷，不需要這個。 */
+  onSearchBlur: () => void;
   /** 自動完成請求 in-flight。 */
   loading: boolean;
   /** 自動完成請求或解析所選地點失敗（與「沒有結果」區分）。 */
@@ -97,9 +106,9 @@ export interface ExploreViewModel {
   showBrand: boolean;
   /** 大標「去哪裡？」與右側的行動需求 pill（點了到設定的需求頁） */
   header: { title: string; needs: { label: string; accessibilityLabel: string; onPress: () => void } };
-  /** 收藏前 3 筆；最後固定一顆「新增」開收藏清單 */
+  /** 收藏前 3 筆；旁邊的「新增」是常去地點區塊標題右側的小按鈕，不再混在圓鈕那排裡 */
   shortcuts: ExploreShortcut[];
-  addShortcut: { label: string; onPress: () => void };
+  addShortcut: { label: string; accessibilityLabel: string; onPress: () => void };
   /** 沒有定位或設施未載入時為 null */
   nearbySummary: ExploreNearbySummary | null;
   quickActions: ExploreQuickAction[];
@@ -114,6 +123,7 @@ export interface ExploreViewModel {
     noResults: string;
     recentSearches: string;
     moreActions: string;
+    quickServices: string;
     networkError: string;
     retry: string;
   };
@@ -130,6 +140,7 @@ export function useExploreViewModel(): ExploreViewModel {
   const loggedIn = useAuthStore(selectIsLoggedIn);
   const userName = useAuthStore((s) => (loggedIn ? (s.user?.name ?? null) : null));
   const [query, setQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [resolveFailed, setResolveFailed] = useState(false);
   const userLocation = useUserLocationStore((state) => state.position);
@@ -142,6 +153,7 @@ export function useExploreViewModel(): ExploreViewModel {
   const savedPlaceCategories = useSavedPlacesStore((state) => state.savedPlaceCategories);
   const routeMode = useOnboardingStore((state) => state.profile.routeMode);
   const addSearchHistory = useSavedPlacesStore((state) => state.addSearchHistory);
+  const removeSearchHistory = useSavedPlacesStore((state) => state.removeSearchHistory);
   const setSelectedPlace = usePlaceUiStore((state) => state.setSelectedPlace);
   const { suggestions, loading, error: autocompleteError, retry, sessionToken, resetSession } = useAutocomplete(query, userLocation ?? undefined);
 
@@ -150,6 +162,7 @@ export function useExploreViewModel(): ExploreViewModel {
     setSelectedPlace(entry);
     mapCamera.flyTo([entry.position.lng, entry.position.lat], 17);
     Keyboard.dismiss();
+    setSearchFocused(false);
     router.navigate(placeDetailHref(entry));
   };
 
@@ -200,6 +213,8 @@ export function useExploreViewModel(): ExploreViewModel {
     resolving: false,
     disabled: false,
     onPress: () => handlePickHistory(entry),
+    onDelete: () => removeSearchHistory(entry),
+    deleteA11yLabel: t('nativeHomeDeleteHistoryA11y', { name: placeDisplayName(entry) }),
   }));
 
   const resultRows: ExploreRow[] = suggestions.map((item) => ({
@@ -249,14 +264,18 @@ export function useExploreViewModel(): ExploreViewModel {
       setResolveFailed(false);
       setQuery(text);
     },
-    onSearchFocus: () => sheetController.raiseTo(SHEET_DETENTS.length - 1),
+    onSearchFocus: () => {
+      sheetController.raiseTo(SHEET_DETENTS.length - 1);
+      setSearchFocused(true);
+    },
+    onSearchBlur: () => setSearchFocused(false),
     loading,
     error: autocompleteError || resolveFailed,
     onRetry: () => {
       setResolveFailed(false);
       retry();
     },
-    mode: query.trim() === '' ? 'history' : 'results',
+    mode: query.trim() !== '' ? 'results' : searchFocused ? 'history' : 'idle',
     historyRows,
     resultRows,
     onOpenNearby: openNearby,
@@ -271,13 +290,13 @@ export function useExploreViewModel(): ExploreViewModel {
       },
     },
     shortcuts,
-    addShortcut: { label: t('nativeHomeAddShortcut'), onPress: openSaved },
+    addShortcut: { label: t('nativeHomeAddShortcut'), accessibilityLabel: t('nativeHomeAddShortcutA11y'), onPress: openSaved },
     nearbySummary: summary,
     quickActions: [
-      // 路線規劃與公車（Phase 2）：只經 sheet 路由切換面板，place 不 import 那兩個 feature。
+      // 公車（Phase 2）：只經 sheet 路由切換面板，place 不 import 那個 feature。
       // AI 助理（Phase 4）：root modal；place 不 import ai feature
+      // 規劃路線移除（使用者回饋 2026-10-11）：地點詳情頁本來就有「規劃路線」主按鈕，這裡不必重複放。
       { key: 'assistant', label: t('assistShort'), iconName: 'sparkles', onPress: () => router.navigate('/chat') },
-      { key: 'plan', label: t('planRoute'), iconName: 'navigation', onPress: () => router.navigate('/plan') },
       { key: 'bus', label: t('busInfo'), iconName: 'bus', onPress: () => router.navigate('/bus') },
       // 危險通報（Phase 3）：root modal，未登入也能送
       { key: 'hazard', label: t('reportHazard'), iconName: 'alert', onPress: () => router.navigate('/hazard-report') },
@@ -296,6 +315,7 @@ export function useExploreViewModel(): ExploreViewModel {
       noResults: t('nativeNoSearchResults'),
       recentSearches: t('recentSearches'),
       moreActions: t('nativeHomeMoreActions'),
+      quickServices: t('nativeHomeQuickServices'),
       networkError: t('nativeNetworkError'),
       retry: t('retry'),
     },

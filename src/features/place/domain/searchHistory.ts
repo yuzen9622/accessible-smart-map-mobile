@@ -45,6 +45,12 @@ export function addToSearchHistory(history: readonly PlaceDetail[], next: PlaceD
   return [next, ...deduped.slice(0, SEARCH_HISTORY_MAX - 1)];
 }
 
+/** 刪除單筆搜尋紀錄：以顯示名稱比對（跟 `addToSearchHistory` 的去重 key 一致）。 */
+export function removeSearchHistoryEntry(history: readonly PlaceDetail[], target: PlaceDetail): PlaceDetail[] {
+  const name = placeDisplayName(target);
+  return history.filter((entry) => placeDisplayName(entry) !== name);
+}
+
 /** `initSavedPlaces`：同樣濾掉空白名稱，但**不**去重（收藏允許同名不同地點）。 */
 export function sanitizeSavedPlaces(places: readonly PlaceDetail[]): PlaceDetail[] {
   return places.filter(hasDisplayName);

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import { appStorage } from '@/shared/storage';
 
-import { addSavedPlaceEntry, addToSearchHistory, removeSavedPlaceEntry } from '../domain/searchHistory';
+import { addSavedPlaceEntry, addToSearchHistory, removeSavedPlaceEntry, removeSearchHistoryEntry } from '../domain/searchHistory';
 import { placeKey, type SavedPlaceCategory } from '../domain/placeKey';
 import { loadPersistedPlaceState, persistSavedPlaceCategories, persistSavedPlaces, persistSearchHistory } from './persistence';
 import type { PlaceDetail } from '../types/place';
@@ -24,6 +24,7 @@ interface SavedPlacesState {
   savedPlaces: PlaceDetail[];
   savedPlaceCategories: Record<string, string>;
   addSearchHistory: (entry: PlaceDetail) => void;
+  removeSearchHistory: (entry: PlaceDetail) => void;
   clearSearchHistory: () => void;
   addSavedPlace: (entry: PlaceDetail) => void;
   removeSavedPlace: (entry: PlaceDetail) => void;
@@ -40,6 +41,11 @@ export const useSavedPlacesStore = create<SavedPlacesState>()((set, get) => ({
 
   addSearchHistory: (entry) => {
     const next = addToSearchHistory(get().searchHistory, entry);
+    persistSearchHistory(appStorage, next);
+    set({ searchHistory: next });
+  },
+  removeSearchHistory: (entry) => {
+    const next = removeSearchHistoryEntry(get().searchHistory, entry);
     persistSearchHistory(appStorage, next);
     set({ searchHistory: next });
   },

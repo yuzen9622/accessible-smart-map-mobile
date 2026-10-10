@@ -2,6 +2,7 @@ import {
   addSavedPlaceEntry,
   addToSearchHistory,
   removeSavedPlaceEntry,
+  removeSearchHistoryEntry,
   sanitizeSavedPlaces,
   sanitizeSearchHistory,
   SEARCH_HISTORY_MAX,
@@ -33,6 +34,19 @@ describe('addToSearchHistory', () => {
     const history = [coord('A')];
     const next = addToSearchHistory(history, coord('   '));
     expect(next).toEqual(history);
+  });
+});
+
+describe('removeSearchHistoryEntry', () => {
+  it('removes the entry matching by display name', () => {
+    const a = coord('A');
+    const b = coord('B', 2, 2);
+    expect(removeSearchHistoryEntry([a, b], a)).toEqual([b]);
+  });
+
+  it('is a no-op when the name is not present', () => {
+    const history = [coord('A')];
+    expect(removeSearchHistoryEntry(history, coord('Z'))).toEqual(history);
   });
 });
 

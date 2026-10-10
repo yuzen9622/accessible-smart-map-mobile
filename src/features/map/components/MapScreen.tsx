@@ -1,6 +1,6 @@
 import { Camera, Layer, Map, NativeUserLocation } from '@maplibre/maplibre-react-native';
 import { router, useFocusEffect, usePathname } from 'expo-router';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated, Keyboard, StyleSheet, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -104,9 +104,9 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
 
   // 常駐 sheet：地圖一露出（上面沒有 sheet）就把首頁 sheet 帶出來。用 focus 而非只在掛載時推一次：
   // 萬一 sheet 被關掉也會自動補回；深層連結已帶 sheet 路由時地圖不在最上層，不會重複推。
-  useFocusEffect(() => {
-    if (homeSheetEnabled) router.navigate('/explore');
-  });
+  useFocusEffect(useCallback(() => {
+    if (homeSheetEnabled) router.navigate(navigationMode ? '/navigation' : '/explore');
+  }, [homeSheetEnabled, navigationMode]));
 
   const handleToggle3d = async () => {
     const next = !is3d;

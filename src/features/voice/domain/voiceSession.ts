@@ -28,6 +28,7 @@ import { logger } from '@/shared/logger';
 /** Client -> server: must be the first message, sent within 5s of open. */
 interface SessionStartMessage {
   type: 'session.start';
+  language?: 'zh-TW' | 'en';
   routeContractVersion?: 1;
   routeContext?: RouteContextInput;
   routingPreferences?: RoutingPreferences;
@@ -406,6 +407,8 @@ export interface VoicePlayback {
   resume(): Promise<boolean>;
   onBlocked(cb: () => void): void;
   setMuted?(muted: boolean): void;
+  isPlaying?(): boolean;
+  onDrained?(callback: () => void): void;
 }
 
 export interface VoiceCapture {
@@ -465,6 +468,7 @@ export interface VoiceSessionDeps {
   getUserLocation(): { latitude: number; longitude: number } | null;
   /** 每次送 `session.start`（含重連）時讀一次：目前為止的共用對話。 */
   getHistory?(): PriorTurn[];
+  getLanguage?(): 'zh-TW' | 'en';
   getRouteConversation?(): { routeContractVersion: 1; routeContext: RouteContextInput; routingPreferences?: RoutingPreferences };
   onRouteSyncState?(state: RouteSyncState): void;
   onInvalidRouteToken?(token: string): void;
@@ -525,13 +529,48 @@ export class VoiceSessionController {
   private contextSupported = false;
   private socketReady = false;
   private contextBlocked = false;
+  private modelTurnActive = false;
+  private pendingRouteContext = false;
+  private pendingNavigationRoute = false;
+  private sessionLanguage: 'zh-TW' | 'en' | undefined;
+  private pendingLanguage = false;
+
+  syncLanguage(): void {
+    if (!this.sessionActive || !this.deps.getLanguage) return;
+    this.pendingLanguage = this.deps.getLanguage() !== this.sessionLanguage;
+    this.flushRouteChanges();
+  }
+
+  private responseInProgress(): boolean {
+    return this.modelTurnActive || Boolean(this.playback?.isPlaying?.());
+  }
+
+  private flushRouteChanges(): void {
+    if (!this.sessionActive || !this.socketReady || this.responseInProgress()) return;
+    if (this.pendingLanguage) {
+      // A new handshake is required. Preserve history/navigation and never send
+      // session.end or nav.cancel, which would delete the server resume snapshot.
+      this.generation += 1;
+      this.socketReady = false;
+      this.stopCapture();
+      this.setStatus({ status: 'reconnecting' });
+      this.connect();
+      return;
+    }
+    if (this.pendingRouteContext) this.syncRouteContext();
+    if (this.pendingNavigationRoute) this.setNavigationRoute(this.routeToken);
+  }
 
   syncRouteContext(): void {
     if (!this.sessionActive || !this.deps.getRouteConversation) return;
+    this.pendingRouteContext = true;
+    if (this.responseInProgress()) {
+      this.deps.onRouteSyncState?.('pending');
+      return;
+    }
     this.contextBlocked = true;
-    this.playback?.clear();
-    this.deps.onInterrupted?.();
     if (!this.socketReady) return;
+    this.pendingRouteContext = false;
     this.contextSync?.set(this.deps.getRouteConversation().routeContext, this.contextSupported);
   }
 
@@ -571,6 +610,10 @@ export class VoiceSessionController {
     this.reconnectDelay = RECONNECT_INITIAL_DELAY_MS;
 
     this.playback = this.deps.createPlayback();
+    const playback = this.playback;
+    playback.onDrained?.(() => {
+      if (this.playback === playback) this.flushRouteChanges();
+    });
     this.playback.onBlocked(() => {
       if (!this.sessionActive) return;
       this.setStatus({ status: 'playback-blocked' });
@@ -588,6 +631,7 @@ export class VoiceSessionController {
   setMuted(muted: boolean): void {
     this.muted = muted;
     this.playback?.setMuted?.(muted);
+    this.flushRouteChanges();
   }
 
   resumePlayback(): void {
@@ -607,6 +651,9 @@ export class VoiceSessionController {
 
   setNavigationRoute(routeToken: string | null): void {
     this.routeToken = routeToken;
+    this.pendingNavigationRoute = true;
+    if (this.responseInProgress()) return;
+    this.pendingNavigationRoute = false;
     if (routeToken) {
       this.sendControl({ type: 'nav.setRoute', routeToken });
     }
@@ -673,6 +720,10 @@ export class VoiceSessionController {
   private terminate(status: VoiceStatus, sendEndMessage = false): void {
     this.generation += 1;
     this.sessionActive = false;
+    this.pendingLanguage = false;
+    this.modelTurnActive = false;
+    this.pendingRouteContext = false;
+    this.pendingNavigationRoute = false;
     this.muted = false;
     this.clearReconnectTimer();
     this.contextSync?.dispose();
@@ -746,6 +797,10 @@ export class VoiceSessionController {
 
     this.contextSync?.dispose();
     this.socketReady = false;
+    this.modelTurnActive = false;
+    this.pendingLanguage = false;
+    this.pendingRouteContext = false;
+    this.pendingNavigationRoute = false;
     this.contextSupported = false;
     this.contextBlocked = Boolean(this.deps.getRouteConversation);
     this.contextSync = new RouteContextSync(
@@ -761,6 +816,9 @@ export class VoiceSessionController {
     socket.onopen = () => {
       if (gen !== this.generation) return; // stale
       const message: SessionStartMessage = { type: 'session.start', token, ...this.deps.getRouteConversation?.() };
+      this.sessionLanguage = this.deps.getLanguage?.();
+      this.pendingLanguage = false;
+      if (this.sessionLanguage) message.language = this.sessionLanguage;
       if (location) message.userLocation = location;
       const history = this.deps.getHistory?.() ?? [];
       if (history.length > 0) message.history = history;
@@ -775,6 +833,7 @@ export class VoiceSessionController {
 
     if (data instanceof ArrayBuffer) {
       if (this.contextBlocked) return;
+      this.modelTurnActive = true;
       // Downlink audio: never JSON-parsed, forwarded to playback in
       // arrival order (§5.9).
       this.playback?.play(data);
@@ -849,6 +908,7 @@ export class VoiceSessionController {
         // announcing the same navigation instead of starting from scratch.
         if (isReconnect) this.sendNavigationResume();
         this.startCapture(gen);
+        this.flushRouteChanges();
         return;
       }
       case 'transcript': {
@@ -872,13 +932,14 @@ export class VoiceSessionController {
         return;
       }
       case 'tool_call': {
-        if (this.contextBlocked) return;
+        if (this.contextBlocked || this.pendingRouteContext) return;
         const m = message as ToolCallMessage;
         this.deps.onToolEvent({ type: 'call', name: m.name, callId: m.callId, turnId: m.turnId, args: m.args });
         return;
       }
       case 'tool_result': {
-        if (this.contextBlocked) return;
+        // Finish the spoken response, but never apply actions for the old selection.
+        if (this.contextBlocked || this.pendingRouteContext) return;
         const m = message as ToolResultMessage;
         this.deps.onToolEvent({
           type: 'result',
@@ -895,6 +956,7 @@ export class VoiceSessionController {
       case 'interrupted': {
         // §5.10: interrupted always clears playback immediately.
         this.playback?.clear();
+        this.modelTurnActive = false;
         this.deps.onInterrupted?.();
         if (
           this.status.status === 'model-speaking' ||
@@ -902,13 +964,16 @@ export class VoiceSessionController {
         ) {
           this.setStatus({ status: 'listening' });
         }
+        this.flushRouteChanges();
         return;
       }
       case 'turn.complete': {
+        this.modelTurnActive = false;
         this.deps.onTurnComplete?.();
         if (this.status.status === 'model-speaking') {
           this.setStatus({ status: 'listening' });
         }
+        this.flushRouteChanges();
         return;
       }
       case 'error': {

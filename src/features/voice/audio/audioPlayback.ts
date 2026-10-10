@@ -36,6 +36,8 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
   let meter: ReturnType<typeof setInterval> | null = null;
   let lastLevel = 0;
   let muted = false;
+  const pendingBuffers = new Set<string>();
+  let onDrained: (() => void) | undefined;
 
   const reportLevel = (level: number) => {
     if (Math.abs(level - lastLevel) < METER_EPSILON && !(level === 0 && lastLevel !== 0)) return;
@@ -83,6 +85,11 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
     context = ctx;
     if (queue) return { ctx, node: queue };
     const node = ctx.createBufferQueueSource();
+    node.onBufferEnded = ({ bufferId }) => {
+      if (queue !== node) return;
+      pendingBuffers.delete(bufferId);
+      if (pendingBuffers.size === 0) onDrained?.();
+    };
     const meterNode = ensureAnalyser(ctx);
     node.connect(meterNode);
     startMeter(meterNode);
@@ -97,7 +104,9 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
     stopMeter();
     const node = queue;
     queue = null;
+    pendingBuffers.clear();
     if (!node) return;
+    node.onBufferEnded = null;
     try {
       node.clearBuffers();
       node.stop();
@@ -114,7 +123,7 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
         const { ctx, node } = ensureQueue();
         const buffer = ctx.createBuffer(1, samples.length, PLAYBACK_RATE);
         buffer.copyToChannel(samples, 0);
-        node.enqueueBuffer(buffer);
+        pendingBuffers.add(node.enqueueBuffer(buffer));
         if (analyser) startMeter(analyser);
         observer.onScheduled?.((samples.length / PLAYBACK_RATE) * 1000);
       } catch (error) {
@@ -122,6 +131,8 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
       }
     },
     clear,
+    isPlaying: () => pendingBuffers.size > 0,
+    onDrained(callback) { onDrained = callback; },
     dispose() {
       clear();
       analyser = null;

@@ -13,6 +13,7 @@ import { useAuthStore } from '@/features/auth';
 import { useUserLocationStore } from '@/features/map';
 import { getRouteSessionSnapshot, subscribeRouteSession, invalidateRouteConversations, markRouteTokenInvalid } from '@/features/route';
 import { getAuthPort } from '@/shared/api';
+import i18n, { getAppLanguage } from '@/shared/i18n';
 
 import { createCapture } from '../audio/audioCapture';
 import { createPlayback } from '../audio/audioPlayback';
@@ -137,6 +138,7 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
       return position ? { latitude: position.lat, longitude: position.lng } : null;
     },
     getHistory: sharedHistory,
+    getLanguage: getAppLanguage,
     getRouteConversation: getRouteConversationRequest,
     onInvalidRouteToken: markRouteTokenInvalid,
     onRouteSyncState: (routeSyncState) => useVoiceStore.setState({ routeSyncState }),
@@ -164,6 +166,7 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
     if (state.selectRoute?.route !== previous.selectRoute?.route || state.isLoading !== previous.isLoading || state.invalidRouteTokens !== previous.invalidRouteTokens) c.syncRouteContext();
   });
   controller = c;
+  i18n.on('languageChanged', () => c.syncLanguage());
   bindings = b;
   installVoiceNavigationBridge({
     setNavigationRoute: (token) => c.setNavigationRoute(token),

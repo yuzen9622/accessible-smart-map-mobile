@@ -11,9 +11,11 @@ import { getAppConfig } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import {
+  QUICK_ACTION_KEYS,
   usePreferencesStore,
   type FontSizeLevel,
   type LanguagePreference,
+  type QuickActionKey,
   type ThemeMode,
 } from '@/shared/preferences';
 
@@ -21,6 +23,12 @@ export interface Choice<T extends string> {
   value: T;
   label: string;
 }
+
+const QUICK_ACTION_LABEL_KEY: Record<QuickActionKey, string> = {
+  assistant: 'assistShort',
+  bus: 'busInfo',
+  hazard: 'reportHazard',
+};
 
 /**
  * 設定首頁 view-model。項目對齊 Web 設定對話框五個分頁（commit f82cda8）：外觀、緊急安全、帳號安全、
@@ -162,6 +170,22 @@ export function useSettingsViewModel() {
     { value: 'en', label: 'English' },
   ];
 
+  // 候選項目固定用 QUICK_ACTION_KEYS 的順序列出（勾選/取消不會讓清單跳動）；
+  // 首頁實際顯示的順序交給 prefs.quickActions 自己的順序（useExploreViewModel 依它排列）。
+  const setQuickActionEnabled = (key: QuickActionKey, enabled: boolean) => {
+    const current = prefs.quickActions;
+    const next = enabled ? QUICK_ACTION_KEYS.filter((k) => k === key || current.includes(k)) : current.filter((k) => k !== key);
+    if (next.length === 0) return; // 防呆：至少留一項，首頁「快速服務」不會開天窗
+    prefs.setPreferences({ quickActions: next });
+  };
+  const quickActionOptions = QUICK_ACTION_KEYS.map((key) => ({
+    key,
+    label: t(QUICK_ACTION_LABEL_KEY[key]),
+    enabled: prefs.quickActions.includes(key),
+    disabled: prefs.quickActions.length === 1 && prefs.quickActions[0] === key,
+    onToggle: (value: boolean) => setQuickActionEnabled(key, value),
+  }));
+
   return {
     account: loggedIn && user
       ? {
@@ -194,6 +218,8 @@ export function useSettingsViewModel() {
     notificationAction,
     notificationActionLabel: t(notificationStatus === 'denied' ? 'nativeOpenSettings' : notificationStatus === 'signedOut' ? 'loginRegisterCta' : 'retry'),
     memoryEnabled: prefs.memoryEnabled,
+
+    quickActionOptions,
 
     needsSummary:
       situations.length > 0

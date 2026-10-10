@@ -41,6 +41,10 @@ import LayerChips from './LayerChips';
 import ParkingLayer from './ParkingLayer';
 import MapControls from './MapControls';
 
+/** 導航跟隨時讓給 `NavigationHUD` 頂部橫幅的垂直留白（不含 safe-area top），讓定位點落在橫幅下方，
+ * 前方路況留白變多，而不是卡在螢幕中段（使用者回饋 2026-10-11，見下方 padding 註解）。 */
+const NAV_FOLLOW_TOP_PADDING = 190;
+
 /** 首頁「停車」圖層開啟時才依位置查附近無障礙停車（`NearbyScreen` 也會各自載入）。 */
 function ParkingLoader() {
   useNearbyParking();
@@ -207,7 +211,16 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
           }}
           trackUserLocation={follow?.mode}
           {...(follow
-            ? { zoom: follow.zoom, pitch: follow.pitch, padding: { top: 0, left: 0, right: 0, bottom: sheetInset }, duration: 800 }
+            ? {
+                zoom: follow.zoom,
+                pitch: follow.pitch,
+                // 導航中：原生 trackUserLocation 把定位點放在 padding box 的垂直中心；top 不留白時
+                // 定位點會卡在 HUD 橫幅下緣附近，畫面可視範圍大半被「後方」佔走，看不到前方轉彎
+                // （使用者回饋 2026-10-11）。導航時把 top 讓出 HUD 橫幅高度，定位點才會往下挪、
+                // 前方路況留白變多；非導航時仍是 0，不影響一般瀏覽地圖。
+                padding: { top: navigationMode ? insets.top + NAV_FOLLOW_TOP_PADDING : 0, left: 0, right: 0, bottom: sheetInset },
+                duration: 800,
+              }
             : {})}
           onTrackUserLocationChange={(event) => {
             // 使用者拖曳地圖時原生會解除追蹤：記下「被打斷」，讓導航顯示「回到導航」

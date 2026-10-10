@@ -12,8 +12,8 @@ const model: ExploreViewModel = {
   header: { title: 'Where to?', needs: { label: 'Wheelchair', accessibilityLabel: 'Needs', onPress: noop } },
   shortcuts: [], addShortcut: { label: 'Add', accessibilityLabel: 'Add a frequent place', onPress: noop }, nearbySummary: null,
   quickActions: [
-    { key: 'assistant', label: 'Assistant', iconName: 'sparkles', onPress: jest.fn() },
-    { key: 'bus', label: 'Bus', iconName: 'bus', onPress: noop },
+    { key: 'assistant', label: 'Assistant', iconName: 'sparkles', color: '#7048E8', onPress: jest.fn() },
+    { key: 'bus', label: 'Bus', iconName: 'bus', color: '#0F9960', onPress: noop },
   ],
   account: { label: 'Settings', initial: null, onPress: noop },
   labels: {
@@ -46,7 +46,7 @@ it('shows the needs pill only when the brand row is visible', async () => {
 it('idle mode shows quick services (no plan-route tile), nearby summary, and a shortcuts section with its own add button', async () => {
   const home: ExploreViewModel = {
     ...model,
-    shortcuts: [{ key: 'home', title: 'Home', meta: null, iconName: 'bookmark', onPress: noop }],
+    shortcuts: [{ key: 'home', title: 'Home', meta: null, iconName: 'bookmark', color: '#495057', onPress: noop }],
     nearbySummary: { text: 'Nearby facilities', dots: [], onPress: noop },
   };
   const view = await render(<ExplorePanel model={home} />);

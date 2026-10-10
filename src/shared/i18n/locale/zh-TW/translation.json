@@ -1126,6 +1126,7 @@
   "nativeHomeNeedsA11y": "行動需求：{{mode}}，點兩下修改",
   "nativeHomeMoreActions": "更多",
   "nativeHomeQuickServices": "快速服務",
+  "nativeHomeShortcutsSettingsHint": "選擇首頁「快速服務」要顯示哪些項目",
   "nativeHomeAddShortcutA11y": "新增常去地點",
   "nativeHomeDeleteHistory": "刪除搜尋紀錄",
   "nativeHomeDeleteHistoryA11y": "刪除「{{name}}」搜尋紀錄",

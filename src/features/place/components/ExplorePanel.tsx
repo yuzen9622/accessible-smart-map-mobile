@@ -136,9 +136,11 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                   accessibilityRole="button"
                   accessibilityLabel={action.label}
                   onPress={action.onPress}
-                  style={({ pressed }) => [styles.quickTile, { backgroundColor: tones.accentSoft }, pressed && styles.pressed]}>
-                  <Icon name={action.iconName} size={22} color={accentText} />
-                  <Text style={[styles.quickTileText, { color: accentText }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
+                  style={({ pressed }) => [styles.quickTile, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
+                  <View style={[styles.quickTileIcon, { backgroundColor: action.color }]}>
+                    <Icon name={action.iconName} size={20} color="#FFFFFF" />
+                  </View>
+                  <Text style={[styles.quickTileText, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
                     {action.label}
                   </Text>
                 </Pressable>
@@ -198,8 +200,8 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                     accessibilityLabel={shortcut.meta ? `${shortcut.title}，${shortcut.meta}` : shortcut.title}
                     onPress={shortcut.onPress}
                     style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
-                    <View style={[styles.shortcutIcon, { backgroundColor: tones.accentSoft }]}>
-                      <Icon name={shortcut.iconName} size={24} color={accentText} />
+                    <View style={[styles.shortcutIcon, { backgroundColor: shortcut.color }]}>
+                      <Icon name={shortcut.iconName} size={24} color="#FFFFFF" />
                     </View>
                     <Text style={[styles.shortcutTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
                       {shortcut.title}
@@ -292,20 +294,37 @@ const styles = StyleSheet.create({
   addShortcutButton: { minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center' },
   shortcutsRow: { flexDirection: 'row', gap: SPACE.lg, paddingHorizontal: 4 },
   shortcut: { width: 76, alignItems: 'center', gap: 4 },
-  shortcutIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  shortcutIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.16,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
   shortcutTitle: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
   shortcutMeta: { fontSize: 12, textAlign: 'center' },
   quickGrid: { flexDirection: 'row', gap: SPACE.sm },
   quickTile: {
     flex: 1,
-    minHeight: 76,
+    minHeight: 84,
     borderRadius: RADIUS.card,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 8,
     paddingVertical: SPACE.sm,
     paddingHorizontal: 4,
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
+  quickTileIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   quickTileText: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
   summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: RADIUS.card, padding: 14, minHeight: 58 },
   summaryDots: { flexDirection: 'row' },

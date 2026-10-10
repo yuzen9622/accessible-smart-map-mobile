@@ -19,6 +19,7 @@ import { requestForegroundLocationFix } from '../domain/foregroundLocation';
 import { isVehicleLegType, resolveActiveLegType, resolveCurrentLegType, resolveNavHeading } from '../domain/legMode';
 import { shouldSpeakLocally } from '../domain/navigationAudio';
 import {
+  FOLLOW_GPS_MAX_M,
   advanceNavigation,
   angularDistanceDeg,
   resolveStepMode,
@@ -211,6 +212,21 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     const promoted = nav.stepMode === 'preview';
     if (promoted) nav.setStepMode('live');
     transit.observe(position);
+
+    // 偏離路線超過 500 m：`advanceNavigation` 的投影已無意義、一律回傳 null（見該檔註解），
+    // 下面 `if (!result) return` 會整個跳過，包含偏航→重算的訊號。沒有這段，使用者偏離越久、
+    // 離路線越遠，就越不可能再觸發 triggerAutoReroute——回報 bug 正是「已經偏離路線很久，
+    // 但都沒有重新規劃」。只要已經處於偏航狀態（isOffRoute 只會在 80–500 m 區間累積到才會是
+    // true，所以這裡一定是「偏航後繼續走遠」，不是冷啟動雜訊），就持續嘗試重算；
+    // `triggerAutoReroute` 自己有 30 秒冷卻，重複呼叫不會洗版。
+    if (nav.isOffRoute) {
+      const proj = projectToPath(position, geometry.path.path, geometry.path.cumM);
+      if (proj.perpDistM > FOLLOW_GPS_MAX_M) {
+        void deps.reroute.triggerAutoReroute(position);
+        return;
+      }
+    }
+
     const result = advanceNavigation({
       position,
       geometry: { path: geometry.path, waypoints: geometry.waypoints },

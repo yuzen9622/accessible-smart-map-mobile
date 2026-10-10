@@ -175,6 +175,36 @@ describe('NavigationController', () => {
     controller.stop();
   });
 
+  it('keeps retrying the reroute while drifting past the 500 m follow radius, instead of going silent (bug: long off-route with no auto-reroute)', async () => {
+    const { controller, reroute, advance } = setup();
+    controller.start();
+    await flush();
+
+    for (let i = 0; i < 3; i++) {
+      fix(25.0505, 121.502 + i * 0.00001);
+      await flush();
+    }
+    expect(reroute.triggerAutoReroute).toHaveBeenCalledTimes(1);
+    expect(useNavStore.getState().isOffRoute).toBe(true);
+    const stepIndexBeforeDrift = useNavStore.getState().currentStepIndex;
+
+    // 繼續往北漂，超過 500 m 的跟隨上限：`advanceNavigation` 本身會回傳 null，
+    // 但既有的偏航狀態要讓 controller 持續嘗試重算，而不是整個放棄。
+    advance(31_000); // 過了 30 秒自動重算冷卻
+    fix(25.06, 121.502);
+    await flush();
+    expect(reroute.triggerAutoReroute).toHaveBeenCalledTimes(2);
+    expect(useNavStore.getState().isOffRoute).toBe(true);
+    // 這個樣本投影沒有意義，步驟／進度不該被更動。
+    expect(useNavStore.getState().currentStepIndex).toBe(stepIndexBeforeDrift);
+
+    advance(31_000);
+    fix(25.065, 121.502);
+    await flush();
+    expect(reroute.triggerAutoReroute).toHaveBeenCalledTimes(3);
+    controller.stop();
+  });
+
   it('arrives exactly once and says so once', async () => {
     const { controller, speech } = setup();
     controller.start();

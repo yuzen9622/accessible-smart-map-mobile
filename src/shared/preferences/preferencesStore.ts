@@ -33,6 +33,7 @@ export function createPreferencesStore(storage: KeyValueStorage = appStorage) {
           language: state.language,
           notifications: state.notifications,
           memoryEnabled: state.memoryEnabled,
+          quickActions: state.quickActions,
         }),
         merge: (persisted, current) => ({ ...current, ...sanitizePreferences(persisted) }),
       },

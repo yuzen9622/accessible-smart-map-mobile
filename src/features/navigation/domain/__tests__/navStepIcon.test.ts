@@ -98,6 +98,10 @@ it.each([
   expect(stepIcon(instruction({ text }))).toBe(icon);
 });
 
-it('preserves heading-relative arrows when the backend supplies them', () => {
-  expect(stepIcon(instruction({ text: 'Turn right', relativeDirection: 'ahead-right' }))).toBe('arrowUpRight');
+it('prefers the text-derived arrow over relativeDirection when they disagree — text is what the voice speaks verbatim', () => {
+  expect(stepIcon(instruction({ text: 'Turn right', relativeDirection: 'ahead-right' }))).toBe('cornerUpRight');
+});
+
+it('falls back to relativeDirection when the text does not match a known maneuver prefix', () => {
+  expect(stepIcon(instruction({ text: 'Continue onto Main St', relativeDirection: 'ahead-right' }))).toBe('arrowUpRight');
 });

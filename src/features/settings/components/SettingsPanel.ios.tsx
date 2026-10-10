@@ -1,7 +1,7 @@
 import Host from '@/shared/ui/typography/PreferenceHost.ios';
 import { LabeledContent, Picker, Text, Toggle } from '@expo/ui/swift-ui';
 import { Button, Form, Section, useSecondaryForeground } from '@/shared/ui/form/PreferenceForm.ios';
-import { font, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
+import { disabled, font, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';
 
@@ -88,6 +88,18 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
         <Section title={t('nativeSettingsNeeds')} footer={<Text>{t('nativeSettingsNeedsHint')}</Text>}>
           <Button label={t('nativeSettingsEditNeeds')} onPress={model.openNeeds} />
           <Text modifiers={secondary}>{model.needsSummary}</Text>
+        </Section>
+
+        <Section title={t('nativeHomeQuickServices')} footer={<Text>{t('nativeHomeShortcutsSettingsHint')}</Text>}>
+          {model.quickActionOptions.map((option) => (
+            <Toggle
+              key={option.key}
+              label={option.label}
+              isOn={option.enabled}
+              onIsOnChange={option.onToggle}
+              modifiers={option.disabled ? [disabled(true)] : []}
+            />
+          ))}
         </Section>
 
         <Section title={t('settingsEmergencyTitle')} footer={<Text>{t('settingsEmergencyDesc')}</Text>}>

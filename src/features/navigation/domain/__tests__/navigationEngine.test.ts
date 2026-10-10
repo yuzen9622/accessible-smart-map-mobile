@@ -132,6 +132,22 @@ describe('advanceNavigation', () => {
     const r = sample(25.05, 121.5);
     expect(r?.arrivedNow).toBe(false);
   });
+
+  it('does not arrive on proximity alone while the step index is still held back (e.g. transit not yet boarded)', () => {
+    // 位置落在終點座標附近，但 maxStepIndex 把 currentStepIndex 擋在倒數第二步之前——
+    // 單憑直線距離會誤判抵達（回報 bug：「還沒抵達卻顯示已抵達」，見 navigationEngine.ts 抵達判斷註解）。
+    const r = advanceNavigation({
+      position: { lat: 25.05, lng: 121.505 },
+      geometry: { path: buildCumulativePath(legs), waypoints: resolveWaypoints(instructions, buildCumulativePath(legs)) },
+      instructions,
+      state: INITIAL,
+      now: 1_000_000,
+      routeTotalMinutes: 10,
+      maxStepIndex: 2,
+    });
+    expect(r?.state.currentStepIndex).toBe(2);
+    expect(r?.arrivedNow).toBe(false);
+  });
 });
 
 describe('advanceNavigation drive → walk handoff', () => {

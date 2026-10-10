@@ -35,6 +35,7 @@ function Settings() {
     highContrast, setHighContrast: (value: boolean) => usePreferencesStore.getState().setPreferences({ highContrast: value }),
     account: null, themeMode: 'light', fontSize: 'medium', language: 'system',
     themeChoices: [], fontChoices: [], languageChoices: [], legalLinks: [], needsSummary: 'Needs', version: '1',
+    quickActionOptions: [],
   } as unknown as SettingsPanelProps['model'];
   return <SettingsPanel model={model} />;
 }

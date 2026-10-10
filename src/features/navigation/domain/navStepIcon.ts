@@ -23,11 +23,19 @@ const TEXT_DIRECTIONS: readonly [RegExp, NavStepIconName][] = [
 ];
 
 /** Direction arrows, shared by every travel mode — a right turn looks the
- * same whether the user is walking or driving it. */
+ * same whether the user is walking or driving it.
+ *
+ * `step.text` wins over `relativeDirection` when both are present: `text` is
+ * verbatim what the voice announcer speaks (`navigationController.speak(step.text)`),
+ * so matching the icon to it guarantees the arrow and the spoken word always
+ * agree. `relativeDirection` is a separate backend-computed field (bearing
+ * math) and has been observed to disagree with `text` on some steps — e.g.
+ * showing a left-turn arrow while the voice says "向右轉" — which is worse
+ * than falling back to a coarser text-pattern match. */
 function directionIcon(step: NavInstruction): NavStepIconName {
-  if (step.relativeDirection == null) {
-    return TEXT_DIRECTIONS.find(([pattern]) => pattern.test(step.text.trim()))?.[1] ?? 'arrowUp';
-  }
+  const fromText = TEXT_DIRECTIONS.find(([pattern]) => pattern.test(step.text.trim()))?.[1];
+  if (fromText) return fromText;
+  if (step.relativeDirection == null) return 'arrowUp';
   switch (step.relativeDirection) {
     case '正前方':
     case 'ahead':

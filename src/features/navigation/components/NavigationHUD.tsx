@@ -162,7 +162,9 @@ export default function NavigationHUD() {
               </View>
             ) : null}
             <View style={styles.bannerRow}>
-              <Icon name={stepIcon(step)} size={64} color={ON_ACCENT_FILL} strokeWidth={2.2} />
+              <View style={styles.bannerIconBadge}>
+                <Icon name={stepIcon(step)} size={44} color={ON_ACCENT_FILL} strokeWidth={2.2} />
+              </View>
               <View style={styles.flex}>
                 {transitHead ? (
                   <AnimatedNumberText text={transitHead} value={transitValue} fontSize={45} fontWeight="heavy" color={ON_ACCENT_FILL} />
@@ -315,6 +317,14 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   bannerRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  bannerIconBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
   bannerTitle: { color: ON_ACCENT_FILL, fontSize: 34, fontWeight: '800' },
   bannerInstruction: { color: ON_ACCENT_FILL, fontSize: 24, fontWeight: '700', marginTop: 2 },
   bannerMeta: { color: ON_ACCENT_FILL, fontSize: 15, fontWeight: '600' },

@@ -191,10 +191,13 @@ export function advanceNavigation(input: ProgressInput): ProgressResult | null {
 
   // 抵達：靠近最後一個轉向點，以最後一段 leg 的半徑判斷（純開車路線終點是停車格，不是門口）。
   // 不得以放寬門檻處理「一按導航就抵達」——根因是 per-leg 索引錯配（SDD §6.4）。
+  // 直線距離不夠：終點附近若有其他路段（繞回、平行道路）經過，單憑距離會在使用者還沒走完
+  // 整條路線前就先判定抵達，所以還要求目前步驟已經推進到最後一個轉向點。
   const finalWp = wps[wps.length - 1];
   const finalThresholds = navThresholdsFor(resolveActiveLegType(instructions, instructions.length - 1));
+  const onFinalStep = instructions.length === 0 || state.currentStepIndex >= instructions.length - 1;
   const arrivedNow =
-    !state.arrived && !!finalWp?.coord && haversineMeters(position, finalWp.coord) < finalThresholds.finalArriveM;
+    !state.arrived && onFinalStep && !!finalWp?.coord && haversineMeters(position, finalWp.coord) < finalThresholds.finalArriveM;
   if (arrivedNow) state.arrived = true;
 
   return {

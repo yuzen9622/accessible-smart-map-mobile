@@ -1141,6 +1141,7 @@
   "nativeHomeNeedsA11y": "Mobility needs: {{mode}}. Double-tap to change",
   "nativeHomeMoreActions": "More",
   "nativeHomeQuickServices": "Quick services",
+  "nativeHomeShortcutsSettingsHint": "Choose which items show in the home \"Quick services\" grid",
   "nativeHomeAddShortcutA11y": "Add a frequent place",
   "nativeHomeDeleteHistory": "Delete search record",
   "nativeHomeDeleteHistoryA11y": "Delete search record \"{{name}}\"",

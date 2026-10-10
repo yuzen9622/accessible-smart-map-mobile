@@ -17,6 +17,7 @@ import { ROUTE_MODE_LABEL_KEY, useOnboardingStore } from '@/features/onboarding'
 import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
+import { usePreferencesStore, type QuickActionKey } from '@/shared/preferences';
 import type { IconName } from '@/shared/ui';
 
 import { getPlaceDetails } from '../api/placeSearch';
@@ -50,9 +51,11 @@ export interface ExploreRow {
 export type ExploreMode = 'idle' | 'history' | 'results';
 
 export interface ExploreQuickAction {
-  key: 'assistant' | 'bus' | 'hazard';
+  key: QuickActionKey;
   label: string;
   iconName: 'sparkles' | 'bus' | 'alert';
+  /** 圖示底色：每個項目各自一色，不再全部套用同一個 accentSoft（使用者回饋 2026-10-11，太單調）。 */
+  color: string;
   onPress: () => void;
 }
 
@@ -63,6 +66,8 @@ export interface ExploreShortcut {
   /** 與使用者的直線距離；沒有定位時為 null */
   meta: string | null;
   iconName: IconName;
+  /** 圖示底色：依收藏分類區分（同上，使用者回饋 2026-10-11）。 */
+  color: string;
   onPress: () => void;
 }
 
@@ -82,6 +87,23 @@ const SAVED_CATEGORY_ICON: Record<SavedPlaceCategory, IconName> = {
   transport: 'tramFront',
   medical: 'hospital',
   other: 'mapPin',
+};
+
+/** 每個收藏分類各自一色（圓鈕底色＋圖示色）；跟 `QUICK_ACTION_COLOR`、地圖 `FACILITY_COLORS`
+ * 一樣是固定色票、不隨主題切換——圖示在色塊上要一眼辨識類別，深／淺色模式下都得是同一個顏色。 */
+const SAVED_CATEGORY_COLOR: Record<SavedPlaceCategory, string> = {
+  favorite: '#D6336C',
+  food: '#E8590C',
+  transport: '#0C8599',
+  medical: '#E03131',
+  other: '#495057',
+};
+
+/** 快速服務每格各自一色，不再全部套用同一個 accent 藍（使用者回饋 2026-10-11：太單調）。 */
+const QUICK_ACTION_COLOR: Record<QuickActionKey, string> = {
+  assistant: '#7048E8',
+  bus: '#0F9960',
+  hazard: '#E8590C',
 };
 
 export interface ExploreViewModel {
@@ -154,6 +176,7 @@ export function useExploreViewModel(): ExploreViewModel {
   const routeMode = useOnboardingStore((state) => state.profile.routeMode);
   const addSearchHistory = useSavedPlacesStore((state) => state.addSearchHistory);
   const removeSearchHistory = useSavedPlacesStore((state) => state.removeSearchHistory);
+  const enabledQuickActions = usePreferencesStore((state) => state.quickActions);
   const setSelectedPlace = usePlaceUiStore((state) => state.setSelectedPlace);
   const { suggestions, loading, error: autocompleteError, retry, sessionToken, resetSession } = useAutocomplete(query, userLocation ?? undefined);
 
@@ -229,11 +252,13 @@ export function useExploreViewModel(): ExploreViewModel {
   const shortcuts: ExploreShortcut[] = savedPlaces.slice(0, SHORTCUT_LIMIT).map((entry) => {
     const key = placeKey(entry);
     const category = savedPlaceCategories[key];
+    const resolvedCategory = isSavedPlaceCategory(category) ? category : 'other';
     return {
       key,
       title: placeDisplayName(entry),
       meta: userLocation ? formatDistance(haversineMeters(userLocation, entry.position)) : null,
       iconName: isSavedPlaceCategory(category) ? SAVED_CATEGORY_ICON[category] : 'bookmark',
+      color: SAVED_CATEGORY_COLOR[resolvedCategory],
       onPress: () => handlePickSaved(entry),
     };
   });
@@ -292,15 +317,31 @@ export function useExploreViewModel(): ExploreViewModel {
     shortcuts,
     addShortcut: { label: t('nativeHomeAddShortcut'), accessibilityLabel: t('nativeHomeAddShortcutA11y'), onPress: openSaved },
     nearbySummary: summary,
-    quickActions: [
-      // 公車（Phase 2）：只經 sheet 路由切換面板，place 不 import 那個 feature。
-      // AI 助理（Phase 4）：root modal；place 不 import ai feature
-      // 規劃路線移除（使用者回饋 2026-10-11）：地點詳情頁本來就有「規劃路線」主按鈕，這裡不必重複放。
-      { key: 'assistant', label: t('assistShort'), iconName: 'sparkles', onPress: () => router.navigate('/chat') },
-      { key: 'bus', label: t('busInfo'), iconName: 'bus', onPress: () => router.navigate('/bus') },
-      // 危險通報（Phase 3）：root modal，未登入也能送
-      { key: 'hazard', label: t('reportHazard'), iconName: 'alert', onPress: () => router.navigate('/hazard-report') },
-    ],
+    // 順序與顯示／隱藏依設定頁「首頁快捷方式」的 enabledQuickActions（參考網頁版，使用者回饋 2026-10-11）；
+    // 規劃路線沒有在候選清單裡——地點詳情頁本來就有「規劃路線」主按鈕，這裡不必重複放。
+    quickActions: enabledQuickActions
+      .map((key): ExploreQuickAction | null => {
+        switch (key) {
+          // 公車（Phase 2）：只經 sheet 路由切換面板，place 不 import 那個 feature。
+          case 'bus':
+            return { key: 'bus', label: t('busInfo'), iconName: 'bus', color: QUICK_ACTION_COLOR.bus, onPress: () => router.navigate('/bus') };
+          // AI 助理（Phase 4）：root modal；place 不 import ai feature
+          case 'assistant':
+            return {
+              key: 'assistant', label: t('assistShort'), iconName: 'sparkles', color: QUICK_ACTION_COLOR.assistant,
+              onPress: () => router.navigate('/chat'),
+            };
+          // 危險通報（Phase 3）：root modal，未登入也能送
+          case 'hazard':
+            return {
+              key: 'hazard', label: t('reportHazard'), iconName: 'alert', color: QUICK_ACTION_COLOR.hazard,
+              onPress: () => router.navigate('/hazard-report'),
+            };
+          default:
+            return null;
+        }
+      })
+      .filter((action): action is ExploreQuickAction => action !== null),
     account: {
       label: userName ? `${t('settingTitle')}，${userName}` : t('settingTitle'),
       initial: userName ? userName.trim().slice(0, 1).toUpperCase() : null,

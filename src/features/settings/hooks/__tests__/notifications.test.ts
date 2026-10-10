@@ -16,7 +16,14 @@ jest.mock('@/features/notifications', () => ({
 }));
 jest.mock('@/features/onboarding', () => ({ useOnboardingStore: jest.requireActual('zustand').create(() => ({ profile: { situations: [] } })) }));
 jest.mock('@/shared/config', () => ({ getAppConfig: () => ({}) }));
-jest.mock('@/shared/preferences', () => ({ usePreferencesStore: jest.requireActual('zustand').create((set: (v: unknown) => void) => ({ notifications: true, setPreferences: set })) }));
+jest.mock('@/shared/preferences', () => ({
+  QUICK_ACTION_KEYS: ['assistant', 'bus', 'hazard'],
+  usePreferencesStore: jest.requireActual('zustand').create((set: (v: unknown) => void) => ({
+    notifications: true,
+    quickActions: ['assistant', 'bus', 'hazard'],
+    setPreferences: set,
+  })),
+}));
 jest.mock('expo-router', () => ({ router: { navigate: jest.fn() } }));
 beforeEach(() => {
   mockSync.mockReset().mockResolvedValue('registered');

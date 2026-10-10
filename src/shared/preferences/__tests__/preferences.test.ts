@@ -14,6 +14,16 @@ describe('sanitizePreferences', () => {
       sanitizePreferences({ themeMode: 'dark', highContrast: true, fontSize: 'huge', language: 'fr', memoryEnabled: false }),
     ).toEqual({ ...DEFAULT_PREFERENCES, themeMode: 'dark', highContrast: true, memoryEnabled: false });
   });
+
+  it('keeps a valid, deduped quickActions subset in its given order', () => {
+    expect(sanitizePreferences({ quickActions: ['hazard', 'bus', 'hazard'] }).quickActions).toEqual(['hazard', 'bus']);
+  });
+
+  it('falls back to every quick action when the stored list is garbage or empty', () => {
+    expect(sanitizePreferences({ quickActions: 'nope' }).quickActions).toEqual(DEFAULT_PREFERENCES.quickActions);
+    expect(sanitizePreferences({ quickActions: ['not-a-key'] }).quickActions).toEqual(DEFAULT_PREFERENCES.quickActions);
+    expect(sanitizePreferences({ quickActions: [] }).quickActions).toEqual(DEFAULT_PREFERENCES.quickActions);
+  });
 });
 
 describe('preferences store persistence', () => {

@@ -41,6 +41,12 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
         <FormRow label={t('nativeSettingsEditNeeds')} value={model.needsSummary} onPress={model.openNeeds} />
       </FormSection>
 
+      <FormSection title={t('nativeHomeQuickServices')} footer={t('nativeHomeShortcutsSettingsHint')}>
+        {model.quickActionOptions.map((option) => (
+          <FormSwitch key={option.key} label={option.label} value={option.enabled} onValueChange={option.onToggle} disabled={option.disabled} />
+        ))}
+      </FormSection>
+
       <FormSection title={t('settingsEmergencyTitle')} footer={t('settingsEmergencyDesc')}>
         <FormRow label={t('sosContactsManageTitle')} onPress={model.openContacts} />
       </FormSection>

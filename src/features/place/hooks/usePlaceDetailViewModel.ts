@@ -237,8 +237,15 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     const osmUrl = place.externalLinks.osm;
     links.push({ label: t('viewOnOSM'), onPress: () => void Linking.openURL(osmUrl) });
   }
-  if (place?.externalLinks.google) {
-    const googleUrl = place.externalLinks.google;
+  const googlePlaceId = place?.source === 'google' && place.id.startsWith('google:')
+    ? place.id.slice('google:'.length)
+    : null;
+  // Use the selected identity with Google's cross-platform URL contract for native app handoff.
+  const googleQuery = [place?.name, place?.fullAddress].filter(Boolean).join(' ') || `${lat},${lng}`;
+  const googleUrl = googlePlaceId
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(googleQuery)}&query_place_id=${encodeURIComponent(googlePlaceId)}`
+    : place?.externalLinks.google;
+  if (googleUrl) {
     links.push({ label: t('viewOnGoogleMaps'), onPress: () => void Linking.openURL(googleUrl) });
   }
 

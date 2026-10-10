@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, Alert } from 'react-native';
 
+import { useContentSafetyStore } from '@/features/content-safety';
 import { useAuthStore } from '@/features/auth';
 import { mapCamera } from '@/features/map';
 import { ApiError } from '@/shared/api';
@@ -19,11 +20,14 @@ export function useHazardDetail(id: string | undefined) {
   const userId = useAuthStore((s) => s.user?._id ?? null);
   const fromLayer = useHazardLayerStore((s) => s.reports.find((r) => r._id === id) ?? null);
   const voted = useHazardLayerStore((s) => (id ? s.votedIds.includes(id) : false));
-  const [fetched, setFetched] = useState<HazardReport | null>(null);
-  const [failure, setFailure] = useState<'notFound' | 'network' | null>(null);
+  const revision = useContentSafetyStore(state => state.revision);
+  const key = `${id}:${revision}`;
+  const [fetched, setFetched] = useState<{ key: string; report: HazardReport } | null>(null);
+  const [failureState, setFailure] = useState<{ key: string; reason: 'notFound' | 'network' } | null>(null);
+  const failure = failureState?.key === key ? failureState.reason : null;
   const [attempt, setAttempt] = useState(0);
   const [voting, setVoting] = useState(false);
-  const report = fromLayer ?? fetched;
+  const report = fromLayer ?? (fetched?.key === key ? fetched.report : null);
 
   // 圖層沒有（例如從推播或我的回報進來）才單獨抓
   useEffect(() => {
@@ -34,19 +38,19 @@ export function useHazardDetail(id: string | undefined) {
         const result = await getHazardReport(id, controller.signal);
         if (controller.signal.aborted) return;
         if (result) {
-          setFetched(result);
+          setFetched({ key, report: result });
           setFailure(null);
         } else {
-          setFailure('notFound');
+          setFailure({ key, reason: 'notFound' });
         }
       } catch (error) {
         logger.warn('[hazard] detail fetch failed', error);
-        if (!controller.signal.aborted) setFailure('network');
+        if (!controller.signal.aborted) setFailure({ key, reason: 'network' });
       }
     };
     void run();
     return () => controller.abort();
-  }, [id, fromLayer, attempt]);
+  }, [id, fromLayer, attempt, key]);
 
   const retry = () => {
     setFailure(null);
@@ -63,16 +67,19 @@ export function useHazardDetail(id: string | undefined) {
 
   const vote = async (action: 'confirm' | 'deny') => {
     if (!report || voting) return;
+    const voteRevision = useContentSafetyStore.getState().revision;
     setVoting(true);
     try {
       const result = await confirmHazardReport(report._id, action);
+      if (voteRevision !== useContentSafetyStore.getState().revision) return;
       const next = { ...report, confirmCount: result.confirmCount, denyCount: result.denyCount };
       updateReport(next);
-      setFetched((prev) => (prev ? next : prev));
+      setFetched({ key, report: next });
       markVoted(report._id);
       const message = t(action === 'confirm' ? 'hazardVoteConfirmSuccess' : 'hazardVoteDenySuccess');
       AccessibilityInfo.announceForAccessibility(message);
     } catch (error) {
+      if (voteRevision !== useContentSafetyStore.getState().revision) return;
       const reason = error instanceof ApiError ? error.reason : undefined;
       if (reason === 'ALREADY_VOTED') markVoted(report._id);
       Alert.alert(t(voteErrorKey(reason)));
@@ -82,6 +89,7 @@ export function useHazardDetail(id: string | undefined) {
   };
 
   return {
+    userId,
     loading: !report && failure === null,
     failure: report ? null : failure,
     retry,

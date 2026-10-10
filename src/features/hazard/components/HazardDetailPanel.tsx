@@ -1,3 +1,4 @@
+import { ContentActions } from '@/features/content-safety';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
@@ -61,6 +62,7 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
         <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} accessibilityRole="header" style={[styles.title, { color: colors.text, fontSize: scaledSize(20, scale) }]}>
           {model.typeLabel}
         </Text>
+        {report.reporterId !== model.userId ? <ContentActions targetType="hazard_report" targetId={report._id} canBlock={report.canBlockAuthor === true} /> : null}
       </View>
       {model.severityLabel ? <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.text, fontSize: scaledSize(16, scale) }}>{model.severityLabel}</Text> : null}
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(14, scale) }}>{model.statusText}</Text>

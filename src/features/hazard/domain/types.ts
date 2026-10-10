@@ -38,6 +38,7 @@ export interface HazardReport {
   _id: string;
   /** 只有本人（`/reports/mine`、送出回應）才會帶；公開 GET 不帶。 */
   reporterId?: string;
+  canBlockAuthor?: boolean;
   hazardType: HazardType;
   severity?: HazardSeverity;
   expectedUntil?: string | null;

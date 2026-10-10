@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useContentSafetyStore } from '@/features/content-safety';
 
 import { useUserLocationStore } from '@/features/map';
 import { hasMovedBeyond, type LatLng } from '@/shared/geo';
@@ -47,3 +48,12 @@ export function updateReport(report: HazardReport): void {
 export function markVoted(id: string): void {
   useHazardLayerStore.setState((s) => (s.votedIds.includes(id) ? s : { votedIds: [...s.votedIds, id] }));
 }
+
+// Clear synchronously, then refetch with the new account/block filter. Never retain hidden pins on failure.
+useContentSafetyStore.subscribe((next, previous) => {
+  if (next.revision === previous.revision) return;
+  inflight?.abort();
+  lastQueried = null;
+  useHazardLayerStore.setState({ reports: [], votedIds: [] });
+  void refreshNearbyHazards(true);
+});

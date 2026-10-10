@@ -16,6 +16,7 @@ jest.mock('expo-file-system', () => ({
     bytes() { return mockBytes(); }
   },
 }));
+jest.mock('@/features/content-safety', () => ({ captureContentContext: () => () => true }));
 jest.mock('@/shared/api', () => ({
   ApiError: class extends Error {},
   getAccessToken: () => 'test-token',

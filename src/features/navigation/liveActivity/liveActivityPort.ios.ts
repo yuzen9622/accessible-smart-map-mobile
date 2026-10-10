@@ -64,7 +64,7 @@ export const createLiveNavigationPort: CreateLiveNavigationPort = (texts) => {
         if (!instance) {
           for (const leftover of NavigationActivity.getInstances()) void endActivity(leftover);
         }
-        instance = NavigationActivity.start(toProps(snapshot, texts()), 'accessiblesmartmap://');
+        instance = NavigationActivity.start(toProps(snapshot, texts()), 'accessiblesmartmap://navigation');
       } catch (error) {
         logger.warn('[live-activity] start failed', error);
       }

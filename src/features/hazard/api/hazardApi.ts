@@ -1,3 +1,4 @@
+import { captureContentContext } from '@/features/content-safety';
 import { File } from 'expo-file-system';
 
 import { ApiError, authenticatedRequest, fetchRequest, getAccessToken, getAuthPort, timedFetch } from '@/shared/api';
@@ -60,7 +61,7 @@ export async function createHazardReport(input: HazardReportInput): Promise<Crea
 
 export async function getNearbyHazardReports(lat: number, lng: number, radius = 1000, signal?: AbortSignal): Promise<HazardReport[]> {
   const query = `lat=${lat}&lng=${lng}&radius=${Math.round(radius)}&limit=50`;
-  const res = await fetchRequest(`${BASE}?${query}`, { method: 'GET', signal });
+  const res = await fetchRequest(`${BASE}?${query}`, { method: 'GET', signal, requireAuth: Boolean(getAccessToken()), isCurrent: captureContentContext() });
   if (!ok(res) || !isRecord(res.data) || !Array.isArray(res.data.reports)) return [];
   return res.data.reports.filter(isHazardReport);
 }
@@ -75,7 +76,10 @@ export async function getMyHazardReports(cursor?: string | null, signal?: AbortS
   const query = cursor ? `?limit=20&cursor=${encodeURIComponent(cursor)}` : '?limit=20';
   const res = await authenticatedRequest(`${BASE}/mine${query}`, { method: 'GET', signal });
   if (!ok(res)) throw new ApiError(res.message, res.code);
-  if (!isRecord(res.data) || !Array.isArray(res.data.reports)) return { reports: [], nextCursor: null };
+  if (!isRecord(res.data) || !Array.isArray(res.data.reports) || !res.data.reports.every(isHazardReport)
+    || (res.data.nextCursor != null && typeof res.data.nextCursor !== 'string')) {
+    throw new ApiError('Invalid owned reports response', 502);
+  }
   return {
     reports: res.data.reports.filter(isHazardReport),
     nextCursor: typeof res.data.nextCursor === 'string' ? res.data.nextCursor : null,
@@ -94,7 +98,7 @@ export async function getHazardReport(id: string, signal?: AbortSignal): Promise
 
 /** 同上，但查無也拋 `ApiError`（審核輪詢靠 404／410 判斷「回報不存在」）。 */
 export async function fetchHazardReport(id: string, signal?: AbortSignal): Promise<HazardReport> {
-  const res = await fetchRequest(`${BASE}/${encodeURIComponent(id)}`, { method: 'GET', signal });
+  const res = await fetchRequest(`${BASE}/${encodeURIComponent(id)}`, { method: 'GET', signal, requireAuth: Boolean(getAccessToken()), isCurrent: captureContentContext() });
   // 非 2xx 已由 fetchRequest 拋出（含 404／410）；這裡只剩「回應形狀不符」，當成暫時錯誤而不是「回報不存在」
   if (!ok(res) || !isRecord(res.data) || !isHazardReport(res.data.report)) throw new ApiError(res.message || 'Invalid report response', 502);
   return res.data.report;

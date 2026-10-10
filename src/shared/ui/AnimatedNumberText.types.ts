@@ -7,7 +7,7 @@ export interface AnimatedNumberTextProps {
   text: string;
   /** 文字背後的數值：決定滾動方向（變小＝往下數）；iOS 也用它觸發 SwiftUI 動畫。 */
   value: number;
-  /** 點數，會再乘上系統字級（`fontScale`）。 */
+  /** 未縮放的設計點數，元件會套用 App 偏好與系統字級。 */
   fontSize: number;
   fontWeight?: AnimatedNumberWeight;
   color: ColorValue;

@@ -1,5 +1,7 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Text, TextInput } from '@/shared/ui/typography/Text';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
+import { useFontScale } from '@/shared/preferences';
 import { ACCENT_FILL, RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
@@ -17,13 +19,16 @@ import { PLACE_BORDER_COLOR } from './palette';
  *   版面重疊，所以所有區塊都是這個 `ScrollView` 的子孫，不包外層 `View`、不加 sibling。
  * - 版型依設計 1b「需求優先」（2026-09-30）：展開（half/full）時為「去哪裡？」＋行動需求 pill →
  *   搜尋 → 常去地點圓鈕（收藏前三筆＋新增）→ 一句話附近摘要 → 更多（規劃路線／公車／回報）→
- *   最近搜尋。peek 只露出約 15% 高度，大標列不渲染，搜尋框保持第一列（SDD §4.5）。
+ *   最近搜尋。peek 不顯示大標列，搜尋框保持第一列；下方原有內容保留，由 sheet 可視高度裁切。
  *   地圖圖層開關是 `features/map` 的 `LayerChips`，貼在 sheet 上緣，不在這個面板內。
  */
 export default function ExplorePanel({ model }: ExplorePanelProps) {
   const colors = useThemeColors();
   const tones = useSemanticColors();
   const accentText = tones.accent;
+  const appScale = useFontScale();
+  const { fontScale: systemScale } = useWindowDimensions();
+  const largeText = appScale * systemScale > 1.3;
 
   const renderRow = (row: ExploreRow) => (
     <Pressable
@@ -48,8 +53,8 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag">
       {model.showBrand ? (
-        <View style={styles.headerRow}>
-          <Text accessibilityRole="header" style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+        <View style={[styles.headerRow, largeText && styles.headerStack]}>
+          <Text accessibilityRole="header" style={[styles.headerTitle, largeText && styles.headerTitleStack, { color: colors.text }]} numberOfLines={largeText ? undefined : 1} maxFontSizeMultiplier={1.3}>
             {model.header.title}
           </Text>
           <Pressable
@@ -57,9 +62,9 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             accessibilityLabel={model.header.needs.accessibilityLabel}
             onPress={model.header.needs.onPress}
             hitSlop={4}
-            style={({ pressed }) => [styles.needsPill, { backgroundColor: tones.accentSoft }, pressed && styles.pressed]}>
+            style={({ pressed }) => [styles.needsPill, largeText && styles.needsPillStack, { backgroundColor: tones.accentSoft }, pressed && styles.pressed]}>
             <Icon name="accessibility" size={17} color={accentText} />
-            <Text style={[styles.needsText, { color: accentText }]} numberOfLines={1}>
+            <Text style={[styles.needsText, { color: accentText }]} numberOfLines={largeText ? undefined : 1}>
               {model.header.needs.label}
             </Text>
             <Icon name="chevronDown" size={14} color={accentText} />
@@ -95,7 +100,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
         </Pressable>
       </View>
 
-      {!model.showBrand ? null : model.mode === 'history' ? (
+      {model.mode === 'history' ? (
         <>
           {/* 常去地點：收藏前三筆＋「新增」，一排等寬圓鈕（設計 1b）；放大字級時標籤換行不裁切 */}
           <View style={styles.shortcutsRow}>
@@ -258,7 +263,10 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, paddingBottom: 32, gap: 18 },
   flex: { flex: 1 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, minHeight: 40 },
+  headerStack: { flexDirection: 'column', alignItems: 'stretch' },
   headerTitle: { flex: 1, fontSize: 28, fontWeight: '700' },
+  headerTitleStack: { flex: 0 },
+  needsPillStack: { maxWidth: '100%', alignSelf: 'flex-start', paddingVertical: 6 },
   needsPill: {
     flexDirection: 'row',
     alignItems: 'center',

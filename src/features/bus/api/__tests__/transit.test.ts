@@ -191,3 +191,13 @@ describe('transit api', () => {
     expect(signals[0].aborted).toBe(true);
   });
 });
+
+
+it('sends only the route capability and full leg index for a planned bus', async () => {
+  mockFetchRequest.mockResolvedValue(envelope({ directions: [
+    { direction: 0, stops: [{ seq: 1, name: 'A', lat: 25, lng: 121, estimateMinutes: 5, statusLabel: '正常', plateNumb: 'BUS-10' }] },
+  ] }));
+  const res = await getBusRouteDetail('99', 'Taipei', undefined, 'branch', { routeToken: 'plan-token', legIndex: 2 });
+  expect(mockFetchRequest.mock.calls[0][0]).toBe('https://api.test/api/v1/a11y/accessible-route/bus-arrivals?routeToken=plan-token&legIndex=2');
+  expect(res.data?.directions[0].stops[0].plateNumb).toBe('BUS-10');
+});

@@ -1,4 +1,5 @@
-import { Button as SwiftUIButton, ContentUnavailableView, Host, VStack } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { Button as SwiftUIButton, ContentUnavailableView, VStack } from '@expo/ui/swift-ui';
 import { accessibilityLabel, frame } from '@expo/ui/swift-ui/modifiers';
 
 import type { ErrorStateProps } from './ErrorState.types';

@@ -1,12 +1,16 @@
-import { Form, Host, SecureField, Section, Text } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { SecureField, Text } from '@expo/ui/swift-ui';
+import { Form, Section } from '@/shared/ui/form/PreferenceForm.ios';
 import { font, foregroundStyle, onSubmit, submitLabel, textContentType } from '@expo/ui/swift-ui/modifiers';
 
+import { useSemanticColors } from '@/shared/theme';
 import { useAppTranslation } from '@/shared/i18n';
 import { FormPrimaryButton } from '@/shared/ui';
 
 import type { ChangePasswordPanelProps } from './ChangePasswordPanel.types';
 
 export default function ChangePasswordPanel({ model }: ChangePasswordPanelProps) {
+  const tones = useSemanticColors();
   const { t } = useAppTranslation();
   return (
     <Host style={{ flex: 1 }}>
@@ -24,7 +28,7 @@ export default function ChangePasswordPanel({ model }: ChangePasswordPanelProps)
             onTextChange={model.setNewPassword}
             modifiers={[textContentType('newPassword'), submitLabel('done'), onSubmit(model.submit)]}
           />
-          {model.error ? <Text modifiers={[font({ textStyle: 'footnote' }), foregroundStyle('red')]}>{model.error}</Text> : null}
+          {model.error ? <Text modifiers={[font({ textStyle: 'footnote' }), foregroundStyle(tones.danger.fg)]}>{model.error}</Text> : null}
         </Section>
         <Section footer={<Text>{model.description}</Text>}>
           <FormPrimaryButton label={model.submitLabel} onPress={model.submit} loading={model.loading} />

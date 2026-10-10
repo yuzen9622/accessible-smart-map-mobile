@@ -48,3 +48,5 @@ export type { FormPrimaryButtonProps, FormSecondaryButtonProps } from './form/Fo
 export { default as KeyboardAvoidingHost } from './KeyboardAvoidingHost';
 export type { KeyboardAvoidingHostProps } from './KeyboardAvoidingHost.types';
 export { useKeyboardInset } from './useKeyboardInset';
+
+export { default as MoreActionsButton } from './actions/MoreActionsButton';

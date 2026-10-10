@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Text } from '@/shared/ui/typography/Text';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
@@ -31,11 +32,13 @@ export default function MyReportDetailPanel({ model }: { model: MyReportDetailMo
   }
   if (model.status !== 'ready') {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        {model.status === 'network' ? (
+      <View style={[styles.stateContainer, { backgroundColor: colors.background }]}>
+        {model.status === 'signedOut' ? (
+          <ErrorState title={t('nativeSettingsLoginHint')} retry={{ label: t('loginRegisterCta'), onPress: model.login }} />
+        ) : model.status === 'network' ? (
           <ErrorState title={t('nativeNetworkError')} systemImage="wifi.slash" retry={{ label: t('retry'), onPress: model.retry }} />
         ) : (
-          <ErrorState title={t('hazardVoteReportNotFound')} systemImage="mappin.slash" />
+          <ErrorState title={t('myReportUnavailableTitle')} description={t('myReportUnavailable')} systemImage="mappin.slash" />
         )}
       </View>
     );
@@ -48,7 +51,7 @@ function ReadyDetail({ model }: { model: ReadyModel }) {
   const colors = useThemeColors();
   const semantic = useSemanticColors();
   // 列表 store 的資料當初始值，輪詢結果同時寫回列表
-  const review = useReportReview(model.report._id, model.report, model.onReportUpdate);
+  const review = useReportReview(model.report._id, model.report, model.onReportUpdate, model.loadReport);
 
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
@@ -163,6 +166,7 @@ const styles = StyleSheet.create({
   dim: { opacity: 0.6 },
   strong: { fontWeight: '600' },
   tabular: { fontVariant: ['tabular-nums'], marginTop: 2 },
+  stateContainer: { flex: 1, padding: 24 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   content: { padding: 16, paddingBottom: 40, gap: 24 },
   header: { gap: 6 },

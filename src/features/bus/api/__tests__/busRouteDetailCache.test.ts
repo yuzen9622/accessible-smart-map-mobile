@@ -150,7 +150,7 @@ describe('receipt time and sub-route key', () => {
     expect(routeDetailKey('99', 'Taichung')).toBe(routeDetailKey('99', 'Taichung', undefined));
     getBusRouteDetail.mockResolvedValue(ok());
     await fetchRouteDetailCached('99', 'Taichung', { subRouteUid: 'TXG991' });
-    expect(getBusRouteDetail).toHaveBeenCalledWith('99', 'Taichung', undefined, 'TXG991');
+    expect(getBusRouteDetail).toHaveBeenCalledWith('99', 'Taichung', undefined, 'TXG991', undefined);
     expect(peekRouteDetail('99', 'Taichung')).toBeNull();
     expect(peekRouteDetail('99', 'Taichung', 'TXG991')).toEqual(directions);
   });
@@ -182,4 +182,16 @@ describe('peekRouteDetail', () => {
 
     expect(peekRouteDetail('365', 'Taichung')).toBeNull();
   });
+});
+
+
+it("isolates different plans and repeated legs of the same line", async () => {
+  getBusRouteDetail.mockResolvedValue(ok());
+  for (const planContext of [{ routeToken: "one", legIndex: 1 }, { routeToken: "two", legIndex: 1 }, { routeToken: "one", legIndex: 3 }]) {
+    await fetchRouteDetailCached("99", "Taipei", { planContext });
+  }
+  expect(getBusRouteDetail).toHaveBeenCalledTimes(3);
+  await fetchRouteDetailCached("99", "Taipei", { planContext: { routeToken: "one", legIndex: 1 } });
+  expect(getBusRouteDetail).toHaveBeenCalledTimes(3);
+  expect(peekRouteDetail("99", "Taipei")).toBeNull();
 });

@@ -61,6 +61,7 @@ export interface PriorTurn {
 }
 
 export type AgentChatRequest = {
+  language?: 'zh-TW' | 'en';
   routeContractVersion?: 1;
   routeContext?: RouteContextInput;
   routingPreferences?: RoutingPreferences;

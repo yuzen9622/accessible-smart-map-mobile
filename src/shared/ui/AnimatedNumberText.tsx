@@ -1,4 +1,5 @@
-import { Text } from 'react-native';
+import { Text } from '@/shared/ui/typography/Text';
+
 
 import type { AnimatedNumberTextProps } from './AnimatedNumberText.types';
 import { RN_FONT_WEIGHT } from './animatedNumberWeight';

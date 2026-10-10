@@ -1,4 +1,6 @@
-import { Button, Form, Host, LabeledContent, Section, Text } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { LabeledContent, Text } from '@expo/ui/swift-ui';
+import { Button, Form, Section } from '@/shared/ui/form/PreferenceForm.ios';
 import { disabled } from '@expo/ui/swift-ui/modifiers';
 
 import type { DataPanelProps } from './DataPanel.types';

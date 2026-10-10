@@ -5,6 +5,7 @@ import { logger } from '@/shared/logger';
 
 import { getRouteSessionSnapshot, subscribeRouteSession, invalidateRouteConversations } from '@/features/route';
 import { getRouteConversationRequest } from './routeConversation';
+import { getAppLanguage } from '@/shared/i18n';
 import { isRouteTool } from '../domain/routePlan';
 import { streamChat } from '../api/aiApi';
 import { applyStreamSignal, settleBubble, type ChatStreamSignal } from '../domain/chatStream';
@@ -93,6 +94,7 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
     await streamChat(
       {
         messages,
+        language: getAppLanguage(),
         ...getRouteConversationRequest(),
         temperature: 0.7,
         ...(position ? { userLocation: { latitude: position.lat, longitude: position.lng } } : {}),

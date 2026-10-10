@@ -1,100 +1,60 @@
 import { useEffect, useRef, useState } from 'react';
-
+import { useContentSafetyStore } from '@/features/content-safety';
 import { getPlaceReviews, getReviewSummary } from '../api/reviews';
 import { useReviewEditorStore } from '../store/reviewEditorStore';
 import type { PlaceReviewType, ReviewItem, ReviewSummaryResult } from '../types/review';
 
 const PAGE_SIZE = 10;
-
-interface UseReviewsResult {
-  reviews: ReviewItem[];
-  summary: ReviewSummaryResult | null;
-  totalCount: number;
-  loading: boolean;
-  loadingMore: boolean;
-  error: boolean;
-  hasMore: boolean;
-  loadMore: () => void;
-}
-
-/**
- * 移植自 Web `PlaceReviewSection.tsx`（commit 5eadc71）的讀取路徑：
- * `PAGE_SIZE = 10`；以 `${placeId}|${placeType}` 為 key，切換地點時整組
- * local state 重置；掛載時用 `Promise.all` 平行載入第一頁評論與 AI 摘要；
- * "load more" 用 `activePlaceKeyRef` 擋掉切換地點後仍在飛行中的舊請求。
- * 撰寫／編輯／刪除（Phase 3）在 `useReviewForm`；完成後以 `reviewEditorStore.revision` 觸發重新載入。
- */
-export function useReviews(placeId: string, placeType: PlaceReviewType): UseReviewsResult {
-  const [reviews, setReviews] = useState<ReviewItem[]>([]);
-  const [summary, setSummary] = useState<ReviewSummaryResult | null>(null);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState(false);
-
-  const placeKey = `${placeId}|${placeType}`;
-  const activePlaceKeyRef = useRef(placeKey);
-  // 撰寫／修改／刪除後遞增 → 重新載入第一頁
-  const revision = useReviewEditorStore((s) => s.revision);
-
+/** Account and content revisions own both list and summary; old pagination cannot append after invalidation. */
+export function useReviews(placeId: string, placeType: PlaceReviewType) {
+  const revision = useReviewEditorStore(state => state.revision);
+  const safetyRevision = useContentSafetyStore(state => state.revision);
+  const [attempt, setAttempt] = useState(0);
+  const retry = () => setAttempt(value => value + 1);
+  const key = `${placeId}|${placeType}|${revision}|${safetyRevision}|${attempt}`;
+  const activeKey = useRef(key);
+  const [state, setState] = useState<{ key: string; reviews: ReviewItem[]; summary: ReviewSummaryResult | null; totalCount: number; totalPages: number; page: number; loading: boolean; loadingMore: boolean; error: boolean }>({ key, reviews: [], summary: null, totalCount: 0, totalPages: 1, page: 1, loading: true, loadingMore: false, error: false });
+  const generation = useRef(0);
+  const paging = useRef(false);
   useEffect(() => {
+    activeKey.current = key;
     const controller = new AbortController();
-    activePlaceKeyRef.current = placeKey;
-
-    void (async () => {
-      setReviews([]);
-      setSummary(null);
-      setTotalCount(0);
-      setTotalPages(1);
-      setPage(1);
-      setError(false);
-      setLoading(true);
+    const request = ++generation.current;
+    paging.current = false;
+    const load = async () => {
       try {
-        const [listRes, summaryRes] = await Promise.all([
+        const [list, summary] = await Promise.all([
           getPlaceReviews({ placeId, placeType, page: 1, limit: PAGE_SIZE }, controller.signal),
           getReviewSummary({ placeId, placeType }, controller.signal),
         ]);
-        if (controller.signal.aborted) return;
-        if (listRes.data) {
-          setReviews(listRes.data.items);
-          setTotalCount(listRes.data.totalCount);
-          setTotalPages(listRes.data.totalPages);
-          setPage(listRes.data.page);
-        }
-        if (summaryRes.data) setSummary(summaryRes.data);
+        if (controller.signal.aborted || request !== generation.current || activeKey.current !== key) return;
+        setState({ key, reviews: list.data?.items ?? [], summary: summary.data ?? null, totalCount: list.data?.totalCount ?? 0, totalPages: list.data?.totalPages ?? 1, page: 1, loading: false, loadingMore: false, error: false });
       } catch {
-        if (!controller.signal.aborted) setError(true);
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted && request === generation.current && activeKey.current === key) setState({ key, reviews: [], summary: null, totalCount: 0, totalPages: 1, page: 1, loading: false, loadingMore: false, error: true });
       }
-    })();
-
-    return () => controller.abort();
-  }, [placeId, placeType, placeKey, revision]);
-
+    };
+    void load();
+    return () => { controller.abort(); generation.current = request + 1; };
+  }, [key, placeId, placeType]);
   const loadMore = () => {
-    if (page >= totalPages || loadingMore) return;
-    const requestedKey = placeKey;
-    setLoadingMore(true);
-    void (async () => {
+    if (state.key !== key || state.loading || state.page >= state.totalPages || paging.current) return;
+    const request = generation.current;
+    paging.current = true;
+    setState(previous => ({ ...previous, loadingMore: true }));
+    const load = async () => {
       try {
-        const res = await getPlaceReviews({ placeId, placeType, page: page + 1, limit: PAGE_SIZE });
-        if (activePlaceKeyRef.current !== requestedKey) return;
-        if (res.data) {
-          const data = res.data;
-          setReviews((prev) => [...prev, ...data.items]);
-          setPage(data.page);
-          setTotalPages(data.totalPages);
-        }
+        const result = await getPlaceReviews({ placeId, placeType, page: state.page + 1, limit: PAGE_SIZE });
+        if (request !== generation.current || activeKey.current !== key || !result.data) return;
+        const data = result.data;
+        setState(previous => ({ ...previous, reviews: [...previous.reviews, ...data.items], page: data.page, totalPages: data.totalPages }));
       } catch {
-        if (activePlaceKeyRef.current === requestedKey) setError(true);
+        if (request === generation.current && activeKey.current === key) setState(previous => ({ ...previous, error: true }));
       } finally {
-        if (activePlaceKeyRef.current === requestedKey) setLoadingMore(false);
+        if (request === generation.current && activeKey.current === key) { paging.current = false; setState(previous => ({ ...previous, loadingMore: false })); }
       }
-    })();
+    };
+    void load();
   };
-
-  return { reviews, summary, totalCount, loading, loadingMore, error, hasMore: page < totalPages, loadMore };
+  if (state.key !== key) return { reviews: [], summary: null, totalCount: 0, loading: true, loadingMore: false, error: false, hasMore: false, loadMore, retry };
+  return { ...state, hasMore: state.page < state.totalPages, loadMore, retry };
 }

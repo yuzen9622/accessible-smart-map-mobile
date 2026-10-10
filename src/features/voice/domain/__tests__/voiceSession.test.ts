@@ -68,6 +68,7 @@ function createHarness(opts?: {
   location?: { latitude: number; longitude: number } | null;
   resumeState?: VoiceNavigationResumeState | null;
   history?: () => PriorTurn[];
+  language?: VoiceSessionDeps['getLanguage'];
   conversation?: VoiceSessionDeps['getRouteConversation'];
   onRouteSyncState?: VoiceSessionDeps['onRouteSyncState'];
 }) {
@@ -121,8 +122,12 @@ function createHarness(opts?: {
   });
 
   let blockedCb: (() => void) | null = null;
+  let drainedCb: (() => void) | undefined;
   const playback = {
     play: jest.fn(),
+    isPlaying: jest.fn(() => false),
+    onDrained: jest.fn((cb: () => void) => { drainedCb = cb; }),
+    drain: () => drainedCb?.(),
     clear: jest.fn(),
     dispose: jest.fn(),
     resume: jest.fn(() => Promise.resolve(true)),
@@ -142,6 +147,7 @@ function createHarness(opts?: {
     getUserLocation: () => location,
     ...(opts?.history ? { getHistory: opts.history } : {}),
     getRouteConversation: opts?.conversation,
+    getLanguage: opts?.language,
     onRouteSyncState: opts?.onRouteSyncState,
     createCapture,
     createPlayback,
@@ -1147,7 +1153,7 @@ describe('route context synchronization', () => {
   const ready = { type: 'session.ready', capabilities: { aiRouteContractVersion: 1, routeContextSync: true } };
   const lastSet = (socket: FakeSocket) => socket.sent.filter((m): m is string => typeof m === 'string').map((m) => JSON.parse(m)).filter((m) => m.type === 'route.context.set').at(-1);
   const ack = (frame: { requestId: string; selectionVersion: number }, routeId: string | null = 'a') => ({ type: 'route.context.ack', requestId: frame.requestId, selectionVersion: frame.selectionVersion, ok: true, routeId, navigationId: routeId, routeVersion: routeId ? 1 : null });
-  it('clears old playback immediately, gates PCM and mic until latest ack, and does not alter navigation', async () => {
+  it('waits for speech before gating PCM and mic until latest ack, without altering navigation', async () => {
     let routeContext: { routeToken: string } | null = { routeToken: 'token-a' };
     const h = createHarness({ conversation: () => ({ routeContractVersion: 1, routeContext }) });
     h.controller.start(); const socket = h.sockets[0]; socket.triggerOpen();
@@ -1159,8 +1165,10 @@ describe('route context synchronization', () => {
     h.captureCalls[0].resolve(); await Promise.resolve(); await Promise.resolve();
     socket.triggerMessage(new ArrayBuffer(8)); expect(h.playback.play).toHaveBeenCalledTimes(1);
     routeContext = { routeToken: 'token-b' }; h.controller.syncRouteContext();
+    expect(lastSet(socket)).toEqual(first);
+    expect(h.playback.clear).not.toHaveBeenCalled();
+    socket.triggerMessage(JSON.stringify({ type: 'turn.complete' }));
     const second = lastSet(socket); expect(second.selectionVersion).toBeGreaterThan(first.selectionVersion);
-    expect(h.playback.clear).toHaveBeenCalled();
     const sent = socket.sent.length;
     h.captureCalls[0].onFrame(new ArrayBuffer(4)); expect(socket.sent).toHaveLength(sent);
     socket.triggerMessage(JSON.stringify(ack(first))); socket.triggerMessage(new ArrayBuffer(8));
@@ -1171,6 +1179,67 @@ describe('route context synchronization', () => {
     routeContext = null; h.controller.syncRouteContext();
     socket.triggerMessage(JSON.stringify(ack(lastSet(socket), null)));
     h.controller.end();
+  });
+  it('coalesces route changes and waits for native playback after turn.complete', async () => {
+    let routeContext = { routeToken: 'a' };
+    const h = createHarness({ conversation: () => ({ routeContractVersion: 1, routeContext }) });
+    h.controller.start(); const s = h.sockets[0]; s.triggerOpen(); s.triggerMessage(JSON.stringify(ready));
+    const first = lastSet(s); s.triggerMessage(JSON.stringify(ack(first)));
+    h.captureCalls[0].resolve(); await Promise.resolve(); await Promise.resolve();
+    s.triggerMessage(new ArrayBuffer(8)); h.playback.isPlaying.mockReturnValue(true);
+    routeContext = { routeToken: 'b' }; h.controller.syncRouteContext(); h.controller.setNavigationRoute('b');
+    routeContext = { routeToken: 'c' }; h.controller.syncRouteContext(); h.controller.setNavigationRoute('c');
+    s.triggerMessage(JSON.stringify({ type: 'tool_result', name: 'planAccessibleRoute', ok: true, result: {} }));
+    expect(h.onToolEvent).not.toHaveBeenCalled();
+    // Sentence pauses must not flush while the server is still generating.
+    h.playback.isPlaying.mockReturnValue(false); h.playback.drain();
+    expect(lastSet(s)).toEqual(first);
+    h.playback.isPlaying.mockReturnValue(true);
+    s.triggerMessage(JSON.stringify({ type: 'turn.complete' }));
+    expect(lastSet(s)).toEqual(first);
+    expect(h.playback.clear).not.toHaveBeenCalled();
+    expect(h.onInterrupted).not.toHaveBeenCalled();
+    const mic = new ArrayBuffer(4); h.captureCalls[0].onFrame(mic);
+    expect(s.sent).toContain(mic); // barge-in remains available during the tail
+    expect(s.sent.filter((m) => typeof m === 'string').join('')).not.toContain('nav.setRoute');
+    h.playback.isPlaying.mockReturnValue(false); h.playback.drain();
+    expect(lastSet(s)).toMatchObject({ selectionVersion: first.selectionVersion + 1, routeContext });
+    expect(s.sent).toContain(JSON.stringify({ type: 'nav.setRoute', routeToken: 'c' }));
+    expect(s.sent).not.toContain(JSON.stringify({ type: 'nav.setRoute', routeToken: 'b' }));
+    h.controller.end();
+  });
+  it('user interruption clears speech immediately and applies the pending selection', () => {
+    let routeContext: { routeToken: string } | null = { routeToken: 'a' };
+    const h = createHarness({ conversation: () => ({ routeContractVersion: 1, routeContext }) });
+    h.controller.start(); const s = h.sockets[0]; s.triggerOpen(); s.triggerMessage(JSON.stringify(ready));
+    s.triggerMessage(JSON.stringify(ack(lastSet(s)))); s.triggerMessage(new ArrayBuffer(8));
+    routeContext = null; h.controller.syncRouteContext();
+    s.triggerMessage(JSON.stringify({ type: 'interrupted' }));
+    expect(h.playback.clear).toHaveBeenCalledTimes(1);
+    expect(h.onInterrupted).toHaveBeenCalledTimes(1);
+    expect(lastSet(s).routeContext).toBeNull();
+    h.controller.end();
+  });
+  it('does not flush a deferred change after the session ends', () => {
+    const h = createHarness({ conversation: () => ({ routeContractVersion: 1, routeContext: { routeToken: 'a' } }) });
+    h.controller.start(); const s = h.sockets[0]; s.triggerOpen(); s.triggerMessage(JSON.stringify(ready));
+    s.triggerMessage(JSON.stringify(ack(lastSet(s)))); s.triggerMessage(new ArrayBuffer(8));
+    h.controller.syncRouteContext(); h.controller.end();
+    const count = s.sent.length; h.playback.drain();
+    expect(s.sent).toHaveLength(count);
+  });
+  it('reconnects with the latest selection instead of waiting for the abandoned turn', () => {
+    jest.useFakeTimers();
+    let routeContext = { routeToken: 'a' };
+    const h = createHarness({ conversation: () => ({ routeContractVersion: 1, routeContext }) });
+    h.controller.start(); const s = h.sockets[0]; s.triggerOpen(); s.triggerMessage(JSON.stringify(ready));
+    s.triggerMessage(JSON.stringify(ack(lastSet(s)))); s.triggerMessage(new ArrayBuffer(8));
+    routeContext = { routeToken: 'b' }; h.controller.syncRouteContext(); h.controller.setNavigationRoute('b');
+    s.triggerClose(1006, 'connection lost'); jest.advanceTimersByTime(1000);
+    const next = h.sockets[1]; next.triggerOpen(); next.triggerMessage(JSON.stringify(ready));
+    expect(lastSet(next).routeContext).toEqual(routeContext);
+    expect(next.sent).toContain(JSON.stringify({ type: 'nav.setRoute', routeToken: 'b' }));
+    h.controller.end(); jest.useRealTimers();
   });
   it('timeout remains unsynced; retry increments version and does not call a planner', () => {
     jest.useFakeTimers(); const onRouteSyncState = jest.fn();
@@ -1188,5 +1257,73 @@ describe('route context synchronization', () => {
     h.controller.start(); const s = h.sockets[0]; s.triggerOpen(); s.triggerMessage(JSON.stringify({ type: 'session.ready' }));
     expect(lastSet(s)).toBeUndefined(); s.triggerMessage(new ArrayBuffer(8));
     expect(h.playback.play).not.toHaveBeenCalled(); h.controller.end();
+  });
+});
+
+
+describe('response language', () => {
+  const ready = (socket: FakeSocket) => {
+    socket.triggerOpen(); socket.triggerMessage(JSON.stringify({ type: 'session.ready' }));
+  };
+  const start = (socket: FakeSocket) => JSON.parse(socket.sent[0] as string);
+
+  it('reads the UI language for every handshake, regardless of Chinese history', () => {
+    jest.useFakeTimers();
+    let language: 'en' | 'zh-TW' = 'en';
+    const h = createHarness({ language: () => language, history: () => [{ role: 'user', text: '我要去車站' }] });
+    h.controller.start(); ready(h.sockets[0]);
+    expect(start(h.sockets[0])).toMatchObject({ language: 'en', history: [{ text: '我要去車站' }] });
+    language = 'zh-TW'; h.sockets[0].triggerClose(1006); jest.advanceTimersByTime(1000);
+    ready(h.sockets[1]); expect(start(h.sockets[1]).language).toBe('zh-TW');
+    h.controller.end(); jest.useRealTimers();
+  });
+
+  it('waits for the audio tail before changing language and resumes navigation without cancellation', async () => {
+    let language: 'en' | 'zh-TW' = 'zh-TW';
+    const resumeState = { navigationId: 'nav-1', routeVersion: 2, routeToken: 'route-2', lastKnownStepIndex: 3 };
+    const h = createHarness({ language: () => language, resumeState });
+    h.controller.start(); const old = h.sockets[0]; ready(old);
+    h.captureCalls[0].resolve(); await Promise.resolve(); await Promise.resolve();
+    old.triggerMessage(new ArrayBuffer(8)); h.playback.isPlaying.mockReturnValue(true);
+    language = 'en'; h.controller.syncLanguage();
+    old.triggerMessage(JSON.stringify({ type: 'turn.complete' }));
+    expect(h.sockets).toHaveLength(1); expect(h.playback.clear).not.toHaveBeenCalled();
+    h.playback.isPlaying.mockReturnValue(false); h.playback.drain();
+    expect(old.closed).toBe(true); expect(h.captureCalls[0].stop).toHaveBeenCalledTimes(1);
+    expect(h.sockets).toHaveLength(2); ready(h.sockets[1]);
+    expect(start(h.sockets[1]).language).toBe('en');
+    expect(h.sockets[1].sent).toContain(JSON.stringify({ type: 'nav.resume', ...resumeState }));
+    expect(old.sent.filter((m) => typeof m === 'string').join('')).not.toMatch(/session.end|nav.cancel/);
+    h.controller.end();
+  });
+
+  it('can interrupt speech to apply a queued language change', () => {
+    let language: 'en' | 'zh-TW' = 'zh-TW';
+    const h = createHarness({ language: () => language });
+    h.controller.start(); ready(h.sockets[0]); h.sockets[0].triggerMessage(new ArrayBuffer(8));
+    language = 'en'; h.controller.syncLanguage();
+    h.sockets[0].triggerMessage(JSON.stringify({ type: 'interrupted' }));
+    expect(h.playback.clear).toHaveBeenCalledTimes(1);
+    ready(h.sockets[1]); expect(start(h.sockets[1]).language).toBe('en'); h.controller.end();
+  });
+
+  it('cancels a queued language switch when the user selects the original language again', () => {
+    let language: 'en' | 'zh-TW' = 'en';
+    const h = createHarness({ language: () => language });
+    h.controller.start(); ready(h.sockets[0]); h.sockets[0].triggerMessage(new ArrayBuffer(8));
+    language = 'zh-TW'; h.controller.syncLanguage(); language = 'en'; h.controller.syncLanguage();
+    h.sockets[0].triggerMessage(JSON.stringify({ type: 'turn.complete' }));
+    expect(h.sockets).toHaveLength(1); h.controller.end();
+  });
+
+  it('handles a language change during the handshake and ignores changes after end', () => {
+    let language: 'en' | 'zh-TW' = 'zh-TW';
+    const h = createHarness({ language: () => language });
+    h.controller.start(); h.sockets[0].triggerOpen();
+    language = 'en'; h.controller.syncLanguage();
+    h.sockets[0].triggerMessage(JSON.stringify({ type: 'session.ready' }));
+    ready(h.sockets[1]); expect(start(h.sockets[1]).language).toBe('en');
+    h.controller.end(); language = 'zh-TW'; h.controller.syncLanguage(); h.playback.drain();
+    expect(h.sockets).toHaveLength(2);
   });
 });

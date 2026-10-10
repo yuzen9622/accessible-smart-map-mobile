@@ -1,3 +1,4 @@
+import type { BusPlanContext } from "@/features/route";
 import { fetchRequest, type ApiResponse } from '@/shared/api';
 import { getAppConfig } from '@/shared/config';
 import type { LatLng } from '@/shared/geo';
@@ -57,7 +58,7 @@ function parseRouteDetailStop(value: unknown): RouteDetailStop | null {
   const { seq, name, lat, lng } = value;
   if (typeof seq !== 'number' || typeof name !== 'string') return null;
   if (typeof lat !== 'number' || typeof lng !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  return { seq, name, lat, lng, estimateMinutes: finiteOrNull(value.estimateMinutes), statusLabel: stringOr(value.statusLabel) };
+  return { seq, name, lat, lng, estimateMinutes: finiteOrNull(value.estimateMinutes), statusLabel: stringOr(value.statusLabel), plateNumb: optionalString(value.plateNumb), stopUid: optionalString(value.stopUid) };
 }
 
 function parseLngLat(value: unknown): [number, number] | null {
@@ -293,11 +294,15 @@ export async function getBusRouteDetail(
   city: string,
   signal?: AbortSignal,
   subRouteUid?: string,
+  planContext?: BusPlanContext,
 ): Promise<ApiResponse<{ directions: RouteDetailDirection[] }>> {
   // route-detail 沒有 direction query；方向由前端在回傳的站序中選。subRouteUid 是後端合法的選填欄位。
   const params = new URLSearchParams({ routeName, city });
   if (subRouteUid) params.set('subRouteUid', subRouteUid);
-  return narrow(await withTimeout(`/api/v1/transit/bus/route-detail?${params.toString()}`, signal), parseRouteDetail);
+  const endpoint = planContext
+    ? `/api/v1/a11y/accessible-route/bus-arrivals?${new URLSearchParams({ routeToken: planContext.routeToken, legIndex: String(planContext.legIndex) })}`
+    : `/api/v1/transit/bus/route-detail?${params.toString()}`;
+  return narrow(await withTimeout(endpoint, signal), parseRouteDetail);
 }
 
 export async function searchBusRoutes(

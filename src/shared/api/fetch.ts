@@ -28,6 +28,8 @@ export interface RequestOptions<TBody = unknown> {
   headers?: Record<string, string>;
   requireAuth?: boolean;
   signal?: AbortSignal;
+  /** Mutation owner fence, checked before sending and around refresh/retry. */
+  isCurrent?: () => boolean;
   /**
    * 有些需要登入的端點把 401 挪用為業務錯誤（例：POST /user/auth/password
    * 「目前密碼錯誤」），設定這個旗標讓呼叫端自行檢查回應，不要觸發
@@ -181,12 +183,17 @@ export async function fetchRequest<TBody = unknown>(
     headers = {},
     requireAuth = false,
     signal,
+    isCurrent,
     skipAuthRetry = false,
     baseUrl,
     timeoutMs,
     __retried,
   } = options as InternalRequestOptions<TBody>;
 
+  const assertCurrent = () => {
+    if (isCurrent && !isCurrent()) throw new ApiError('Request superseded', 409, 'REQUEST_SUPERSEDED');
+  };
+  assertCurrent();
   const authPort = getAuthPort();
   // 在這次呼叫（原始呼叫或 retry）最開始、任何 await 之前擷取，是
   // retry-still-401 分支 compare-and-commit 失效時比對用的參照。
@@ -220,6 +227,7 @@ export async function fetchRequest<TBody = unknown>(
   }
   const timeout = timeoutMs ?? (isFormData ? UPLOAD_TIMEOUT_MS : DEFAULT_TIMEOUT_MS);
   const data = await fetchWithTimeout(resolvedUrl, init, signal, timeout);
+  assertCurrent();
   const isSuccess = data.ok === true || data.success === true;
 
   if (!isSuccess && data.code === 403 && requireAuth && isRevocation403(data)) {
@@ -244,6 +252,7 @@ export async function fetchRequest<TBody = unknown>(
   }
 
   if (data.code === 401 && requireAuth && !skipAuthRetry) {
+    assertCurrent();
     if (__retried) {
       // 已經 refresh 過並 retry 過一次——不再遞迴，以呼叫當下擷取的
       // sessionAtEntry 做 compare-and-commit 失效，把 401 原樣回傳。
@@ -251,6 +260,7 @@ export async function fetchRequest<TBody = unknown>(
       return data;
     }
     const newAccessToken = await authPort.refresh(sessionAtEntry);
+    assertCurrent();
     if (newAccessToken) {
       // port 已把新 token 提交進 session，retry 呼叫的 requireAuth 區塊會
       // 透過 getSession() 讀到新值並設定新的 Authorization header。
@@ -261,6 +271,7 @@ export async function fetchRequest<TBody = unknown>(
         requireAuth,
         signal,
         skipAuthRetry,
+        isCurrent,
         baseUrl,
         timeoutMs,
         __retried: true,

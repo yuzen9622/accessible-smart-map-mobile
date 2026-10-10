@@ -1,6 +1,7 @@
+import { Text, TextInput } from '@/shared/ui/typography/Text';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { SHEET_DETENTS, sheetController, useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';

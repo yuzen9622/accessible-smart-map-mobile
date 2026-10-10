@@ -53,6 +53,8 @@ export function getVoiceStatusLabel(status: VoiceStatus, t: Translate): string {
     case 'error':
       if (status.code === 4409) return t('chatbot.voice.errorConflict');
       if (status.code === 'LIVE_SESSION_ENDED') return t('chatbot.voice.errorSessionEnded');
+      if (status.code === 'LIVE_CONNECT_FAILED') return t('chatbot.voice.errorServer');
+      if (status.code === 'ROUTE_RESPONSE_INVALID') return t('chatbot.voice.errorRouteResponse');
       if (status.code === 1011) return t('chatbot.voice.errorServer');
       if (status.code === 'MIC_UNAVAILABLE') return t('chatbot.voice.errorMic');
       return t('chatbot.voice.errorGeneric');

@@ -12,6 +12,7 @@ import {
 import { useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
+import { useFontScale } from '@/shared/preferences/useFontScale';
 
 import type { AnimatedNumberTextProps } from './AnimatedNumberText.types';
 
@@ -21,6 +22,7 @@ import type { AnimatedNumberTextProps } from './AnimatedNumberText.types';
  */
 export default function AnimatedNumberText({ text, value, fontSize, fontWeight = 'bold', color, accessibilityLabel }: AnimatedNumberTextProps) {
   const { fontScale } = useWindowDimensions();
+  const appScale = useFontScale();
   const reduced = useReducedMotion();
   const [prev, setPrev] = useState(value);
   const [countsDown, setCountsDown] = useState(false);
@@ -33,7 +35,7 @@ export default function AnimatedNumberText({ text, value, fontSize, fontWeight =
     <Host matchContents>
       <Text
         modifiers={[
-          font({ size: fontSize * fontScale, weight: fontWeight }),
+          font({ size: fontSize * appScale * fontScale, weight: fontWeight }),
           monospacedDigit(),
           foregroundStyle(color),
           lineLimit(1),

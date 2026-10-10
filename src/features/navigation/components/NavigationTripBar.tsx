@@ -1,5 +1,6 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { useRouteSession } from '@/features/route';
 import { formatDistance } from '@/shared/geo';

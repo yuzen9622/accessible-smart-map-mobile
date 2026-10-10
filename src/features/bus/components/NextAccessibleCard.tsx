@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Text } from '@/shared/ui/typography/Text';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';

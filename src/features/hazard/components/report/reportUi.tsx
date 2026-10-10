@@ -1,5 +1,6 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ACCENT_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors, type ToneColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';

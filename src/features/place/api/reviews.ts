@@ -1,4 +1,5 @@
-import { ApiError, authenticatedRequest, fetchRequest, type ApiResponse } from '@/shared/api';
+import { captureContentContext } from '@/features/content-safety';
+import { ApiError, authenticatedRequest, fetchRequest, getAccessToken, type ApiResponse } from '@/shared/api';
 import { getAppConfig } from '@/shared/config';
 
 import type { PlaceReviewType, ReviewEvidence, ReviewItem, ReviewListResult, ReviewSummaryResult } from '../types/review';
@@ -74,7 +75,7 @@ export async function getPlaceReviews(
   });
   if (params.minAggregateScore !== undefined) query.set('minAggregateScore', String(params.minAggregateScore));
   const url = `${getAppConfig().apiBaseUrl}${basePath()}?${query.toString()}`;
-  const response = await fetchRequest(url, signal ? { signal } : undefined);
+  const response = await fetchRequest(url, { signal, requireAuth: Boolean(getAccessToken()), isCurrent: captureContentContext() });
   const data = isReviewListResult(response.data) ? response.data : undefined;
   return { ...response, data } as ApiResponse<ReviewListResult>;
 }
@@ -90,7 +91,7 @@ export async function getReviewSummary(
 ): Promise<ApiResponse<ReviewSummaryResult>> {
   const query = new URLSearchParams({ placeId: params.placeId, placeType: params.placeType });
   const url = `${getAppConfig().apiBaseUrl}${basePath()}/summary?${query.toString()}`;
-  const response = await fetchRequest(url, signal ? { signal } : undefined);
+  const response = await fetchRequest(url, { signal, requireAuth: Boolean(getAccessToken()), isCurrent: captureContentContext() });
   const data = isReviewSummaryResult(response.data) ? response.data : undefined;
   return { ...response, data } as ApiResponse<ReviewSummaryResult>;
 }

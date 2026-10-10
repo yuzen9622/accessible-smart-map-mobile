@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
+import { Text, TextInput } from '@/shared/ui/typography/Text';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useCloseScreen } from '@/shared/navigation';
 import { TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';

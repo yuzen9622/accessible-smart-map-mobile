@@ -13,6 +13,7 @@ import { useAuthStore } from '@/features/auth';
 import { useUserLocationStore } from '@/features/map';
 import { getRouteSessionSnapshot, subscribeRouteSession, invalidateRouteConversations, markRouteTokenInvalid } from '@/features/route';
 import { getAuthPort } from '@/shared/api';
+import i18n, { getAppLanguage } from '@/shared/i18n';
 
 import { createCapture } from '../audio/audioCapture';
 import { createPlayback } from '../audio/audioPlayback';
@@ -99,6 +100,7 @@ function onStatus(status: VoiceStatus): void {
   // 只播報使用者需要知道的轉折，不逐一念 listening／model-speaking（會蓋過模型語音）
   if (['connecting', 'reconnecting', 'needs-login', 'ended', 'error'].includes(status.status)) announce(status);
   if (status.status === 'ended' || status.status === 'error' || status.status === 'needs-login') {
+    useVoiceStore.setState({ activeTool: null, routeSyncState: 'idle' });
     mergeIntoChat();
     releaseVoiceAudio();
     onVoiceSessionTerminal();
@@ -118,7 +120,7 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
     setMicLevel: (level) => voiceLevels.mic.set(level),
     executeAction,
     getRouteGeneration: () => getRouteSessionSnapshot().selectionGeneration,
-    onRouteError: () => { controller?.rejectRouteResponse(); controller?.end(); },
+    onRouteError: () => controller?.rejectRouteResponse(),
     get t() {
       return translate;
     },
@@ -137,6 +139,7 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
       return position ? { latitude: position.lat, longitude: position.lng } : null;
     },
     getHistory: sharedHistory,
+    getLanguage: getAppLanguage,
     getRouteConversation: getRouteConversationRequest,
     onInvalidRouteToken: markRouteTokenInvalid,
     onRouteSyncState: (routeSyncState) => useVoiceStore.setState({ routeSyncState }),
@@ -164,6 +167,7 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
     if (state.selectRoute?.route !== previous.selectRoute?.route || state.isLoading !== previous.isLoading || state.invalidRouteTokens !== previous.invalidRouteTokens) c.syncRouteContext();
   });
   controller = c;
+  i18n.on('languageChanged', () => c.syncLanguage());
   bindings = b;
   installVoiceNavigationBridge({
     setNavigationRoute: (token) => c.setNavigationRoute(token),
@@ -180,7 +184,14 @@ useAuthStore.subscribe((state) => {
   const status = useVoiceStore.getState().status.status;
   if (status === 'idle' || status === 'ended') return;
   const identity = state.user?._id ?? null;
-  if (!state.session || identity !== identityAtStart) controller?.end();
+  if (!state.session || identity !== identityAtStart) {
+    // The login notice stays visible; the previous account's conversation must
+    // not remain on that surface or be merged into a new account's chat.
+    merged = true;
+    toolMarks = [];
+    bindings?.reset();
+    controller?.requireLogin();
+  }
 });
 
 export function startVoiceSession(t: Translate): void {

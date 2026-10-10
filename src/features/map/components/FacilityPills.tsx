@@ -1,6 +1,7 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { Marker } from '@maplibre/maplibre-react-native';
 import { router } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { useThemeColors } from '@/shared/theme';
 

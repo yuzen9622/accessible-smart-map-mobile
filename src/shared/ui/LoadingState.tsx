@@ -1,4 +1,5 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { Text } from '@/shared/ui/typography/Text';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { useThemeColors } from '@/shared/theme';
 

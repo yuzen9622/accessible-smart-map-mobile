@@ -1,5 +1,6 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { Stack, router } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useThemeColors } from '@/shared/theme';

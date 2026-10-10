@@ -1,6 +1,7 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import { canNavigateRoute } from '../controller/routeSessionPort';
-import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';

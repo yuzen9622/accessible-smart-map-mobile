@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { BackHandler, Platform, View, useColorScheme, useWindowDimensions } from 'react-native';
 
 import { useAiBootstrap } from '@/features/ai';
@@ -19,7 +19,7 @@ import { selectSosInProgress, useSosBootstrap, useSosStore } from '@/features/so
 import { ConfigErrorScreen, appConfigResult } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
-import { usePreferencesEffects } from '@/shared/preferences';
+import { useFontScale, usePreferencesEffects } from '@/shared/preferences';
 import { ErrorState, HeaderCloseButton } from '@/shared/ui';
 // 背景定位任務必須在 JS 頂層定義（App 從背景被喚醒時要找得到）
 import '@/shared/location/backgroundLocation';
@@ -83,6 +83,8 @@ interface AppStackProps {
 
 /** 設定有效才掛載：Phase 3 的啟動 hook（續期、同步、推播、SOS 復原）都會打 API，需要 `getAppConfig()`。 */
 function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppStackProps) {
+  const hasFocusedSheet = useRef(false);
+  const fontScale = useFontScale();
   useAuthBootstrap();
   useSettingsSync();
   useNotificationsBootstrap();
@@ -91,7 +93,7 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
   const { t } = useAppTranslation();
   const sosInProgress = useSosStore(selectSosInProgress);
   return (
-    <Stack screenOptions={{ headerShown: false, headerBackButtonDisplayMode: 'minimal' }}>
+    <Stack screenOptions={{ headerShown: false, headerBackButtonDisplayMode: 'minimal', headerTitleStyle: { fontSize: 17 * fontScale } }}>
       <Stack.Screen name="index" />
       <Stack.Screen
         name="(sheet)"
@@ -115,7 +117,15 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
             setSheetInset(sheetBottomInset(event.data.index, height));
             useMapUiStore.getState().setSheetDetentIndex(event.data.index);
           },
-          focus: () => setSheetInset(sheetBottomInset(initialDetentIndex, height)),
+          focus: () => {
+            const state = useMapUiStore.getState();
+            // 只有首次開啟使用初始高度；關閉 chat/settings 後 UIKit 保留原高度，
+            // 不會再發 detent 事件，不能把 inset 重設成 peek，否則首頁內容會被隱藏。
+            const index = hasFocusedSheet.current ? state.sheetDetentIndex : initialDetentIndex;
+            hasFocusedSheet.current = true;
+            state.setSheetDetentIndex(index);
+            setSheetInset(sheetBottomInset(index, height));
+          },
         }}
       />
       <Stack.Screen
@@ -130,6 +140,7 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
       {/* 倒數與求救中不可滑動關閉（防誤觸，SDD §6.8）；畫面內有「關閉畫面（SOS 持續）」按鈕 */}
       <Stack.Screen name="sos" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: !sosInProgress }} />
       <Stack.Screen name="hazard-report" options={{ presentation: 'modal', headerShown: true, title: t('hazardReport') }} />
+      <Stack.Screen name="content-report" options={{ presentation: 'modal', headerShown: true, title: t('contentReport'), headerLeft: () => <HeaderCloseButton /> }} />
       <Stack.Screen name="review" options={{ presentation: 'modal', headerShown: true }} />
       {/* 聊天只有一個：已開著時再開（深層連結 `chat?q=`）沿用同一個 modal，只換預填問題 */}
       <Stack.Screen name="chat" dangerouslySingular={() => 'chat'} options={{ presentation: 'modal', headerShown: true }} />

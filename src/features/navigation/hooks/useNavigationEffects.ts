@@ -181,7 +181,7 @@ export function useNavigationEffects(): void {
     if (!target) return;
     const key = `nav:${busOrdinal}:${busLegKey(selectedRoute.route, selectedRoute.index, target.legIndex, target.leg)}`;
     if (useBusStore.getState().activeBusLeg?.key === key) return;
-    useBusStore.getState().setActiveBusLeg({ key, leg: target.leg, route: selectedRoute.route });
+    useBusStore.getState().setActiveBusLeg({ key, leg: { ...target.leg, planContext: selectedRoute.route.routeToken ? { routeToken: selectedRoute.route.routeToken, legIndex: target.legIndex } : undefined }, route: selectedRoute.route });
   }, [isNavigating, busOrdinal, selectedRoute]);
 
   useEffect(() => {

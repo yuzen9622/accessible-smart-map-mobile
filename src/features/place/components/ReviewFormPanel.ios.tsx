@@ -1,4 +1,5 @@
-import { Form, Picker, Section, Text, TextField, VStack, useNativeState } from '@expo/ui/swift-ui';
+import { Picker, Text, TextField, VStack, useNativeState } from '@expo/ui/swift-ui';
+import { Form, Section } from '@/shared/ui/form/PreferenceForm.ios';
 import { font, labelsHidden, lineLimit, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';

@@ -643,3 +643,19 @@ describe('direction regressions named in the SDD (365 / 26 reversed, 70 not)', (
     expect(new Set(wrongLabels).size).toBe(1);
   });
 });
+
+
+it("retains the original 10:00 schedule at every stop even while loading or after failure", () => {
+  const at = Date.parse("2030-01-01T10:00:00+08:00");
+  const leg = { type: "BUS", departureStop: "A", arrivalStop: "C", scheduledTrip: {
+    tripId: "trip", boardingReadyAt: at - 600_000, stops: [
+      { name: "A", arrivalAt: at - 60_000, departureAt: at },
+      { name: "B", arrivalAt: at + 600_000 },
+      { name: "C", arrivalAt: at + 1_200_000 },
+    ],
+  } } as BusLeg;
+  const rows = fallbackStopRows(leg, { pending: true });
+  expect(rows.map((r) => [r.name, r.estimateMinutes, r.statusLabel, r.pending])).toEqual([
+    ["A", null, "10:00", false], ["B", null, "10:10", false], ["C", null, "10:20", false],
+  ]);
+});

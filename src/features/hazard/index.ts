@@ -5,3 +5,5 @@ export { default as MyReportDetailScreen } from './screens/MyReportDetailScreen'
 export { default as HazardLayer } from './components/HazardLayer';
 export type { HazardReportParams } from './hooks/useHazardReport';
 export { isHazardType } from './domain/types';
+
+export { refreshMyReports } from './hooks/useMyReports';

@@ -1,15 +1,16 @@
-import { router, useNavigation } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useNavigation, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 
+import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
+import { ApiError } from '@/shared/api';
 import { mapCamera } from '@/features/map';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 
-import { getHazardReport } from '../api/hazardApi';
 import { HAZARD_TYPE_LABEL_KEY, SEVERITY_LABEL_KEY } from '../domain/hazardErrors';
 import { formatReportDate, hazardResubmitPreset } from '../domain/review';
 import { reportHasPhoto, reportLatLng, type HazardReport } from '../domain/types';
-import { updateMyReport, useMyReport } from './useMyReports';
+import { findMyReport, updateMyReport, useMyReportsRevision } from './useMyReports';
 
 /** 以審核結果的預設值（類型＋座標）開新回報；照片與描述一律重填。 */
 export function resubmitHazardReport(report: HazardReport): void {
@@ -20,44 +21,50 @@ export function resubmitHazardReport(report: HazardReport): void {
   });
 }
 
-/**
- * 「我的回報」單筆詳情（Web `MyReportsPanel` 的 selected 視圖）。資料優先取列表 store；
- * 從推播等處直接進來、列表還沒有這筆時，退回公開單筆查詢。
- */
+/** 私人詳情只接受目前 session 的 /mine 資料，每次 focus／通知都重新取得。 */
 export function useMyReportDetail(id: string | undefined) {
   const { t, i18n } = useAppTranslation();
   const navigation = useNavigation();
-  const listed = useMyReport(id);
-  const [fetched, setFetched] = useState<HazardReport | null>(null);
-  const [failure, setFailure] = useState<'notFound' | 'network' | null>(null);
+  const session = useAuthStore((s) => s.session);
+  const loggedIn = useAuthStore(selectIsLoggedIn);
+  const revision = useMyReportsRevision((s) => s.revision);
+  const [result, setResult] = useState<{ id: string; session: object; report: HazardReport | null; failure: 'notFound' | 'network' | null; revision: number; attempt: number } | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const report = listed ?? fetched;
+  const report = loggedIn && result?.session === session && result?.id === id ? result.report : null;
+  const failure = result?.session === session && result?.id === id ? result.failure : null;
+  const loadReport = useCallback(async (signal: AbortSignal) => {
+    if (!id || !session || !loggedIn) throw new ApiError('Sign in required', 401);
+    const next = await findMyReport(id, session, signal);
+    if (!next) throw new ApiError('Report not available for this account', 404);
+    return next;
+  }, [id, session, loggedIn]);
 
-  useEffect(() => {
-    if (!id || listed) return;
+  useFocusEffect(useCallback(() => {
+    // 將刷新版本保留在結果中，讓通知／重試成為 callback 真正使用的依賴。
+    setResult(null);
+    if (!id || !session || !loggedIn) return;
     const controller = new AbortController();
-    const run = async () => {
-      try {
-        const result = await getHazardReport(id, controller.signal);
-        if (controller.signal.aborted) return;
-        setFetched(result);
-        setFailure(result ? null : 'notFound');
-      } catch (error) {
-        logger.warn('[hazard] my report detail failed', error);
-        if (!controller.signal.aborted) setFailure('network');
+    void loadReport(controller.signal).then((next) => {
+      if (!controller.signal.aborted && useAuthStore.getState().session === session) {
+        setResult({ id, session, report: next, failure: null, revision, attempt });
+        updateMyReport(next, session);
       }
-    };
-    void run();
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted || useAuthStore.getState().session !== session) return;
+      logger.warn('[hazard] my report detail failed');
+      setResult({ id, session, report: null, failure: error instanceof ApiError && error.code === 404 ? 'notFound' : 'network', revision, attempt });
+    });
     return () => controller.abort();
-  }, [id, listed, attempt]);
+  }, [id, session, loggedIn, loadReport, attempt, revision]));
 
   const date = (value: string | null | undefined) => formatReportDate(value, i18n.language) ?? t('reportNotProvided');
 
   if (!report) {
     return {
-      status: failure ?? 'loading',
+      status: !loggedIn ? 'signedOut' : !id ? 'notFound' : failure ?? 'loading',
+      login: () => router.navigate('/auth'),
       retry: () => {
-        setFailure(null);
+        setResult(null);
         setAttempt((n) => n + 1);
       },
     } as const;
@@ -67,9 +74,11 @@ export function useMyReportDetail(id: string | undefined) {
   return {
     status: 'ready',
     report,
+    loadReport,
     onReportUpdate: (next: HazardReport) => {
-      updateMyReport(next);
-      setFetched((previous) => (previous ? { ...previous, ...next } : previous));
+      if (!session || useAuthStore.getState().session !== session) return;
+      updateMyReport(next, session);
+      setResult((previous) => previous?.session === session && previous.id === id ? { ...previous, report: next } : previous);
     },
     typeLabel: t(HAZARD_TYPE_LABEL_KEY[report.hazardType]),
     severityLabel: report.severity ? t(SEVERITY_LABEL_KEY[report.severity]) : null,

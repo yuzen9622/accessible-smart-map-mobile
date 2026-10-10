@@ -1,5 +1,8 @@
-import { Host } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+
 import { PlatformColor, StyleSheet, View } from 'react-native';
+import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
+import { useThemeColors } from '@/shared/theme';
 
 import type { KeyboardAvoidingHostProps } from './KeyboardAvoidingHost.types';
 import { useKeyboardInset } from './useKeyboardInset';
@@ -17,8 +20,10 @@ const FIELD_CLEARANCE = 24;
  */
 export default function KeyboardAvoidingHost({ children }: KeyboardAvoidingHostProps) {
   const keyboardInset = useKeyboardInset();
+  const highContrast = usePreferencesStore(s => s.highContrast);
+  const colors = useThemeColors();
   return (
-    <View style={[styles.root, styles.background, { paddingBottom: keyboardInset > 0 ? keyboardInset + FIELD_CLEARANCE : 0 }]}>
+    <View style={[styles.root, styles.background, highContrast && { backgroundColor: colors.backgroundElement }, { paddingBottom: keyboardInset > 0 ? keyboardInset + FIELD_CLEARANCE : 0 }]}>
       <Host style={styles.root} ignoreSafeArea="keyboard">
         {children}
       </Host>

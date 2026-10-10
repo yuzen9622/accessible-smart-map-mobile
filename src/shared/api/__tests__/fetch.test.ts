@@ -264,3 +264,50 @@ describe('fetchRequest timeout', () => {
     await expect(pending).rejects.toThrow('AbortError');
   });
 });
+
+describe('authenticated mutation owner fence', () => {
+  const unauthorized = () => makeResponse({ status: 401, ok: false, json: async () => ({ status: 'error', code: 401, message: 'expired' }) });
+  it('never sends an already superseded mutation', async () => {
+    const fetchMock = installFetchMock();
+    await expect(authenticatedRequest('http://test.local/api/v1/content-reports', { method: 'POST', isCurrent: () => false })).rejects.toMatchObject({ reason: 'REQUEST_SUPERSEDED' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it.each(['POST', 'PUT', 'DELETE'])('does not refresh or replay a stale %s after a new account logs in', async method => {
+    const fake = makeFakeAuthPort({ accessToken: 'A' });
+    let current = true;
+    const refresh = jest.fn(async () => 'B-new');
+    configureAuthPort({ ...fake.port, refresh });
+    const fetchMock = installFetchMock();
+    fetchMock.mockImplementationOnce(async () => {
+      fake.setSession({ accessToken: 'B' });
+      current = false;
+      return unauthorized();
+    });
+    await expect(authenticatedRequest('http://test.local/api/v1/content-reports', { method, isCurrent: () => current })).rejects.toMatchObject({ reason: 'REQUEST_SUPERSEDED' });
+    expect(refresh).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('rechecks ownership after refresh before it can replay a mutation', async () => {
+    const fake = makeFakeAuthPort({ accessToken: 'A' });
+    let current = true;
+    configureAuthPort({ ...fake.port, refresh: async () => {
+      fake.setSession({ accessToken: 'B' });
+      current = false;
+      return 'B';
+    } });
+    const fetchMock = installFetchMock();
+    fetchMock.mockResolvedValueOnce(unauthorized());
+    await expect(authenticatedRequest('http://test.local/api/v1/user/blocks', { method: 'PUT', isCurrent: () => current })).rejects.toMatchObject({ reason: 'REQUEST_SUPERSEDED' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('still refreshes and retries a mutation for the same account', async () => {
+    const fake = makeFakeAuthPort({ accessToken: 'A-old' });
+    configureAuthPort({ ...fake.port, refresh: async () => { fake.setSession({ accessToken: 'A-new' }); return 'A-new'; } });
+    const fetchMock = installFetchMock();
+    fetchMock.mockResolvedValueOnce(unauthorized()).mockResolvedValueOnce(makeResponse({ status: 200, ok: true, json: async () => ({ ok: true, code: 200, status: 'success', message: 'ok' }) }));
+    const result = await authenticatedRequest('http://test.local/api/v1/user/blocks', { method: 'PUT', isCurrent: () => true });
+    expect(result.ok).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({ headers: { Authorization: 'Bearer A-new' } });
+  });
+});

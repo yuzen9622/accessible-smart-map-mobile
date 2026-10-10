@@ -1,7 +1,8 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { canNavigateRoute } from '../controller/routeSessionPort';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useThemeColors } from '@/shared/theme';

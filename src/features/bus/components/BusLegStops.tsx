@@ -1,5 +1,6 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { getLegColor, type AccessibleRoute, type BusLeg } from '@/features/route/domain';
 import { useAppTranslation } from '@/shared/i18n';

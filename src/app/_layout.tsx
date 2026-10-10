@@ -19,7 +19,7 @@ import { selectSosInProgress, useSosBootstrap, useSosStore } from '@/features/so
 import { ConfigErrorScreen, appConfigResult } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
-import { usePreferencesEffects } from '@/shared/preferences';
+import { useFontScale, usePreferencesEffects } from '@/shared/preferences';
 import { ErrorState, HeaderCloseButton } from '@/shared/ui';
 // 背景定位任務必須在 JS 頂層定義（App 從背景被喚醒時要找得到）
 import '@/shared/location/backgroundLocation';
@@ -84,6 +84,7 @@ interface AppStackProps {
 /** 設定有效才掛載：Phase 3 的啟動 hook（續期、同步、推播、SOS 復原）都會打 API，需要 `getAppConfig()`。 */
 function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppStackProps) {
   const hasFocusedSheet = useRef(false);
+  const fontScale = useFontScale();
   useAuthBootstrap();
   useSettingsSync();
   useNotificationsBootstrap();
@@ -92,7 +93,7 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
   const { t } = useAppTranslation();
   const sosInProgress = useSosStore(selectSosInProgress);
   return (
-    <Stack screenOptions={{ headerShown: false, headerBackButtonDisplayMode: 'minimal' }}>
+    <Stack screenOptions={{ headerShown: false, headerBackButtonDisplayMode: 'minimal', headerTitleStyle: { fontSize: 17 * fontScale } }}>
       <Stack.Screen name="index" />
       <Stack.Screen
         name="(sheet)"

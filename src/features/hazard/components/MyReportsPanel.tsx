@@ -1,4 +1,5 @@
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Text } from '@/shared/ui/typography/Text';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors } from '@/shared/theme';

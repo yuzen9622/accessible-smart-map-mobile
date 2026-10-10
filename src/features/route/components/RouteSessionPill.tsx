@@ -1,5 +1,6 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { router, usePathname } from 'expo-router';
-import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useThemeColors } from '@/shared/theme';

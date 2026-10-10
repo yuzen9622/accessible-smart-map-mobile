@@ -1,4 +1,5 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Text } from '@/shared/ui/typography/Text';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { useThemeColors } from '@/shared/theme';
 import { EmptyState } from '@/shared/ui';

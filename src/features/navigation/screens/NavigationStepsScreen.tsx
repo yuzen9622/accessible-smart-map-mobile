@@ -1,5 +1,6 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { Stack } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';

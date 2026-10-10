@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Text } from '@/shared/ui/typography/Text';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';

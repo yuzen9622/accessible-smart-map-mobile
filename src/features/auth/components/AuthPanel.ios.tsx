@@ -1,14 +1,5 @@
-import {
-  Button,
-  Form,
-  Host,
-  Picker,
-  RNHostView,
-  SecureField,
-  Section,
-  Text,
-  TextField,
-} from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { Button, Form, Picker, RNHostView, SecureField, Section, Text, TextField } from '@expo/ui/swift-ui';
 import {
   autocorrectionDisabled,
   bold,

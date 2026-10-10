@@ -1,4 +1,5 @@
-import { Button, Form, HStack, Host, Section, Spacer, SwipeActions, Text, VStack } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { Button, Form, HStack, Section, Spacer, SwipeActions, Text, VStack } from '@expo/ui/swift-ui';
 import { accessibilityLabel, buttonStyle, foregroundStyle } from '@expo/ui/swift-ui/modifiers';
 
 import type { SavedPlacesPanelProps } from './SavedPlacesPanel.types';

@@ -1,5 +1,6 @@
+import { Text } from '@/shared/ui/typography/Text';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, useWindowDimensions, View } from 'react-native';
 
 import { FACILITY_COLORS } from '@/features/map';
 import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, semanticColors, useSemanticColors, useThemeColors } from '@/shared/theme';

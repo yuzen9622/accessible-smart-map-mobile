@@ -1,4 +1,5 @@
-import { HStack, Host, RNHostView, ShareLink } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { HStack, RNHostView, ShareLink } from '@expo/ui/swift-ui';
 import { accessibilityLabel, contentShape, frame, shapes } from '@expo/ui/swift-ui/modifiers';
 import { StyleSheet, View } from 'react-native';
 

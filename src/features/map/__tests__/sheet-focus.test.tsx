@@ -42,7 +42,7 @@ jest.mock('@/features/settings', () => ({ useSettingsSync: () => {} }));
 jest.mock('@/features/sos', () => ({ useSosBootstrap: () => {}, useSosStore: () => false }));
 jest.mock('@/shared/config', () => ({ appConfigResult: { ok: true } }));
 jest.mock('@/shared/i18n', () => ({ useAppTranslation: () => ({ t: (key: string) => key }) }));
-jest.mock('@/shared/preferences', () => ({ usePreferencesEffects: () => {} }));
+jest.mock('@/shared/preferences', () => ({ usePreferencesEffects: () => {}, useFontScale: () => 1 }));
 jest.mock('@/shared/ui', () => ({ HeaderCloseButton: () => null }));
 jest.mock('@/shared/location/backgroundLocation', () => ({}));
 

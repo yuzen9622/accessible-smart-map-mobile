@@ -1,4 +1,5 @@
-import { Button, Form, Host, LabeledContent, Picker, Section, Text, Toggle } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { Button, Form, LabeledContent, Picker, Section, Text, Toggle } from '@expo/ui/swift-ui';
 import { font, foregroundStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';

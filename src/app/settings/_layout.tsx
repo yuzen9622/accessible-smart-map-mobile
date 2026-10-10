@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 
 import { useAppTranslation } from '@/shared/i18n';
+import { useFontScale } from '@/shared/preferences';
 import { HeaderCloseButton } from '@/shared/ui';
 
 export const unstable_settings = { initialRouteName: 'index' };
@@ -8,8 +9,9 @@ export const unstable_settings = { initialRouteName: 'index' };
 /** 設定（root modal）內的 stack：子頁 push／back，原生導覽列提供返回鍵與標題。 */
 export default function SettingsLayout() {
   const { t } = useAppTranslation();
+  const fontScale = useFontScale();
   return (
-    <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal' }}>
+    <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal', headerTitleStyle: { fontSize: 17 * fontScale } }}>
       <Stack.Screen name="index" options={{ title: t('settingTitle'), headerLeft: () => <HeaderCloseButton /> }} />
       <Stack.Screen name="security" options={{ title: t('nativeSettingsAccountSecurity') }} />
       <Stack.Screen name="line" options={{ title: t('nativeLineTitle') }} />

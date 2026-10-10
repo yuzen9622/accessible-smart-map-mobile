@@ -1,4 +1,5 @@
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Text } from '@/shared/ui/typography/Text';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';

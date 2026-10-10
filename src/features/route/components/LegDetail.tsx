@@ -1,5 +1,6 @@
+import { Text } from '@/shared/ui/typography/Text';
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';

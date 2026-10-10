@@ -1,4 +1,5 @@
-import { Button, Form, Host, LabeledContent, Section, Text } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { Button, Form, LabeledContent, Section, Text } from '@expo/ui/swift-ui';
 import { font } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';

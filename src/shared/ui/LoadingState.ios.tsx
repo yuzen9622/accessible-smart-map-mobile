@@ -1,4 +1,5 @@
-import { Host, ProgressView, Text, VStack } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { ProgressView, Text, VStack } from '@expo/ui/swift-ui';
 import { accessibilityLabel } from '@expo/ui/swift-ui/modifiers';
 
 import type { LoadingStateProps } from './LoadingState.types';

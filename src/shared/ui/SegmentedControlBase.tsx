@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Text } from '@/shared/ui/typography/Text';
+import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, useThemeColors } from '@/shared/theme';
 

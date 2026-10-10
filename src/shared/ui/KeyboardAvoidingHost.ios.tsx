@@ -1,4 +1,5 @@
-import { Host } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+
 import { PlatformColor, StyleSheet, View } from 'react-native';
 
 import type { KeyboardAvoidingHostProps } from './KeyboardAvoidingHost.types';

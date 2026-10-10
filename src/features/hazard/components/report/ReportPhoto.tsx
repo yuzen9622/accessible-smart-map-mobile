@@ -1,6 +1,7 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { useAuthStore } from '@/features/auth';
 import { useAppTranslation } from '@/shared/i18n';

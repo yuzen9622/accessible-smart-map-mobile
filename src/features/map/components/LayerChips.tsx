@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Text } from '@/shared/ui/typography/Text';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ACCENT_FILL, useThemeColors } from '@/shared/theme';
 import { GlassCard, Icon } from '@/shared/ui';

@@ -1,4 +1,5 @@
-import { Button as SwiftUIButton, Host, type ButtonRole } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { Button as SwiftUIButton, type ButtonRole } from '@expo/ui/swift-ui';
 import { accessibilityLabel, buttonStyle, disabled as disabledModifier, frame } from '@expo/ui/swift-ui/modifiers';
 
 import type { ButtonProps, ButtonVariant } from './Button.types';

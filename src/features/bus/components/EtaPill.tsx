@@ -1,4 +1,5 @@
-import { StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Text } from '@/shared/ui/typography/Text';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { pillToneStyle, type PillTone } from './palette';
 

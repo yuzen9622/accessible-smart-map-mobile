@@ -12,6 +12,7 @@ import Animated, {
 
 import type { AnimatedNumberTextProps } from './AnimatedNumberText.types';
 import { RN_FONT_WEIGHT } from './animatedNumberWeight';
+import { useFontScale } from '@/shared/preferences/useFontScale';
 
 const DURATION = 220;
 const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
@@ -92,6 +93,7 @@ function Slot({ char, down, travel, reduced, textStyle }: SlotProps) {
  */
 export default function AnimatedNumberText({ text, value, fontSize, fontWeight = 'bold', color, accessibilityLabel }: AnimatedNumberTextProps) {
   const { fontScale } = useWindowDimensions();
+  const appScale = useFontScale();
   const reduced = useReducedMotion();
   const [prev, setPrev] = useState(value);
   const [countsDown, setCountsDown] = useState(false);
@@ -100,9 +102,9 @@ export default function AnimatedNumberText({ text, value, fontSize, fontWeight =
     setCountsDown(value < prev);
   }
 
-  const travel = fontSize * fontScale * 0.8;
+  const travel = fontSize * appScale * fontScale * 0.8;
   const chars = Array.from(text);
-  const textStyle: TextStyle = { fontSize, fontWeight: RN_FONT_WEIGHT[fontWeight], color };
+  const textStyle: TextStyle = { fontSize: fontSize * appScale, fontWeight: RN_FONT_WEIGHT[fontWeight], color };
 
   return (
     <View accessible accessibilityLabel={accessibilityLabel ?? text} style={styles.row}>

@@ -1,4 +1,5 @@
-import { Button, GlassEffectContainer, Host, VStack } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { Button, GlassEffectContainer, VStack } from '@expo/ui/swift-ui';
 import { buttonStyle, controlSize, dynamicTypeSize, labelStyle } from '@expo/ui/swift-ui/modifiers';
 
 import type { MapControlsProps } from './MapControls.types';

@@ -1,4 +1,5 @@
-import { ContentUnavailableView, Host } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { ContentUnavailableView } from '@expo/ui/swift-ui';
 
 import type { EmptyStateProps } from './EmptyState.types';
 

@@ -1,6 +1,7 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { Stack, useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { mapCamera, useUserLocationStore } from '@/features/map';
 import { formatDistance, haversineMeters } from '@/shared/geo';

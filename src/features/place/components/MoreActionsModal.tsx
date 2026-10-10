@@ -1,5 +1,6 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';

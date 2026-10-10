@@ -1,6 +1,7 @@
+import { Text } from '@/shared/ui/typography/Text';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useUserLocationStore } from '@/features/map';

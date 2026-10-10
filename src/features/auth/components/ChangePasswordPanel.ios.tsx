@@ -1,4 +1,5 @@
-import { Form, Host, SecureField, Section, Text } from '@expo/ui/swift-ui';
+import Host from '@/shared/ui/typography/PreferenceHost.ios';
+import { Form, SecureField, Section, Text } from '@expo/ui/swift-ui';
 import { font, foregroundStyle, onSubmit, submitLabel, textContentType } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';

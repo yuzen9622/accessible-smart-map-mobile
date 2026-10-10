@@ -342,7 +342,7 @@ async function startSosSession(): Promise<StartSosResult> {
     // 第一次發起 SOS 時才請求推播權限（ROADMAP 3.4），之後家人接手等狀態可在背景收到
     const askPush = async () => {
       try {
-        if ((await requestPushPermission()) === 'granted') await syncPushToken(true);
+        if ((await requestPushPermission()) === 'granted') await syncPushToken();
       } catch (error) {
         logger.warn('[sos] push permission failed', error);
       }

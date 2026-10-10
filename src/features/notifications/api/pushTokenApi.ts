@@ -1,4 +1,4 @@
-import { authenticatedRequest, fetchRequest } from '@/shared/api';
+import { ApiError, fetchRequest } from '@/shared/api';
 
 /**
  * `POST|DELETE /api/v1/user/push-tokens`。token 綁定的是「這次登入的 session」而不是帳號：
@@ -12,18 +12,20 @@ export interface PushTokenRegistration {
   locale: string;
 }
 
-export async function registerPushToken(input: PushTokenRegistration): Promise<void> {
-  await authenticatedRequest(PATH, { method: 'POST', body: input });
+export async function registerPushToken(input: PushTokenRegistration, accessToken: string): Promise<void> {
+  const res = await fetchRequest(PATH, { method: 'POST', body: input, headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!(res.ok || res.success)) throw new ApiError(res.message, res.code);
 }
 
 /**
- * 登出時註銷。此時 store 的 session 已被同步清掉，所以用登出前擷取的 access token 自行帶 header，
- * 而且不走 401-refresh（`requireAuth: false`）：token 過期就算了，後端推送失敗時也會自行清掉失效 token。
+ * 用擷取的 bearer 註銷，不自動改用後來登入的帳號。
+ * 401 交由 pushService 判斷是否仍能替原身分續期；登出則沿用 captured session。
  */
 export async function unregisterPushToken(token: string, accessToken: string): Promise<void> {
-  await fetchRequest(PATH, {
+  const res = await fetchRequest(PATH, {
     method: 'DELETE',
     body: { token },
     headers: { Authorization: `Bearer ${accessToken}` },
   });
+  if (!(res.ok || res.success)) throw new ApiError(res.message, res.code);
 }

@@ -61,6 +61,8 @@ export type PlaceDetailNearbyRow = NearbyFacilityRow;
 
 export interface PlaceDetailReviewRow {
   key: string;
+  canReport?: boolean;
+  canBlock?: boolean;
   starsLabel: string;
   /** VoiceOver 用：「通行評級 4.0 星，共 5 星」，避免逐個唸星號 */
   starsA11yLabel: string;
@@ -85,6 +87,9 @@ export interface PlaceDetailReviewsModel {
   loadMoreLabel: string;
   loadingLabel: string;
   emptyLabel: string;
+  errorLabel?: string;
+  retryLabel?: string;
+  onRetry?: () => void;
   /** 已登入：撰寫／編輯您的評價；未登入：提示登入 */
   write: { hint: string | null; label: string; onPress: () => void };
   editLabel: string;
@@ -288,6 +293,8 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
             const own = review.userId === userId;
             return {
               key: review._id,
+              canReport: !own,
+              canBlock: !own && Boolean(review.userId),
               starsLabel: `${'★'.repeat(Math.round(review.rating))} ${review.rating.toFixed(1)}`,
               starsA11yLabel: t('starAriaLabel', { filled: review.rating.toFixed(1) }),
               comment: review.comment,
@@ -306,6 +313,9 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
           loadMoreLabel: t('reviewLoadMore'),
           loadingLabel: t('loading'),
           emptyLabel: t('noReviews'),
+          errorLabel: reviews.error ? t('nativeNetworkError') : undefined,
+          retryLabel: t('retry'),
+          onRetry: reviews.retry,
           write: loggedIn
             ? { hint: null, label: ownReview ? t('reviewEditYours') : t('writeReview'), onPress: () => openReviewForm(ownReview) }
             : { hint: t('reviewLoginRequired'), label: t('loginRegisterCta'), onPress: () => router.navigate('/auth') },

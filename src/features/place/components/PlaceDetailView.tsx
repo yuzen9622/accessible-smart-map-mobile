@@ -1,3 +1,4 @@
+import { ContentActions } from '@/features/content-safety';
 import { Text } from '@/shared/ui/typography/Text';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, useWindowDimensions, View } from 'react-native';
@@ -363,6 +364,14 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.bodyText, { color: colors.text }]}>{model.reviews.aiSummary}</Text>
             </View>
           ) : null}
+          {model.reviews.errorLabel ? (
+            <View style={groupStyle}>
+              <Text accessibilityLiveRegion="polite" style={[styles.bodyText, { color: colors.textSecondary }]}>{model.reviews.errorLabel}</Text>
+              <Pressable accessibilityRole="button" onPress={model.reviews.onRetry} style={styles.loadMoreButton}>
+                <Text style={[styles.loadMoreText, { color: accentText }]}>{model.reviews.retryLabel}</Text>
+              </Pressable>
+            </View>
+          ) : null}
           {model.reviews.loading ? (
             <ActivityIndicator accessibilityLabel={model.reviews.loadingLabel} color={colors.textSecondary} />
           ) : model.reviews.items.length > 0 ? (
@@ -374,6 +383,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                     <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.reviewMeta, styles.flex, { color: colors.textSecondary }]} numberOfLines={1}>
                       {review.metaLabel}
                     </Text>
+                    {review.canReport ? <ContentActions targetType="review" targetId={review.key} canBlock={review.canBlock} /> : null}
                   </View>
                   {review.comment ? <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.reviewComment, { color: colors.text }]}>{review.comment}</Text> : null}
                   {review.evidence.map((line) => (
@@ -414,7 +424,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                 </Pressable>
               ) : null}
             </View>
-          ) : (
+          ) : model.reviews.errorLabel ? null : (
             <View style={[groupStyle, styles.emptyCard]}>
               <Icon name="messageSquare" size={scaled(20)} color={colors.textSecondary} />
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.bodyText, styles.emptyText, { color: colors.textSecondary }]}>{model.reviews.emptyLabel}</Text>

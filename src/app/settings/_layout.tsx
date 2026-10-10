@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { useFontScale } from '@/shared/preferences';
+import { useFontScale, usePreferencesStore } from '@/shared/preferences';
+import { useSemanticColors, useThemeColors } from '@/shared/theme';
 import { HeaderCloseButton } from '@/shared/ui';
 
 export const unstable_settings = { initialRouteName: 'index' };
@@ -10,8 +11,16 @@ export const unstable_settings = { initialRouteName: 'index' };
 export default function SettingsLayout() {
   const { t } = useAppTranslation();
   const fontScale = useFontScale();
+  const highContrast = usePreferencesStore(s => s.highContrast);
+  const colors = useThemeColors();
+  const tones = useSemanticColors();
   return (
-    <Stack screenOptions={{ headerBackButtonDisplayMode: 'minimal', headerTitleStyle: { fontSize: 17 * fontScale } }}>
+    <Stack screenOptions={{
+      headerBackButtonDisplayMode: 'minimal',
+      headerTitleStyle: { fontSize: 17 * fontScale, ...(highContrast ? { color: colors.text } : {}) },
+      headerTintColor: highContrast ? tones.accent : undefined,
+      headerStyle: highContrast ? { backgroundColor: colors.background } : undefined,
+    }}>
       <Stack.Screen name="index" options={{ title: t('settingTitle'), headerLeft: () => <HeaderCloseButton /> }} />
       <Stack.Screen name="security" options={{ title: t('nativeSettingsAccountSecurity') }} />
       <Stack.Screen name="line" options={{ title: t('nativeLineTitle') }} />

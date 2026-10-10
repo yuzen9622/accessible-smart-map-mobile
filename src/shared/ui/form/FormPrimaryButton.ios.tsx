@@ -15,7 +15,8 @@ import {
 } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { ACCENT_FILL, DANGER_FILL } from '@/shared/theme';
+import { ACCENT_FILL, DANGER_FILL, semanticColors } from '@/shared/theme';
+import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
 
 import type { FormPrimaryButtonProps, FormSecondaryButtonProps } from './FormPrimaryButton.types';
 
@@ -43,6 +44,12 @@ export default function FormPrimaryButton({
   tone = 'accent',
 }: FormPrimaryButtonProps) {
   const { t } = useAppTranslation();
+  const highContrast = usePreferencesStore(s => s.highContrast);
+  // Filled controls retain white content in both appearances, so use the dark ink colors.
+  const highContrastFill = semanticColors(false, true);
+  const fill = tone === 'destructive'
+    ? (highContrast ? highContrastFill.danger.fg : DANGER_FILL)
+    : (highContrast ? highContrastFill.accent : ACCENT_FILL);
   const hint = loadingHint ?? t('nativeProcessing');
   return (
     <Button
@@ -52,7 +59,7 @@ export default function FormPrimaryButton({
         buttonStyle('borderedProminent'),
         controlSize('large'),
         buttonBorderShape('capsule'),
-        tint(tone === 'destructive' ? DANGER_FILL : ACCENT_FILL),
+        tint(fill),
         disabledModifier(!!disabled),
         // 送出中按鈕裡只剩轉圈：名稱要另外給 VoiceOver，並提示正在處理
         accessibilityLabel(label),

@@ -66,7 +66,7 @@ const LIGHT_HC: SemanticColors = {
   warn: { ...LIGHT.warn, fg: '#6E3000' },
   danger: { ...LIGHT.danger, fg: '#8A0C0C' },
   neutral: { ...LIGHT.neutral, fg: '#3C3F45' },
-  separator: 'rgba(60,60,67,0.45)',
+  separator: '#60646C',
 };
 
 const DARK_HC: SemanticColors = {
@@ -76,7 +76,7 @@ const DARK_HC: SemanticColors = {
   warn: { ...DARK.warn, fg: '#FFC173' },
   danger: { ...DARK.danger, fg: '#FFA19B' },
   neutral: { ...DARK.neutral, fg: '#D5D8DC' },
-  separator: 'rgba(235,235,245,0.45)',
+  separator: '#B0B4BA',
 };
 
 /** 元件內請優先用 `useSemanticColors()`（會跟隨高對比設定）；這個純函式給模組常數與測試用。 */

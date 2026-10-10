@@ -4,7 +4,18 @@ import { StyleSheet } from 'react-native';
 import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
 import { Text, TextInput } from '../Text';
 
-beforeEach(() => usePreferencesStore.getState().setPreferences({ fontSize: 'medium' }));
+beforeEach(() => usePreferencesStore.getState().resetPreferences());
+
+it('increases text weight in high contrast, preserves strong headings and restores normal weights', async () => {
+  const view = await render(<><Text testID="body" style={{ fontSize: 16, fontWeight: '400' }}>Body</Text><Text testID="heading" style={{ fontWeight: '800' }}>Heading</Text><TextInput testID="field" value="kept" /></>);
+  await act(() => usePreferencesStore.getState().setPreferences({ highContrast: true, fontSize: 'mega' }));
+  expect(view.getByTestId('body')).toHaveStyle({ fontSize: 22, fontWeight: '600' });
+  expect(view.getByTestId('heading')).toHaveStyle({ fontWeight: '800' });
+  expect(view.getByTestId('field')).toHaveStyle({ fontWeight: '600' });
+  expect(view.getByTestId('field').props.value).toBe('kept');
+  await act(() => usePreferencesStore.getState().setPreferences({ highContrast: false }));
+  expect(view.getByTestId('body')).toHaveStyle({ fontSize: 22, fontWeight: '400' });
+});
 
 it('reactively scales typography without changing layout or disabling system scaling', async () => {
   const view = await render(<Text testID="text" style={{ fontSize: 20, lineHeight: 28, padding: 8 }} maxFontSizeMultiplier={2}>Example</Text>);

@@ -1,17 +1,19 @@
 import Host from '@/shared/ui/typography/PreferenceHost.ios';
-import { Button, Form, HStack, Section, Spacer, SwipeActions, Text, VStack } from '@expo/ui/swift-ui';
+import { HStack, Spacer, SwipeActions, Text, VStack } from '@expo/ui/swift-ui';
+import { Button, Form, Section, useSecondaryForeground } from '@/shared/ui/form/PreferenceForm.ios';
 import { accessibilityLabel, buttonStyle, foregroundStyle } from '@expo/ui/swift-ui/modifiers';
 
 import type { SavedPlacesPanelProps } from './SavedPlacesPanel.types';
 
 export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
+  const secondaryForeground = useSecondaryForeground();
   if (model.status === 'empty') {
     return (
       <Host style={{ flex: 1 }}>
         <Form>
           <Section>
             <Text>{model.emptyTitle}</Text>
-            <Text modifiers={[foregroundStyle({ type: 'hierarchical', style: 'secondary' })]}>{model.emptyDescription}</Text>
+            <Text modifiers={[secondaryForeground]}>{model.emptyDescription}</Text>
           </Section>
         </Form>
       </Host>
@@ -48,7 +50,7 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
                 <VStack alignment="leading" spacing={2}>
                   <Text>{row.title}</Text>
                   {row.categoryLabel ? (
-                    <Text modifiers={[foregroundStyle({ type: 'hierarchical', style: 'secondary' })]}>{row.categoryLabel}</Text>
+                    <Text modifiers={[secondaryForeground]}>{row.categoryLabel}</Text>
                   ) : null}
                 </VStack>
               </Button>

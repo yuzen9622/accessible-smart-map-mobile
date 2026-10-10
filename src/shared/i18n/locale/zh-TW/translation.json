@@ -455,7 +455,7 @@
   "homeShortcutsSettingsTitle": "首頁快捷方式",
   "homeShortcutsSettingsDesc": "選擇首頁要顯示哪些捷徑",
   "highContrast": "高對比模式",
-  "highContrastDesc": "黑底黃字、加粗文字，適合低視力使用者",
+  "highContrastDesc": "加強文字與分隔線對比，降低介面透明度",
   "a11yMode": "無障礙模式",
   "reviewTitle": "無障礙評價",
   "writeReview": "撰寫評價",

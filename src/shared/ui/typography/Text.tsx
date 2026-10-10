@@ -5,8 +5,17 @@ import {
 } from 'react-native';
 
 import { useFontScale } from '@/shared/preferences/useFontScale';
+import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
 
 const InsideText = createContext(false);
+
+/** Increase weak weights without reducing an existing bold heading. */
+function contrastWeight(style: StyleProp<TextStyle>, highContrast: boolean, nested = false): TextStyle {
+  if (!highContrast) return {};
+  const weight = StyleSheet.flatten(style)?.fontWeight;
+  if (nested && weight === undefined) return {};
+  return { fontWeight: weight === 'bold' || Number(weight) >= 600 ? weight : '600' };
+}
 
 /** Scale only typography; RN still applies the device's Dynamic Type setting. */
 function scaledStyle(style: StyleProp<TextStyle>, scale: number, nested = false): TextStyle {
@@ -22,10 +31,11 @@ function scaledStyle(style: StyleProp<TextStyle>, scale: number, nested = false)
 /** Use unscaled design sizes here. Existing `scaledSize` callers keep native Text. */
 export function Text({ style, children, ref, ...props }: TextProps & { ref?: Ref<NativeText> }) {
   const scale = useFontScale();
+  const highContrast = usePreferencesStore(s => s.highContrast);
   const nested = useContext(InsideText);
   return (
     <InsideText.Provider value>
-      <NativeText {...props} ref={ref} style={[style, scaledStyle(style, scale, nested)]}>
+      <NativeText {...props} ref={ref} style={[style, scaledStyle(style, scale, nested), contrastWeight(style, highContrast, nested)]}>
         {children}
       </NativeText>
     </InsideText.Provider>
@@ -34,6 +44,7 @@ export function Text({ style, children, ref, ...props }: TextProps & { ref?: Ref
 
 export function TextInput({ style, ref, ...props }: TextInputProps & { ref?: Ref<NativeTextInput> }) {
   const scale = useFontScale();
-  return <NativeTextInput {...props} ref={ref} style={[style, scaledStyle(style, scale)]} />;
+  const highContrast = usePreferencesStore(s => s.highContrast);
+  return <NativeTextInput {...props} ref={ref} style={[style, scaledStyle(style, scale), contrastWeight(style, highContrast)]} />;
 }
 

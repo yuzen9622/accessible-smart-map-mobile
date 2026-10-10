@@ -454,7 +454,7 @@
   "homeShortcutsSettingsTitle": "Home screen shortcuts",
   "homeShortcutsSettingsDesc": "Choose which shortcuts show on the home screen",
   "highContrast": "High Contrast",
-  "highContrastDesc": "Dark background with yellow text, bold fonts for low vision users",
+  "highContrastDesc": "Stronger text and separator contrast with reduced interface transparency",
   "a11yMode": "Accessibility Mode",
   "reviewTitle": "Accessibility Reviews",
   "writeReview": "Write a Review",

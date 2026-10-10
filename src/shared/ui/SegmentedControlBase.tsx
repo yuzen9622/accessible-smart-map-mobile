@@ -2,6 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, useThemeColors } from '@/shared/theme';
+import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
 
 import type { SegmentedControlProps } from './SegmentedControl.types';
 
@@ -18,6 +19,7 @@ interface BaseProps<T extends string> extends SegmentedControlProps<T> {
  */
 export default function SegmentedControlBase<T extends string>({ label, options, onSelect, variant }: BaseProps<T>) {
   const colors = useThemeColors();
+  const highContrast = usePreferencesStore(s => s.highContrast);
   const isDark = useColorScheme() === 'dark';
   const ios = variant === 'ios';
   const track = isDark ? 'rgba(118,118,128,0.24)' : 'rgba(120,120,128,0.12)';
@@ -27,10 +29,12 @@ export default function SegmentedControlBase<T extends string>({ label, options,
     <View
       accessibilityRole="radiogroup"
       accessibilityLabel={label}
-      style={[styles.track, { backgroundColor: track, borderRadius: ios ? RADIUS.small : RADIUS.pill }]}>
+      style={[styles.track, { backgroundColor: highContrast ? colors.backgroundElement : track, borderRadius: ios ? RADIUS.small : RADIUS.pill }]}>
       {options.map((option) => {
-        const selectedStyle = ios ? [styles.thumb, { backgroundColor: thumb }] : { backgroundColor: ACCENT_FILL };
-        const textColor = option.selected && !ios ? ON_ACCENT_FILL : colors.text;
+        const selectedStyle = highContrast ? { backgroundColor: colors.text }
+          : ios ? [styles.thumb, { backgroundColor: thumb }] : { backgroundColor: ACCENT_FILL };
+        const textColor = option.selected && highContrast ? colors.background
+          : option.selected && !ios ? ON_ACCENT_FILL : colors.text;
         return (
           <Pressable
             key={option.value}

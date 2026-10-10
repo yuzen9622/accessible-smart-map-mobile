@@ -1,5 +1,6 @@
 import Host from '@/shared/ui/typography/PreferenceHost.ios';
-import { Button, Form, Picker, RNHostView, SecureField, Section, Text, TextField } from '@expo/ui/swift-ui';
+import { Picker, RNHostView, SecureField, Text, TextField } from '@expo/ui/swift-ui';
+import { Button, Form, Section, useSecondaryForeground } from '@/shared/ui/form/PreferenceForm.ios';
 import {
   autocorrectionDisabled,
   bold,
@@ -20,17 +21,20 @@ import {
 } from '@expo/ui/swift-ui/modifiers';
 import { View, useWindowDimensions } from 'react-native';
 
+import { useSemanticColors } from '@/shared/theme';
 import { useAppTranslation } from '@/shared/i18n';
 import { FormPrimaryButton, FormSecondaryButton, KeyboardAvoidingHost } from '@/shared/ui';
 
 import AppleSignInButton from './AppleSignInButton';
 import type { AuthPanelProps } from './AuthPanel.types';
 
-const secondary = [font({ textStyle: 'footnote' }), foregroundStyle({ type: 'hierarchical', style: 'secondary' })];
-const errorStyle = [font({ textStyle: 'footnote' }), foregroundStyle('red')];
 
 /** iOS：SwiftUI Form（系統輸入框、自動填入密碼、Dynamic Type）。Apple 官方按鈕以 RNHostView 嵌入。 */
 export default function AuthPanel({ model }: AuthPanelProps) {
+  const tones = useSemanticColors();
+  const errorStyle = [font({ textStyle: 'footnote' }), foregroundStyle(tones.danger.fg)];
+  const secondaryForeground = useSecondaryForeground();
+  const secondary = [font({ textStyle: 'footnote' }), secondaryForeground];
   const { t } = useAppTranslation();
   // RNHostView matchContents 以子元件尺寸為準，百分比寬度會解析成 0：以視窗寬扣掉 Form 左右內距
   const { width } = useWindowDimensions();

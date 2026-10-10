@@ -1,15 +1,16 @@
 import Host from '@/shared/ui/typography/PreferenceHost.ios';
-import { Button, Form, LabeledContent, Picker, Section, Text, Toggle } from '@expo/ui/swift-ui';
-import { font, foregroundStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
+import { LabeledContent, Picker, Text, Toggle } from '@expo/ui/swift-ui';
+import { Button, Form, Section, useSecondaryForeground } from '@/shared/ui/form/PreferenceForm.ios';
+import { font, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';
 
 import type { SettingsPanelProps } from './SettingsPanel.types';
 
-const secondary = [font({ textStyle: 'footnote' }), foregroundStyle({ type: 'hierarchical', style: 'secondary' })];
-
 /** iOS：SwiftUI Form（系統設定 App 的外觀與互動）。所有字串都包在 `Text` 內（見 memory：裸字串會閃退）。 */
 export default function SettingsPanel({ model }: SettingsPanelProps) {
+  const secondaryForeground = useSecondaryForeground();
+  const secondary = [font({ textStyle: 'footnote' }), secondaryForeground];
   const { t } = useAppTranslation();
   return (
     <Host style={{ flex: 1 }}>

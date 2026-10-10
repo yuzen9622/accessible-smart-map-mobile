@@ -72,5 +72,13 @@ describe('語意色對比門檻（semanticColors）', () => {
     const { backgroundElement } = Colors[variant];
     expect(contrastRatio(palette.accent, backgroundElement)).toBeGreaterThanOrEqual(7);
     for (const tone of tones) expect(contrastRatio(palette[tone].fg, backgroundElement)).toBeGreaterThanOrEqual(7);
+    expect(contrastRatio(palette.separator, backgroundElement)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(palette.separator, Colors[variant].background)).toBeGreaterThanOrEqual(3);
+  });
+
+  it('高對比實心主按鈕與危險按鈕的白字 ≥ 7:1', () => {
+    const palette = semanticColors(false, true);
+    expect(contrastRatio(palette.accent, '#FFFFFF')).toBeGreaterThanOrEqual(7);
+    expect(contrastRatio(palette.danger.fg, '#FFFFFF')).toBeGreaterThanOrEqual(7);
   });
 });

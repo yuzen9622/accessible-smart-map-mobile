@@ -1,14 +1,15 @@
-import { Button, Form, HStack, LabeledContent, ProgressView, Section, Spacer, Text, TextField, VStack } from '@expo/ui/swift-ui';
-import { buttonStyle, disabled, font, foregroundStyle, onSubmit, submitLabel, textContentType } from '@expo/ui/swift-ui/modifiers';
+import { HStack, LabeledContent, ProgressView, Spacer, Text, TextField, VStack } from '@expo/ui/swift-ui';
+import { Button, Form, Section, useSecondaryForeground } from '@/shared/ui/form/PreferenceForm.ios';
+import { buttonStyle, disabled, font, onSubmit, submitLabel, textContentType } from '@expo/ui/swift-ui/modifiers';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { FormPrimaryButton, KeyboardAvoidingHost } from '@/shared/ui';
 
 import type { EmergencyContactsPanelProps } from './EmergencyContactsPanel.types';
 
-const secondary = [font({ textStyle: 'footnote' }), foregroundStyle({ type: 'hierarchical', style: 'secondary' })];
-
 export default function EmergencyContactsPanel({ model }: EmergencyContactsPanelProps) {
+  const secondaryForeground = useSecondaryForeground();
+  const secondary = [font({ textStyle: 'footnote' }), secondaryForeground];
   const { t } = useAppTranslation();
   return (
     <KeyboardAvoidingHost>

@@ -1,5 +1,6 @@
 import Host from '@/shared/ui/typography/PreferenceHost.ios';
-import { Form, Section, Text, Toggle } from '@expo/ui/swift-ui';
+import { Text, Toggle } from '@expo/ui/swift-ui';
+import { Form, Section } from '@/shared/ui/form/PreferenceForm.ios';
 
 import type { NeedsPanelProps } from './NeedsPanel.types';
 

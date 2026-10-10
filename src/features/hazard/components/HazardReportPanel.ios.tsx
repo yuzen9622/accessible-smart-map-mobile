@@ -1,5 +1,6 @@
-import { Button, Form, Picker, RNHostView, Section, Text, TextField, useNativeState } from '@expo/ui/swift-ui';
-import { font, foregroundStyle, lineLimit, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
+import { Picker, RNHostView, Text, TextField, useNativeState } from '@expo/ui/swift-ui';
+import { Button, Form, Section, useSecondaryForeground } from '@/shared/ui/form/PreferenceForm.ios';
+import { font, lineLimit, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { Image } from 'expo-image';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 
@@ -9,8 +10,6 @@ import { FormPrimaryButton, KeyboardAvoidingHost } from '@/shared/ui';
 import HazardReportResult from './HazardReportResult';
 import type { HazardReportPanelProps } from './HazardReportPanel.types';
 
-const secondary = [font({ textStyle: 'footnote' }), foregroundStyle({ type: 'hierarchical', style: 'secondary' })];
-
 /** iOS：SwiftUI Form；照片預覽以 RNHostView 嵌入 expo-image。 */
 export default function HazardReportPanel({ model }: HazardReportPanelProps) {
   if (model.result) return <HazardReportResult model={model} result={model.result} />;
@@ -19,6 +18,8 @@ export default function HazardReportPanel({ model }: HazardReportPanelProps) {
 }
 
 function ReportForm({ model }: HazardReportPanelProps) {
+  const secondaryForeground = useSecondaryForeground();
+  const secondary = [font({ textStyle: 'footnote' }), secondaryForeground];
   const { t } = useAppTranslation();
   const descriptionState = useNativeState(model.description);
   // RNHostView matchContents 以子元件尺寸為準，百分比寬度會解析成 0：以視窗寬扣掉 Form 左右內距

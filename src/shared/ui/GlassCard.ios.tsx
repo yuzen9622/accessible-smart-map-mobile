@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 
 import { useThemeColors } from '@/shared/theme';
+import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
 
 import type { GlassCardProps } from './GlassCard.types';
 
@@ -12,6 +13,7 @@ import type { GlassCardProps } from './GlassCard.types';
  */
 export default function GlassCard({ children, style, interactive = false }: GlassCardProps) {
   const colors = useThemeColors();
+  const highContrast = usePreferencesStore(s => s.highContrast);
   const [reduceTransparency, setReduceTransparency] = useState(false);
 
   useEffect(() => {
@@ -32,8 +34,10 @@ export default function GlassCard({ children, style, interactive = false }: Glas
     };
   }, []);
 
-  if (!isLiquidGlassAvailable() || reduceTransparency) {
-    return <View style={[styles.card, styles.opaque, { backgroundColor: colors.background }, style]}>{children}</View>;
+  if (highContrast || !isLiquidGlassAvailable() || reduceTransparency) {
+    return <View style={[styles.card, styles.opaque, { backgroundColor: colors.background }, style,
+      highContrast && { backgroundColor: colors.background, borderColor: colors.textSecondary, borderWidth: 1 },
+    ]}>{children}</View>;
   }
   return (
     <GlassView glassEffectStyle="regular" isInteractive={interactive} style={[styles.card, style]}>

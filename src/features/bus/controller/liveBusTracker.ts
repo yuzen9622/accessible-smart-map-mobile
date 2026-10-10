@@ -2,7 +2,7 @@ import type { BusLeg } from '@/features/route';
 
 import { fetchRouteDetailCached } from '../api/busRouteDetailCache';
 import { getBusArrival, getLiveBusPositions } from '../api/transit';
-import { matchesSelection, pickNextArrival, type RideSelection } from '../domain/busDirections';
+import { matchesSelection, type RideSelection } from '../domain/busDirections';
 import { equalStopName, resolveCurrentStopSeq, resolveLegRide } from '../domain/busLegStops';
 import type { LiveBus, RouteDetailStop } from '../types/transit';
 
@@ -17,32 +17,6 @@ import type { LiveBus, RouteDetailStop } from '../types/transit';
  */
 export function tdxRouteName(leg: BusLeg): string {
   return leg.subRouteName ?? leg.routeName;
-}
-
-interface ArrivalTarget {
-  /** 上車站下一班車的車牌（與 {@link eta} 來自同一筆到站紀錄）。 */
-  plate?: string;
-  /** 本 leg 這組站序在上車站最快的 ETA（分鐘）。 */
-  eta: number | null;
-}
-
-/**
- * 從到站（ETA）資料找上車站的下一班車。後端已把 TDX 車牌帶進每筆到站資料，所以最快的那筆
- * 同時告訴我們「何時來」與「哪一台」——這是鎖定「你要搭的那台車」最可靠的方式。
- * 站名、支線、方向都要和乘車區間吻合，ETA 必須是合法的非負數；查詢失敗不沿用任何舊值。
- */
-async function fetchArrival(leg: BusLeg, selection: RideSelection, signal: AbortSignal): Promise<ArrivalTarget> {
-  try {
-    const res = await getBusArrival(
-      { routeName: tdxRouteName(leg), stopName: leg.departureStop, direction: selection.direction, city: leg.tdxCity },
-      signal,
-    );
-    if (!res.ok || !res.data?.arrivals) return { eta: null };
-    const next = pickNextArrival(res.data.arrivals, leg.departureStop, selection);
-    return next ? { plate: next.plateNumb, eta: next.estimateMinutes } : { eta: null };
-  } catch {
-    return { eta: null };
-  }
 }
 
 /**
@@ -68,7 +42,7 @@ function hasPassedBoardingStop(stops: RouteDetailStop[], bus: { lat: number; lng
   return board != null && seq > board;
 }
 
-/** 上車站下一班車的 ETA：與 {@link LegSnapshot.buses} 同一輪查詢，沒有可確定的紀錄時為 null。 */
+/** 後端配對之規劃班次在上車站的 ETA：與 {@link LegSnapshot.buses} 同一輪查詢，沒有可確定的紀錄時為 null。 */
 export interface LegArrival {
   eta: number | null;
   /** 與 {@link eta} 同一筆到站紀錄的車牌；TDX 尚未派車時沒有。 */
@@ -84,33 +58,35 @@ const NO_ARRIVAL: LegArrival = { eta: null };
 
 /** 實際營運的支線與方向（GTFS 方向不可信）；認不出唯一乘車區間就回 null。 */
 async function resolveSelection(leg: BusLeg): Promise<{ selection: RideSelection; stops: RouteDetailStop[] } | null> {
+  if (!leg.planContext) return null;
   // route-detail 已被站序預熱，通常是讀快取。
   const city = leg.tdxCity ?? leg.cityCode ?? '';
-  const directions = city ? await fetchRouteDetailCached(tdxRouteName(leg), city) : null;
+  const directions = city ? await fetchRouteDetailCached(tdxRouteName(leg), city, { subRouteUid: leg.subRouteUid, planContext: leg.planContext }) : null;
   const ride = resolveLegRide(directions ?? undefined, leg);
   if (!ride) return null;
   // 站序資料沒有帶支線 ID 時，退回規劃器訂的那一支：回傳紀錄若自稱別的支線就能被排除。
   return {
-    selection: { direction: ride.direction, subRouteUid: ride.subRouteUid ?? leg.subRouteUid, exclusive: ride.exclusive },
+    selection: { direction: ride.direction, subRouteUid: ride.subRouteUid ?? leg.subRouteUid, exclusive: false },
     stops: ride.stops,
   };
 }
 
 /**
- * 解析本 leg 使用者要搭的那一台車，連同上車站的下一班 ETA。無法鎖定車牌時 `buses` 為空陣列：認不出來的車比沒有更糟，
- * 因為「這條線上的某台車」的 marker 會被讀成「你的車」；但 ETA 不需要車牌（尚未發車的班次也有），照樣回報。
+ * 解析本 leg 使用者要搭的那一台車，連同該班次在上車站的 ETA。無法鎖定車牌時 `buses` 為空陣列：認不出來的車比沒有更糟，
+ * 因為「這條線上的某台車」的 marker 會被讀成「你的車」；ETA 只採後端已確認的班次；未確認時由介面顯示原定時刻。
  */
 export async function fetchLegSnapshot(leg: BusLeg, signal: AbortSignal): Promise<LegSnapshot> {
   // 認不出唯一乘車區間（重複站名、多個候選、缺資料、方向未知）就不追車：保留排程，不猜。
+  if (signal.aborted) return { buses: [], arrival: NO_ARRIVAL };
   const resolved = await resolveSelection(leg);
-  if (!resolved) return { buses: [], arrival: NO_ARRIVAL };
+  if (!resolved || signal.aborted) return { buses: [], arrival: NO_ARRIVAL };
   const { selection, stops } = resolved;
 
-  // ETA 與位置互相獨立，一起跑。
-  const [arrival, posRes] = await Promise.all([
-    fetchArrival(leg, selection, signal),
-    getLiveBusPositions({ routeName: tdxRouteName(leg), city: leg.tdxCity, direction: selection.direction }, signal),
-  ]);
+  const board = stops[0];
+  const arrival = { plate: board?.plateNumb, eta: board?.estimateMinutes ?? null };
+  if (!arrival.plate || arrival.eta === null) return { buses: [], arrival: NO_ARRIVAL };
+  const posRes = await getLiveBusPositions({ routeName: tdxRouteName(leg), city: leg.tdxCity, direction: selection.direction }, signal);
+  if (signal.aborted) return { buses: [], arrival: NO_ARRIVAL };
   const legArrival: LegArrival = arrival.plate ? { eta: arrival.eta, plate: arrival.plate } : { eta: arrival.eta };
 
   if (!posRes.ok || !posRes.data?.buses?.length) return { buses: [], arrival: legArrival };

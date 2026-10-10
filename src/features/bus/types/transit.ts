@@ -23,6 +23,8 @@ export type BusDirection = 0 | 1 | 2 | 10 | 255;
 export type TrackableBusDirection = Exclude<BusDirection, 255>;
 
 export interface RouteDetailStop {
+  plateNumb?: string;
+  stopUid?: string;
   seq: number;
   name: string;
   lat: number;

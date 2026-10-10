@@ -22,6 +22,7 @@ jest.mock('../liveBusTracker', () => ({
 const always: VisibilitySource = { isActive: () => true, subscribe: () => () => {} };
 
 const leg: BusLeg = {
+  planContext: { routeToken: 'plan', legIndex: 1 },
   type: 'BUS',
   routeName: '99',
   subRouteName: '99延',
@@ -59,7 +60,7 @@ describe('watchLegStopEtas', () => {
     const updates: LegEtaSnapshot[] = [];
     const stop = watchLegStopEtas(leg, false, (s) => updates.push(s), always);
     await flush();
-    expect(mockGetBusRouteDetail).toHaveBeenCalledWith('99延', 'Taichung', undefined, undefined);
+    expect(mockGetBusRouteDetail).toHaveBeenCalledWith('99延', 'Taichung', undefined, undefined, leg.planContext);
     expect(updates.map((u) => u.status)).toEqual(['loading', 'ready']);
     expect(peekLegEtas(leg).status).toBe('ready');
     stop();
@@ -84,7 +85,7 @@ describe('watchLegStopEtas', () => {
     stop();
   });
 
-  it('keeps the static stops but drops the stale ETA when a refresh fails', async () => {
+  it('clears failed live results so the UI falls back to the original schedule', async () => {
     mockGetBusRouteDetail
       .mockResolvedValueOnce({ ok: true, data: { directions } })
       .mockRejectedValueOnce(new Error('network'));
@@ -94,7 +95,7 @@ describe('watchLegStopEtas', () => {
     jest.advanceTimersByTime(STOP_ETA_POLL_MS);
     await flush();
     expect(updates.at(-1)).toEqual({
-      directions: [{ direction: 0, stops: [{ seq: 0, name: 'A', lat: 24, lng: 120, estimateMinutes: null, statusLabel: '' }] }],
+      directions: null,
       status: 'error',
     });
     stop();

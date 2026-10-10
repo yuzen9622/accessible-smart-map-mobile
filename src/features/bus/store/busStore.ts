@@ -25,7 +25,7 @@ export interface ActiveBusLeg {
   boarded?: { plate: string | null };
 }
 
-/** 導航用的即時分鐘數：等車時是上車站下一班，已上車時是使用者那台車到下車站；查不到為 null。 */
+/** 導航用的即時分鐘數：等車時是規劃班次到上車站，已上車時是使用者那台車到下車站；查不到為 null。 */
 export interface LegArrival {
   stop: 'board' | 'alight';
   eta: number | null;
@@ -68,5 +68,5 @@ export const useBusStore = create<BusState>()((set) => ({
  * 重新規劃後選中的永遠是 index 0，只看位置會把新路線的 leg 當成舊的，繼續追上一組路線的車。
  */
 export function busLegKey(route: AccessibleRoute, routeIndex: number, legIndex: number, leg: BusLeg): string {
-  return [route.routeId, routeIndex, legIndex, leg.subRouteName ?? leg.routeName, leg.direction, leg.departureStop].join(':');
+  return [route.routeToken, route.routeId, routeIndex, legIndex, leg.subRouteName ?? leg.routeName, leg.direction, leg.departureStop].join(':');
 }

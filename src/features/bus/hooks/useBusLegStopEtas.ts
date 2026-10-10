@@ -15,7 +15,7 @@ const IDLE: LegEtaSnapshot = { directions: null, status: 'idle' };
  * 只在「路線名稱＋城市」或啟用狀態變化時重啟；同一段 leg 物件重建不重啟（Web 用 legRef 做同一件事）。
  */
 export function useBusLegStopEtas(leg: BusLeg | null, enabled: boolean, poll: boolean): LegEtaSnapshot {
-  const key = leg ? `${leg.tdxCity ?? leg.cityCode ?? ''}::${leg.subRouteName ?? leg.routeName}` : '';
+  const key = leg ? JSON.stringify([leg.tdxCity ?? leg.cityCode, leg.subRouteName ?? leg.routeName, leg.subRouteUid, leg.planContext?.routeToken, leg.planContext?.legIndex]) : '';
   // snapshot 連同它屬於哪條路線一起存：換 leg 的第一個 render 不能回傳上一條路線的站序。
   const [state, setState] = useState<{ key: string; snapshot: LegEtaSnapshot }>(() => ({ key, snapshot: peekLegEtas(leg) }));
   const legRef = useRef(leg);

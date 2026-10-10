@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { getLegColor, type AccessibleRoute, type BusLeg } from '@/features/route/domain';
@@ -33,8 +34,9 @@ export interface BusLegStopsProps {
  * 路線徽章、等候徽章、上車／下車列與可展開的中途站。展開才把這段 leg 設成 `activeBusLeg`
  * （啟動即時車輛與逐站 ETA 輪詢）；收合時只有這段仍是 active 才清掉，避免蓋掉別段的展開。
  */
-export default function BusLegStops({ route, routeIndex, legIndex, leg }: BusLegStopsProps) {
+export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg }: BusLegStopsProps) {
   const { t } = useAppTranslation();
+  const leg = useMemo(() => ({ ...rawLeg, planContext: route.routeToken ? { routeToken: route.routeToken, legIndex } : undefined }), [rawLeg, route.routeToken, legIndex]);
   const colors = useThemeColors();
   const isDark = useColorScheme() === 'dark';
   const key = busLegKey(route, routeIndex, legIndex, leg);
@@ -69,7 +71,7 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg }: BusLeg
   };
 
   const waitText = resolveWaitText(leg.waitInfo);
-  const liveEta = expanded ? resolveLiveEta(targetBus?.estimateTime) : null;
+  const liveEta = expanded ? resolveLiveEta(rows?.[0]?.estimateMinutes) : null;
 
   const renderEndpoint = (label: string, name: string, plannedTime: string | undefined, live: typeof liveEta) => {
     const liveText = live ? t(live.key, live.params) : null;
@@ -153,7 +155,7 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg }: BusLeg
         </View>
       ) : null}
 
-      {renderEndpoint(t('alight'), leg.arrivalStop, leg.arrivalTime, null)}
+      {renderEndpoint(t('alight'), leg.arrivalStop, leg.arrivalTime, expanded ? resolveLiveEta(rows?.at(-1)?.estimateMinutes) : null)}
 
       {leg.nearestBus ? (
         <Text style={[styles.nearest, { color: pillToneStyle('ok', isDark).color }]}>

@@ -30,7 +30,9 @@
         "EXPO_PUBLIC_END_POINT": "https://map.yuzen.dev",
         "EXPO_PUBLIC_SHARE_BASE_URL": "https://map.yuzen.dev",
         "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://map.yuzen.dev/zh-TW/policies/privacy-policy",
-        "EXPO_PUBLIC_TERMS_URL": "https://map.yuzen.dev/zh-TW/policies/terms-of-use"
+        "EXPO_PUBLIC_TERMS_URL": "https://map.yuzen.dev/zh-TW/policies/terms-of-use",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "953122204824-qdgsaflqssbcij82oa2ri6dvmc1ug1ak.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "953122204824-3c0nbcp4s28260g2v5or2nk3455n84gf.apps.googleusercontent.com"
       }
     },
     "testflight-dev": {
@@ -41,7 +43,9 @@
         "EXPO_PUBLIC_END_POINT": "https://map-dev.yuzen.dev",
         "EXPO_PUBLIC_SHARE_BASE_URL": "https://map-dev.yuzen.dev",
         "EXPO_PUBLIC_PRIVACY_POLICY_URL": "https://map-dev.yuzen.dev/zh-TW/policies/privacy-policy",
-        "EXPO_PUBLIC_TERMS_URL": "https://map-dev.yuzen.dev/zh-TW/policies/terms-of-use"
+        "EXPO_PUBLIC_TERMS_URL": "https://map-dev.yuzen.dev/zh-TW/policies/terms-of-use",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "953122204824-qdgsaflqssbcij82oa2ri6dvmc1ug1ak.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "953122204824-3c0nbcp4s28260g2v5or2nk3455n84gf.apps.googleusercontent.com"
       }
     }
   },

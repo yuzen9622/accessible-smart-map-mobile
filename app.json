@@ -183,6 +183,12 @@
       ],
       "expo-apple-authentication",
       [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.953122204824-3c0nbcp4s28260g2v5or2nk3455n84gf"
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "cameraPermission": "回報障礙物時用相機拍攝現場照片。The camera is used to take a photo of the hazard you are reporting.",

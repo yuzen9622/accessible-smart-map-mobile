@@ -92,7 +92,12 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
 
         <Section title={t('settingsEmergencyTitle')} footer={<Text>{t('settingsEmergencyDesc')}</Text>}>
           <Button label={t('sosContactsManageTitle')} onPress={model.openContacts} />
+        </Section>
+
+        <Section title={t('notification')} footer={<Text>{t('nativePushDescription')}</Text>}>
           <Toggle label={t('notification')} isOn={model.notifications} onIsOnChange={model.setNotifications} />
+          <Text modifiers={secondary}>{model.notificationStatusText}</Text>
+          {model.notificationAction ? <Button label={model.notificationActionLabel} onPress={model.notificationAction} /> : null}
         </Section>
 
         <Section title={t('nativeSettingsReports')}>

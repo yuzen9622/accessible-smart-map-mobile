@@ -593,8 +593,8 @@
     "medical": "醫療",
     "other": "其他"
   },
-  "notificationUnsupported": "此瀏覽器不支援通知功能",
-  "notificationBlocked": "通知權限已被瀏覽器封鎖，請至瀏覽器設定開啟",
+  "notificationUnsupported": "此裝置目前無法使用推播通知。",
+  "notificationBlocked": "通知權限已關閉，請至手機系統設定開啟。",
   "shareLocation": "分享位置",
   "moreControls": "更多控制項",
   "switchTo3D": "切換為 3D 視角",
@@ -1508,5 +1508,18 @@
   "nativeTransit_none": "無乘車偏好",
   "nativeTransit_bus": "偏好公車",
   "nativeTransit_rail": "偏好鐵路",
-  "nativeTransit_metro": "偏好捷運"
+  "nativeTransit_metro": "偏好捷運",
+  "nativePushDescription": "接收 SOS 狀態更新與危險通報審核結果。審核詳情須登入後查看。",
+  "nativePushStatus_idle": "通知狀態待確認。",
+  "nativePushStatus_syncing": "正在同步通知設定…",
+  "nativePushStatus_registered": "已完成通知註冊。",
+  "nativePushStatus_disabled": "已關閉推播通知。",
+  "nativePushStatus_signedOut": "請登入以接收 SOS 與自己的通報結果。",
+  "nativePushStatus_denied": "通知權限已關閉，請至手機系統設定開啟。",
+  "nativePushStatus_undetermined": "尚未允許通知，請重試並允許手機通知權限。",
+  "nativePushStatus_tokenError": "無法取得此裝置的推播識別，請檢查網路後重試。",
+  "nativePushStatus_registrationError": "通知尚未註冊成功，請檢查網路後重試。",
+  "nativePushStatus_unregisterError": "尚未完成通知註銷，仍可能收到通知，請連線後重試。",
+  "myReportUnavailable": "此通報已無法查看，或不屬於目前登入帳號。",
+  "myReportUnavailableTitle": "無法查看此通報"
 }

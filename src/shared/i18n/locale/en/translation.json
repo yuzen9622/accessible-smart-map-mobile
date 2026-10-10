@@ -592,8 +592,8 @@
     "medical": "Medical",
     "other": "Other"
   },
-  "notificationUnsupported": "Notifications are not supported in this browser",
-  "notificationBlocked": "Notifications are blocked — enable them in your browser settings",
+  "notificationUnsupported": "Push notifications are currently unavailable on this device.",
+  "notificationBlocked": "Notifications are blocked. Enable them in your phone’s system settings.",
   "shareLocation": "Share Location",
   "moreControls": "More Controls",
   "switchTo3D": "Switch to 3D view",
@@ -1537,5 +1537,18 @@
   "nativeTransit_none": "No transit preference",
   "nativeTransit_bus": "Prefer bus",
   "nativeTransit_rail": "Prefer rail",
-  "nativeTransit_metro": "Prefer metro"
+  "nativeTransit_metro": "Prefer metro",
+  "nativePushDescription": "Receive SOS updates and hazard report review results. Sign in to view review details.",
+  "nativePushStatus_idle": "Notification status has not been checked yet.",
+  "nativePushStatus_syncing": "Syncing notification settings…",
+  "nativePushStatus_registered": "Notifications are registered.",
+  "nativePushStatus_disabled": "Push notifications are off.",
+  "nativePushStatus_signedOut": "Sign in to receive SOS updates and your report results.",
+  "nativePushStatus_denied": "Enable notification permission in your phone’s system settings.",
+  "nativePushStatus_undetermined": "Notification permission is needed. Retry and allow notifications.",
+  "nativePushStatus_tokenError": "Could not obtain this device’s push token. Check your connection and retry.",
+  "nativePushStatus_registrationError": "Notification registration failed. Check your connection and retry.",
+  "nativePushStatus_unregisterError": "Unregistration failed; notifications may still arrive. Reconnect and retry.",
+  "myReportUnavailable": "This report is unavailable or does not belong to the signed-in account.",
+  "myReportUnavailableTitle": "Report unavailable"
 }

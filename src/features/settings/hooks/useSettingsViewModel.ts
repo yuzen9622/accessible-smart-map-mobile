@@ -1,10 +1,11 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { openBrowserAsync } from 'expo-web-browser';
+import { useRef } from 'react';
 import { AccessibilityInfo, Alert, Linking, Platform } from 'react-native';
 
 import { runAccountDeletion, selectIsLoggedIn, signOut, useAuthStore } from '@/features/auth';
-import { requestPushPermission, syncPushToken } from '@/features/notifications';
+import { requestPushPermission, syncPushToken, usePushStatus } from '@/features/notifications';
 import { useOnboardingStore } from '@/features/onboarding';
 import { getAppConfig } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
@@ -30,6 +31,8 @@ export function useSettingsViewModel() {
   const loggedIn = useAuthStore(selectIsLoggedIn);
   const user = useAuthStore((s) => s.user);
   const prefs = usePreferencesStore();
+  const pushStatus = usePushStatus((s) => s.status);
+  const notificationAttempt = useRef(0);
   const situations = useOnboardingStore((s) => s.profile.situations);
 
   const requireLogin = (action: () => void) => () => {
@@ -106,14 +109,19 @@ export function useSettingsViewModel() {
   };
 
   const setNotifications = (enabled: boolean) => {
+    const attempt = ++notificationAttempt.current;
+    const session = useAuthStore.getState().session;
     if (!enabled) {
       prefs.setPreferences({ notifications: false });
+      void syncPushToken();
       return;
     }
     const run = async () => {
       try {
         const status = await requestPushPermission();
+        if (attempt !== notificationAttempt.current || useAuthStore.getState().session !== session) return;
         if (status !== 'granted') {
+          usePushStatus.setState({ status });
           prefs.setPreferences({ notifications: false });
           Alert.alert(t('notificationBlocked'), undefined, [
             { text: t('cancel'), style: 'cancel' },
@@ -122,14 +130,20 @@ export function useSettingsViewModel() {
           return;
         }
         prefs.setPreferences({ notifications: true });
-        await syncPushToken(loggedIn);
-      } catch (error) {
-        logger.warn('[settings] enable notifications failed', error);
-        prefs.setPreferences({ notifications: false });
+        await syncPushToken();
+      } catch {
+        if (attempt !== notificationAttempt.current || useAuthStore.getState().session !== session) return;
+        usePushStatus.setState({ status: 'tokenError' });
       }
     };
     void run();
   };
+  const notificationStatus = !loggedIn && prefs.notifications && pushStatus !== 'unregisterError'
+    ? 'signedOut' : pushStatus;
+  const notificationAction = notificationStatus === 'denied' ? () => void Linking.openSettings()
+    : notificationStatus === 'signedOut' ? () => router.navigate('/auth')
+    : notificationStatus === 'undetermined' ? () => setNotifications(true)
+    : ['tokenError', 'registrationError', 'unregisterError'].includes(notificationStatus) ? () => void syncPushToken() : null;
 
   const themeChoices: Choice<ThemeMode>[] = [
     { value: 'system', label: t('nativeThemeSystem') },
@@ -176,6 +190,9 @@ export function useSettingsViewModel() {
     setLanguage: (value: LanguagePreference) => prefs.setPreferences({ language: value }),
     notifications: prefs.notifications,
     setNotifications,
+    notificationStatusText: t(`nativePushStatus_${notificationStatus}`),
+    notificationAction,
+    notificationActionLabel: t(notificationStatus === 'denied' ? 'nativeOpenSettings' : notificationStatus === 'signedOut' ? 'loginRegisterCta' : 'retry'),
     memoryEnabled: prefs.memoryEnabled,
 
     needsSummary:

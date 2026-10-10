@@ -28,6 +28,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="needs" options={{ title: t('nativeSettingsNeeds') }} />
       <Stack.Screen name="memory" options={{ title: t('aiMemoryTitle') }} />
       <Stack.Screen name="data" options={{ title: t('settingsDataTitle') }} />
+      <Stack.Screen name="blocked-users" options={{ title: t('contentBlocks') }} />
       <Stack.Screen name="reports" options={{ title: t('nativeMyReports') }} />
       <Stack.Screen name="report/[id]" options={{ title: t('reportDetailEyebrow') }} />
     </Stack>

@@ -140,6 +140,7 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
       {/* 倒數與求救中不可滑動關閉（防誤觸，SDD §6.8）；畫面內有「關閉畫面（SOS 持續）」按鈕 */}
       <Stack.Screen name="sos" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: !sosInProgress }} />
       <Stack.Screen name="hazard-report" options={{ presentation: 'modal', headerShown: true, title: t('hazardReport') }} />
+      <Stack.Screen name="content-report" options={{ presentation: 'modal', headerShown: true, title: t('contentReport'), headerLeft: () => <HeaderCloseButton /> }} />
       <Stack.Screen name="review" options={{ presentation: 'modal', headerShown: true }} />
       {/* 聊天只有一個：已開著時再開（深層連結 `chat?q=`）沿用同一個 modal，只換預填問題 */}
       <Stack.Screen name="chat" dangerouslySingular={() => 'chat'} options={{ presentation: 'modal', headerShown: true }} />

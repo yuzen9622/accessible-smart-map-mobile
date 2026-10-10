@@ -202,6 +202,7 @@ export function useSettingsViewModel() {
     openNeeds: () => router.navigate('/settings/needs'),
     openContacts: requireLogin(() => router.navigate('/settings/contacts')),
     openMemory: () => router.navigate('/settings/memory'),
+    openBlocks: requireLogin(() => router.navigate('/settings/blocked-users')),
     openReports: requireLogin(() => router.navigate('/settings/reports')),
     openData: () => router.navigate('/settings/data'),
     // 清掉完成旗標後，地圖主畫面（`app/index.tsx`）的 effect 會自動開 onboarding。

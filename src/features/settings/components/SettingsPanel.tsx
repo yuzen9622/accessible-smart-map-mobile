@@ -52,6 +52,7 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
       </FormSection>
 
       <FormSection title={t('nativeSettingsReports')}>
+        <FormRow label={t('contentBlocks')} onPress={model.openBlocks} />
         <FormRow label={t('nativeMyReports')} onPress={model.openReports} />
       </FormSection>
 

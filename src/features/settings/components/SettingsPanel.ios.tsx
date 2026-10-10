@@ -101,6 +101,7 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
         </Section>
 
         <Section title={t('nativeSettingsReports')}>
+          <Button label={t('contentBlocks')} onPress={model.openBlocks} />
           <Button label={t('nativeMyReports')} onPress={model.openReports} />
         </Section>
 

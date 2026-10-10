@@ -120,7 +120,16 @@ export function createVoiceBindings(sinks: BindingSinks): VoiceBindings {
     if (isRouteTool(event.name) && (!call || !event.turnId || call.turnId !== event.turnId || call.name !== event.name || call.generation !== (sinks.getRouteGeneration?.() ?? 0))) {
       sinks.onRouteError?.(); return;
     }
-    if (isRouteTool(event.name) && (event.result == null || event.ok === false)) { sinks.onRouteError?.(); return; }
+    // A correlated tool failure is still a valid response. Gemini receives the
+    // same failure and can explain it or ask for the missing starting point.
+    // Reject malformed/stale successes below, but do not hang up on business errors.
+    if (isRouteTool(event.name) && (event.ok === false ||
+        (typeof event.result === 'object' && event.result !== null && 'ok' in event.result && event.result.ok === false))) {
+      if (event.callId) applied.add(event.callId);
+      sinks.publishTool({ ...event, ok: false, result: undefined, args: undefined, summary: undefined });
+      return;
+    }
+    if (isRouteTool(event.name) && event.result == null) { sinks.onRouteError?.(); return; }
     try {
       if (event.result != null) {
         for (const action of mapToolToActions(event.name, event.result, event.args, sinks.t)) {

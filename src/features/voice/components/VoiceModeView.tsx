@@ -17,7 +17,7 @@ import { useFontScale } from '@/shared/preferences';
 import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
-import { dismissVoiceSession, endVoiceSession, retryRouteContextSync, resumeVoicePlayback, toggleVoiceMute } from '../controller/voiceController';
+import { dismissVoiceSession, endVoiceSession, startVoiceSession, retryRouteContextSync, resumeVoicePlayback, toggleVoiceMute } from '../controller/voiceController';
 import { waveformLevelSource, waveformMode } from '../domain/audioLevel';
 import { getVoiceStatusLabel, isTerminalVoiceStatus } from '../domain/voiceStatus';
 import { voiceLevelFor } from '../store/voiceLevels';
@@ -223,12 +223,12 @@ export default function VoiceModeView() {
           {activeTool ? (
             <View accessibilityLiveRegion="polite" style={styles.tool}>
               <Icon
-                name={activeTool.type === 'call' ? 'loader' : 'check'}
+                name={activeTool.type === 'call' ? 'loader' : activeTool.ok === false ? 'alert' : 'check'}
                 size={14}
-                color={activeTool.type === 'call' ? colors.textSecondary : tones.ok.fg}
+                color={activeTool.type === 'call' ? colors.textSecondary : activeTool.ok === false ? tones.warn.fg : tones.ok.fg}
               />
-              <Text numberOfLines={1} style={[styles.toolText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
-                {activeTool.type === 'call' ? toolLoadingLabel(activeTool.name, t) : toolDoneLabel(activeTool.name, t)}
+              <Text style={[styles.toolText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
+                {activeTool.type === 'call' ? toolLoadingLabel(activeTool.name, t) : activeTool.ok === false ? t('chatbot.voice.toolFailed') : toolDoneLabel(activeTool.name, t)}
               </Text>
             </View>
           ) : null}
@@ -301,14 +301,26 @@ export default function VoiceModeView() {
       {routeSyncState === 'error' && !terminal ? <Pressable accessibilityRole="button" onPress={retryRouteContextSync}><Text style={{ color: colors.text }}>{t('retry')}</Text></Pressable> : null}
       <Animated.View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, 12) }, controlsStyle]}>
         {terminal ? (
-          <ControlButton
-            icon="close"
-            label={t('close')}
-            accessibilityLabel={t('close')}
-            onPress={dismissVoiceSession}
-            background={tones.neutral.bg}
-            foreground={colors.text}
-          />
+          <>
+            {status.status === 'error' ? (
+              <ControlButton
+                icon="refresh"
+                label={t('retry')}
+                accessibilityLabel={t('retry')}
+                onPress={() => startVoiceSession(t)}
+                background={tones.accentSoft}
+                foreground={tones.accent}
+              />
+            ) : null}
+            <ControlButton
+              icon="close"
+              label={t('close')}
+              accessibilityLabel={t('close')}
+              onPress={dismissVoiceSession}
+              background={tones.neutral.bg}
+              foreground={colors.text}
+            />
+          </>
         ) : (
           <>
             <ControlButton

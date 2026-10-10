@@ -51,7 +51,9 @@ describe('getVoiceStatusLabel', () => {
   it('uses close-code specific copy for error', () => {
     const label = (s: VoiceStatus) => getVoiceStatusLabel(s, t);
     expect(label({ status: 'error', code: 4409 })).toBe('已在其他裝置開啟語音對話');
-    expect(label({ status: 'error', code: 'LIVE_SESSION_ENDED' })).toBe('對話已逾時，請重新開始');
+    expect(label({ status: 'error', code: 'LIVE_SESSION_ENDED' })).toBe('語音連線已中斷，請重試');
+    expect(label({ status: 'error', code: 'LIVE_CONNECT_FAILED' })).toBe('語音暫時無法使用');
+    expect(label({ status: 'error', code: 'ROUTE_RESPONSE_INVALID' })).toBe('無法確認這次路線結果，請重試語音');
     expect(label({ status: 'error', code: 1011 })).toBe('語音暫時無法使用');
     expect(label({ status: 'error', code: 'MIC_UNAVAILABLE' })).toBe('無法使用麥克風');
     expect(label({ status: 'error', code: 4408 })).toBe('發生錯誤，請稍後再試');

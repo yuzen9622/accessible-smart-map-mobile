@@ -373,8 +373,6 @@ const CLOSE_SERVER_ERROR = 1011;
 const CLOSE_ABNORMAL = 1006;
 const CLOSE_NAV_TURN_TIMEOUT = 4410;
 
-const REASON_LIVE_SESSION_ENDED = 'live-session-ended';
-
 /** Initial reconnect backoff (ms). Doubles each 1006 retry, capped at 30s. */
 const RECONNECT_INITIAL_DELAY_MS = 1000;
 const RECONNECT_MAX_DELAY_MS = 30000;
@@ -575,9 +573,10 @@ export class VoiceSessionController {
   }
 
   rejectRouteResponse(): void {
-    this.contextBlocked = true;
-    this.playback?.clear();
-    this.contextSync?.fail();
+    if (!this.sessionActive) return;
+    // Stop untrusted output, keeping the reason visible and retryable. Closing
+    // without session.end preserves the server's navigation resume snapshot.
+    this.terminate({ status: 'error', code: 'ROUTE_RESPONSE_INVALID' });
   }
 
 
@@ -626,6 +625,11 @@ export class VoiceSessionController {
   end(): void {
     if (!this.sessionActive) return;
     this.terminate({ status: 'ended' }, /* sendEndMessage */ true);
+  }
+
+  requireLogin(): void {
+    if (!this.sessionActive) return;
+    this.terminate({ status: 'needs-login' }, true);
   }
 
   setMuted(muted: boolean): void {
@@ -825,7 +829,7 @@ export class VoiceSessionController {
       socket.send(JSON.stringify(message));
     };
     socket.onmessage = (event) => this.handleMessage(gen, event.data);
-    socket.onclose = (event) => this.handleClose(gen, event.code, event.reason);
+    socket.onclose = (event) => this.handleClose(gen, event.code);
   }
 
   private handleMessage(gen: number, data: unknown): void {
@@ -977,12 +981,16 @@ export class VoiceSessionController {
         return;
       }
       case 'error': {
-        // The server always follows this with a close carrying the
-        // matching code/reason; the real state transition happens in
-        // handleClose. Nothing to do here besides logging.
+        const code = (message as ErrorMessage).code;
+        // The backend keeps the socket open for navigation when Gemini dies.
+        // Waiting for onclose leaves the mic running on a dead voice session.
+        if (code === 'LIVE_SESSION_ENDED' || code === 'LIVE_CONNECT_FAILED') {
+          this.terminate({ status: 'error', code });
+          return;
+        }
         logger.warn(
           '[voiceSession] Server error event',
-          (message as ErrorMessage).code,
+          code,
         );
         return;
       }
@@ -1074,7 +1082,7 @@ export class VoiceSessionController {
     this.socket?.send(frame);
   }
 
-  private handleClose(gen: number, code: number, reason: string): void {
+  private handleClose(gen: number, code: number): void {
     if (gen !== this.generation) return; // stale socket's close — no-op
 
     this.generation += 1;
@@ -1095,11 +1103,9 @@ export class VoiceSessionController {
         this.terminate({ status: 'error', code: CLOSE_CONFLICT });
         return;
       case CLOSE_NORMAL:
-        if (reason === REASON_LIVE_SESSION_ENDED) {
-          this.terminate({ status: 'error', code: 'LIVE_SESSION_ENDED' });
-        } else {
-          this.terminate({ status: 'ended' });
-        }
+        // Explicit end() detaches onclose before closing. Any close reaching
+        // this handler was unsolicited, even if the peer calls it "normal".
+        this.terminate({ status: 'error', code: 'LIVE_SESSION_ENDED' });
         return;
       case CLOSE_SERVER_ERROR:
         this.terminate({ status: 'error', code: CLOSE_SERVER_ERROR });

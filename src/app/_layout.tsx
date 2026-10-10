@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { BackHandler, Platform, View, useColorScheme, useWindowDimensions } from 'react-native';
 
 import { useAiBootstrap } from '@/features/ai';
@@ -83,6 +83,7 @@ interface AppStackProps {
 
 /** 設定有效才掛載：Phase 3 的啟動 hook（續期、同步、推播、SOS 復原）都會打 API，需要 `getAppConfig()`。 */
 function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppStackProps) {
+  const hasFocusedSheet = useRef(false);
   useAuthBootstrap();
   useSettingsSync();
   useNotificationsBootstrap();
@@ -115,7 +116,15 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
             setSheetInset(sheetBottomInset(event.data.index, height));
             useMapUiStore.getState().setSheetDetentIndex(event.data.index);
           },
-          focus: () => setSheetInset(sheetBottomInset(initialDetentIndex, height)),
+          focus: () => {
+            const state = useMapUiStore.getState();
+            // 只有首次開啟使用初始高度；關閉 chat/settings 後 UIKit 保留原高度，
+            // 不會再發 detent 事件，不能把 inset 重設成 peek，否則首頁內容會被隱藏。
+            const index = hasFocusedSheet.current ? state.sheetDetentIndex : initialDetentIndex;
+            hasFocusedSheet.current = true;
+            state.setSheetDetentIndex(index);
+            setSheetInset(sheetBottomInset(index, height));
+          },
         }}
       />
       <Stack.Screen

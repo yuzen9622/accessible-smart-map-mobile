@@ -42,6 +42,11 @@ export async function changeAppLanguage(language: AppLanguage): Promise<void> {
   await i18n.changeLanguage(language);
 }
 
+/** Read the active UI language at request time, including user overrides. */
+export function getAppLanguage(): AppLanguage {
+  return i18n.resolvedLanguage === 'en' || i18n.language === 'en' ? 'en' : 'zh-TW';
+}
+
 /**
  * 跟隨裝置語系；`override` 為使用者在設定中指定的語系（`shared/preferences`），有值時優先。
  * Android 可在 App 執行中改語系，useLocales 會重新 render。

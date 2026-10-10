@@ -1,3 +1,4 @@
+import { changeAppLanguage } from '@/shared/i18n';
 import { router } from 'expo-router';
 import { applyAiRoutePlan, applyComputedRoutes, computeRoute, endRouteSession, getRouteConversationInput, getRouteSessionSnapshot, markRouteTokenInvalid, pinNavigationRoute, replaceNavigationRoute, selectRouteAt } from '@/features/route';
 import { getAccessibleRoute } from '@/features/route/api/route';
@@ -103,4 +104,16 @@ it('voice applies the same complete plan once with no second planning request', 
   b.onToolEvent(event); b.onToolEvent(event);
   expect(getAccessibleRoute).not.toHaveBeenCalled(); expect(router.navigate).toHaveBeenCalledTimes(1);
   expect(getRouteSessionSnapshot().selectedRouteId).toBe('bus-b');
+});
+
+
+it('sends the active UI language with each chat request even when the input and history are Chinese', async () => {
+  request.mockImplementation(async (_input, emit) => { emit({ type: 'token', text: '您好' }); });
+  try {
+    await changeAppLanguage('zh-TW'); await sendChatMessage('我要去車站', t);
+    expect(request.mock.calls.at(-1)?.[0].language).toBe('zh-TW');
+    await changeAppLanguage('en'); await sendChatMessage('車站在哪裡？', t);
+    expect(request.mock.calls.at(-1)?.[0]).toMatchObject({ language: 'en' });
+    expect(JSON.stringify(request.mock.calls.at(-1)?.[0].messages)).toContain('我要去車站');
+  } finally { await changeAppLanguage('zh-TW'); }
 });

@@ -2,7 +2,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { create } from 'zustand';
 
-import { useAuthStore } from '@/features/auth';
+import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
+import { ApiError } from '@/shared/api';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 
@@ -18,6 +19,7 @@ import { reportHasPhoto, type HazardReport } from '../domain/types';
  */
 interface MyReportsState {
   ownerId: string | null;
+  session: object | null;
   reports: HazardReport[];
   nextCursor: string | null;
   loading: boolean;
@@ -26,7 +28,7 @@ interface MyReportsState {
   loaded: boolean;
 }
 
-const EMPTY: Omit<MyReportsState, 'ownerId'> = {
+const EMPTY: Omit<MyReportsState, 'ownerId' | 'session'> = {
   reports: [],
   nextCursor: null,
   loading: false,
@@ -35,17 +37,21 @@ const EMPTY: Omit<MyReportsState, 'ownerId'> = {
   loaded: false,
 };
 
-const useMyReportsStore = create<MyReportsState>(() => ({ ownerId: null, ...EMPTY }));
+const useMyReportsStore = create<MyReportsState>(() => ({ ownerId: null, session: null, ...EMPTY }));
 
 let inflight: AbortController | null = null;
 
 /** `silent`：回到列表時背景更新第一頁，不顯示轉圈（審核狀態可能在別頁變了）。 */
 async function load(ownerId: string, mode: 'reset' | 'more' | 'refresh' | 'silent'): Promise<void> {
+  const auth = useAuthStore.getState();
+  if (!selectIsLoggedIn(auth) || (auth.user?._id ?? auth.user?.email) !== ownerId) return;
+  const session = auth.session;
+  const current = () => useAuthStore.getState().session === session && (useAuthStore.getState().user?._id ?? useAuthStore.getState().user?.email) === ownerId;
   const state = useMyReportsStore.getState();
-  if (state.ownerId !== ownerId) {
+  if (state.ownerId !== ownerId || state.session !== session) {
     inflight?.abort();
     inflight = null;
-    useMyReportsStore.setState({ ownerId, ...EMPTY });
+    useMyReportsStore.setState({ ownerId, session, ...EMPTY });
   } else if (inflight) {
     return;
   }
@@ -56,7 +62,7 @@ async function load(ownerId: string, mode: 'reset' | 'more' | 'refresh' | 'silen
   else if (mode !== 'silent') useMyReportsStore.setState({ loading: true, error: false });
   try {
     const page = await getMyHazardReports(cursor, controller.signal);
-    if (controller.signal.aborted || useMyReportsStore.getState().ownerId !== ownerId) return;
+    if (controller.signal.aborted || !current() || useMyReportsStore.getState().ownerId !== ownerId) return;
     useMyReportsStore.setState((s) => {
       // 分頁之間可能因新回報插入而重複：以 _id 去重，保留先出現（較新）的那筆
       const merged = new Map((mode === 'more' ? [...s.reports, ...page.reports] : page.reports).map((r) => [r._id, r]));
@@ -69,7 +75,7 @@ async function load(ownerId: string, mode: 'reset' | 'more' | 'refresh' | 'silen
       return { reports: [...merged.values()], nextCursor: page.nextCursor, loaded: true };
     });
   } catch (error) {
-    if (controller.signal.aborted) return;
+    if (controller.signal.aborted || !current()) return;
     logger.warn('[hazard] my reports failed', error);
     // 背景更新失敗就保留目前的列表，不蓋成錯誤畫面
     if (mode !== 'silent' && useMyReportsStore.getState().ownerId === ownerId) useMyReportsStore.setState({ error: true });
@@ -82,7 +88,8 @@ async function load(ownerId: string, mode: 'reset' | 'more' | 'refresh' | 'silen
 }
 
 /** 詳情頁輪詢到的新狀態寫回列表。 */
-export function updateMyReport(next: HazardReport): void {
+export function updateMyReport(next: HazardReport, session: object): void {
+  if (useAuthStore.getState().session !== session || useMyReportsStore.getState().session !== session) return;
   useMyReportsStore.setState((s) => ({ reports: s.reports.map((r) => (r._id === next._id ? { ...r, ...next } : r)) }));
 }
 
@@ -90,13 +97,55 @@ export function updateMyReport(next: HazardReport): void {
 export function invalidateMyReports(): void {
   inflight?.abort();
   inflight = null;
-  useMyReportsStore.setState((s) => ({ ownerId: s.ownerId, ...EMPTY }));
+  useMyReportsStore.setState((s) => ({ ownerId: s.ownerId, session: s.session, ...EMPTY }));
 }
 
 export function useMyReport(id: string | undefined): HazardReport | null {
-  const userId = useAuthStore((s) => s.user?._id ?? null);
-  return useMyReportsStore((s) => (userId !== null && s.ownerId === userId ? (s.reports.find((r) => r._id === id) ?? null) : null));
+  const userId = useAuthStore((s) => selectIsLoggedIn(s) ? (s.user!._id ?? s.user!.email) : null);
+  const session = useAuthStore((s) => s.session);
+  return useMyReportsStore((s) => (userId !== null && s.ownerId === userId && s.session === session ? (s.reports.find((r) => r._id === id) ?? null) : null));
 }
+
+/** 前景通知與點擊都會立即刷新，並通知已開啟的詳情重新驗證。 */
+export const useMyReportsRevision = create<{ revision: number }>(() => ({ revision: 0 }));
+export function refreshMyReports(): void {
+  const auth = useAuthStore.getState();
+  if (!auth.restored || !selectIsLoggedIn(auth)) return;
+  inflight?.abort();
+  inflight = null;
+  useMyReportsRevision.setState((s) => ({ revision: s.revision + 1 }));
+  void load(auth.user!._id ?? auth.user!.email, 'refresh');
+}
+
+/** 每一頁都驗證 session；完整走完 cursor 才能判定不屬於此帳號／已刪除。 */
+export async function findMyReport(id: string, session: object, signal: AbortSignal): Promise<HazardReport | null> {
+  const check = () => {
+    if (signal.aborted || useAuthStore.getState().session !== session || !selectIsLoggedIn(useAuthStore.getState())) {
+      throw new Error('Report request superseded');
+    }
+  };
+  let cursor: string | null = null;
+  const seen = new Set<string>();
+  do {
+    check();
+    const page = await getMyHazardReports(cursor, signal);
+    check();
+    const report = page.reports.find((r) => r._id === id);
+    if (report) return report;
+    cursor = page.nextCursor;
+    if (cursor && seen.has(cursor)) throw new ApiError('Repeated reports cursor', 502);
+    if (cursor) seen.add(cursor);
+  } while (cursor);
+  return null;
+}
+
+// 同步清空帳號資料；不要等 React effect 才隱藏上一個 session 的內容。
+useAuthStore.subscribe((state, previous) => {
+  if (state.session === previous.session && state.user?._id === previous.user?._id) return;
+  inflight?.abort();
+  inflight = null;
+  useMyReportsStore.setState({ ownerId: null, session: null, ...EMPTY });
+});
 
 export interface MyReportRow {
   id: string;
@@ -119,7 +168,8 @@ export function newHazardReport(): void {
 
 export function useMyReports() {
   const { t, i18n } = useAppTranslation();
-  const userId = useAuthStore((s) => s.user?._id ?? null);
+  const userId = useAuthStore((s) => selectIsLoggedIn(s) ? (s.user!._id ?? s.user!.email) : null);
+  const session = useAuthStore((s) => s.session);
   const state = useMyReportsStore();
   const [now, setNow] = useState(() => Date.now());
 
@@ -127,10 +177,10 @@ export function useMyReports() {
   // 否則背景更新第一頁——審核狀態可能在詳情或送出結果頁裡已經變了。useFocusEffect 需要穩定的 callback。
   useFocusEffect(
     useCallback(() => {
-      if (!userId) return;
+      if (!userId || useAuthStore.getState().session !== session) return;
       const current = useMyReportsStore.getState();
       void load(userId, current.ownerId === userId && current.loaded ? 'silent' : 'reset');
-    }, [userId]),
+    }, [userId, session]),
   );
 
   // 過期是時間邊界：停在列表上也要更新狀態膠囊
@@ -139,7 +189,7 @@ export function useMyReports() {
     return () => clearInterval(timer);
   }, []);
 
-  const mine = userId !== null && state.ownerId === userId;
+  const mine = userId !== null && state.ownerId === userId && state.session === session;
   const reports = mine ? state.reports : [];
   const loading = !mine || state.loading || (!state.loaded && !state.error);
 

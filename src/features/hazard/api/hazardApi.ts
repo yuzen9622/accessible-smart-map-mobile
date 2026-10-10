@@ -75,7 +75,10 @@ export async function getMyHazardReports(cursor?: string | null, signal?: AbortS
   const query = cursor ? `?limit=20&cursor=${encodeURIComponent(cursor)}` : '?limit=20';
   const res = await authenticatedRequest(`${BASE}/mine${query}`, { method: 'GET', signal });
   if (!ok(res)) throw new ApiError(res.message, res.code);
-  if (!isRecord(res.data) || !Array.isArray(res.data.reports)) return { reports: [], nextCursor: null };
+  if (!isRecord(res.data) || !Array.isArray(res.data.reports) || !res.data.reports.every(isHazardReport)
+    || (res.data.nextCursor != null && typeof res.data.nextCursor !== 'string')) {
+    throw new ApiError('Invalid owned reports response', 502);
+  }
   return {
     reports: res.data.reports.filter(isHazardReport),
     nextCursor: typeof res.data.nextCursor === 'string' ? res.data.nextCursor : null,

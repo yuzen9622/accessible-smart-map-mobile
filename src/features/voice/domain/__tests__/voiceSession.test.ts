@@ -1327,3 +1327,25 @@ describe('response language', () => {
     expect(h.sockets).toHaveLength(2);
   });
 });
+
+describe('voice location synchronization', () => {
+  it('reads the GPS fix at socket open, not when constructing the socket', () => {
+    const h = createHarness(); h.controller.start();
+    h.setLocation({ latitude: 24.15, longitude: 120.68 });
+    h.sockets[0].triggerOpen();
+    expect(JSON.parse(h.sockets[0].sent[0] as string).userLocation).toEqual({ latitude: 24.15, longitude: 120.68 });
+  });
+  it('sends GPS acquired during the handshake as soon as the session is ready', async () => {
+    const h = createHarness(); h.controller.start(); h.sockets[0].triggerOpen();
+    h.setLocation({ latitude: 24.15, longitude: 120.68 });
+    h.sockets[0].triggerMessage(readyMessage()); await flush();
+    expect(h.sockets[0].sent).toContain(JSON.stringify({ type: 'nav.position', latitude: 24.15, longitude: 120.68 }));
+  });
+  it('answers a backend location request from the current fix without ending speech', async () => {
+    const h = createHarness(); h.controller.start(); await bringToListening(h);
+    h.setLocation({ latitude: 24.15, longitude: 120.68 });
+    h.sockets[0].triggerMessage(JSON.stringify({ type: 'location.request' })); await flush();
+    expect(h.sockets[0].sent).toContain(JSON.stringify({ type: 'nav.position', latitude: 24.15, longitude: 120.68 }));
+    expect(h.lastStatus()?.status).toBe('listening');
+  });
+});

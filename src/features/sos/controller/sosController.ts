@@ -20,6 +20,7 @@ import {
   resolveSosSession,
   updateSosLocation,
 } from '../api/sosApi';
+import { startSosAlarm, stopSosAlarm } from './sosAlarm';
 import { startSosLifecycle, type SosLifecycle } from '../domain/sosLifecycle';
 import {
   clearActiveSos,
@@ -154,6 +155,7 @@ async function startBackground(): Promise<void> {
 }
 
 function stopAll(): void {
+  stopSosAlarm();
   stopCountdown();
   stopAddressTracking();
   lifecycle?.stop();
@@ -180,6 +182,7 @@ async function loadContacts(): Promise<void> {
 
 function enterActive(sessionId: string, shareToken: string | null): void {
   useSosStore.setState({ phase: 'active', sessionId, shareToken, locationSyncFailed: false });
+  startSosAlarm();
   startAddressTracking();
   saveActiveSos(appStorage, sessionId, shareToken, currentUserId());
   startLifecycle(sessionId);

@@ -6,11 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AIResultLayer } from '@/features/ai';
 import { BusStopLayer, LiveBusLayer, useLiveBusTracking } from '@/features/bus';
 import { HazardLayer } from '@/features/hazard';
-import { MapScreen } from '@/features/map';
+import { EnvironmentChip, MapScreen, useEnvironment } from '@/features/map';
 import { NavigationHUD, useNavStore, useNavigationEffects } from '@/features/navigation';
 import { needsOnboarding, useOnboardingStore } from '@/features/onboarding';
 import { PlacePinLayer } from '@/features/place';
-import { RouteLayer, RouteSessionPill } from '@/features/route';
+import { RouteFacilityLayer, RouteLayer, RouteSessionPill } from '@/features/route';
 import { SosButton, SosTrackerLayer } from '@/features/sos';
 import { VoiceFloatingIndicator } from '@/features/voice';
 import { useAppTranslation } from '@/shared/i18n';
@@ -28,6 +28,7 @@ export default function Index() {
   const { t } = useAppTranslation();
   useNavigationEffects();
   useLiveBusTracking();
+  useEnvironment();
 
   useEffect(() => {
     if (shouldOnboard) router.navigate('/onboarding');
@@ -44,6 +45,7 @@ export default function Index() {
           <PlacePinLayer />
           <BusStopLayer />
           <RouteLayer />
+          <RouteFacilityLayer />
           <AIResultLayer />
           <LiveBusLayer />
           <SosTrackerLayer />
@@ -55,6 +57,7 @@ export default function Index() {
             <NavigationHUD />
           ) : (
             <View pointerEvents="box-none" style={[styles.pill, { top: insets.top + 8 }]}>
+              <EnvironmentChip />
               <RouteSessionPill isNavigating={isNavigating} />
             </View>
           )}
@@ -63,8 +66,9 @@ export default function Index() {
             <OfflineBanner message={isNavigating ? t('nativeOfflineNavigating') : undefined} />
             <VoiceFloatingIndicator />
           </View>
-          {/* SOS 在導航中也要按得到（行動不便者最可能在路上需要求助）：導航時移到 HUD 下方 */}
-          <View pointerEvents="box-none" style={[styles.sos, { top: insets.top + (isNavigating ? 250 : 190) }]}>
+          {/* SOS 在導航中也要按得到（行動不便者最可能在路上需要求助）：導航時移到 HUD 下方。
+              跟上方「定位／圖層」按鈕欄拉開更大間距，降低誤觸（方案 A，測試人員回饋 2026-10-11）。 */}
+          <View pointerEvents="box-none" style={[styles.sos, { top: insets.top + (isNavigating ? 280 : 220) }]}>
             <SosButton />
           </View>
         </>
@@ -74,7 +78,7 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  pill: { position: 'absolute', left: 16, right: 72, alignItems: 'flex-start' },
+  pill: { position: 'absolute', left: 16, right: 72, alignItems: 'flex-start', gap: 8 },
   // 跟 MapControls（定位／3D）的右邊界對齊——兩處以前差 4pt，三顆在螢幕右側疊成一欄時那條邊看起來沒對齊。
   sos: { position: 'absolute', right: 16 },
   voice: { position: 'absolute', left: 16, right: 80, alignItems: 'flex-start', gap: 8 },

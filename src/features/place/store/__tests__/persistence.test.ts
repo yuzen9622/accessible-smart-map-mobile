@@ -54,7 +54,7 @@ describe('loadPersistedPlaceState', () => {
   it('defaults to empty state when nothing is stored', () => {
     const storage = createMemoryStorage();
     const state = loadPersistedPlaceState(storage);
-    expect(state).toEqual({ searchHistory: [], savedPlaces: [], savedPlaceCategories: {} });
+    expect(state).toEqual({ searchHistory: [], savedPlaces: [], savedPlaceCategories: {}, savedCustomCategories: [] });
     expect(storage.getString(PLACE_SCHEMA_VERSION_KEY)).toBe('2');
   });
 });

@@ -85,9 +85,10 @@ export interface FormInputProps {
   maxLength?: number;
   multiline?: boolean;
   onSubmitEditing?: () => void;
+  onFocus?: () => void;
 }
 
-export function FormInput({ label, value, onChangeText, secure, keyboardType, autoComplete, maxLength, multiline, onSubmitEditing }: FormInputProps) {
+export function FormInput({ label, value, onChangeText, secure, keyboardType, autoComplete, maxLength, multiline, onSubmitEditing, onFocus }: FormInputProps) {
   const colors = useThemeColors();
   const scale = useFontScale();
   return (
@@ -105,6 +106,7 @@ export function FormInput({ label, value, onChangeText, secure, keyboardType, au
       maxLength={maxLength}
       multiline={multiline}
       onSubmitEditing={onSubmitEditing}
+      onFocus={onFocus}
       style={[
         styles.input,
         multiline && styles.multiline,

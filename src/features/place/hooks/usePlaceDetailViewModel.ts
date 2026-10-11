@@ -15,7 +15,7 @@ import { logger } from '@/shared/logger';
 import { buildAccessibilityChecklist, type ChecklistItem } from '../domain/accessibilityChecklist';
 import { nearbyFacilityRows, type NearbyFacilityRow } from '../domain/nearbyFacilityRows';
 import { buildPlaceBadges, type PlaceBadge } from '../domain/placeBadges';
-import { placeKey, SAVED_PLACE_CATEGORIES, type SavedPlaceCategory } from '../domain/placeKey';
+import { SAVED_PLACE_CATEGORIES, placeKey, savedCategoryLabel, type SavedPlaceCategory } from '../domain/placeKey';
 import { evidenceLines } from '../domain/reviewEvidence';
 import { buildPlaceShareUrl } from '../domain/shareUrl';
 import { buildPlaceHeading } from '../domain/placeHeading';
@@ -112,6 +112,10 @@ export interface PlaceDetailModel {
   onShare: () => void;
   onCopy: () => void;
   categories: PlaceDetailCategoryOption[] | null;
+  /** 「+ 新增分類」：只有已收藏才顯示，跟 `categories` 並列一排 chip。 */
+  addCategoryLabel: string;
+  newCategoryTitle: string;
+  onCreateCategory: (name: string) => void;
   checklistTitle: string;
   checklist: PlaceDetailChecklistRow[];
   /** 「3 / 4 已確認」；清單為空時為 null */
@@ -149,9 +153,11 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   const [copied, setCopied] = useState(false);
   const savedPlaces = useSavedPlacesStore((state) => state.savedPlaces);
   const savedPlaceCategories = useSavedPlacesStore((state) => state.savedPlaceCategories);
+  const customCategories = useSavedPlacesStore((state) => state.customCategories);
   const addSavedPlace = useSavedPlacesStore((state) => state.addSavedPlace);
   const removeSavedPlace = useSavedPlacesStore((state) => state.removeSavedPlace);
   const setSavedPlaceCategory = useSavedPlacesStore((state) => state.setSavedPlaceCategory);
+  const addCustomCategory = useSavedPlacesStore((state) => state.addCustomCategory);
 
   const saved = isSavedPlace(savedPlaces, entry);
   const key = placeKey(entry);
@@ -229,13 +235,19 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   };
 
   const categories: PlaceDetailCategoryOption[] | null = saved
-    ? SAVED_PLACE_CATEGORIES.map((cat) => ({
+    ? [...SAVED_PLACE_CATEGORIES, ...customCategories].map((cat) => ({
         value: cat,
-        label: t(`savedCategory.${cat}`),
+        label: savedCategoryLabel(t, cat),
         isSelected: category === cat,
         onSelect: () => setSavedPlaceCategory(entry, category === cat ? null : cat),
       }))
     : null;
+
+  // 新增分類時順便直接套用到這個地點（不用建完再點一次）；名稱重複會被 addCustomCategory 忽略。
+  const handleCreateCategory = (name: string) => {
+    addCustomCategory(name);
+    setSavedPlaceCategory(entry, name.trim());
+  };
 
   const links: PlaceDetailLinkRow[] = [];
   if (place?.externalLinks.osm) {
@@ -352,6 +364,9 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     onShare: handleShare,
     onCopy: handleCopy,
     categories,
+    addCategoryLabel: t('nativeSavedCategoryAdd'),
+    newCategoryTitle: t('nativeSavedCategoryNewTitle'),
+    onCreateCategory: handleCreateCategory,
     checklistTitle: t('nativePlaceA11yInfo'),
     checklist,
     checklistConfirmedLabel:

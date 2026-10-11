@@ -23,6 +23,18 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
   statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED', IN_PROGRESS: 'IN_PROGRESS' },
 }));
 
+// expo-speech-recognition 在 import 時就向原生層要模組；測試環境給一個永遠不做事的 stub。
+jest.mock('expo-speech-recognition', () => ({
+  ExpoSpeechRecognitionModule: {
+    requestPermissionsAsync: async () => ({ granted: true }),
+    start: () => {},
+    stop: () => {},
+    abort: () => {},
+    addListener: () => ({ remove: () => {} }),
+  },
+  useSpeechRecognitionEvent: () => {},
+}));
+
 // react-native-reanimated 在 Jest 環境無原生層，提供基本 mock。
 jest.mock('react-native-reanimated', () => {
   const { View, Text } = require('react-native');

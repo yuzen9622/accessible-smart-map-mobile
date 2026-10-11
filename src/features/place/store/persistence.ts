@@ -19,6 +19,9 @@ import type { PlaceDetail } from '../types/place';
 export const SEARCH_HISTORY_KEY = 'searchHistory';
 export const SAVED_PLACES_KEY = 'savedPlaces';
 export const SAVED_CATEGORIES_KEY = 'savedPlaceCategories';
+/** 使用者自訂收藏分類標籤（像 Google 地圖「建立新清單」），獨立於既有搬遷版本管線——
+ * 全新欄位，沒有舊格式要搬，預設空陣列即可（測試人員回饋 2026-10-11）。 */
+export const SAVED_CUSTOM_CATEGORIES_KEY = 'savedCustomCategories';
 export const PLACE_SCHEMA_VERSION_KEY = 'placeSchemaVersion';
 export const PLACE_SCHEMA_VERSION = '2';
 
@@ -26,6 +29,11 @@ export interface PersistedPlaceState {
   searchHistory: PlaceDetail[];
   savedPlaces: PlaceDetail[];
   savedPlaceCategories: Record<string, string>;
+  savedCustomCategories: string[];
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((v) => typeof v === 'string');
 }
 
 function isUnknownArray(value: unknown): value is unknown[] {
@@ -57,6 +65,7 @@ export function loadPersistedPlaceState(storage: KeyValueStorage = appStorage): 
       searchHistory: sanitizeSearchHistory(readJson(storage, SEARCH_HISTORY_KEY, isPlaceDetailArray, [])),
       savedPlaces: sanitizeSavedPlaces(readJson(storage, SAVED_PLACES_KEY, isPlaceDetailArray, [])),
       savedPlaceCategories: readJson(storage, SAVED_CATEGORIES_KEY, isStringRecord, {}),
+      savedCustomCategories: readJson(storage, SAVED_CUSTOM_CATEGORIES_KEY, isStringArray, []),
     };
   }
 
@@ -93,6 +102,7 @@ export function loadPersistedPlaceState(storage: KeyValueStorage = appStorage): 
     searchHistory: sanitizeSearchHistory(migrated.searchHistory),
     savedPlaces: sanitizeSavedPlaces(migrated.savedPlaces),
     savedPlaceCategories: migrated.savedPlaceCategories,
+    savedCustomCategories: [],
   };
 }
 
@@ -106,4 +116,8 @@ export function persistSavedPlaces(storage: KeyValueStorage, places: PlaceDetail
 
 export function persistSavedPlaceCategories(storage: KeyValueStorage, categories: Record<string, string>): void {
   storage.set(SAVED_CATEGORIES_KEY, JSON.stringify(categories));
+}
+
+export function persistSavedCustomCategories(storage: KeyValueStorage, categories: string[]): void {
+  storage.set(SAVED_CUSTOM_CATEGORIES_KEY, JSON.stringify(categories));
 }

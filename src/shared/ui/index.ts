@@ -41,6 +41,7 @@ export {
 } from './form/Form';
 
 export { default as HeaderCloseButton } from './HeaderCloseButton';
+export { default as SplashIntro } from './SplashIntro';
 
 export { default as FormPrimaryButton, FormSecondaryButton } from './form/FormPrimaryButton';
 export type { FormPrimaryButtonProps, FormSecondaryButtonProps } from './form/FormPrimaryButton.types';

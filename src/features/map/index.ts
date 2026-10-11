@@ -13,10 +13,12 @@ export { default as FacilityDetailScreen } from './screens/FacilityDetailScreen'
 export { default as NearbyScreen } from './screens/NearbyScreen';
 export { default as ParkingLayer } from './components/ParkingLayer';
 export { useUserLocationStore } from './store/userLocationStore';
-export { applyDefaultFacilityCategories } from './store/facilityStore';
-export { PINNED_FACILITY_CATEGORIES, type PinnedFacilityCategory } from './domain/facilities';
+export { applyDefaultFacilityCategories, useFacilityStore } from './store/facilityStore';
+export { PINNED_FACILITY_CATEGORIES, toFacilityCollection, type Facility, type PinnedFacilityCategory } from './domain/facilities';
 export { useNearbyViewModel, type NearbyRow, type NearbyStatus } from './hooks/useNearbyViewModel';
 export { useNearbySummary, type NearbySummary } from './hooks/useNearbySummary';
 export { FACILITY_COLORS } from './domain/facilityStyle';
+export { useEnvironment } from './hooks/useEnvironment';
+export { default as EnvironmentChip } from './components/EnvironmentChip';
 export { formatDistance } from './domain/parking';
 export { clearLastUserLocation, hasLastUserLocation } from './store/lastLocation';

@@ -87,7 +87,13 @@ export type IconName =
   | 'baby'
   | 'type'
   | 'mapPinned'
-  | 'listFilter';
+  | 'listFilter'
+  | 'shoppingBasket'
+  | 'coffee'
+  | 'pill'
+  | 'fuel'
+  | 'bedDouble'
+  | 'thermometer';
 
 export interface IconProps {
   name: IconName;

@@ -3,8 +3,14 @@ import { create } from 'zustand';
 import { appStorage } from '@/shared/storage';
 
 import { addSavedPlaceEntry, addToSearchHistory, removeSavedPlaceEntry, removeSearchHistoryEntry } from '../domain/searchHistory';
-import { placeKey, type SavedPlaceCategory } from '../domain/placeKey';
-import { loadPersistedPlaceState, persistSavedPlaceCategories, persistSavedPlaces, persistSearchHistory } from './persistence';
+import { isBuiltInSavedPlaceCategory, placeKey, type SavedPlaceCategory } from '../domain/placeKey';
+import {
+  loadPersistedPlaceState,
+  persistSavedCustomCategories,
+  persistSavedPlaceCategories,
+  persistSavedPlaces,
+  persistSearchHistory,
+} from './persistence';
 import type { PlaceDetail } from '../types/place';
 
 /**
@@ -23,6 +29,8 @@ interface SavedPlacesState {
   searchHistory: PlaceDetail[];
   savedPlaces: PlaceDetail[];
   savedPlaceCategories: Record<string, string>;
+  /** 使用者自建的收藏分類標籤（像 Google 地圖「建立新清單」），依建立順序。 */
+  customCategories: string[];
   addSearchHistory: (entry: PlaceDetail) => void;
   removeSearchHistory: (entry: PlaceDetail) => void;
   clearSearchHistory: () => void;
@@ -30,6 +38,12 @@ interface SavedPlacesState {
   removeSavedPlace: (entry: PlaceDetail) => void;
   clearSavedPlaces: () => void;
   setSavedPlaceCategory: (entry: PlaceDetail, category: SavedPlaceCategory | null) => void;
+  /** 新增一個自訂分類；名稱重複（含內建分類）或空字串會被忽略，回傳是否真的新增了。 */
+  addCustomCategory: (name: string) => boolean;
+  /** 重新命名一個自訂分類，連同所有已套用這個分類的地點一起改名。 */
+  renameCustomCategory: (oldName: string, newName: string) => boolean;
+  /** 刪除一個自訂分類；套用這個分類的地點會變回「未分類」，不會被連帶刪除收藏。 */
+  removeCustomCategory: (name: string) => void;
 }
 
 const initial = loadPersistedPlaceState(appStorage);
@@ -38,6 +52,7 @@ export const useSavedPlacesStore = create<SavedPlacesState>()((set, get) => ({
   searchHistory: initial.searchHistory,
   savedPlaces: initial.savedPlaces,
   savedPlaceCategories: initial.savedPlaceCategories,
+  customCategories: initial.savedCustomCategories,
 
   addSearchHistory: (entry) => {
     const next = addToSearchHistory(get().searchHistory, entry);
@@ -81,6 +96,40 @@ export const useSavedPlacesStore = create<SavedPlacesState>()((set, get) => ({
     else delete next[key];
     persistSavedPlaceCategories(appStorage, next);
     set({ savedPlaceCategories: next });
+  },
+  addCustomCategory: (name) => {
+    const trimmed = name.trim();
+    const { customCategories } = get();
+    if (!trimmed || isBuiltInSavedPlaceCategory(trimmed) || customCategories.includes(trimmed)) return false;
+    const next = [...customCategories, trimmed];
+    persistSavedCustomCategories(appStorage, next);
+    set({ customCategories: next });
+    return true;
+  },
+  renameCustomCategory: (oldName, newName) => {
+    const trimmed = newName.trim();
+    const { customCategories, savedPlaceCategories } = get();
+    if (!trimmed || !customCategories.includes(oldName)) return false;
+    if (trimmed !== oldName && (isBuiltInSavedPlaceCategory(trimmed) || customCategories.includes(trimmed))) return false;
+    const nextCategories = customCategories.map((name) => (name === oldName ? trimmed : name));
+    const nextPlaceCategories = Object.fromEntries(
+      Object.entries(savedPlaceCategories).map(([key, value]) => [key, value === oldName ? trimmed : value]),
+    );
+    persistSavedCustomCategories(appStorage, nextCategories);
+    persistSavedPlaceCategories(appStorage, nextPlaceCategories);
+    set({ customCategories: nextCategories, savedPlaceCategories: nextPlaceCategories });
+    return true;
+  },
+  removeCustomCategory: (name) => {
+    const { customCategories, savedPlaceCategories } = get();
+    const nextCategories = customCategories.filter((c) => c !== name);
+    const nextPlaceCategories = { ...savedPlaceCategories };
+    for (const key of Object.keys(nextPlaceCategories)) {
+      if (nextPlaceCategories[key] === name) delete nextPlaceCategories[key];
+    }
+    persistSavedCustomCategories(appStorage, nextCategories);
+    persistSavedPlaceCategories(appStorage, nextPlaceCategories);
+    set({ customCategories: nextCategories, savedPlaceCategories: nextPlaceCategories });
   },
 }));
 

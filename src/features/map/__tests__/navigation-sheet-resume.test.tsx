@@ -23,7 +23,6 @@ jest.mock('../hooks/useFacilitiesLoader', () => ({ useFacilitiesLoader: () => {}
 jest.mock('../hooks/useNearbyParking', () => ({ useNearbyParking: () => {} }));
 jest.mock('../components/FacilityLayer', () => () => null);
 jest.mock('../components/FacilityPills', () => () => null);
-jest.mock('../components/LayerChips', () => () => null);
 jest.mock('../components/ParkingLayer', () => () => null);
 jest.mock('../components/MapControls', () => () => null);
 jest.mock('../../../../modules/sheet-detent', () => ({ SheetEdgeFollower: null, isSheetDetentAvailable: () => false }));

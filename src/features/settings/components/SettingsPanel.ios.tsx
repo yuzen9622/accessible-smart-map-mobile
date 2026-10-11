@@ -102,8 +102,15 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
           ))}
         </Section>
 
+        <Section title={t('nativeMapLayers')} footer={<Text>{t('nativeMapDefaultFacilitiesHint')}</Text>}>
+          {model.mapDefaultFacilityOptions.map((option) => (
+            <Toggle key={option.key} label={option.label} isOn={option.enabled} onIsOnChange={option.onToggle} />
+          ))}
+        </Section>
+
         <Section title={t('settingsEmergencyTitle')} footer={<Text>{t('settingsEmergencyDesc')}</Text>}>
           <Button label={t('sosContactsManageTitle')} onPress={model.openContacts} />
+          <Toggle label={t('nativeSosAlarmSound')} isOn={model.sosAlarmSoundEnabled} onIsOnChange={model.setSosAlarmSoundEnabled} />
         </Section>
 
         <Section title={t('notification')} footer={<Text>{t('nativePushDescription')}</Text>}>

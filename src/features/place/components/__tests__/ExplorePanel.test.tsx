@@ -8,14 +8,16 @@ const noop = () => {};
 const model: ExploreViewModel = {
   query: '', onQueryChange: noop, onSearchFocus: noop, onSearchBlur: noop, loading: false, error: false, onRetry: noop,
   mode: 'idle', historyRows: [], resultRows: [], onOpenNearby: noop, onOpenSaved: noop,
+  categoryShortcuts: { sectionTitle: 'Find nearby', nearbyFacilities: [], moreTitle: 'More categories', moreCategories: [] },
   showBrand: false,
   header: { title: 'Where to?', needs: { label: 'Wheelchair', accessibilityLabel: 'Needs', onPress: noop } },
-  shortcuts: [], addShortcut: { label: 'Add', accessibilityLabel: 'Add a frequent place', onPress: noop }, nearbySummary: null,
+  shortcuts: [], shortcutFilters: [], addShortcut: { label: 'Add', accessibilityLabel: 'Add a frequent place', onPress: noop }, nearbySummary: null,
   quickActions: [
     { key: 'assistant', label: 'Assistant', iconName: 'sparkles', color: '#7048E8', onPress: jest.fn() },
     { key: 'bus', label: 'Bus', iconName: 'bus', color: '#0F9960', onPress: noop },
   ],
   account: { label: 'Settings', initial: null, onPress: noop },
+  voiceInput: { status: 'idle', label: 'Voice conversation', accessibilityLabel: 'Voice conversation', onToggle: noop },
   labels: {
     searchPlaceholder: 'Search', nearbyA11y: 'Nearby', savedPlaces: 'Saved', searchHistory: 'History',
     searchResults: 'Results', noResults: 'No results', recentSearches: 'Recent', moreActions: 'More',

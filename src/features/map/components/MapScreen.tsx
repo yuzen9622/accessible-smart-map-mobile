@@ -10,7 +10,6 @@ import { logger } from '@/shared/logger';
 import { appStorage, readJson } from '@/shared/storage';
 import { ErrorState, LoadingState } from '@/shared/ui';
 
-import { SheetEdgeFollower } from '../../../../modules/sheet-detent';
 import { mapCamera, registerMapCamera } from '../controller/mapCamera';
 import { sheetController } from '../controller/sheetController';
 import {
@@ -26,6 +25,7 @@ import {
   isLatLng,
   resolveInitialCamera,
 } from '../domain/initialCamera';
+import { PINNED_FACILITY_CATEGORIES } from '../domain/facilities';
 import { useBasemapStyle } from '../hooks/useBasemapStyle';
 import { useFacilitiesLoader } from '../hooks/useFacilitiesLoader';
 import { useLocationTracking } from '../hooks/useLocationTracking';
@@ -37,7 +37,7 @@ import { useMapUiStore } from '../store/mapUiStore';
 import { useUserLocationStore } from '../store/userLocationStore';
 import FacilityLayer from './FacilityLayer';
 import FacilityPills from './FacilityPills';
-import LayerChips from './LayerChips';
+import MapLayersMenu from './MapLayersMenu';
 import ParkingLayer from './ParkingLayer';
 import MapControls from './MapControls';
 
@@ -78,11 +78,12 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
   const position = useUserLocationStore((state) => state.position);
   const follow = useMapUiStore((state) => state.follow);
   const sheetInset = useMapUiStore((state) => state.sheetInset);
-  const sheetDetentIndex = useMapUiStore((state) => state.sheetDetentIndex);
+  const showParking = useFacilityStore((state) => state.showParking);
   const selectedCategories = useFacilityStore((state) => state.selected);
   const toggleCategory = useFacilityStore((state) => state.toggleCategory);
-  const showParking = useFacilityStore((state) => state.showParking);
   const toggleParking = useFacilityStore((state) => state.toggleParking);
+  // 「圖層」鈕點開的選單（方案 A：定位＋圖層兩顆主按鈕，3D 收進選單裡，不再常駐佔一顆）
+  const [layersMenuOpen, setLayersMenuOpen] = useState(false);
   // 初始相機只在第一次 render 決定（之後由 mapCamera 控制）
   const [initialCamera] = useState(() =>
     resolveInitialCamera(readJson(appStorage, LAST_USER_LOCATION_KEY, isLatLng, null)),
@@ -90,8 +91,6 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
   const pathname = usePathname();
   // 一次拖曳手勢的起點；拖得夠遠就把 sheet 收到最小（每個手勢只收一次）
   const panStart = useRef<{ sample: ViewportSample; collapsed: boolean } | null>(null);
-  // 分類篩選預設收起，點 MapControls 的篩選鈕才展開那排 chips（平常不佔地圖版面）
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
   // 使用者正在拖曳／縮放地圖時，淡出非必要的浮動控制（篩選 chips、定位/3D/篩選鈕），
   // 讓地圖在操作當下盡量乾淨；放開後淡回。SOS、路線膠囊等安全／狀態相關資訊不淡出。
   const [controlsOpacity] = useState(() => new Animated.Value(1));
@@ -134,24 +133,6 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
       logger.warn('[map] locate failed', error);
     }
   };
-
-  const layerChips = (
-    <LayerChips
-      label={t('nativeMapLayers')}
-      expanded={filtersExpanded}
-      toggleLabel={filtersExpanded ? t('nativeMapFiltersHide') : t('nativeMapFiltersShow')}
-      onToggleExpanded={() => setFiltersExpanded((value) => !value)}
-      chips={[
-        ...(['elevator', 'toilet', 'ramp'] as const).map((category) => ({
-          key: category,
-          label: t(LAYER_LABEL_KEY[category]),
-          selected: selectedCategories.includes(category),
-          onToggle: () => toggleCategory(category),
-        })),
-        { key: 'parking', label: t('railParking'), selected: showParking, onToggle: toggleParking },
-      ]}
-    />
-  );
 
   if (basemap.status === 'loading') {
     return <LoadingState />;
@@ -246,19 +227,6 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
         {permission === 'granted' ? <NativeUserLocation mode="heading" /> : null}
       </Map>
       {showParking ? <ParkingLoader /> : null}
-      {/* 圖層 chips 貼在 sheet 上緣（設計 1b）：iOS 由 native view 逐格跟著 sheet（拖曳中也不會跳）並在
-          sheet 過半時淡出；Android／舊 dev client 退回依 detent 算出的 inset。只在首頁出現。 */}
-      {!navigationMode && pathname === '/explore' ? (
-        SheetEdgeFollower ? (
-          <SheetEdgeFollower pointerEvents="box-none" gap={4} style={styles.chipsFollower}>
-            <Animated.View style={{ opacity: controlsOpacity }}>{layerChips}</Animated.View>
-          </SheetEdgeFollower>
-        ) : sheetDetentIndex <= 1 ? (
-          <View pointerEvents="box-none" style={[styles.chips, { bottom: sheetInset + 4 }]}>
-            <Animated.View style={{ opacity: controlsOpacity }}>{layerChips}</Animated.View>
-          </View>
-        ) : null
-      ) : null}
       {overlays}
       {navigationMode ? null : (
       <Animated.View style={[styles.controls, { top: insets.top + 56, opacity: controlsOpacity }]}>
@@ -272,16 +240,33 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
               onPress: () => void handleLocate(),
             },
             {
-              key: '3d',
-              label: is3d ? t('switchTo2D') : t('switchTo3D'),
-              systemImage: is3d ? 'map' : 'view.3d',
-              shortLabel: is3d ? '2D' : '3D',
-              onPress: () => void handleToggle3d(),
+              key: 'layers',
+              label: t('nativeMapLayers'),
+              systemImage: 'square.3.layers.3d',
+              shortLabel: '◫',
+              onPress: () => setLayersMenuOpen((value) => !value),
             },
           ]}
         />
       </Animated.View>
       )}
+      {layersMenuOpen ? (
+        <MapLayersMenu
+          anchorTop={insets.top + 56 + 116}
+          is3d={is3d}
+          onToggle3d={() => void handleToggle3d()}
+          facilityToggles={[
+            ...PINNED_FACILITY_CATEGORIES.map((category) => ({
+              key: category as string,
+              label: t(LAYER_LABEL_KEY[category]),
+              selected: selectedCategories.includes(category),
+              onToggle: () => toggleCategory(category),
+            })),
+            { key: 'parking', label: t('railParking'), selected: showParking, onToggle: toggleParking },
+          ]}
+          onClose={() => setLayersMenuOpen(false)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -290,8 +275,6 @@ const LAYER_LABEL_KEY = { elevator: 'elevator', toilet: 'toilet', ramp: 'a11yFea
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  chips: { position: 'absolute', left: 0, right: 0 },
-  chipsFollower: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   map: { flex: 1 },
   controls: { position: 'absolute', right: 16 },
 });

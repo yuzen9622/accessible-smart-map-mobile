@@ -47,8 +47,15 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
         ))}
       </FormSection>
 
+      <FormSection title={t('nativeMapLayers')} footer={t('nativeMapDefaultFacilitiesHint')}>
+        {model.mapDefaultFacilityOptions.map((option) => (
+          <FormSwitch key={option.key} label={option.label} value={option.enabled} onValueChange={option.onToggle} />
+        ))}
+      </FormSection>
+
       <FormSection title={t('settingsEmergencyTitle')} footer={t('settingsEmergencyDesc')}>
         <FormRow label={t('sosContactsManageTitle')} onPress={model.openContacts} />
+        <FormSwitch label={t('nativeSosAlarmSound')} value={model.sosAlarmSoundEnabled} onValueChange={model.setSosAlarmSoundEnabled} />
       </FormSection>
 
       <FormSection title={t('notification')} footer={t('nativePushDescription')}>

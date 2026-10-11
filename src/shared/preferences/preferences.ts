@@ -12,7 +12,7 @@ export type FontSizeLevel = 'small' | 'medium' | 'large' | 'mega';
 export type LanguagePreference = 'system' | 'zh-TW' | 'en';
 
 /** 首頁「快速服務」可選項目；順序即顯示順序（設定頁依這個順序列勾選項）。 */
-export const QUICK_ACTION_KEYS = ['assistant', 'bus', 'hazard'] as const;
+export const QUICK_ACTION_KEYS = ['assistant', 'bus', 'hazard', 'train'] as const;
 export type QuickActionKey = (typeof QUICK_ACTION_KEYS)[number];
 
 export interface Preferences {
@@ -27,6 +27,8 @@ export interface Preferences {
   memoryEnabled: boolean;
   /** 首頁「快速服務」要顯示哪些項目、依什麼順序（參考網頁版「首頁快捷方式」，使用者回饋 2026-10-11）。 */
   quickActions: QuickActionKey[];
+  /** SOS 啟用時是否播放警報聲吸引旁人注意（測試人員回饋 2026-10-11）；預設開啟。 */
+  sosAlarmSoundEnabled: boolean;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -37,6 +39,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   notifications: false,
   memoryEnabled: true,
   quickActions: [...QUICK_ACTION_KEYS],
+  sosAlarmSoundEnabled: true,
 };
 
 /**
@@ -80,5 +83,6 @@ export function sanitizePreferences(value: unknown): Preferences {
     notifications: value.notifications === true,
     memoryEnabled: value.memoryEnabled !== false,
     quickActions: sanitizeQuickActions(value.quickActions),
+    sosAlarmSoundEnabled: value.sosAlarmSoundEnabled !== false,
   };
 }

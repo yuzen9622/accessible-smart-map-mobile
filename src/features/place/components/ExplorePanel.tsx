@@ -20,7 +20,8 @@ import { PLACE_BORDER_COLOR } from './palette';
  *   搜尋框下面是「快速服務」3 欄格狀（AI 助理／公車到站／回報障礙，拿掉規劃路線——地點詳情頁本來就有
  *   主按鈕）→ 附近設施摘要 → 常去地點（標題旁一顆小「新增」，不再混在圓鈕那排裡）。「最近搜尋」從首頁
  *   移除，改成搜尋框取得焦點、還沒打字時才出現（`mode === 'history'`），每筆可直接刪除。
- *   地圖圖層開關是 `features/map` 的 `LayerChips`，貼在 sheet 上緣，不在這個面板內。
+ *   地圖圖層篩選（電梯／坡道／廁所／停車場）拿掉首頁浮動按鈕，只留在搜尋/附近清單流程與
+ *   設定頁「地圖預設顯示」（測試人員回饋：篩選入口重複；2026-10-11）。
  */
 export default function ExplorePanel({ model }: ExplorePanelProps) {
   const colors = useThemeColors();
@@ -92,6 +93,19 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
         {model.loading ? <ActivityIndicator size="small" color={colors.textSecondary} /> : null}
         <Pressable
           accessibilityRole="button"
+          accessibilityState={{ selected: model.voiceInput.status === 'listening' }}
+          accessibilityLabel={model.voiceInput.accessibilityLabel}
+          onPress={model.voiceInput.onToggle}
+          hitSlop={6}
+          style={({ pressed }) => [styles.voiceButton, pressed && styles.pressed]}>
+          <Icon
+            name="audioLines"
+            size={18}
+            color={model.voiceInput.status === 'listening' ? tones.accent : colors.textSecondary}
+          />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel={model.account.label}
           onPress={model.account.onPress}
           hitSlop={6}
@@ -105,24 +119,65 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
       </View>
 
       {model.mode === 'history' ? (
-        // 搜尋框取得焦點、還沒打字：只顯示最近搜尋，每筆可直接刪除
-        <View style={styles.section}>
-          {model.historyRows.length > 0 ? (
-            <>
-              <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
-                {model.labels.recentSearches}
-              </Text>
-              {model.historyRows.map(renderHistoryRow)}
-            </>
-          ) : (
-            <View style={styles.empty}>
-              <Icon name="clock" size={28} color={colors.textSecondary} />
-              <Text accessibilityRole="text" style={[styles.emptyText, { color: colors.textSecondary }]}>
-                {model.labels.recentSearches}
-              </Text>
+        // 搜尋框取得焦點、還沒打字：最近搜尋 + 分類捷徑（像 Google 地圖的「在附近找」／「更多搜尋類別」）
+        <>
+          <View style={styles.section}>
+            {model.historyRows.length > 0 ? (
+              <>
+                <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
+                  {model.labels.recentSearches}
+                </Text>
+                {model.historyRows.map(renderHistoryRow)}
+              </>
+            ) : (
+              <View style={styles.empty}>
+                <Icon name="clock" size={28} color={colors.textSecondary} />
+                <Text accessibilityRole="text" style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  {model.labels.recentSearches}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.section}>
+            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
+              {model.categoryShortcuts.sectionTitle}
+            </Text>
+            <View style={styles.facilityGrid}>
+              {model.categoryShortcuts.nearbyFacilities.map((item) => (
+                <Pressable
+                  key={item.key}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.label}
+                  onPress={item.onPress}
+                  style={({ pressed }) => [styles.facilityTile, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
+                  <Icon name={item.iconName} size={22} color={accentText} />
+                  <Text style={[styles.facilityTileText, { color: colors.text }]} numberOfLines={1}>
+                    {item.label}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
-          )}
-        </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
+              {model.categoryShortcuts.moreTitle}
+            </Text>
+            {model.categoryShortcuts.moreCategories.map((item) => (
+              <Pressable
+                key={item.key}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                onPress={item.onPress}
+                style={({ pressed }) => [styles.categoryRow, { borderColor: PLACE_BORDER_COLOR }, pressed && styles.pressed]}>
+                <Icon name={item.iconName} size={20} color={colors.textSecondary} />
+                <Text style={[styles.categoryRowText, { color: colors.text }]}>{item.label}</Text>
+                <Icon name="chevronRight" size={16} color={colors.textSecondary} />
+              </Pressable>
+            ))}
+          </View>
+        </>
       ) : model.mode === 'idle' ? (
         <>
           <View style={styles.section}>
@@ -191,8 +246,29 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                 <Icon name="plus" size={18} color={accentText} />
               </Pressable>
             </View>
+            {model.shortcutFilters.length > 1 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shortcutFilterScroll}>
+                {model.shortcutFilters.map((filter) => (
+                  <Pressable
+                    key={filter.key}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: filter.selected }}
+                    accessibilityLabel={filter.label}
+                    onPress={filter.onToggle}
+                    style={[
+                      styles.shortcutFilterChip,
+                      { borderColor: PLACE_BORDER_COLOR },
+                      filter.selected && { backgroundColor: tones.accentSoft, borderColor: tones.accent },
+                    ]}>
+                    <Text style={[styles.shortcutFilterText, { color: filter.selected ? accentText : colors.textSecondary }]}>
+                      {filter.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : null}
             {model.shortcuts.length > 0 ? (
-              <View style={styles.shortcutsRow}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutsRow}>
                 {model.shortcuts.map((shortcut) => (
                   <Pressable
                     key={shortcut.key}
@@ -213,7 +289,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                     ) : null}
                   </Pressable>
                 ))}
-              </View>
+              </ScrollView>
             ) : null}
           </View>
         </>
@@ -276,6 +352,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 const styles = StyleSheet.create({
   avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  voiceButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.sm, paddingBottom: 32, gap: 18 },
   flex: { flex: 1 },
   needsRow: { flexDirection: 'row', justifyContent: 'flex-end' },
@@ -292,6 +369,15 @@ const styles = StyleSheet.create({
   needsText: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
   addShortcutButton: { minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center' },
+  shortcutFilterScroll: { marginBottom: SPACE.sm },
+  shortcutFilterChip: {
+    paddingHorizontal: SPACE.md,
+    paddingVertical: 6,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    marginRight: SPACE.sm,
+  },
+  shortcutFilterText: { fontSize: 13, fontWeight: '600' },
   shortcutsRow: { flexDirection: 'row', gap: SPACE.lg, paddingHorizontal: 4 },
   shortcut: { width: 76, alignItems: 'center', gap: 4 },
   shortcutIcon: {
@@ -326,6 +412,27 @@ const styles = StyleSheet.create({
   },
   quickTileIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   quickTileText: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  facilityGrid: { flexDirection: 'row', gap: SPACE.sm },
+  facilityTile: {
+    flex: 1,
+    minHeight: 72,
+    borderRadius: RADIUS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: SPACE.sm,
+    paddingHorizontal: 4,
+  },
+  facilityTileText: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.sm,
+    minHeight: 48,
+    paddingVertical: SPACE.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  categoryRowText: { flex: 1, fontSize: 15 },
   summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: RADIUS.card, padding: 14, minHeight: 58 },
   summaryDots: { flexDirection: 'row' },
   summaryDot: {

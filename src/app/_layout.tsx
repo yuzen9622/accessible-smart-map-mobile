@@ -1,3 +1,4 @@
+import * as SplashScreen from 'expo-splash-screen';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
@@ -20,12 +21,15 @@ import { ConfigErrorScreen, appConfigResult } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import { useFontScale, usePreferencesEffects } from '@/shared/preferences';
-import { ErrorState, HeaderCloseButton } from '@/shared/ui';
+import { ErrorState, HeaderCloseButton, SplashIntro } from '@/shared/ui';
 // 背景定位任務必須在 JS 頂層定義（App 從背景被喚醒時要找得到）
 import '@/shared/location/backgroundLocation';
 
 // 深層連結（例如 accessiblesmartmap://place/123）直接開 sheet 路由時，底下仍要有地圖。
 export const unstable_settings = { initialRouteName: 'index' };
+
+// 擋住原生 Splash 自動隱藏；交給 `SplashIntro` 接手並接動畫過渡（模組層級、越早越好）。
+void SplashScreen.preventAutoHideAsync();
 
 /** 畫面渲染錯誤時取代白屏：提示並可重試（Expo Router 會把子樹的錯誤交到最近的 ErrorBoundary）。 */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
@@ -70,6 +74,7 @@ export default function RootLayout() {
         <ConfigErrorScreen errors={appConfigResult.errors} />
       )}
       <StatusBar style="auto" />
+      <SplashIntro />
     </ThemeProvider>
   );
 }
@@ -142,6 +147,7 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
       <Stack.Screen name="hazard-report" options={{ presentation: 'modal', headerShown: true, title: t('hazardReport') }} />
       <Stack.Screen name="content-report" options={{ presentation: 'modal', headerShown: true, title: t('contentReport'), headerLeft: () => <HeaderCloseButton /> }} />
       <Stack.Screen name="review" options={{ presentation: 'modal', headerShown: true }} />
+      <Stack.Screen name="train" options={{ presentation: 'modal', headerShown: true }} />
       {/* 聊天只有一個：已開著時再開（深層連結 `chat?q=`）沿用同一個 modal，只換預填問題 */}
       <Stack.Screen name="chat" dangerouslySingular={() => 'chat'} options={{ presentation: 'modal', headerShown: true }} />
     </Stack>

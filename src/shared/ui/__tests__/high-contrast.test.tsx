@@ -36,6 +36,7 @@ function Settings() {
     account: null, themeMode: 'light', fontSize: 'medium', language: 'system',
     themeChoices: [], fontChoices: [], languageChoices: [], legalLinks: [], needsSummary: 'Needs', version: '1',
     quickActionOptions: [],
+    mapDefaultFacilityOptions: [],
   } as unknown as SettingsPanelProps['model'];
   return <SettingsPanel model={model} />;
 }

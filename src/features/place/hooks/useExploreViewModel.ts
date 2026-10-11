@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Keyboard, useWindowDimensions } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Keyboard, Linking, useWindowDimensions } from 'react-native';
 
 import {
   FACILITY_COLORS,
@@ -18,11 +18,20 @@ import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import { usePreferencesStore, type QuickActionKey } from '@/shared/preferences';
+import { useDictation, type DictationStatus } from '@/shared/speech';
 import type { IconName } from '@/shared/ui';
 
 import { getPlaceDetails } from '../api/placeSearch';
+import { customCategoryColor } from '../domain/categoryColor';
 import { toApiLang } from '../domain/lang';
-import { isSavedPlaceCategory, placeKey, type SavedPlaceCategory } from '../domain/placeKey';
+import {
+  SAVED_PLACE_CATEGORIES,
+  isBuiltInSavedPlaceCategory,
+  placeKey,
+  savedCategoryLabel,
+  type BuiltInSavedPlaceCategory,
+  type SavedPlaceCategory,
+} from '../domain/placeKey';
 import { placeDisplayName } from '../domain/searchHistory';
 import { usePlaceUiStore } from '../store/placeUiStore';
 import { useSavedPlacesStore } from '../store/savedPlacesStore';
@@ -53,7 +62,7 @@ export type ExploreMode = 'idle' | 'history' | 'results';
 export interface ExploreQuickAction {
   key: QuickActionKey;
   label: string;
-  iconName: 'sparkles' | 'bus' | 'alert';
+  iconName: 'sparkles' | 'bus' | 'alert' | 'trainFront';
   /** 圖示底色：每個項目各自一色，不再全部套用同一個 accentSoft（使用者回饋 2026-10-11，太單調）。 */
   color: string;
   onPress: () => void;
@@ -79,9 +88,7 @@ export interface ExploreNearbySummary {
   onPress: () => void;
 }
 
-const SHORTCUT_LIMIT = 3;
-
-const SAVED_CATEGORY_ICON: Record<SavedPlaceCategory, IconName> = {
+const SAVED_CATEGORY_ICON: Record<BuiltInSavedPlaceCategory, IconName> = {
   favorite: 'heart',
   food: 'utensils',
   transport: 'tramFront',
@@ -90,8 +97,9 @@ const SAVED_CATEGORY_ICON: Record<SavedPlaceCategory, IconName> = {
 };
 
 /** 每個收藏分類各自一色（圓鈕底色＋圖示色）；跟 `QUICK_ACTION_COLOR`、地圖 `FACILITY_COLORS`
- * 一樣是固定色票、不隨主題切換——圖示在色塊上要一眼辨識類別，深／淺色模式下都得是同一個顏色。 */
-const SAVED_CATEGORY_COLOR: Record<SavedPlaceCategory, string> = {
+ * 一樣是固定色票、不隨主題切換——圖示在色塊上要一眼辨識類別，深／淺色模式下都得是同一個顏色。
+ * 自訂分類沒有預先指定的顏色，見 `customCategoryColor`（依名字算一個固定色）。 */
+const SAVED_CATEGORY_COLOR: Record<BuiltInSavedPlaceCategory, string> = {
   favorite: '#D6336C',
   food: '#E8590C',
   transport: '#0C8599',
@@ -104,6 +112,7 @@ const QUICK_ACTION_COLOR: Record<QuickActionKey, string> = {
   assistant: '#7048E8',
   bus: '#0F9960',
   hazard: '#E8590C',
+  train: '#1864AB',
 };
 
 export interface ExploreViewModel {
@@ -121,6 +130,16 @@ export interface ExploreViewModel {
   onRetry: () => void;
   mode: ExploreMode;
   historyRows: ExploreRow[];
+  /** 搜尋框取得焦點、還沒打字時，「最近搜尋」下面接的分類捷徑（像 Google 地圖）：
+   * 「在附近找」是無障礙設施，直接開附近清單並帶篩選；「更多搜尋類別」是一般 POI 類別，
+   * 把類別名稱當查詢字串送進既有的自動完成搜尋（跟使用者自己打字搜尋同一條路徑，
+   * 不需要新的後端 API）。 */
+  categoryShortcuts: {
+    sectionTitle: string;
+    nearbyFacilities: { key: string; label: string; iconName: IconName; onPress: () => void }[];
+    moreTitle: string;
+    moreCategories: { key: string; label: string; iconName: IconName; onPress: () => void }[];
+  };
   resultRows: ExploreRow[];
   onOpenNearby: () => void;
   onOpenSaved: () => void;
@@ -128,14 +147,21 @@ export interface ExploreViewModel {
   showBrand: boolean;
   /** 大標「去哪裡？」與右側的行動需求 pill（點了到設定的需求頁） */
   header: { title: string; needs: { label: string; accessibilityLabel: string; onPress: () => void } };
-  /** 收藏前 3 筆；旁邊的「新增」是常去地點區塊標題右側的小按鈕，不再混在圓鈕那排裡 */
+  /** 收藏地點（依下方 shortcutFilters 勾選的分類篩選，全部收藏可橫向滑動瀏覽）；
+   * 旁邊的「新增」是常去地點區塊標題右側的小按鈕，不再混在圓鈕那排裡 */
   shortcuts: ExploreShortcut[];
+  /** 常去地點分類複選 chip；只列出「實際有被用到」的分類。一個都沒勾＝顯示全部。 */
+  shortcutFilters: { key: SavedPlaceCategory; label: string; selected: boolean; onToggle: () => void }[];
   addShortcut: { label: string; accessibilityLabel: string; onPress: () => void };
   /** 沒有定位或設施未載入時為 null */
   nearbySummary: ExploreNearbySummary | null;
   quickActions: ExploreQuickAction[];
   /** 搜尋框右側的帳號／設定按鈕（Apple 地圖的頭像位置）；已登入顯示名字首字 */
   account: { label: string; initial: string | null; onPress: () => void };
+  /** 搜尋框的語音輸入：原地辨識、講完直接把文字填進搜尋框觸發搜尋，不開啟任何對話 UI
+   * （測試人員回饋 2026-10-11：一開始接去 AI 聊天頁是誤解，使用者要的是像 Google 地圖那種
+   * 「按麥克風→講話→文字自動出現在搜尋框」）。見 `@/shared/speech` 的 `useDictation`。 */
+  voiceInput: { status: DictationStatus; label: string; accessibilityLabel: string; onToggle: () => void };
   labels: {
     searchPlaceholder: string;
     nearbyA11y: string;
@@ -163,6 +189,8 @@ export function useExploreViewModel(): ExploreViewModel {
   const userName = useAuthStore((s) => (loggedIn ? (s.user?.name ?? null) : null));
   const [query, setQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
+  // 常去地點分類複選；空陣列＝不篩選、全部顯示（預設）。
+  const [shortcutCategoryFilter, setShortcutCategoryFilter] = useState<SavedPlaceCategory[]>([]);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [resolveFailed, setResolveFailed] = useState(false);
   const userLocation = useUserLocationStore((state) => state.position);
@@ -173,12 +201,25 @@ export function useExploreViewModel(): ExploreViewModel {
   const sheetInset = useMapUiStore((state) => state.sheetInset);
   const nearbySummary = useNearbySummary();
   const savedPlaceCategories = useSavedPlacesStore((state) => state.savedPlaceCategories);
+  const customCategories = useSavedPlacesStore((state) => state.customCategories);
   const routeMode = useOnboardingStore((state) => state.profile.routeMode);
   const addSearchHistory = useSavedPlacesStore((state) => state.addSearchHistory);
   const removeSearchHistory = useSavedPlacesStore((state) => state.removeSearchHistory);
   const enabledQuickActions = usePreferencesStore((state) => state.quickActions);
   const setSelectedPlace = usePlaceUiStore((state) => state.setSelectedPlace);
   const { suggestions, loading, error: autocompleteError, retry, sessionToken, resetSession } = useAutocomplete(query, userLocation ?? undefined);
+  const dictation = useDictation((transcript) => {
+    setResolveFailed(false);
+    setQuery(transcript);
+    sheetController.raiseTo(SHEET_DETENTS.length - 1);
+  });
+  useEffect(() => {
+    if (dictation.status !== 'denied') return;
+    Alert.alert(t('nativeVoiceSearchDenied'), undefined, [
+      { text: t('cancel'), style: 'cancel' },
+      { text: t('nativeOpenSettings'), onPress: () => void Linking.openSettings() },
+    ]);
+  }, [dictation.status, t]);
 
   const openPlace = (entry: PlaceDetail) => {
     addSearchHistory(entry);
@@ -240,6 +281,40 @@ export function useExploreViewModel(): ExploreViewModel {
     deleteA11yLabel: t('nativeHomeDeleteHistoryA11y', { name: placeDisplayName(entry) }),
   }));
 
+  const openNearbyCategory = (category: 'elevator' | 'ramp' | 'toilet' | 'parking') => {
+    Keyboard.dismiss();
+    setSearchFocused(false);
+    router.navigate({ pathname: '/nearby', params: { category } });
+  };
+
+  // 「更多搜尋類別」：類別名稱直接當查詢字串送進既有自動完成搜尋，跟使用者自己打字搜尋是同一條路徑。
+  const searchByCategory = (label: string) => {
+    setResolveFailed(false);
+    setQuery(label);
+    sheetController.raiseTo(SHEET_DETENTS.length - 1);
+  };
+
+  const categoryShortcuts: ExploreViewModel['categoryShortcuts'] = {
+    sectionTitle: t('nativeSearchNearbyTitle'),
+    nearbyFacilities: [
+      { key: 'elevator', label: t('elevator'), iconName: 'elevator', onPress: () => openNearbyCategory('elevator') },
+      { key: 'ramp', label: t('a11yFeatureRamp'), iconName: 'ramp', onPress: () => openNearbyCategory('ramp') },
+      { key: 'toilet', label: t('toilet'), iconName: 'toilet', onPress: () => openNearbyCategory('toilet') },
+      { key: 'parking', label: t('nativeSearchNearbyParking'), iconName: 'parking', onPress: () => openNearbyCategory('parking') },
+    ],
+    moreTitle: t('nativeSearchMoreCategoriesTitle'),
+    moreCategories: [
+      { key: 'restaurant', label: t('nativeSearchCategoryRestaurant'), iconName: 'utensils', onPress: () => searchByCategory(t('nativeSearchCategoryRestaurant')) },
+      { key: 'supermarket', label: t('nativeSearchCategorySupermarket'), iconName: 'shoppingBasket', onPress: () => searchByCategory(t('nativeSearchCategorySupermarket')) },
+      { key: 'cafe', label: t('nativeSearchCategoryCafe'), iconName: 'coffee', onPress: () => searchByCategory(t('nativeSearchCategoryCafe')) },
+      { key: 'pharmacy', label: t('nativeSearchCategoryPharmacy'), iconName: 'pill', onPress: () => searchByCategory(t('nativeSearchCategoryPharmacy')) },
+      { key: 'gasStation', label: t('nativeSearchCategoryGasStation'), iconName: 'fuel', onPress: () => searchByCategory(t('nativeSearchCategoryGasStation')) },
+      { key: 'hotel', label: t('nativeSearchCategoryHotel'), iconName: 'bedDouble', onPress: () => searchByCategory(t('nativeSearchCategoryHotel')) },
+      { key: 'attraction', label: t('nativeSearchCategoryAttraction'), iconName: 'camera', onPress: () => searchByCategory(t('nativeSearchCategoryAttraction')) },
+      { key: 'more', label: t('nativeSearchMoreCategories'), iconName: 'ellipsis', onPress: openNearby },
+    ],
+  };
+
   const resultRows: ExploreRow[] = suggestions.map((item) => ({
     key: item.id,
     title: item.primaryText,
@@ -249,16 +324,39 @@ export function useExploreViewModel(): ExploreViewModel {
     onPress: () => void handlePickSuggestion(item),
   }));
 
-  const shortcuts: ExploreShortcut[] = savedPlaces.slice(0, SHORTCUT_LIMIT).map((entry) => {
+  const resolvedCategoryOf = (entry: PlaceDetail): SavedPlaceCategory => {
+    const category = savedPlaceCategories[placeKey(entry)];
+    return category ?? 'other';
+  };
+  // 只列出「實際有被用到」的分類當 chip（與收藏地點清單頁同邏輯，見 useSavedPlacesViewModel）；
+  // 內建分類固定順序在前，自訂分類依建立順序接在後面。
+  const usedShortcutCategories = [...SAVED_PLACE_CATEGORIES, ...customCategories].filter((category) =>
+    savedPlaces.some((entry) => resolvedCategoryOf(entry) === category),
+  );
+  const shortcutFilters = usedShortcutCategories.map((category) => ({
+    key: category,
+    label: savedCategoryLabel(t, category),
+    selected: shortcutCategoryFilter.includes(category),
+    onToggle: () =>
+      setShortcutCategoryFilter((current) =>
+        current.includes(category) ? current.filter((item) => item !== category) : [...current, category],
+      ),
+  }));
+  const visibleSavedPlaces =
+    shortcutCategoryFilter.length === 0
+      ? savedPlaces
+      : savedPlaces.filter((entry) => shortcutCategoryFilter.includes(resolvedCategoryOf(entry)));
+  const shortcuts: ExploreShortcut[] = visibleSavedPlaces.map((entry) => {
     const key = placeKey(entry);
-    const category = savedPlaceCategories[key];
-    const resolvedCategory = isSavedPlaceCategory(category) ? category : 'other';
+    const resolvedCategory = resolvedCategoryOf(entry);
     return {
       key,
       title: placeDisplayName(entry),
       meta: userLocation ? formatDistance(haversineMeters(userLocation, entry.position)) : null,
-      iconName: isSavedPlaceCategory(category) ? SAVED_CATEGORY_ICON[category] : 'bookmark',
-      color: SAVED_CATEGORY_COLOR[resolvedCategory],
+      iconName: isBuiltInSavedPlaceCategory(resolvedCategory) ? SAVED_CATEGORY_ICON[resolvedCategory] : 'bookmark',
+      color: isBuiltInSavedPlaceCategory(resolvedCategory)
+        ? SAVED_CATEGORY_COLOR[resolvedCategory]
+        : customCategoryColor(resolvedCategory),
       onPress: () => handlePickSaved(entry),
     };
   });
@@ -293,7 +391,10 @@ export function useExploreViewModel(): ExploreViewModel {
       sheetController.raiseTo(SHEET_DETENTS.length - 1);
       setSearchFocused(true);
     },
-    onSearchBlur: () => setSearchFocused(false),
+    onSearchBlur: () => {
+      setSearchFocused(false);
+      if (query.trim() === '') sheetController.collapse();
+    },
     loading,
     error: autocompleteError || resolveFailed,
     onRetry: () => {
@@ -302,6 +403,7 @@ export function useExploreViewModel(): ExploreViewModel {
     },
     mode: query.trim() !== '' ? 'results' : searchFocused ? 'history' : 'idle',
     historyRows,
+    categoryShortcuts,
     resultRows,
     onOpenNearby: openNearby,
     onOpenSaved: openSaved,
@@ -315,6 +417,7 @@ export function useExploreViewModel(): ExploreViewModel {
       },
     },
     shortcuts,
+    shortcutFilters,
     addShortcut: { label: t('nativeHomeAddShortcut'), accessibilityLabel: t('nativeHomeAddShortcutA11y'), onPress: openSaved },
     nearbySummary: summary,
     // 順序與顯示／隱藏依設定頁「首頁快捷方式」的 enabledQuickActions（參考網頁版，使用者回饋 2026-10-11）；
@@ -337,6 +440,12 @@ export function useExploreViewModel(): ExploreViewModel {
               key: 'hazard', label: t('reportHazard'), iconName: 'alert', color: QUICK_ACTION_COLOR.hazard,
               onPress: () => router.navigate('/hazard-report'),
             };
+          // 火車／高鐵時刻（測試人員回饋 2026-10-11）：root modal，place 不 import train feature
+          case 'train':
+            return {
+              key: 'train', label: t('nativeTrainSearchTitle'), iconName: 'trainFront', color: QUICK_ACTION_COLOR.train,
+              onPress: () => router.navigate('/train'),
+            };
           default:
             return null;
         }
@@ -346,6 +455,16 @@ export function useExploreViewModel(): ExploreViewModel {
       label: userName ? `${t('settingTitle')}，${userName}` : t('settingTitle'),
       initial: userName ? userName.trim().slice(0, 1).toUpperCase() : null,
       onPress: () => router.navigate('/settings'),
+    },
+    voiceInput: {
+      status: dictation.status,
+      label: t('chatbot.voice.micLabel'),
+      accessibilityLabel:
+        dictation.status === 'listening' ? t('nativeVoiceSearchListening') : t('chatbot.voice.micLabel'),
+      onToggle: () => {
+        if (dictation.status === 'listening') dictation.stop();
+        else void dictation.start();
+      },
     },
     labels: {
       searchPlaceholder: t('searchPlaceHolder'),

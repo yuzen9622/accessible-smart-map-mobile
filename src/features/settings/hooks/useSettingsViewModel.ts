@@ -5,6 +5,7 @@ import { useRef } from 'react';
 import { AccessibilityInfo, Alert, Linking, Platform } from 'react-native';
 
 import { runAccountDeletion, selectIsLoggedIn, signOut, useAuthStore } from '@/features/auth';
+import { PINNED_FACILITY_CATEGORIES, useFacilityStore, type PinnedFacilityCategory } from '@/features/map';
 import { requestPushPermission, syncPushToken, usePushStatus } from '@/features/notifications';
 import { useOnboardingStore } from '@/features/onboarding';
 import { getAppConfig } from '@/shared/config';
@@ -28,6 +29,13 @@ const QUICK_ACTION_LABEL_KEY: Record<QuickActionKey, string> = {
   assistant: 'assistShort',
   bus: 'busInfo',
   hazard: 'reportHazard',
+  train: 'nativeTrainSearchTitle',
+};
+
+const FACILITY_CATEGORY_LABEL_KEY: Record<PinnedFacilityCategory, string> = {
+  elevator: 'elevator',
+  toilet: 'toilet',
+  ramp: 'a11yFeatureRamp',
 };
 
 /**
@@ -42,6 +50,10 @@ export function useSettingsViewModel() {
   const pushStatus = usePushStatus((s) => s.status);
   const notificationAttempt = useRef(0);
   const situations = useOnboardingStore((s) => s.profile.situations);
+  const defaultFacilities = useFacilityStore((s) => s.selected);
+  const toggleDefaultFacility = useFacilityStore((s) => s.toggleCategory);
+  const defaultParking = useFacilityStore((s) => s.showParking);
+  const toggleDefaultParking = useFacilityStore((s) => s.toggleParking);
 
   const requireLogin = (action: () => void) => () => {
     if (loggedIn) action();
@@ -186,6 +198,25 @@ export function useSettingsViewModel() {
     onToggle: (value: boolean) => setQuickActionEnabled(key, value),
   }));
 
+  // 拿掉首頁浮動「設施篩選」按鈕後（測試人員回饋：入口重複），這裡是調整「地圖預設一直顯示哪些
+  // 無障礙設施」的唯一入口；直接讀寫 `useFacilityStore`，不是另一份狀態。
+  const mapDefaultFacilityOptions = [
+    ...PINNED_FACILITY_CATEGORIES.map((category) => ({
+      key: category as string,
+      label: t(FACILITY_CATEGORY_LABEL_KEY[category]),
+      enabled: defaultFacilities.includes(category),
+      disabled: false,
+      onToggle: () => toggleDefaultFacility(category),
+    })),
+    {
+      key: 'parking',
+      label: t('railParking'),
+      enabled: defaultParking,
+      disabled: false,
+      onToggle: () => toggleDefaultParking(),
+    },
+  ];
+
   return {
     account: loggedIn && user
       ? {
@@ -212,6 +243,8 @@ export function useSettingsViewModel() {
     language: prefs.language,
     languageChoices,
     setLanguage: (value: LanguagePreference) => prefs.setPreferences({ language: value }),
+    sosAlarmSoundEnabled: prefs.sosAlarmSoundEnabled,
+    setSosAlarmSoundEnabled: (value: boolean) => prefs.setPreferences({ sosAlarmSoundEnabled: value }),
     notifications: prefs.notifications,
     setNotifications,
     notificationStatusText: t(`nativePushStatus_${notificationStatus}`),
@@ -220,6 +253,7 @@ export function useSettingsViewModel() {
     memoryEnabled: prefs.memoryEnabled,
 
     quickActionOptions,
+    mapDefaultFacilityOptions,
 
     needsSummary:
       situations.length > 0

@@ -88,6 +88,12 @@ import Baby from 'lucide-react-native/icons/baby';
 import Type from 'lucide-react-native/icons/type';
 import MapPinned from 'lucide-react-native/icons/map-pinned';
 import ListFilter from 'lucide-react-native/icons/list-filter';
+import ShoppingBasket from 'lucide-react-native/icons/shopping-basket';
+import Coffee from 'lucide-react-native/icons/coffee';
+import Pill from 'lucide-react-native/icons/pill';
+import Fuel from 'lucide-react-native/icons/fuel';
+import BedDouble from 'lucide-react-native/icons/bed-double';
+import Thermometer from 'lucide-react-native/icons/thermometer';
 import { View } from 'react-native';
 
 import type { IconName, IconProps } from './Icon.types';
@@ -182,6 +188,12 @@ const ICONS: Record<IconName, LucideIcon> = {
   type: Type,
   mapPinned: MapPinned,
   listFilter: ListFilter,
+  shoppingBasket: ShoppingBasket,
+  coffee: Coffee,
+  pill: Pill,
+  fuel: Fuel,
+  bedDouble: BedDouble,
+  thermometer: Thermometer,
 };
 
 /**

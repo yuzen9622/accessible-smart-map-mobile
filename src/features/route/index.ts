@@ -36,5 +36,6 @@ export { default as RoutePlanScreen } from './screens/RoutePlanScreen';
 export { default as RouteListScreen, type RouteListScreenProps } from './screens/RouteListScreen';
 export { default as RouteDetailScreen, type BusLegRenderArgs, type RouteDetailScreenProps } from './screens/RouteDetailScreen';
 export { default as RouteLayer } from './components/RouteLayer';
+export { default as RouteFacilityLayer } from './components/RouteFacilityLayer';
 export { default as RouteSessionPill, type RouteSessionPillProps } from './components/RouteSessionPill';
 export { LEG_ICON } from './components/RouteCard';

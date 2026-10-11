@@ -1,12 +1,13 @@
 import { ContentActions } from '@/features/content-safety';
 import { Text } from '@/shared/ui/typography/Text';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, useWindowDimensions, View } from 'react-native';
 
 import { FACILITY_COLORS } from '@/features/map';
 import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, semanticColors, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
+import CategoryNameModal from './CategoryNameModal';
 import MoreActionsButton from './MoreActionsButton';
 import type { PlaceDetailBadge, PlaceDetailNearbyRow, PlaceDetailViewProps } from './PlaceDetailView.types';
 import {
@@ -123,6 +124,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
   // 圖示跟著字級縮放，不然大字級時圖示小得像標點；上限 1.6 倍，避免圖示圈把四格網格撐爆
   const iconScale = Math.min(Math.max(fontScale, 1), 1.6);
   const scaled = (size: number) => Math.round(size * iconScale);
+  const [addingCategory, setAddingCategory] = useState(false);
 
   return (
     // sheet 內 Stack 導覽列為 `headerTransparent`：靠 automatic content inset 讓標頭不被導覽列蓋住
@@ -213,7 +215,28 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
               </Text>
             </Pressable>
           ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={model.addCategoryLabel}
+            onPress={() => setAddingCategory(true)}
+            style={[styles.categoryChip, { backgroundColor: colors.backgroundElement }]}>
+            <Icon name="plus" size={scaled(14)} color={colors.textSecondary} />
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.categoryChipText, { color: colors.textSecondary }]}>
+              {model.addCategoryLabel}
+            </Text>
+          </Pressable>
         </View>
+      ) : null}
+      {model.categories ? (
+        <CategoryNameModal
+          visible={addingCategory}
+          title={model.newCategoryTitle}
+          onCancel={() => setAddingCategory(false)}
+          onSubmit={(name) => {
+            model.onCreateCategory(name);
+            setAddingCategory(false);
+          }}
+        />
       ) : null}
 
       {model.checklist.length > 0 ? (

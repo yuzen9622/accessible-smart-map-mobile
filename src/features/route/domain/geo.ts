@@ -231,6 +231,21 @@ export function filterIncidentsAlongRoute<T extends { location?: { lat: number; 
   });
 }
 
+/**
+ * 只留下距路線 polyline `maxDistanceM` 內的點（如無障礙設施），讓路線沿途可以疊一層
+ * 「這段路附近有哪些設施」，跟「使用者目前位置附近」的既有邏輯分開（測試人員回饋 2026-10-11）。
+ * 用泛型 `{ lat, lng }` 而非具體的 Facility 型別：domain 不得跨 feature import（只能透過
+ * 對方 `index.ts` 公開出口），呼叫端自行傳入 `features/map` 的 Facility[]。
+ */
+export function filterPointsAlongRoute<T extends { lat: number; lng: number }>(
+  points: T[] | undefined,
+  polyline: LngLatTuple[] | undefined,
+  maxDistanceM = 100,
+): T[] {
+  if (!points?.length || !polyline?.length) return [];
+  return points.filter((point) => pointToPolylineDistanceM(point, polyline) <= maxDistanceM);
+}
+
 /** 道路是否封閉：優先採後端的 `roadClosed`，缺欄位才看 `severity`。 */
 export function isIncidentClosed(incident: { roadClosed?: boolean; severity: 'closure' | 'advisory' }): boolean {
   return incident.roadClosed ?? incident.severity === 'closure';

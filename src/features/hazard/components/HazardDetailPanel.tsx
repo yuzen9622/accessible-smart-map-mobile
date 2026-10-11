@@ -1,41 +1,33 @@
 import { ContentActions } from '@/features/content-safety';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { MAX_FONT_SCALE, scaledSize, useThemeColors } from '@/shared/theme';
-import { ErrorState, Icon, type IconName } from '@/shared/ui';
+import { MAX_FONT_SCALE, RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { Button, ErrorState, Icon } from '@/shared/ui';
+import { Text } from '@/shared/ui/typography/Text';
 
+import { reportPresentation } from '../domain/review';
+import { reportHasPhoto } from '../domain/types';
 import type { HazardDetailModel } from '../hooks/useHazardDetail';
-import { HAZARD_COLORS } from './HazardLayer';
+import ReportPhoto from './report/ReportPhoto';
+import { SectionTitle, StatusPill } from './report/reportUi';
 
-function VoteButton({ label, icon, onPress, disabled }: { label: string; icon: IconName; onPress: () => void; disabled: boolean }) {
-  const colors = useThemeColors();
-  const scale = useFontScale();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [styles.vote, { backgroundColor: colors.backgroundElement }, (pressed || disabled) && styles.dim]}>
-      <Icon name={icon} color={colors.text} />
-      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.text, fontSize: scaledSize(15, scale), fontWeight: '600' }}>{label}</Text>
-    </Pressable>
-  );
-}
-
-/** `(sheet)/hazard/[id]`：通報詳情與確認／否認（RN 版型，與地點／設施詳情面板一致）。 */
+/** 地圖回報詳情：現場照片與通行影響優先，單一捲動容器讓原生 sheet 正常交接拖曳。 */
 export default function HazardDetailPanel({ model }: { model: HazardDetailModel }) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
-  const scale = useFontScale();
+  const semantic = useSemanticColors();
+  const insets = useSafeAreaInsets();
+  const { fontScale } = useWindowDimensions();
+  const appFontScale = useFontScale();
+  const stackedVotes = fontScale * appFontScale >= 1.4;
 
   if (model.loading) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator />
+        <ActivityIndicator accessibilityLabel={t('loading')} />
       </View>
     );
   }
@@ -43,11 +35,7 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         {model.failure === 'network' ? (
-          <ErrorState
-            title={t('nativeNetworkError')}
-            systemImage="wifi.slash"
-            retry={{ label: t('retry'), onPress: model.retry }}
-          />
+          <ErrorState title={t('nativeNetworkError')} systemImage="wifi.slash" retry={{ label: t('retry'), onPress: model.retry }} />
         ) : (
           <ErrorState title={t('hazardVoteReportNotFound')} systemImage="mappin.slash" />
         )}
@@ -55,27 +43,88 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
     );
   }
   const report = model.report;
+  const presentation = reportPresentation(report);
+  const severityTone = report.severity === 'blocking' ? semantic.danger : report.severity === 'difficult' ? semantic.warn : semantic.neutral;
+
   return (
-    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.content} contentInsetAdjustmentBehavior="automatic">
-      <View style={styles.header}>
-        <Icon name="alert" size={22} color={HAZARD_COLORS[report.hazardType]} />
-        <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} accessibilityRole="header" style={[styles.title, { color: colors.text, fontSize: scaledSize(20, scale) }]}>
-          {model.typeLabel}
-        </Text>
-        {report.reporterId !== model.userId ? <ContentActions targetType="hazard_report" targetId={report._id} canBlock={report.canBlockAuthor === true} /> : null}
-      </View>
-      {model.severityLabel ? <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.text, fontSize: scaledSize(16, scale) }}>{model.severityLabel}</Text> : null}
-      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(14, scale) }}>{model.statusText}</Text>
-      {/* 照片只開放回報者本人（後端 `/reports/:id/photo` 授權）：公開詳情不顯示，本人到「我的回報」查看 */}
-      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(14, scale) }}>{model.reviewText}</Text>
-      {report.description ? <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.text, fontSize: scaledSize(16, scale) }}>{report.description}</Text> : null}
-      {model.createdText ? <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(13, scale) }}>{model.createdText}</Text> : null}
-      {model.voted ? (
-        <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(15, scale) }}>{t('hazardVoted')}</Text>
-      ) : model.canVote ? (
-        <View style={styles.votes}>
-          <VoteButton label={t('confirmHazard')} icon="thumbsUp" disabled={model.voting} onPress={model.confirm} />
-          <VoteButton label={t('denyHazard')} icon="thumbsDown" disabled={model.voting} onPress={model.deny} />
+    <ScrollView
+      style={[styles.root, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, SPACE.lg) + SPACE.lg }]}
+      contentInsetAdjustmentBehavior="automatic">
+        <View style={styles.header}>
+          <View style={[styles.iconTile, { backgroundColor: severityTone.bg }]}>
+            <Icon name={report.hazardType === 'construction' ? 'construction' : report.hazardType === 'data_error' ? 'mapPin' : 'alert'} size={24} color={severityTone.fg} />
+          </View>
+          <View style={styles.heading}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
+              {model.typeLabel}
+            </Text>
+            {model.severityLabel ? (
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.severity, { color: severityTone.fg }]}>
+                {t('hazardDetailImpact', { severity: model.severityLabel })}
+              </Text>
+            ) : null}
+          </View>
+          {report.reporterId !== model.userId ? <ContentActions targetType="hazard_report" targetId={report._id} canBlock={report.canBlockAuthor === true} /> : null}
+        </View>
+
+        <View style={styles.section}>
+          <SectionTitle icon="camera">{t('hazardPhoto')}</SectionTitle>
+          {reportHasPhoto(report) ? (
+            <ReportPhoto reportId={report._id} variant="detail" unavailableHint={t('hazardDetailPhotoAccess')} />
+          ) : (
+            <View style={[styles.noPhoto, { backgroundColor: semantic.surface }]}>
+              <Icon name="image" size={22} color={colors.textSecondary} />
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.body, { color: colors.textSecondary }]}>{t('hazardDetailNoPhoto')}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <SectionTitle>{t('hazardDetailDescription')}</SectionTitle>
+          <Text selectable maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.description, { color: report.description ? colors.text : colors.textSecondary }]}>
+            {report.description || t('hazardDetailNoDescription')}
+          </Text>
+          {model.createdText ? (
+            <View style={styles.date}>
+              <Icon name="clock" size={14} color={colors.textSecondary} />
+              <Text selectable maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.caption, styles.flex, { color: colors.textSecondary }]}>
+                {t('hazardDetailReportedAt', { date: model.createdText })}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={[styles.reviewCard, { backgroundColor: semantic.surface }]}>
+          <StatusPill label={t(presentation.label)} tone={presentation.tone} />
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.body, { color: colors.textSecondary }]}>{model.reviewText}</Text>
+          <View style={[styles.community, { borderTopColor: semantic.separator }]}>
+            <Icon name="users" size={16} color={colors.textSecondary} />
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.caption, styles.flex, { color: colors.textSecondary }]}>
+              {t('hazardDetailCommunity', { confirm: report.confirmCount ?? 0, deny: report.denyCount ?? 0 })}
+            </Text>
+          </View>
+        </View>
+      {model.voted || model.canVote ? (
+        <View style={[styles.footer, { borderTopColor: semantic.separator }]}>
+          {model.voted ? (
+            <View style={styles.voted}>
+              <Icon name="circleCheck" size={20} color={semantic.ok.fg} />
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.body, { color: colors.text }]}>{t('hazardVoted')}</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.footerTitle}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} accessibilityRole="header" style={[styles.footerHeading, { color: colors.text }]}>{t('hazardDetailOnSite')}</Text>
+                {model.voting ? <ActivityIndicator accessibilityLabel={t('hazardDetailVoting')} /> : null}
+              </View>
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.caption, { color: colors.textSecondary }]}>{t('hazardDetailVoteHint')}</Text>
+              <View style={[styles.votes, stackedVotes && styles.stackedVotes]}>
+                <View style={!stackedVotes && styles.flex}><Button label={t('hazardDetailConfirm')} disabled={model.voting} onPress={model.confirm} /></View>
+                <View style={!stackedVotes && styles.flex}><Button label={t('hazardDetailDeny')} variant="secondary" disabled={model.voting} onPress={model.deny} /></View>
+              </View>
+            </>
+          )}
         </View>
       ) : null}
     </ScrollView>
@@ -83,11 +132,27 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  content: { padding: 16, paddingTop: 20, gap: 10 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title: { fontWeight: '700' },
-  votes: { flexDirection: 'row', gap: 10, marginTop: 6 },
-  vote: { flex: 1, minHeight: 48, borderRadius: 12, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' },
-  dim: { opacity: 0.5 },
+  root: { flex: 1 },
+  flex: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: SPACE.xl },
+  content: { padding: SPACE.xl, paddingTop: SPACE.lg, gap: SPACE.xl },
+  header: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
+  heading: { flex: 1, gap: SPACE.xs },
+  iconTile: { width: 48, height: 48, borderRadius: RADIUS.card, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: TYPE.title, fontWeight: '700' },
+  severity: { fontSize: TYPE.subhead, lineHeight: 20, fontWeight: '600' },
+  section: { gap: SPACE.md },
+  body: { fontSize: TYPE.callout, lineHeight: 22 },
+  description: { fontSize: TYPE.body, lineHeight: 24 },
+  caption: { fontSize: TYPE.subhead, lineHeight: 20 },
+  date: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.sm },
+  noPhoto: { minHeight: 96, borderRadius: RADIUS.card, alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, padding: SPACE.lg },
+  reviewCard: { borderRadius: RADIUS.card, padding: SPACE.lg, gap: SPACE.md },
+  community: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.sm, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: SPACE.md },
+  footer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: SPACE.lg, gap: SPACE.sm },
+  footerTitle: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
+  footerHeading: { fontSize: TYPE.body, fontWeight: '600', flex: 1 },
+  votes: { flexDirection: 'row', gap: SPACE.md, paddingTop: SPACE.xs },
+  stackedVotes: { flexDirection: 'column', alignItems: 'flex-start' },
+  voted: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACE.sm },
 });

@@ -11,7 +11,7 @@ import { logger } from '@/shared/logger';
 import { confirmHazardReport, getHazardReport } from '../api/hazardApi';
 import { markVoted, updateReport, useHazardLayerStore } from '../controller/hazardLayerController';
 import { canVote, HAZARD_TYPE_LABEL_KEY, SEVERITY_LABEL_KEY, voteErrorKey } from '../domain/hazardErrors';
-import { hazardReviewStatus, reportPresentation } from '../domain/review';
+import { formatReportDate, hazardReviewStatus, reportPresentation } from '../domain/review';
 import { reportLatLng, type HazardReport } from '../domain/types';
 
 /** 通報詳情＋確認／否認投票，對齊 Web `HazardWrapper` popup（commit f82cda8）。登出也能投票（後端以 IP 雜湊識別）。 */
@@ -100,7 +100,7 @@ export function useHazardDetail(id: string | undefined) {
       ? `${t(reportPresentation(report).label)}${report.confirmCount !== undefined ? ` · ${t('nativeHazardConfirmCount', { count: report.confirmCount })}` : ''}`
       : '',
     reviewText: report ? t(hazardReviewStatus(report)) : '',
-    createdText: report?.createdAt ? new Date(report.createdAt).toLocaleString(i18n.language) : null,
+    createdText: formatReportDate(report?.createdAt, i18n.language),
     canVote: report ? canVote(report, userId) && !voted : false,
     voted,
     voting,

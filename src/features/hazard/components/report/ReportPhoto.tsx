@@ -16,6 +16,8 @@ import { ActionButton } from './reportUi';
 interface ReportPhotoProps {
   reportId: string;
   variant: 'thumbnail' | 'detail';
+  /** 公開詳情載入失敗時，說明照片的既有存取限制。 */
+  unavailableHint?: string;
 }
 
 /**
@@ -27,7 +29,7 @@ export default function ReportPhoto(props: ReportPhotoProps) {
   return <PhotoSession key={`${userId}:${props.reportId}`} {...props} />;
 }
 
-function PhotoSession({ reportId, variant }: ReportPhotoProps) {
+function PhotoSession({ reportId, variant, unavailableHint }: ReportPhotoProps) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   const [attempt, setAttempt] = useState(0);
@@ -71,7 +73,8 @@ function PhotoSession({ reportId, variant }: ReportPhotoProps) {
     setSource(hazardPhotoSource(reportId));
     setAttempt((n) => n + 1);
   };
-  const frame = variant === 'detail' ? styles.detail : styles.thumbnail;
+  const compactFailure = failed && variant === 'detail';
+  const frame = variant === 'detail' ? (compactFailure ? styles.detailUnavailable : styles.detail) : styles.thumbnail;
 
   return (
     <View style={variant === 'detail' ? styles.detailWrap : undefined}>
@@ -90,7 +93,7 @@ function PhotoSession({ reportId, variant }: ReportPhotoProps) {
           />
         ) : null}
         {state !== 'loaded' ? (
-          <View style={styles.placeholder} accessible accessibilityRole="text" accessibilityLabel={t(failed ? 'hazardPhotoUnavailable' : 'hazardPhotoLoading')}>
+          <View style={compactFailure ? styles.unavailablePlaceholder : styles.placeholder} accessible accessibilityRole="text" accessibilityLabel={t(failed ? 'hazardPhotoUnavailable' : 'hazardPhotoLoading')}>
             {failed ? <Icon name="image" size={variant === 'detail' ? 28 : 22} color={colors.textSecondary} /> : <ActivityIndicator />}
             {variant === 'detail' ? (
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.placeholderText, { color: colors.textSecondary }]}>
@@ -100,7 +103,12 @@ function PhotoSession({ reportId, variant }: ReportPhotoProps) {
           </View>
         ) : null}
       </View>
-      {failed && variant === 'detail' ? (
+      {failed && variant === 'detail' && unavailableHint ? (
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.placeholderText, { color: colors.textSecondary }]}>
+          {unavailableHint}
+        </Text>
+      ) : null}
+      {failed && source && variant === 'detail' ? (
         <ActionButton
           label={t('myReportsRetry')}
           icon="refresh"
@@ -116,6 +124,8 @@ const styles = StyleSheet.create({
   thumbnail: { width: 76, height: 76, borderRadius: RADIUS.small, overflow: 'hidden' },
   detailWrap: { gap: 10 },
   detail: { width: '100%', aspectRatio: 4 / 3, borderRadius: RADIUS.card, overflow: 'hidden' },
+  detailUnavailable: { width: '100%', borderRadius: RADIUS.card, overflow: 'hidden' },
+  unavailablePlaceholder: { minHeight: 128, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16 },
   placeholder: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 8 },
   placeholderText: { fontSize: TYPE.subhead, textAlign: 'center' },
 });

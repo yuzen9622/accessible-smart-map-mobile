@@ -16,12 +16,10 @@ import { ActionButton } from './reportUi';
 interface ReportPhotoProps {
   reportId: string;
   variant: 'thumbnail' | 'detail';
-  /** 公開詳情載入失敗時，說明照片的既有存取限制。 */
-  unavailableHint?: string;
 }
 
 /**
- * 回報照片（Web `HazardReportPhoto`）：由後端 `/reports/:id/photo` 帶 token 取得 bytes。
+ * 私人原生回報照片：由後端 `/reports/:id/photo` 帶 token 取得 bytes。
  * 列表縮圖載入失敗只顯示佔位；詳情提供重試。換帳號時以 key 重建，不沿用上一個帳號的圖。
  */
 export default function ReportPhoto(props: ReportPhotoProps) {
@@ -29,7 +27,7 @@ export default function ReportPhoto(props: ReportPhotoProps) {
   return <PhotoSession key={`${userId}:${props.reportId}`} {...props} />;
 }
 
-function PhotoSession({ reportId, variant, unavailableHint }: ReportPhotoProps) {
+function PhotoSession({ reportId, variant }: ReportPhotoProps) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   const [attempt, setAttempt] = useState(0);
@@ -103,11 +101,6 @@ function PhotoSession({ reportId, variant, unavailableHint }: ReportPhotoProps) 
           </View>
         ) : null}
       </View>
-      {failed && variant === 'detail' && unavailableHint ? (
-        <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.placeholderText, { color: colors.textSecondary }]}>
-          {unavailableHint}
-        </Text>
-      ) : null}
       {failed && source && variant === 'detail' ? (
         <ActionButton
           label={t('myReportsRetry')}

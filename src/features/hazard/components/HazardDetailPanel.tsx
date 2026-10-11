@@ -11,7 +11,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { reportPresentation } from '../domain/review';
 import { reportHasPhoto } from '../domain/types';
 import type { HazardDetailModel } from '../hooks/useHazardDetail';
-import ReportPhoto from './report/ReportPhoto';
+import PublicReportPhoto from './report/PublicReportPhoto';
 import { SectionTitle, StatusPill } from './report/reportUi';
 
 /** 地圖回報詳情：現場照片與通行影響優先，單一捲動容器讓原生 sheet 正常交接拖曳。 */
@@ -70,12 +70,12 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
 
         <View style={styles.section}>
           <SectionTitle icon="camera">{t('hazardPhoto')}</SectionTitle>
-          {reportHasPhoto(report) ? (
-            <ReportPhoto reportId={report._id} variant="detail" unavailableHint={t('hazardDetailPhotoAccess')} />
+          {report.publicPhotoUrl ? (
+            <PublicReportPhoto url={report.publicPhotoUrl} onRefresh={model.retry} />
           ) : (
             <View style={[styles.noPhoto, { backgroundColor: semantic.surface }]}>
               <Icon name="image" size={22} color={colors.textSecondary} />
-              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.body, { color: colors.textSecondary }]}>{t('hazardDetailNoPhoto')}</Text>
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.body, { color: colors.textSecondary }]}>{t(reportHasPhoto(report) ? 'hazardPublicPhotoUnavailable' : 'hazardDetailNoPhoto')}</Text>
             </View>
           )}
         </View>

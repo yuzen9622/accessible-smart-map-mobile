@@ -6,7 +6,7 @@ import {
   photoFileName,
   validateHazardPhoto,
 } from '../hazardPhoto';
-import { isHazardReport, type HazardReport } from '../types';
+import { isHazardReport, parseHazardReport, type HazardReport } from '../types';
 
 // 照片驗證案例移植自 Web `HazardReportPanel.test.ts`（commit f82cda8）的 P2-5 區塊；
 // 「report location」兩個案例驗的是 Web 元件 SSR 輸出，原生改由 `hazardDraft` 的地點快照處理（見 port-ledger）。
@@ -70,7 +70,7 @@ describe('error mapping', () => {
     expect(voteErrorKey('whatever')).toBe('hazardVoteFailed');
   });
 
-  const base = { _id: 'r', hazardType: 'obstacle', reportedLocation: { type: 'Point', coordinates: [121.5, 25.03] } } satisfies Omit<HazardReport, 'status'>;
+  const base = { _id: 'r', publicPhotoUrl: null, hazardType: 'obstacle', reportedLocation: { type: 'Point', coordinates: [121.5, 25.03] } } satisfies Omit<HazardReport, 'status'>;
   it('only reviewing or verified reports by someone else can be voted on', () => {
     const reviewing = { ...base, status: 'pending', aiReview: { state: 'processing' } } as const;
     expect(canVote({ ...reviewing, reporterId: 'a' }, 'b')).toBe(true);
@@ -89,11 +89,21 @@ describe('isHazardReport', () => {
     reportedLocation: { type: 'Point', coordinates: [121.5, 25.03] },
     status: 'pending',
     confirmCount: 1,
+    publicPhotoUrl: null,
   };
   it('accepts a wire report and rejects broken ones', () => {
     expect(isHazardReport(report)).toBe(true);
     expect(isHazardReport({ ...report, hazardType: 'ufo' })).toBe(false);
     expect(isHazardReport({ ...report, reportedLocation: { coordinates: [1] } })).toBe(false);
+  });
+
+  it('normalizes a legacy DTO without deriving private URLs and rejects malformed public fields', () => {
+    const { publicPhotoUrl: _missing, ...legacy } = report;
+    expect(isHazardReport(legacy)).toBe(false);
+    expect(parseHazardReport({ ...legacy, hasPhoto: true, photoUrl: 'https://storage.test/legacy.jpg' })?.publicPhotoUrl).toBeNull();
+    expect(parseHazardReport({ ...report, publicPhotoUrl: 123 })).toBeNull();
+    const url = '/api/v1/a11y/reports/r1/photo/public';
+    expect(parseHazardReport({ ...report, publicPhotoUrl: url })?.publicPhotoUrl).toBe(url);
   });
 
   // 實際 `/reports/mine` 回應：沒填描述是 `description: null`、`expectedUntil: null`，不能因此整筆被濾掉

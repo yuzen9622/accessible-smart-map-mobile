@@ -5,9 +5,6 @@ import HazardDetailPanel from '../HazardDetailPanel';
 
 jest.mock('react-native-safe-area-context', () => jest.requireActual('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/features/content-safety', () => ({ ContentActions: () => null }));
-jest.mock('@/features/auth', () => ({
-  useAuthStore: (selector: (state: { user: { _id: string } }) => unknown) => selector({ user: { _id: 'owner' } }),
-}));
 jest.mock('@/shared/i18n', () => ({ useAppTranslation: () => ({ t: (key: string) => key }) }));
 jest.mock('@/shared/ui', () => {
   const { Text, Pressable } = jest.requireActual('react-native');
@@ -19,24 +16,21 @@ jest.mock('@/shared/ui', () => {
     ),
   };
 });
-jest.mock('expo-image', () => {
-  const { View: MockView } = jest.requireActual('react-native');
-  return { Image: MockView };
-});
-const mockSource = jest.fn((id: string): { uri: string; headers: Record<string, string> } | null => (
-  { uri: `https://api.test/reports/${id}/photo`, headers: { Authorization: 'Bearer test-token' } }
-));
+jest.mock('expo-image', () => ({ Image: jest.requireActual('react-native').View }));
+const mockPrivate = jest.fn();
 const mockRecover = jest.fn();
 jest.mock('../../api/hazardApi', () => ({
-  hazardPhotoSource: (id: string) => mockSource(id),
-  recoverHazardPhotoSource: (id: string) => mockRecover(id),
+  publicHazardPhotoSource: (url: string | null) => url ? { uri: `https://backend.test${url}` } : null,
+  hazardPhotoSource: (...args: unknown[]) => mockPrivate(...args),
+  recoverHazardPhotoSource: (...args: unknown[]) => mockRecover(...args),
 }));
 
 function model(overrides: Partial<HazardDetailModel> = {}): HazardDetailModel {
   return {
-    userId: 'owner', loading: false, failure: null, retry: jest.fn(),
+    userId: null, loading: false, failure: null, retry: jest.fn(),
     report: {
       _id: 'report-one', hazardType: 'obstacle', severity: 'difficult', status: 'verified', hasPhoto: true,
+      publicPhotoUrl: '/api/v1/a11y/reports/report-one/photo/public',
       reportedLocation: { type: 'Point', coordinates: [120.63734, 24.13039] },
       description: '此地方正在施工', confirmCount: 0, denyCount: 0,
       aiReview: { state: 'completed', decision: 'supported' },
@@ -48,54 +42,55 @@ function model(overrides: Partial<HazardDetailModel> = {}): HazardDetailModel {
   };
 }
 
-beforeEach(() => { jest.clearAllMocks(); mockRecover.mockResolvedValue(null); });
+beforeEach(() => { jest.clearAllMocks(); });
 
-it('renders the actual protected photo component in map report details', async () => {
+it('loads the DTO public URL anonymously without a private source or token', async () => {
   await render(<HazardDetailPanel model={model()} />);
   const photo = screen.getByLabelText('hazardPhoto');
-  expect(photo.props.source).toEqual({ uri: 'https://api.test/reports/report-one/photo', headers: { Authorization: 'Bearer test-token' } });
+  expect(photo.props.source).toEqual({ uri: 'https://backend.test/api/v1/a11y/reports/report-one/photo/public' });
   expect(photo.props.cachePolicy).toBe('none');
   expect(photo.props.contentFit).toBe('contain');
-  await act(async () => { await photo.props.onLoad(); });
+  await act(async () => { photo.props.onLoad(); });
   expect(screen.queryByText('hazardPhotoLoading')).toBeNull();
+  expect(mockPrivate).not.toHaveBeenCalled();
   expect(screen.getByText('此地方正在施工')).toBeTruthy();
+});
+
+it('does not load a null public URL even for the owner with hasPhoto and a legacy URL', async () => {
+  const data = model();
+  const report = { ...data.report!, reporterId: 'owner', publicPhotoUrl: null, hasPhoto: true, photoUrl: 'https://storage.test/stale.jpg' };
+  await render(<HazardDetailPanel model={{ ...data, userId: 'owner', report }} />);
+  expect(screen.queryByLabelText('hazardPhoto')).toBeNull();
+  expect(screen.getByText('hazardPublicPhotoUnavailable')).toBeTruthy();
+  expect(mockPrivate).not.toHaveBeenCalled();
 });
 
 it('shows no-photo state without requesting an image', async () => {
   const data = model();
-  const noPhoto = { ...data.report!, hasPhoto: false, photoUrl: 'https://storage.test/stale.jpg' };
-  await render(<HazardDetailPanel model={{ ...data, report: noPhoto }} />);
-  expect(mockSource).not.toHaveBeenCalled();
+  await render(<HazardDetailPanel model={{ ...data, report: { ...data.report!, publicPhotoUrl: null, hasPhoto: false } }} />);
+  expect(screen.queryByLabelText('hazardPhoto')).toBeNull();
   expect(screen.getByText('hazardDetailNoPhoto')).toBeTruthy();
 });
 
-it('allows a failed photo to retry and recover', async () => {
+it('shows public-unavailable on 404 without private recovery or a login hint', async () => {
   await render(<HazardDetailPanel model={model()} />);
-  await act(async () => { await screen.getByLabelText('hazardPhoto').props.onError(); });
-  expect(screen.getByText('hazardPhotoUnavailable')).toBeTruthy();
-  await fireEvent.press(screen.getByRole('button', { name: 'myReportsRetry' }));
-  const photo = screen.getByLabelText('hazardPhoto');
-  await act(async () => { await photo.props.onLoad(); });
-  expect(screen.queryByText('hazardPhotoUnavailable')).toBeNull();
+  await act(async () => { screen.getByLabelText('hazardPhoto').props.onError({ error: 'HTTP 404' }); });
+  expect(screen.getByText('hazardPublicPhotoUnavailable')).toBeTruthy();
+  expect(screen.queryByText('hazardDetailPhotoAccess')).toBeNull();
+  expect(screen.queryByLabelText('hazardPhoto')).toBeNull();
+  expect(mockPrivate).not.toHaveBeenCalled();
+  expect(mockRecover).not.toHaveBeenCalled();
 });
 
-it('resets the photo when switching reports and never displays a legacy storage URL', async () => {
+it('removes a loaded photo when a refreshed DTO clears the URL, then resets for another report', async () => {
   const data = model();
   const { rerender } = await render(<HazardDetailPanel model={data} />);
-  await act(async () => { await screen.getByLabelText('hazardPhoto').props.onLoad(); });
-  const legacyReport = { ...data.report!, _id: 'report-two', hasPhoto: undefined, photoUrl: 'https://storage.test/private.jpg' };
-  await rerender(<HazardDetailPanel model={{ ...data, report: legacyReport }} />);
-  expect(screen.getByLabelText('hazardPhoto').props.source.uri).toBe('https://api.test/reports/report-two/photo');
+  await act(async () => { screen.getByLabelText('hazardPhoto').props.onLoad(); });
+  await rerender(<HazardDetailPanel model={{ ...data, report: { ...data.report!, publicPhotoUrl: null, status: 'expired' } }} />);
+  expect(screen.queryByLabelText('hazardPhoto')).toBeNull();
+  await rerender(<HazardDetailPanel model={{ ...data, report: { ...data.report!, _id: 'report-two', publicPhotoUrl: '/api/v1/a11y/reports/report-two/photo/public' } }} />);
+  expect(screen.getByLabelText('hazardPhoto').props.source.uri).toBe('https://backend.test/api/v1/a11y/reports/report-two/photo/public');
   expect(screen.getByText('hazardPhotoLoading')).toBeTruthy();
-});
-
-it('explains protected photo access without an unauthenticated retry loop', async () => {
-  mockSource.mockReturnValueOnce(null);
-  await render(<HazardDetailPanel model={model()} />);
-  expect(screen.getByText('hazardPhotoUnavailable')).toBeTruthy();
-  expect(screen.getByText('hazardDetailPhotoAccess')).toBeTruthy();
-  expect(screen.queryByRole('button', { name: 'myReportsRetry' })).toBeNull();
-  expect(mockRecover).not.toHaveBeenCalled();
 });
 
 it('hides confirmation actions when the report cannot be voted on', async () => {

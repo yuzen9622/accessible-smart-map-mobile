@@ -1482,7 +1482,7 @@
   "hazardDetailNoDescription": "回報者未補充文字說明",
   "hazardDetailReportedAt": "回報時間 · {{date}}",
   "hazardDetailNoPhoto": "這筆回報未附照片",
-  "hazardDetailPhotoAccess": "照片受保護，僅回報者與管理者可查看。請確認已登入回報帳號。",
+  "hazardPublicPhotoUnavailable": "照片目前無法公開",
   "hazardDetailCommunity": "{{confirm}} 人確認仍有障礙 · {{deny}} 人回報不符現況",
   "hazardDetailOnSite": "你在現場嗎？",
   "hazardDetailVoteHint": "請依目前現場狀況回饋，協助其他使用者安全通行。",

@@ -1511,7 +1511,7 @@
   "hazardDetailNoDescription": "No additional description from the reporter",
   "hazardDetailReportedAt": "Reported · {{date}}",
   "hazardDetailNoPhoto": "No photo attached to this report",
-  "hazardDetailPhotoAccess": "Photos are restricted to the reporter and administrators. Make sure you are signed in with the reporting account.",
+  "hazardPublicPhotoUnavailable": "This photo is currently unavailable publicly.",
   "hazardDetailCommunity": "{{confirm}} confirm the hazard · {{deny}} report a mismatch",
   "hazardDetailOnSite": "Are you at this location?",
   "hazardDetailVoteHint": "Share what you see now to help others travel safely.",

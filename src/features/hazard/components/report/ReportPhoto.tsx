@@ -19,7 +19,7 @@ interface ReportPhotoProps {
 }
 
 /**
- * 回報照片（Web `HazardReportPhoto`）：由後端 `/reports/:id/photo` 帶 token 取得 bytes。
+ * 私人原生回報照片：由後端 `/reports/:id/photo` 帶 token 取得 bytes。
  * 列表縮圖載入失敗只顯示佔位；詳情提供重試。換帳號時以 key 重建，不沿用上一個帳號的圖。
  */
 export default function ReportPhoto(props: ReportPhotoProps) {
@@ -71,7 +71,8 @@ function PhotoSession({ reportId, variant }: ReportPhotoProps) {
     setSource(hazardPhotoSource(reportId));
     setAttempt((n) => n + 1);
   };
-  const frame = variant === 'detail' ? styles.detail : styles.thumbnail;
+  const compactFailure = failed && variant === 'detail';
+  const frame = variant === 'detail' ? (compactFailure ? styles.detailUnavailable : styles.detail) : styles.thumbnail;
 
   return (
     <View style={variant === 'detail' ? styles.detailWrap : undefined}>
@@ -90,7 +91,7 @@ function PhotoSession({ reportId, variant }: ReportPhotoProps) {
           />
         ) : null}
         {state !== 'loaded' ? (
-          <View style={styles.placeholder} accessible accessibilityRole="text" accessibilityLabel={t(failed ? 'hazardPhotoUnavailable' : 'hazardPhotoLoading')}>
+          <View style={compactFailure ? styles.unavailablePlaceholder : styles.placeholder} accessible accessibilityRole="text" accessibilityLabel={t(failed ? 'hazardPhotoUnavailable' : 'hazardPhotoLoading')}>
             {failed ? <Icon name="image" size={variant === 'detail' ? 28 : 22} color={colors.textSecondary} /> : <ActivityIndicator />}
             {variant === 'detail' ? (
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.placeholderText, { color: colors.textSecondary }]}>
@@ -100,7 +101,7 @@ function PhotoSession({ reportId, variant }: ReportPhotoProps) {
           </View>
         ) : null}
       </View>
-      {failed && variant === 'detail' ? (
+      {failed && source && variant === 'detail' ? (
         <ActionButton
           label={t('myReportsRetry')}
           icon="refresh"
@@ -116,6 +117,8 @@ const styles = StyleSheet.create({
   thumbnail: { width: 76, height: 76, borderRadius: RADIUS.small, overflow: 'hidden' },
   detailWrap: { gap: 10 },
   detail: { width: '100%', aspectRatio: 4 / 3, borderRadius: RADIUS.card, overflow: 'hidden' },
+  detailUnavailable: { width: '100%', borderRadius: RADIUS.card, overflow: 'hidden' },
+  unavailablePlaceholder: { minHeight: 128, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16 },
   placeholder: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 8 },
   placeholderText: { fontSize: TYPE.subhead, textAlign: 'center' },
 });

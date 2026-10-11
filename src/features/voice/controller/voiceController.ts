@@ -13,6 +13,7 @@ import { useAuthStore } from '@/features/auth';
 import { useUserLocationStore } from '@/features/map';
 import { getRouteSessionSnapshot, subscribeRouteSession, invalidateRouteConversations, markRouteTokenInvalid } from '@/features/route';
 import { getAuthPort } from '@/shared/api';
+import { getLocationPort } from '@/shared/location';
 import i18n, { getAppLanguage } from '@/shared/i18n';
 
 import { createCapture } from '../audio/audioCapture';
@@ -137,6 +138,12 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
     getUserLocation: () => {
       const position = useUserLocationStore.getState().position;
       return position ? { latitude: position.lat, longitude: position.lng } : null;
+    },
+    requestUserLocation: async () => {
+      const location = getLocationPort();
+      if (await location.getPermissionStatus() !== 'granted') return null;
+      const position = await location.getCurrent({ accuracy: 'high' });
+      return { latitude: position.lat, longitude: position.lng };
     },
     getHistory: sharedHistory,
     getLanguage: getAppLanguage,

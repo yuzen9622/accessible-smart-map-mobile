@@ -63,7 +63,7 @@ const uplink = {
   sendNavigationPosition: jest.fn(),
   cancelNavigation: jest.fn(),
   setMuted: jest.fn(),
-  getStatus: () => 'listening' as const,
+  getStatus: jest.fn((): import('../../domain/voiceSession').VoiceStatusName => 'listening'),
 };
 
 function setPosition(position: LatLng | null): void {
@@ -199,3 +199,18 @@ describe('voiceNavigationBridge', () => {
   });
 });
 
+
+it('sends GPS updates during ordinary voice chat without starting navigation', () => {
+  useNavStore.getState().setIsNavigating(false);
+  jest.clearAllMocks();
+  setPosition({ lat: 24.15, lng: 120.68 });
+  expect(uplink.sendNavigationPosition).toHaveBeenCalledWith({ latitude: 24.15, longitude: 120.68 });
+  expect(mockBegin).not.toHaveBeenCalled();
+  expect(useNavStore.getState().isNavigating).toBe(false);
+});
+it.each(['idle', 'ended', 'error', 'needs-login', 'connecting', 'reconnecting'] as const)('does not upload GPS when voice is %s', status => {
+  uplink.getStatus.mockReturnValueOnce(status);
+  uplink.sendNavigationPosition.mockClear();
+  setPosition({ lat: 24.16, lng: 120.68 });
+  expect(uplink.sendNavigationPosition).not.toHaveBeenCalled();
+});

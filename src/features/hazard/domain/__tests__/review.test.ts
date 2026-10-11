@@ -16,6 +16,7 @@ import { reportHasPhoto, type HazardReport } from '../types';
 const NOW = Date.parse('2026-10-09T08:00:00Z');
 const report = (overrides: Partial<HazardReport> = {}): HazardReport => ({
   _id: 'r1',
+  publicPhotoUrl: null,
   hazardType: 'construction',
   reportedLocation: { type: 'Point', coordinates: [121.5, 25.03] },
   status: 'pending',

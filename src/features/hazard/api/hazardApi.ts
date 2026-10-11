@@ -4,7 +4,8 @@ import { File } from 'expo-file-system';
 import { ApiError, authenticatedRequest, fetchRequest, getAccessToken, getAuthPort, timedFetch } from '@/shared/api';
 import { getAppConfig } from '@/shared/config';
 
-import { isHazardReport, isHazardVoteResult, type HazardReport, type HazardSeverity, type HazardType, type HazardVoteResult } from '../domain/types';
+import { resolvePublicPhotoUrl } from '../domain/publicPhoto';
+import { parseHazardReport, isHazardVoteResult, type HazardReport, type HazardSeverity, type HazardType, type HazardVoteResult } from '../domain/types';
 
 /**
  * 移植自 Web `src/lib/api/a11y.ts` 的通報 API（commit f82cda8）。
@@ -56,14 +57,14 @@ export async function createHazardReport(input: HazardReportInput): Promise<Crea
   const res = await fetchRequest(BASE, { method: 'POST', body: form, headers: optionalAuthHeaders() });
   if (!ok(res)) throw new ApiError(res.message, res.code);
   const data = isRecord(res.data) ? res.data : {};
-  return { merged: data.merged === true, report: isHazardReport(data.report) ? data.report : null };
+  return { merged: data.merged === true, report: parseHazardReport(data.report) };
 }
 
 export async function getNearbyHazardReports(lat: number, lng: number, radius = 1000, signal?: AbortSignal): Promise<HazardReport[]> {
   const query = `lat=${lat}&lng=${lng}&radius=${Math.round(radius)}&limit=50`;
   const res = await fetchRequest(`${BASE}?${query}`, { method: 'GET', signal, requireAuth: Boolean(getAccessToken()), isCurrent: captureContentContext() });
   if (!ok(res) || !isRecord(res.data) || !Array.isArray(res.data.reports)) return [];
-  return res.data.reports.filter(isHazardReport);
+  return res.data.reports.map(parseHazardReport).filter((report): report is HazardReport => report !== null);
 }
 
 export interface MyReportsPage {
@@ -76,12 +77,14 @@ export async function getMyHazardReports(cursor?: string | null, signal?: AbortS
   const query = cursor ? `?limit=20&cursor=${encodeURIComponent(cursor)}` : '?limit=20';
   const res = await authenticatedRequest(`${BASE}/mine${query}`, { method: 'GET', signal });
   if (!ok(res)) throw new ApiError(res.message, res.code);
-  if (!isRecord(res.data) || !Array.isArray(res.data.reports) || !res.data.reports.every(isHazardReport)
+  if (!isRecord(res.data) || !Array.isArray(res.data.reports)
     || (res.data.nextCursor != null && typeof res.data.nextCursor !== 'string')) {
     throw new ApiError('Invalid owned reports response', 502);
   }
+  const reports = res.data.reports.map(parseHazardReport);
+  if (reports.some((report) => report === null)) throw new ApiError('Invalid owned reports response', 502);
   return {
-    reports: res.data.reports.filter(isHazardReport),
+    reports: reports.filter((report): report is HazardReport => report !== null),
     nextCursor: typeof res.data.nextCursor === 'string' ? res.data.nextCursor : null,
   };
 }
@@ -100,8 +103,15 @@ export async function getHazardReport(id: string, signal?: AbortSignal): Promise
 export async function fetchHazardReport(id: string, signal?: AbortSignal): Promise<HazardReport> {
   const res = await fetchRequest(`${BASE}/${encodeURIComponent(id)}`, { method: 'GET', signal, requireAuth: Boolean(getAccessToken()), isCurrent: captureContentContext() });
   // 非 2xx 已由 fetchRequest 拋出（含 404／410）；這裡只剩「回應形狀不符」，當成暫時錯誤而不是「回報不存在」
-  if (!ok(res) || !isRecord(res.data) || !isHazardReport(res.data.report)) throw new ApiError(res.message || 'Invalid report response', 502);
-  return res.data.report;
+  const report = isRecord(res.data) ? parseHazardReport(res.data.report) : null;
+  if (!ok(res) || !report) throw new ApiError(res.message || 'Invalid report response', 502);
+  return report;
+}
+
+/** 公開照片完全不讀登入狀態、不带 Authorization，也不由 hasPhoto 合成私人網址。 */
+export function publicHazardPhotoSource(publicPhotoUrl: string | null): { uri: string } | null {
+  const uri = resolvePublicPhotoUrl(publicPhotoUrl, getAppConfig().apiBaseUrl);
+  return uri ? { uri } : null;
 }
 
 /**

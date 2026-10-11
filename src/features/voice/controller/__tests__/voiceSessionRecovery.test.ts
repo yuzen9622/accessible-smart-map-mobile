@@ -5,6 +5,7 @@ import { registerChatDismiss } from '@/features/ai/controller/actionExecutor';
 import { routePlanFixture } from '@/features/ai/domain/testing/routePlanFixture';
 import { useAuthStore } from '@/features/auth';
 import { appendVoiceTurns } from '@/features/ai';
+import { useUserLocationStore } from '@/features/map';
 import { configureAuthState, refreshAccessToken, resetRefreshLaneForTests } from '@/features/auth/domain/authRefresh';
 import type { VoiceSocket } from '@/features/voice/domain/voiceSession';
 
@@ -17,6 +18,9 @@ let mockCaptureFrame: (frame: ArrayBuffer) => void;
 const mockPlayback = { play: jest.fn(), clear: jest.fn(), dispose: jest.fn(), resume: jest.fn(async () => true), onBlocked: jest.fn(), setMuted: jest.fn(), isPlaying: jest.fn(() => false), onDrained: jest.fn() };
 const mockRouteState = { selectionGeneration: 1, selectRoute: null, navigationRoute: null, isLoading: false, invalidRouteTokens: [] };
 const mockRouteListeners: ((state: typeof mockRouteState, previous: typeof mockRouteState) => void)[] = [];
+const mockGetCurrent = jest.fn();
+const mockPermission = jest.fn(async () => 'denied');
+jest.mock('@/shared/location', () => ({ getLocationPort: () => ({ getPermissionStatus: mockPermission, getCurrent: mockGetCurrent }) }));
 const mockRefresh = jest.fn(async () => 'token-refreshed');
 jest.mock('expo-device', () => ({ isDevice: true }));
 jest.mock('expo-router', () => ({ router: { navigate: (...args: unknown[]) => mockNavigate(...args) } }));
@@ -77,6 +81,9 @@ let unregister: () => void;
 beforeEach(() => {
   dismissVoiceSession(); jest.clearAllMocks(); mockSockets.length = 0; mockRouteState.selectionGeneration = 1; mockRouteState.selectRoute = null;
   useAuthStore.setState({ user: { _id: 'user-a' } as never, session: { accessToken: 'token-a' } });
+  useUserLocationStore.setState({ position: { lat: 25, lng: 121 } });
+  mockPermission.mockResolvedValue('denied');
+  mockGetCurrent.mockReset();
   unregister = registerChatDismiss(mockDismiss); jest.useFakeTimers();
 });
 afterEach(() => { endVoiceSession(); unregister(); configureAuthState(null); resetRefreshLaneForTests(); jest.clearAllTimers(); jest.useRealTimers(); });
@@ -219,4 +226,48 @@ describe('voice session recovery through the production controller', () => {
     await jest.advanceTimersByTimeAsync(10_001);
     expect(state()).toMatchObject({ status: 'listening', visible: true, sentEnd: false, routeSync: 'error' });
   });
+});
+
+it('keeps voice alive when location is denied, allowing the model to ask for an origin', async () => {
+  useUserLocationStore.setState({ position: null });
+  await speaking();
+  event({ type: 'location.request' }); await Promise.resolve(); await Promise.resolve();
+  expect(mockPermission).toHaveBeenCalledTimes(1);
+  expect(mockGetCurrent).not.toHaveBeenCalled();
+  toolCall(); toolResult({ ok: false, reason: 'LOCATION_REQUIRED', error: 'Please provide a starting point' });
+  event({ type: 'transcript', role: 'model', text: '要從哪裡出發？', final: true });
+  expect(state()).toMatchObject({ visible: true, sentEnd: false });
+  expect(useVoiceStore.getState().transcripts.at(-1)?.text).toBe('要從哪裡出發？');
+});
+it('requests a fix only with permission and ignores an async fix from an ended session', async () => {
+  useUserLocationStore.setState({ position: null }); mockPermission.mockResolvedValue('granted');
+  let resolve!: (value: { lat: number; lng: number }) => void;
+  mockGetCurrent.mockReturnValue(new Promise(done => { resolve = done; }));
+  await speaking(); event({ type: 'location.request' });
+  await Promise.resolve(); await Promise.resolve();
+  expect(mockGetCurrent).toHaveBeenCalledTimes(1);
+  endVoiceSession(); startVoiceSession(key => key); await ready();
+  resolve({ lat: 24.15, lng: 120.68 }); await Promise.resolve(); await Promise.resolve();
+  expect(frame('nav.position')).toEqual([]);
+});
+
+it('coalesces location requests and sends an authorized fix without interrupting speech', async () => {
+  useUserLocationStore.setState({ position: null }); mockPermission.mockResolvedValue('granted');
+  let resolve!: (value: { lat: number; lng: number }) => void;
+  mockGetCurrent.mockReturnValue(new Promise(done => { resolve = done; }));
+  await speaking(); event({ type: 'location.request' }); event({ type: 'location.request' });
+  await Promise.resolve(); await Promise.resolve();
+  expect(mockGetCurrent).toHaveBeenCalledTimes(1);
+  resolve({ lat: 24.15, lng: 120.68 }); await Promise.resolve(); await Promise.resolve();
+  expect(frame('nav.position')).toEqual([{ type: 'nav.position', latitude: 24.15, longitude: 120.68 }]);
+  expect(state()).toMatchObject({ status: 'model-speaking', visible: true, sentEnd: false });
+});
+
+it('keeps voice available when an authorized location lookup fails', async () => {
+  useUserLocationStore.setState({ position: null }); mockPermission.mockResolvedValue('granted');
+  mockGetCurrent.mockRejectedValue(new Error('Location unavailable'));
+  await speaking(); event({ type: 'location.request' });
+  await jest.advanceTimersByTimeAsync(0);
+  expect(frame('nav.position')).toEqual([]);
+  expect(state()).toMatchObject({ status: 'model-speaking', visible: true, sentEnd: false });
 });

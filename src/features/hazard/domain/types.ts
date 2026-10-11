@@ -47,6 +47,8 @@ export interface HazardReport {
   description?: string | null;
   /** 照片端點 `GET /reports/:id/photo` 是否有圖；公開 DTO 不再給 Storage URL。 */
   hasPhoto?: boolean;
+  /** 後端公開 bytes 入口；null 表示目前不可公開，不能退回私人入口。 */
+  publicPhotoUrl: string | null;
   status: HazardStatus;
   exifValidation?: { timestampFresh?: boolean; gpsPresent?: boolean; gpsMatchesClaimed?: boolean };
   aiReview?: HazardAiReview;
@@ -84,7 +86,15 @@ export function isHazardReport(v: unknown): v is HazardReport {
   const [lng, lat] = loc.coordinates;
   if (typeof lng !== 'number' || typeof lat !== 'number') return false;
   if (v.aiReview !== undefined && !isAiReview(v.aiReview)) return false;
-  return optNullableStr(v.description) && optStr(v.reporterId) && optNum(v.confirmCount) && optNum(v.denyCount) && optStr(v.createdAt);
+  return (v.publicPhotoUrl === null || typeof v.publicPhotoUrl === 'string')
+    && optNullableStr(v.description) && optStr(v.reporterId) && optNum(v.confirmCount) && optNum(v.denyCount) && optStr(v.createdAt);
+}
+
+/** 分批部署的 API 邊界：舊 DTO 缺公開欄位一律補 null，不合成任何照片網址。 */
+export function parseHazardReport(value: unknown): HazardReport | null {
+  if (!isRecord(value)) return null;
+  const report = { ...value, publicPhotoUrl: value.publicPhotoUrl === undefined ? null : value.publicPhotoUrl };
+  return isHazardReport(report) ? report : null;
 }
 
 const REVIEW_STATES: readonly HazardReviewState[] = ['queued', 'processing', 'completed', 'failed', 'cancelled'];

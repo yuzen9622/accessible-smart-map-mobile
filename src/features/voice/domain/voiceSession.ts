@@ -341,6 +341,7 @@ export function shouldAcceptAdvisoryEvent(
 }
 
 type ServerEventMessage =
+  | { type: 'location.request' }
   | SessionReadyMessage
   | TranscriptMessage
   | TranscriptCorrectionMessage
@@ -464,6 +465,7 @@ export interface VoiceSessionDeps {
   getToken(): string | undefined;
   getAuthIdentity(): string | null;
   getUserLocation(): { latitude: number; longitude: number } | null;
+  requestUserLocation?(): Promise<{ latitude: number; longitude: number } | null>;
   /** 每次送 `session.start`（含重連）時讀一次：目前為止的共用對話。 */
   getHistory?(): PriorTurn[];
   getLanguage?(): 'zh-TW' | 'en';
@@ -532,6 +534,7 @@ export class VoiceSessionController {
   private pendingNavigationRoute = false;
   private sessionLanguage: 'zh-TW' | 'en' | undefined;
   private pendingLanguage = false;
+  private locationRequestGeneration: number | null = null;
 
   syncLanguage(): void {
     if (!this.sessionActive || !this.deps.getLanguage) return;
@@ -667,6 +670,21 @@ export class VoiceSessionController {
     this.sendControl({ type: 'nav.position', ...position });
   }
 
+  private async replyWithLocation(gen: number): Promise<void> {
+    const current = this.deps.getUserLocation();
+    if (current) { this.sendNavigationPosition(current); return; }
+    if (!this.deps.requestUserLocation || this.locationRequestGeneration === gen) return;
+    this.locationRequestGeneration = gen;
+    try {
+      const position = await this.deps.requestUserLocation();
+      if (gen === this.generation && position) this.sendNavigationPosition(position);
+    } catch {
+      // Missing permission/fix is a recoverable route failure, never a hangup.
+    } finally {
+      if (this.locationRequestGeneration === gen) this.locationRequestGeneration = null;
+    }
+  }
+
   cancelNavigation(): void {
     this.sendControl({ type: 'nav.cancel' });
   }
@@ -781,8 +799,6 @@ export class VoiceSessionController {
       return;
     }
 
-    const location = this.deps.getUserLocation();
-
     // Defensive: detach + close any lingering previous socket before
     // building a new one (§6: "建新 socket 前先把舊 socket 的 handlers
     // 全部解除並 close()"). Should already be null in normal flow.
@@ -823,6 +839,7 @@ export class VoiceSessionController {
       this.sessionLanguage = this.deps.getLanguage?.();
       this.pendingLanguage = false;
       if (this.sessionLanguage) message.language = this.sessionLanguage;
+      const location = this.deps.getUserLocation();
       if (location) message.userLocation = location;
       const history = this.deps.getHistory?.() ?? [];
       if (history.length > 0) message.history = history;
@@ -901,6 +918,8 @@ export class VoiceSessionController {
         this.hasBeenReady = true;
         this.reconnectDelay = RECONNECT_INITIAL_DELAY_MS; // reset backoff on success
         this.setStatus({ status: 'ready' });
+        const currentPosition = this.deps.getUserLocation();
+        if (currentPosition) this.sendNavigationPosition(currentPosition);
         if (this.routeToken) {
           this.sendControl({
             type: 'nav.setRoute',
@@ -913,6 +932,10 @@ export class VoiceSessionController {
         if (isReconnect) this.sendNavigationResume();
         this.startCapture(gen);
         this.flushRouteChanges();
+        return;
+      }
+      case 'location.request': {
+        if (this.socketReady) void this.replyWithLocation(gen);
         return;
       }
       case 'transcript': {

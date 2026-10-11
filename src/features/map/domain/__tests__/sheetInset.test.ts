@@ -24,6 +24,11 @@ describe('sheetConfig', () => {
     }
   });
 
+  it('回報詳情從首頁 peek 開啟時升到 half，並保留 full 供照片與內容捲動', () => {
+    expect(sheetConfig(false, '/hazard/report-id')).toEqual({ detents: [0.15, 0.5, 1], initialDetentIndex: 1 });
+    expect(sheetConfig(true, '/hazard/report-id')).toEqual({ detents: [NAV_PEEK_DETENT, 0.5], initialDetentIndex: 0 });
+  });
+
   it('導航中用較低的 peek、不給 full，落在 peek', () => {
     expect(sheetConfig(true, '/loc/1,2')).toEqual({ detents: [NAV_PEEK_DETENT, 0.5], initialDetentIndex: 0 });
   });

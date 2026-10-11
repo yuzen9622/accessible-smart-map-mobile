@@ -20,6 +20,7 @@ import { toNavInstruction } from '../domain/voiceNavInstruction';
 import { handleNavigationExit } from '../domain/voiceNavigationExit';
 import {
   filterApplicableNavigationEvents,
+  isVoiceSpeechChannelLive,
   shouldAcceptAdvisoryEvent,
   type VoiceNavigationEvent,
   type VoiceNavigationPosition,
@@ -272,7 +273,7 @@ export function onVoiceSessionTerminal(): void {
 }
 
 /**
- * 掛一次（controller 建立時）。訂閱全都自己判斷「是否語音擁有導航」，session 閒置時不做事（Web Host 也是常駐）。
+ * 掛一次（controller 建立時）。位置供一般語音查詢及導航共用；session 閒置時不上傳。
  */
 export function installVoiceNavigationBridge(target: VoiceNavigationUplink): void {
   uplink = target;
@@ -288,7 +289,7 @@ export function installVoiceNavigationBridge(target: VoiceNavigationUplink): voi
 
   useUserLocationStore.subscribe((state, previous) => {
     const position = state.position;
-    if (!position || position === previous.position || !voiceNavigationActive()) return;
+    if (!position || position === previous.position || !isVoiceSpeechChannelLive(uplink?.getStatus() ?? 'idle')) return;
     if (lastSent && haversineMeters(lastSent, position) < POSITION_MIN_DISTANCE_M) return;
     lastSent = position;
     uplink?.sendNavigationPosition(positionPayload(position));

@@ -5,6 +5,7 @@ import { logger } from '@/shared/logger';
 
 import { getRouteSessionSnapshot, subscribeRouteSession, invalidateRouteConversations } from '@/features/route';
 import { getRouteConversationRequest } from './routeConversation';
+import { recordRouteNameLanguage } from '@/features/route/domain';
 import i18n, { getAppLanguage } from '@/shared/i18n';
 import { isRouteTool } from '../domain/routePlan';
 import { ChatHttpError, streamChat } from '../api/aiApi';
@@ -126,6 +127,9 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
           try {
             applying = true;
             for (const action of mapToolToActions(signal.name, signal.result, call?.args, t)) {
+              if (action.type === 'show-route') {
+                action.routes.forEach((route) => recordRouteNameLanguage(route, language));
+              }
               if (!executeAction(action).ok) { failRoute(action.type === 'route-error' ? action.message : undefined); return; }
             }
             if (signal.callId) applied.add(signal.callId);

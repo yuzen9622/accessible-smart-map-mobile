@@ -4,6 +4,7 @@ import { applyAiRoutePlan, applyComputedRoutes, computeRoute, endRouteSession, g
 import { getAccessibleRoute } from '@/features/route/api/route';
 import { useRouteSessionStore } from '@/features/route/store/routeSessionStore';
 import { routePlanFixture } from '../../domain/testing/routePlanFixture';
+import { presentRouteNames } from '@/features/route/domain';
 import { ChatHttpError, streamChat } from '../../api/aiApi';
 import { clearChat, sendChatMessage, stopChatStreaming } from '../chatController';
 import { useChatStore } from '../../store/chatStore';
@@ -78,6 +79,26 @@ it('SSE applies one complete plan, retains canonical metadata, and never calls t
   expect(observations).toHaveLength(1);
   expect(JSON.stringify(useChatStore.getState())).not.toContain('token-bus');
   expect(JSON.stringify(useChatStore.getState())).not.toContain('polyline');
+});
+
+it('retains AI route source metadata and original language without changing canonical identity', async () => {
+  await changeAppLanguage('en');
+  const plan = routePlanFixture();
+  plan.routes.forEach((route) => {
+    Object.assign(route.legs[0], { fromDisplayName: 'Origin', routeDisplayName: 'Bus 99', routeNameEn: 'Bus 99' });
+  });
+  request.mockImplementation(async (input, emit) => {
+    expect(input.language).toBe('en');
+    emit(call); emit({ ...result(), result: plan });
+  });
+  await sendChatMessage('route', t);
+  const route = getRouteSessionSnapshot().selectRoute!.route;
+  expect(presentRouteNames(route, 'en').legs[0]).toMatchObject({ fromDisplayName: 'Origin', routeDisplayName: 'Bus 99' });
+  expect(route.legs[0]).toMatchObject({ routeName: '99', departureStop: '起站' });
+  await changeAppLanguage('zh-TW');
+  expect(presentRouteNames(route, 'zh-TW').legs[0]).toMatchObject({ fromDisplayName: '起站', routeDisplayName: '99' });
+  expect(getRouteSessionSnapshot().selectRoute!.route).toBe(route);
+  expect(getAccessibleRoute).not.toHaveBeenCalled();
 });
 
 it('applies a second route tool call in the same turn after the first one already advanced the generation', async () => {

@@ -12,6 +12,7 @@ export function isRec(v: unknown): v is Rec {
 }
 
 /** 沿 path 取值；中途遇到非物件就回 undefined（等同 Web 的 `a?.b?.c`）。 */
+// pi-lens-ignore: no-unknown-returns
 export function at(v: unknown, ...path: string[]): unknown {
   let cur: unknown = v;
   for (const key of path) {
@@ -23,7 +24,7 @@ export function at(v: unknown, ...path: string[]): unknown {
 
 /** 非空字串才算有值（Web 用 `a || b` 串接，對字串欄位語意相同）。 */
 export function firstStr(...values: unknown[]): string {
-  for (const v of values) if (typeof v === 'string' && v) return v;
+  for (const v of values) if (typeof v === 'string' && v.trim()) return v.trim();
   return '';
 }
 
@@ -160,7 +161,7 @@ function metroToMarkers(items: Rec[]): AiMarker[] {
     return {
       id,
       position,
-      title: name,
+      title: firstStr(place.displayName, name),
       subtitle: typeof code === 'string' && code ? code : undefined,
       kind: name.includes('電梯') ? 'elevator' : 'ramp',
     } satisfies AiMarker;
@@ -179,7 +180,7 @@ function bathroomToMarkers(items: Rec[], t: Translate): AiMarker[] {
     return {
       id: firstStr(bathroom._id) || `bath_${i}`,
       position,
-      title: firstStr(bathroom.name),
+      title: firstStr(bathroom.displayName, bathroom.name),
       subtitle: bathroom.diaper ? t('nativeAiDiaperYes') : t('nativeAiDiaperNo'),
       kind: 'restroom',
     } satisfies AiMarker;
@@ -202,9 +203,9 @@ export function a11yPlacesToMarkers(res: unknown, t: Translate): AiMarker[] {
   };
 
   // 已知形狀 → 對應既有 formatter（內部會過濾無座標項目）
-  metroToMarkers(nearbyMetroA11y.filter((m) => m[METRO_NAME_KEY])).forEach(push);
+  metroToMarkers(nearbyMetroA11y.filter((m) => firstStr(m.displayName, m[METRO_NAME_KEY]))).forEach(push);
   bathroomToMarkers(
-    nearbyBathroom.filter((b) => b.name),
+    nearbyBathroom.filter((b) => firstStr(b.displayName, b.name)),
     t,
   ).forEach(push);
 
@@ -216,9 +217,9 @@ export function a11yPlacesToMarkers(res: unknown, t: Translate): AiMarker[] {
     push({
       id: String(rawId),
       position: pos,
-      title: firstStr(item.name, item.placeName, at(item, 'tags', 'name')),
+      title: firstStr(item.displayName, item.name, item.placeName, at(item, 'tags', 'name')),
       subtitle:
-        firstStr(item.address, item.spaceLabel, at(item, 'tags', 'amenity'), item.type) || undefined,
+        firstStr(item.displayAddress, item.address, item.spaceLabel, at(item, 'tags', 'amenity'), item.type) || undefined,
       kind: 'facility',
     });
   });

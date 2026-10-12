@@ -88,3 +88,14 @@ export function centerOnRequester(): void {
   const session = useSosTrackerStore.getState().session;
   if (session) mapCamera.flyTo([session.lng, session.lat], TRACKER_ZOOM);
 }
+
+/** 載入失敗後的「重新嘗試」：重開輪詢並重新置中。 */
+export function retrySosTracker(): void {
+  const token = useSosTrackerStore.getState().token;
+  if (!token) return;
+  stopPolling();
+  centered = false;
+  useSosTrackerStore.setState({ phase: 'loading', session: null });
+  void tick(token);
+  timer = setInterval(() => void tick(token), TRACKER_POLL_MS);
+}

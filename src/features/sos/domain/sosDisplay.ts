@@ -1,4 +1,4 @@
-import type { EmergencyContact, HandlingStatus, SosSnapshot, SosTimelineType, SosType } from './types';
+import type { EmergencyContact, HandlingStatus, PublicHandlingStatus, SosSnapshot, SosTimelineType, SosType } from './types';
 
 /** 顯示用 helper，對齊 Web `SosDialog.tsx`／`SosTrackerWrapper.tsx`（commit f82cda8）的 i18n key 對照。 */
 
@@ -46,12 +46,41 @@ export function boundContactNames(contacts: EmergencyContact[]): string[] {
 }
 
 /**
- * 分享給其他人的追蹤連結：Web 追蹤頁讀 `?sos=`，後端公開端點以 shareToken 為 key（Web 目前仍帶 sessionId，
- * 那是改版前的舊契約，舊連結後端已失效）。
+ * 分享給其他人的追蹤連結：`/{lng}/sos/?token=<shareToken>`。App 以 Universal Link／App Link 認領這條路徑，
+ * 對方有裝 App 就直接開原生追蹤頁，沒裝則由 Web 落地頁轉到地圖追蹤（與 LINE 通知用的是同一條連結）。
  */
 export function buildSosShareUrl(shareBaseUrl: string, language: string, shareToken: string): string {
   const base = shareBaseUrl.replace(/\/+$/, '');
-  return `${base}/${language}?sos=${encodeURIComponent(shareToken)}`;
+  return `${base}/${language}/sos/?token=${encodeURIComponent(shareToken)}`;
+}
+
+/** 家人端追蹤的處理進度步驟（不含 resolved：解除時整個畫面換成已解除狀態）。 */
+export const TRACKER_PROGRESS_STEPS: readonly HandlingStatus[] = ['notified', 'acknowledged', 'claimed', 'en_route', 'arrived'];
+
+/** 目前走到第幾步；`pending`／缺值 → -1（還沒通知到任何家人）。 */
+export function trackerProgressIndex(status: PublicHandlingStatus | undefined): number {
+  if (!status || status === 'pending') return -1;
+  if (status === 'resolved') return TRACKER_PROGRESS_STEPS.length - 1;
+  return TRACKER_PROGRESS_STEPS.indexOf(status);
+}
+
+/** 求助者位置超過這麼久沒更新就提醒「可能不是最新」（App 每 12 秒上傳一次，5 分鐘沒動靜代表斷線或關機）。 */
+export const TRACKER_STALE_MS = 5 * 60 * 1000;
+
+export type LocationFreshness = { kind: 'justNow' } | { kind: 'minutes'; minutes: number; stale: boolean };
+
+export function locationFreshness(updatedAt: string, now: number): LocationFreshness {
+  const ageMs = Math.max(0, now - new Date(updatedAt).getTime());
+  if (ageMs < 60_000) return { kind: 'justNow' };
+  return { kind: 'minutes', minutes: Math.floor(ageMs / 60_000), stale: ageMs >= TRACKER_STALE_MS };
+}
+
+/**
+ * 回 LINE 官方帳號並預填「我處理」：送出後由 LINE bot 走既有的承接流程（多件事件時會讓使用者選）。
+ * 沒設定 bot basic ID 就不顯示這個入口。
+ */
+export function buildLineClaimUrl(basicId: string, text: string): string {
+  return `https://line.me/R/oaMessage/${basicId}/?${encodeURIComponent(text)}`;
 }
 
 /** 深層連結 `accessiblesmartmap://sos-track/<token>` 或 Web 分享連結的 `?sos=<token>` 都接受；只接受 32 hex。 */

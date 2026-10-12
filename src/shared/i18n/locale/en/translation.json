@@ -1643,5 +1643,20 @@
   "contentBlockedAt": "Blocked on",
   "contentUnblock": "Unblock",
   "contentReceivedAt": "Submitted: {{time}}",
-  "contentBlocked": "User blocked"
+  "contentBlocked": "User blocked",
+  "nativeSosTrackerActive": "SOS active",
+  "nativeSosTrackerProgressTitle": "Family response",
+  "nativeSosTrackerWaiting": "Notifying family — no one has responded yet",
+  "nativeSosTrackerUpdatedJustNow": "Updated just now",
+  "nativeSosTrackerUpdatedMinutes": "Updated {{count}} min ago",
+  "nativeSosTrackerStale": "The location hasn’t updated for a while and may be out of date.",
+  "nativeSosTrackerLiveHint": "Location refreshes every 10 seconds",
+  "nativeSosTrackerEmergencyCalls": "Emergency calls",
+  "nativeSosTrackerReplyOnLine": "Tell family on LINE you’re handling it",
+  "nativeSosTrackerReplyOnLineHint": "Opens LINE with the message ready; once sent, other family members know you’re on it",
+  "nativeSosTrackerLineClaimText": "我處理",
+  "nativeSosTrackerResolvedDesc": "The SOS has been resolved and they’re safe.",
+  "nativeSosTrackerStepLabel": "Step {{index}} of {{total}}: {{label}}{{state}}",
+  "nativeSosTrackerStepDone": ", done",
+  "nativeSosTrackerStepCurrent": ", current"
 }

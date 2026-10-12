@@ -43,7 +43,11 @@ export interface SosPublicSession {
   lng: number;
   address: string | null;
   updatedAt: string;
+  /** 家人處理進度（後端刻意不給任何聯絡人姓名）；舊版後端沒有這欄。`pending` = 還沒通知到任何家人。 */
+  handlingStatus?: PublicHandlingStatus;
 }
+
+export type PublicHandlingStatus = HandlingStatus | 'pending';
 
 export type HandlingStatus = 'notified' | 'acknowledged' | 'claimed' | 'en_route' | 'arrived' | 'resolved';
 export type SosActorType = 'victim' | 'system' | 'contact';
@@ -144,7 +148,8 @@ export function isSosPublicSession(v: unknown): v is SosPublicSession {
     isNum(v.lat) &&
     isNum(v.lng) &&
     strOrNull(v.address) &&
-    typeof v.updatedAt === 'string'
+    typeof v.updatedAt === 'string' &&
+    (v.handlingStatus === undefined || v.handlingStatus === 'pending' || HANDLING.some((h) => h === v.handlingStatus))
   );
 }
 

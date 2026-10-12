@@ -1614,5 +1614,20 @@
   "contentBlockedAt": "封鎖日期",
   "contentUnblock": "解除封鎖",
   "contentReceivedAt": "提交時間：{{time}}",
-  "contentBlocked": "已封鎖此使用者"
+  "contentBlocked": "已封鎖此使用者",
+  "nativeSosTrackerActive": "求救中",
+  "nativeSosTrackerProgressTitle": "家人處理進度",
+  "nativeSosTrackerWaiting": "正在通知家人，還沒有人回應",
+  "nativeSosTrackerUpdatedJustNow": "剛剛更新",
+  "nativeSosTrackerUpdatedMinutes": "{{count}} 分鐘前更新",
+  "nativeSosTrackerStale": "位置已有一段時間沒更新，可能不是最新。",
+  "nativeSosTrackerLiveHint": "位置每 10 秒自動更新",
+  "nativeSosTrackerEmergencyCalls": "緊急電話",
+  "nativeSosTrackerReplyOnLine": "在 LINE 回報「我來處理」",
+  "nativeSosTrackerReplyOnLineHint": "開啟 LINE 並填好訊息，送出後其他家人就知道由你處理",
+  "nativeSosTrackerLineClaimText": "我處理",
+  "nativeSosTrackerResolvedDesc": "對方已解除求救，目前平安。",
+  "nativeSosTrackerStepLabel": "第 {{index}} 步，共 {{total}} 步：{{label}}{{state}}",
+  "nativeSosTrackerStepDone": "，已完成",
+  "nativeSosTrackerStepCurrent": "，目前進度"
 }

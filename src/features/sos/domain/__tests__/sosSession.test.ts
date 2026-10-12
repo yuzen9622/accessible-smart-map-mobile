@@ -1,6 +1,15 @@
 import { createMemoryStorage } from '@/shared/storage';
 
-import { buildSosShareUrl, handlingSummary, parseShareToken } from '../sosDisplay';
+import {
+  buildLineClaimUrl,
+  buildSosShareUrl,
+  handlingSummary,
+  locationFreshness,
+  parseShareToken,
+  trackerProgressIndex,
+  TRACKER_PROGRESS_STEPS,
+} from '../sosDisplay';
+import { isSosPublicSession } from '../types';
 import {
   SOS_MAX_AGE_MS,
   SOS_STORAGE_KEY,
@@ -90,7 +99,7 @@ describe('display helpers', () => {
   });
 
   it('builds share links with the share token, not the session id', () => {
-    expect(buildSosShareUrl('https://map.yuzen.dev/', 'zh-TW', 'ab'.repeat(16))).toBe(`https://map.yuzen.dev/zh-TW?sos=${'ab'.repeat(16)}`);
+    expect(buildSosShareUrl('https://map.yuzen.dev/', 'zh-TW', 'ab'.repeat(16))).toBe(`https://map.yuzen.dev/zh-TW/sos/?token=${'ab'.repeat(16)}`);
   });
 
   it('accepts only 32-hex share tokens', () => {
@@ -103,5 +112,36 @@ describe('display helpers', () => {
     expect(isSosSnapshot(base)).toBe(true);
     expect(isSosSnapshot({ ...base, handlingStatus: 'lost' })).toBe(false);
     expect(isSosSnapshot({ ...base, location: null })).toBe(true);
+  });
+});
+
+describe('family tracker display', () => {
+  it('maps handling status onto the progress steps', () => {
+    expect(trackerProgressIndex(undefined)).toBe(-1);
+    expect(trackerProgressIndex('pending')).toBe(-1);
+    expect(trackerProgressIndex('notified')).toBe(0);
+    expect(trackerProgressIndex('en_route')).toBe(3);
+    expect(trackerProgressIndex('resolved')).toBe(TRACKER_PROGRESS_STEPS.length - 1);
+  });
+
+  it('flags a location older than five minutes as stale', () => {
+    const now = Date.parse('2026-10-12T10:10:00Z');
+    expect(locationFreshness('2026-10-12T10:09:30Z', now)).toEqual({ kind: 'justNow' });
+    expect(locationFreshness('2026-10-12T10:07:00Z', now)).toEqual({ kind: 'minutes', minutes: 3, stale: false });
+    expect(locationFreshness('2026-10-12T10:04:00Z', now)).toEqual({ kind: 'minutes', minutes: 6, stale: true });
+  });
+
+  it('prefills the LINE claim command for the official account', () => {
+    expect(buildLineClaimUrl('@abc1234', '我處理')).toBe(
+      `https://line.me/R/oaMessage/@abc1234/?${encodeURIComponent('我處理')}`,
+    );
+  });
+
+  it('accepts the public session with or without handling progress', () => {
+    const base = { type: 'body', status: 'active', lat: 25, lng: 121, address: null, updatedAt: '2026-10-12T10:00:00Z' };
+    expect(isSosPublicSession(base)).toBe(true);
+    expect(isSosPublicSession({ ...base, handlingStatus: 'pending' })).toBe(true);
+    expect(isSosPublicSession({ ...base, handlingStatus: 'en_route' })).toBe(true);
+    expect(isSosPublicSession({ ...base, handlingStatus: 'bogus' })).toBe(false);
   });
 });

@@ -3,6 +3,7 @@ import { getAppConfig } from '@/shared/config';
 
 import { interpretChatSseEvent, type ChatStreamSignal } from '../domain/chatStream';
 import type { AgentChatRequest } from '../domain/types';
+import { isRec } from '../domain/aiResults';
 
 /**
  * 移植自 Web `src/lib/api/ai.ts`（`streamChatWithAgent`）。差異：
@@ -16,8 +17,8 @@ import type { AgentChatRequest } from '../domain/types';
 const CHAT = '/api/v1/ai/chat';
 
 export class ChatHttpError extends Error {
-  constructor(readonly status: number) {
-    super(`AI chat failed: HTTP ${status}`);
+  constructor(readonly status: number, readonly reason?: string, readonly serverMessage?: string) {
+    super(serverMessage || `AI chat failed: HTTP ${status}`);
     this.name = 'ChatHttpError';
   }
 }
@@ -35,8 +36,13 @@ async function openChatStream(
     { method: 'POST', headers, body: JSON.stringify({ ...request, stream: true }) },
     {
       signal,
-      onOpen: ({ ok, status }) => {
-        if (!ok) throw new ChatHttpError(status);
+      onOpen: async ({ ok, status, json }) => {
+        if (ok) return;
+        let payload: unknown;
+        try { payload = await json?.(); } catch { /* Non-JSON gateway response: keep HTTP status fallback. */ }
+        const reason = isRec(payload) && isRec(payload.data) && typeof payload.data.reason === 'string' ? payload.data.reason : undefined;
+        const message = isRec(payload) && typeof payload.message === 'string' ? payload.message : undefined;
+        throw new ChatHttpError(status, reason, message);
       },
       onEvent: (event) => {
         const interpreted = interpretChatSseEvent(event);

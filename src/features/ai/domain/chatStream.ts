@@ -12,7 +12,7 @@ export type ChatStreamSignal =
   | { type: 'token'; text: string }
   | { type: 'tool-call'; callId?: string; name: string; args: string }
   | { type: 'tool-result'; callId?: string; name: string; result: unknown; summary?: string }
-  | { type: 'error'; code: number | null; message: string }
+  | { type: 'error'; code: number | null; reason?: string; message: string }
   | { type: 'done' };
 
 export interface SseEventLike {
@@ -20,9 +20,12 @@ export interface SseEventLike {
   data: string;
 }
 
-function parseJson(data: string): unknown {
+type ChatSsePayload = Record<string, unknown>;
+
+function parseJson(data: string): ChatSsePayload | undefined {
   try {
-    return JSON.parse(data);
+    const payload: unknown = JSON.parse(data);
+    return isRec(payload) ? payload : undefined;
   } catch {
     return undefined;
   }
@@ -98,6 +101,7 @@ export function interpretChatSseEvent(event: SseEventLike): ChatStreamSignal | n
       return {
         type: 'error',
         code: typeof payload.code === 'number' ? payload.code : null,
+        ...(isRec(payload.data) && typeof payload.data.reason === 'string' ? { reason: payload.data.reason } : {}),
         message: typeof payload.message === 'string' ? payload.message : '',
       };
     }

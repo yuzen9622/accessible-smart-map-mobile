@@ -4,13 +4,13 @@ import { applyAiRoutePlan, applyComputedRoutes, computeRoute, endRouteSession, g
 import { getAccessibleRoute } from '@/features/route/api/route';
 import { useRouteSessionStore } from '@/features/route/store/routeSessionStore';
 import { routePlanFixture } from '../../domain/testing/routePlanFixture';
-import { streamChat } from '../../api/aiApi';
+import { ChatHttpError, streamChat } from '../../api/aiApi';
 import { clearChat, sendChatMessage, stopChatStreaming } from '../chatController';
 import { useChatStore } from '../../store/chatStore';
 
 jest.mock('@/features/map', () => jest.requireActual('@/features/navigation/controller/testing/fakeMap').mapModule);
 jest.mock('expo-router', () => ({ router: { navigate: jest.fn() } }));
-jest.mock('../../api/aiApi', () => ({ streamChat: jest.fn() }));
+jest.mock('../../api/aiApi', () => ({ ...jest.requireActual('../../api/aiApi'), streamChat: jest.fn() }));
 jest.mock('@/features/route/api/route', () => ({ getAccessibleRoute: jest.fn() }));
 const request = jest.mocked(streamChat);
 const t = (key: string) => key;
@@ -18,6 +18,51 @@ const call = { type: 'tool-call' as const, name: 'planAccessibleRoute', callId: 
 const result = () => ({ type: 'tool-result' as const, name: call.name, callId: call.callId, summary: '方案摘要', result: routePlanFixture() });
 
 beforeEach(() => { clearChat(); endRouteSession(); jest.clearAllMocks(); });
+
+it.each(['http', 'sse'] as const)('uses %s business reason rather than numeric code as a translation key', async (transport) => {
+  request.mockImplementation(async (_input, emit) => {
+    if (transport === 'http') throw new ChatHttpError(500, 'AI_RATE_LIMITED', 'fallback');
+    emit({ type: 'error', code: 500, reason: 'AI_RATE_LIMITED', message: 'fallback' });
+  });
+  await sendChatMessage('query', t);
+  expect(useChatStore.getState().entries.at(-1)?.content).toBe('nativeAiErrorRateLimit');
+});
+
+it('keeps safe server message for unknown SSE reason', async () => {
+  request.mockImplementation(async (_input, emit) => {
+    emit({ type: 'error', code: 500, reason: 'NEW_REASON', message: 'Safe fallback' });
+  });
+  await sendChatMessage('query', t);
+  expect(useChatStore.getState().entries.at(-1)?.content).toBe('Safe fallback');
+});
+
+it('reads route tool reason from result itself and does not plan again', async () => {
+  request.mockImplementation(async (_input, emit) => {
+    emit(call); emit({ ...result(), result: { ok: false, reason: 'NO_ACCESSIBLE_ROUTE', error: 'fallback' } });
+  });
+  await sendChatMessage('plan', t);
+  expect(useChatStore.getState().entries.at(-1)?.notice).toBe('routeErrorNoAccessibleRoute');
+  expect(getAccessibleRoute).not.toHaveBeenCalled();
+});
+
+it('ignores old-language tools/tokens after a rapid locale round trip, preserving the current route', async () => {
+  await changeAppLanguage('zh-TW');
+  applyAiRoutePlan(routePlanFixture());
+  const selected = getRouteSessionSnapshot().selectRoute;
+  jest.mocked(router.navigate).mockClear();
+  request.mockImplementation(async (_input, emit, signal) => {
+    emit(call);
+    await changeAppLanguage('en');
+    await changeAppLanguage('zh-TW');
+    expect(signal.aborted).toBe(true);
+    emit(result()); emit({ type: 'token', text: 'stale answer' });
+  });
+  await sendChatMessage('route', t);
+  expect(getRouteSessionSnapshot().selectRoute).toBe(selected);
+  expect(router.navigate).not.toHaveBeenCalled();
+  expect(getAccessibleRoute).not.toHaveBeenCalled();
+  expect(JSON.stringify(useChatStore.getState())).not.toContain('stale answer');
+});
 
 it('SSE applies one complete plan, retains canonical metadata, and never calls the planner', async () => {
   const observations: unknown[] = [];

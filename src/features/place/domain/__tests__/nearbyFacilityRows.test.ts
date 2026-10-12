@@ -61,6 +61,15 @@ describe('nearbyFacilityRows', () => {
     expect(rows[1]?.kind).toBe('metro');
   });
 
+  it('prefers nonblank display fields while retaining canonical row keys', () => {
+    const first = { ...brief('a', 'toilet', 5), displayName: 'Restroom', displayAddress: 'Address' };
+    const second = { ...brief('b', 'toilet', 6), displayName: '  ', displayAddress: ' ' };
+    const rows = nearbyFacilityRows(place({ toilets: [first, second], metro: [] }), format);
+    expect(rows[0]).toMatchObject({ key: 'toilet-a', name: 'Restroom', address: 'Address' });
+    expect(rows[1]).toMatchObject({ key: 'toilet-b', name: 'n-b', address: null });
+    expect(first.name).toBe('n-a');
+  });
+
   it('keeps only the nearest 5', () => {
     const toilets = [1, 2, 3, 4].map((i) => brief(`t${i}`, 'toilet', i * 100));
     const metro = [1, 2, 3].map((i) => brief(`m${i}`, 'metro', i * 100 + 50));

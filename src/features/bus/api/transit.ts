@@ -1,10 +1,12 @@
 import type { BusPlanContext } from "@/features/route";
 import { fetchRequest, type ApiResponse } from '@/shared/api';
 import { getAppConfig } from '@/shared/config';
+import type { AppLanguage } from '@/shared/i18n';
 import type { LatLng } from '@/shared/geo';
 
 import { isBusDirection } from '../domain/busDirections';
 import type {
+  BusRouteDetailData,
   BusArrivalData,
   BusDirection,
   BusArrivalItem,
@@ -58,7 +60,7 @@ function parseRouteDetailStop(value: unknown): RouteDetailStop | null {
   const { seq, name, lat, lng } = value;
   if (typeof seq !== 'number' || typeof name !== 'string') return null;
   if (typeof lat !== 'number' || typeof lng !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  return { seq, name, lat, lng, estimateMinutes: finiteOrNull(value.estimateMinutes), statusLabel: stringOr(value.statusLabel), plateNumb: optionalString(value.plateNumb), stopUid: optionalString(value.stopUid) };
+  return { seq, name, lat, lng, displayName: optionalString(value.displayName), estimateMinutes: finiteOrNull(value.estimateMinutes), statusLabel: stringOr(value.statusLabel), plateNumb: optionalString(value.plateNumb), stopUid: optionalString(value.stopUid) };
 }
 
 function parseLngLat(value: unknown): [number, number] | null {
@@ -76,7 +78,7 @@ function parsePolyline(value: unknown): [number, number][] | undefined {
   return points.length >= 2 ? points : undefined;
 }
 
-function parseRouteDetail(value: unknown): { directions: RouteDetailDirection[] } | undefined {
+function parseRouteDetail(value: unknown): BusRouteDetailData | undefined {
   if (!isRecord(value) || !Array.isArray(value.directions)) return undefined;
   const directions: RouteDetailDirection[] = [];
   for (const d of value.directions) {
@@ -85,6 +87,9 @@ function parseRouteDetail(value: unknown): { directions: RouteDetailDirection[] 
     // 站序缺一站就無法切出正確的乘車區間：整個方向丟掉，比少一站更安全。
     if (stops.some((stop) => stop === null)) continue;
     directions.push({
+      subRouteDisplayName: optionalString(d.subRouteDisplayName),
+      fromDisplayName: optionalString(d.fromDisplayName),
+      toDisplayName: optionalString(d.toDisplayName),
       direction: d.direction,
       stops: stops.filter((stop): stop is RouteDetailStop => stop !== null),
       subRouteUid: optionalString(d.subRouteUid),
@@ -92,12 +97,13 @@ function parseRouteDetail(value: unknown): { directions: RouteDetailDirection[] 
       polyline: parsePolyline(d.polyline),
     });
   }
-  return { directions };
+  return { routeDisplayName: optionalString(value.routeDisplayName), directions };
 }
 
 function parseArrivalItem(value: unknown): BusArrivalItem | null {
   if (!isRecord(value) || typeof value.stopName !== 'string' || !isBusDirection(value.direction)) return null;
   return {
+    stopDisplayName: optionalString(value.stopDisplayName),
     stopName: value.stopName,
     direction: value.direction,
     directionLabel: stringOr(value.directionLabel),
@@ -105,6 +111,7 @@ function parseArrivalItem(value: unknown): BusArrivalItem | null {
     statusLabel: stringOr(value.statusLabel),
     plateNumb: optionalString(value.plateNumb),
     subRouteUid: optionalString(value.subRouteUid),
+    subRouteDisplayName: optionalString(value.subRouteDisplayName),
     subRouteName: optionalString(value.subRouteName),
   };
 }
@@ -112,8 +119,10 @@ function parseArrivalItem(value: unknown): BusArrivalItem | null {
 function parseArrival(value: unknown): BusArrivalData | undefined {
   if (!isRecord(value) || !Array.isArray(value.arrivals)) return undefined;
   return {
+    routeDisplayName: optionalString(value.routeDisplayName),
     routeName: stringOr(value.routeName),
     city: stringOr(value.city),
+    stopDisplayName: optionalString(value.stopDisplayName),
     stopName: stringOr(value.stopName),
     arrivals: value.arrivals.map(parseArrivalItem).filter((a): a is BusArrivalItem => a !== null),
   };
@@ -143,6 +152,7 @@ function parseLiveBus(value: unknown): LiveBus | null {
     city: optionalString(value.city),
     stopsAway: finiteOrNull(value.stopsAway) ?? undefined,
     subRouteUid: optionalString(value.subRouteUid),
+    subRouteDisplayName: optionalString(value.subRouteDisplayName),
     subRouteName: optionalString(value.subRouteName),
   };
 }
@@ -151,6 +161,7 @@ function parsePositions(value: unknown): LiveBusPositionsData | undefined {
   if (!isRecord(value) || !Array.isArray(value.buses)) return undefined;
   const buses = value.buses.map(parseLiveBus).filter((b): b is LiveBus => b !== null);
   return {
+    routeDisplayName: optionalString(value.routeDisplayName),
     routeName: stringOr(value.routeName),
     city: stringOr(value.city),
     count: finiteOrNull(value.count) ?? buses.length,
@@ -164,7 +175,7 @@ function parseRouteSearch(value: unknown): { routes: BusSearchResult[] } | undef
   const routes: BusSearchResult[] = [];
   for (const r of value.routes) {
     if (!isRecord(r) || typeof r.routeName !== 'string' || typeof r.city !== 'string') continue;
-    routes.push({ routeName: r.routeName, city: r.city, departure: stringOr(r.departure), destination: stringOr(r.destination) });
+    routes.push({ routeDisplayName: optionalString(r.routeDisplayName), departureDisplayName: optionalString(r.departureDisplayName), destinationDisplayName: optionalString(r.destinationDisplayName), routeName: r.routeName, city: r.city, departure: stringOr(r.departure), destination: stringOr(r.destination) });
   }
   return { routes };
 }
@@ -178,9 +189,11 @@ function parseStopList(value: unknown): { stops: BusStopSearchResult[] } | undef
     if (typeof lng !== 'number' || typeof lat !== 'number' || !Number.isFinite(lng) || !Number.isFinite(lat)) continue;
     stops.push({
       stopUid: stringOr(s.stopUid),
+      stopDisplayName: optionalString(s.stopDisplayName),
       stopName: s.stopName,
       city: stringOr(s.city),
       coordinates: [lng, lat],
+      routeDisplayNames: Array.isArray(s.routeDisplayNames) && Array.isArray(s.routes) ? s.routes.flatMap((r, i) => typeof r === 'string' ? [stringOr((s.routeDisplayNames as unknown[])[i], r)] : []) : undefined,
       routes: Array.isArray(s.routes) ? s.routes.filter((r): r is string => typeof r === 'string') : [],
       distance: finiteOrNull(s.distance) ?? undefined,
     });
@@ -195,10 +208,13 @@ function booleanOrNull(value: unknown): boolean | null {
 function parseStopArrival(value: unknown): StopArrival | null {
   if (!isRecord(value) || typeof value.routeName !== 'string' || !isBusDirection(value.direction)) return null;
   return {
+    routeDisplayName: optionalString(value.routeDisplayName),
     routeName: value.routeName,
     subRouteUid: optionalString(value.subRouteUid),
+    subRouteDisplayName: optionalString(value.subRouteDisplayName),
     subRouteName: optionalString(value.subRouteName),
     direction: value.direction,
+    headsignDisplayName: value.headsignDisplayName === null ? null : optionalString(value.headsignDisplayName),
     headsign: typeof value.headsign === 'string' && value.headsign ? value.headsign : null,
     estimateMinutes: finiteOrNull(value.estimateMinutes),
     statusLabel: stringOr(value.statusLabel),
@@ -211,6 +227,7 @@ function parseStopArrival(value: unknown): StopArrival | null {
 function parseStopArrivals(value: unknown): StopArrivalsData | undefined {
   if (!isRecord(value) || !Array.isArray(value.arrivals)) return undefined;
   return {
+    stopDisplayName: optionalString(value.stopDisplayName),
     stopName: stringOr(value.stopName),
     city: stringOr(value.city),
     arrivals: value.arrivals.map(parseStopArrival).filter((a): a is StopArrival => a !== null),
@@ -252,12 +269,14 @@ function locationParam(params: URLSearchParams, location?: LatLng | null): void 
 export async function getBusArrival(
   query: { routeName?: string; stopName?: string; direction?: BusDirection | null; city?: string },
   signal?: AbortSignal,
+  lang?: AppLanguage,
 ): Promise<ApiResponse<BusArrivalData>> {
   const params = new URLSearchParams();
   if (query.routeName) params.set('routeName', query.routeName);
   if (query.stopName) params.set('stopName', query.stopName);
   directionParam(params, query.direction);
   if (query.city) params.set('city', query.city);
+  if (lang) params.set('lang', lang);
   return narrow(await withTimeout(`/api/v1/transit/bus/arrival?${params.toString()}`, signal), parseArrival);
 }
 
@@ -268,6 +287,7 @@ export async function getBusArrival(
 export async function getStopArrivals(
   query: { stopName: string; city: string; position: LatLng },
   signal?: AbortSignal,
+  lang?: AppLanguage,
 ): Promise<ApiResponse<StopArrivalsData>> {
   const params = new URLSearchParams({
     stopName: query.stopName,
@@ -275,6 +295,7 @@ export async function getStopArrivals(
     lat: String(query.position.lat),
     lng: String(query.position.lng),
   });
+  if (lang) params.set('lang', lang);
   return narrow(await withTimeout(`/api/v1/transit/bus/stop-arrivals?${params.toString()}`, signal), parseStopArrivals);
 }
 
@@ -282,10 +303,12 @@ export async function getStopArrivals(
 export async function getLiveBusPositions(
   query: { routeName: string; city?: string; direction?: BusDirection | null },
   signal?: AbortSignal,
+  lang?: AppLanguage,
 ): Promise<ApiResponse<LiveBusPositionsData>> {
   const params = new URLSearchParams({ routeName: query.routeName });
   if (query.city) params.set('city', query.city);
   directionParam(params, query.direction);
+  if (lang) params.set('lang', lang);
   return narrow(await withTimeout(`/api/v1/transit/bus/positions?${params.toString()}`, signal), parsePositions);
 }
 
@@ -295,10 +318,12 @@ export async function getBusRouteDetail(
   signal?: AbortSignal,
   subRouteUid?: string,
   planContext?: BusPlanContext,
-): Promise<ApiResponse<{ directions: RouteDetailDirection[] }>> {
+  lang?: AppLanguage,
+): Promise<ApiResponse<BusRouteDetailData>> {
   // route-detail 沒有 direction query；方向由前端在回傳的站序中選。subRouteUid 是後端合法的選填欄位。
   const params = new URLSearchParams({ routeName, city });
   if (subRouteUid) params.set('subRouteUid', subRouteUid);
+  if (lang) params.set('lang', lang);
   const endpoint = planContext
     ? `/api/v1/a11y/accessible-route/bus-arrivals?${new URLSearchParams({ routeToken: planContext.routeToken, legIndex: String(planContext.legIndex) })}`
     : `/api/v1/transit/bus/route-detail?${params.toString()}`;
@@ -309,9 +334,11 @@ export async function searchBusRoutes(
   keyword: string,
   location?: LatLng | null,
   signal?: AbortSignal,
+  lang?: AppLanguage,
 ): Promise<ApiResponse<{ routes: BusSearchResult[] }>> {
   const params = new URLSearchParams({ keyword: keyword.trim() });
   locationParam(params, location);
+  if (lang) params.set('lang', lang);
   return narrow(await withTimeout(`/api/v1/transit/bus/search-routes?${params.toString()}`, signal), parseRouteSearch);
 }
 
@@ -319,16 +346,20 @@ export async function searchBusStops(
   keyword: string,
   location?: LatLng | null,
   signal?: AbortSignal,
+  lang?: AppLanguage,
 ): Promise<ApiResponse<{ stops: BusStopSearchResult[] }>> {
   const params = new URLSearchParams({ keyword: keyword.trim() });
   locationParam(params, location);
+  if (lang) params.set('lang', lang);
   return narrow(await withTimeout(`/api/v1/transit/bus/search-stops?${params.toString()}`, signal), parseStopList);
 }
 
 export async function getNearbyBusStops(
   position: LatLng,
   signal?: AbortSignal,
+  lang?: AppLanguage,
 ): Promise<ApiResponse<{ stops: BusStopSearchResult[] }>> {
   const params = new URLSearchParams({ lat: String(position.lat), lng: String(position.lng) });
+  if (lang) params.set('lang', lang);
   return narrow(await withTimeout(`/api/v1/transit/bus/nearby-stops?${params.toString()}`, signal), parseStopList);
 }

@@ -1,3 +1,4 @@
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { useEffect } from 'react';
 
 import { useRouteSession } from '@/features/route';
@@ -14,6 +15,8 @@ import { useBusStore } from '../store/busStore';
  * 展開的 leg 已不屬於畫面上的路線，清掉它與車輛位置——追到別人的車比沒有 marker 更糟。
  */
 export function useLiveBusTracking(): void {
+  useAppTranslation();
+  const lang = getAppLanguage();
   const legKey = useBusStore((s) => s.activeBusLeg?.key ?? null);
   const selectedRoute = useRouteSession((s) => s.selectRoute?.route ?? null);
 
@@ -43,13 +46,14 @@ export function useLiveBusTracking(): void {
           s.setLegArrival({ stop: 'board', eta: arrival.eta });
         },
         appStateVisibility,
+        lang,
       );
     } else {
       // 車上不畫「開往上車站的車」：使用者自己就在那台車上。
       store.setLiveBusPositions([]);
       store.setLegArrival({ stop: 'alight', eta: null });
       if (boardedPlate) {
-        stop = watchRideArrival(getLeg, boardedPlate, (eta) => useBusStore.getState().setLegArrival({ stop: 'alight', eta }), appStateVisibility);
+        stop = watchRideArrival(getLeg, boardedPlate, (eta) => useBusStore.getState().setLegArrival({ stop: 'alight', eta }), appStateVisibility, lang);
       }
     }
     return () => {
@@ -58,5 +62,5 @@ export function useLiveBusTracking(): void {
       s.setLiveBusPositions([]);
       s.setLegArrival(null);
     };
-  }, [legKey, boardedPlate]);
+  }, [legKey, boardedPlate, lang]);
 }

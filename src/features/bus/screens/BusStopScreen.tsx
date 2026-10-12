@@ -1,3 +1,4 @@
+import { busName } from '../components/busText';
 import { Text } from '@/shared/ui/typography/Text';
 import { Stack, useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -60,6 +61,7 @@ export default function BusStopScreen() {
 
   const focused = useIsFocused();
   const board = useStopArrivals(stopName, city, stopPosition, focused);
+  const stopLabel = busName(board.stopDisplayName, stopName);
   const [picked, setPicked] = useState<BoardFilter | null>(null);
 
   const setDisplayedStops = useBusPanelStore((s) => s.setDisplayedStops);
@@ -69,11 +71,11 @@ export default function BusStopScreen() {
   useFocusEffect(
     useCallback(() => {
       if (lat === null || lng === null) return;
-      setDisplayedStops([{ id: STOP_ID, name: stopName, lat, lng }]);
+      setDisplayedStops([{ id: STOP_ID, name: stopLabel, lat, lng }]);
       selectStop(STOP_ID);
       mapCamera.flyTo([lng, lat], STOP_ZOOM);
       return clearPanel;
-    }, [lat, lng, stopName, setDisplayedStops, selectStop, clearPanel]),
+    }, [lat, lng, stopLabel, setDisplayedStops, selectStop, clearPanel]),
   );
   useEffect(() => clearPanel, [clearPanel]);
 
@@ -87,10 +89,10 @@ export default function BusStopScreen() {
   // 只有去程／返程才有「往終點」；迴圈、循環線、方向未知不套終點（255 更不能當成有方向）。
   const headsignText = (a: StopArrival) => {
     if (a.direction === 0 || a.direction === 1) {
-      return a.headsign ? t('nativeBusHeadingTo', { name: a.headsign }) : (a.subRouteName ?? a.routeName);
+      return busName(a.headsignDisplayName, a.headsign) ? t('nativeBusHeadingTo', { name: busName(a.headsignDisplayName, a.headsign) }) : busName(a.subRouteDisplayName, a.subRouteName, busName(a.routeDisplayName, a.routeName));
     }
     const label = a.direction === 2 ? t('nativeBusDirectionLoop') : a.direction === 10 ? t('nativeBusDirectionCircular') : t('nativeBusDirectionUnknown');
-    return a.subRouteName && a.subRouteName !== a.routeName ? t('nativeBusDirectionSubRoute', { sub: a.subRouteName, direction: label }) : label;
+    return a.subRouteName && a.subRouteName !== a.routeName ? t('nativeBusDirectionSubRoute', { sub: busName(a.subRouteDisplayName, a.subRouteName), direction: label }) : label;
   };
   const accessText = (a: StopArrival) => (a.isLowFloor ? t('nativeBusLowFloor') : t('nativeBusLiftOrRamp'));
   const stopParams = stopPosition ? { stopLat: String(stopPosition.lat), stopLng: String(stopPosition.lng) } : {};
@@ -123,13 +125,13 @@ export default function BusStopScreen() {
     return (
       <NextAccessibleCard
         eyebrow={t('nativeBusNextAccessible')}
-        routeName={a.routeName}
+        routeName={busName(a.routeDisplayName, a.routeName)}
         detail={`${headsignText(a)} · ${accessText(a)}`}
         minutes={eta.minutes}
         etaText={eta.text}
         minuteUnit={t('nativeBusMinuteUnit')}
         accessibilityLabel={t('nativeBusFeaturedLabel', {
-          route: a.routeName,
+          route: busName(a.routeDisplayName, a.routeName),
           headsign: headsignText(a),
           access: accessText(a),
           eta: etaSpoken,
@@ -144,7 +146,7 @@ export default function BusStopScreen() {
     const tone = pillToneStyle(eta.tone, isDark);
     const accessible = isAccessibleArrival(a);
     const etaSpoken = eta.minutes !== null ? t('nativeBusEtaMinutes', { count: eta.minutes }) : eta.text;
-    const label = t('nativeBusBoardRowLabel', { route: a.routeName, headsign: headsignText(a), eta: etaSpoken });
+    const label = t('nativeBusBoardRowLabel', { route: busName(a.routeDisplayName, a.routeName), headsign: headsignText(a), eta: etaSpoken });
     return (
       <Pressable
         key={arrivalKey(a)}
@@ -152,7 +154,7 @@ export default function BusStopScreen() {
         accessibilityLabel={accessible ? `${label}，${accessText(a)}` : label}
         onPress={() => openRoute(a)}
         style={({ pressed }) => [styles.row, separator(index), pressed && styles.pressed]}>
-        <RouteBadge name={a.routeName} />
+        <RouteBadge name={busName(a.routeDisplayName, a.routeName)} />
         <View style={styles.rowTexts}>
           <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
             {headsignText(a)}
@@ -265,7 +267,7 @@ export default function BusStopScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: stopName }} />
+      <Stack.Screen options={{ title: stopLabel }} />
       <ScrollView
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
@@ -273,7 +275,7 @@ export default function BusStopScreen() {
         refreshControl={<RefreshControl refreshing={board.refreshing} onRefresh={() => void board.refresh()} />}>
         <View style={styles.header}>
           <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
-            {stopName}
+            {stopLabel}
           </Text>
           {subtitle ? <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text> : null}
         </View>

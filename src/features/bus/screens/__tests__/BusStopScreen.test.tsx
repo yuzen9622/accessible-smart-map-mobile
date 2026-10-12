@@ -22,6 +22,7 @@ jest.mock('@/features/map', () => ({
   useUserLocationStore: (selector: (s: { position: null }) => null) => selector({ position: null }),
 }));
 jest.mock('@/shared/i18n', () => ({
+  getAppLanguage: () => 'en',
   useAppTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${Object.values(params).join(',')}` : key),
   }),
@@ -81,4 +82,16 @@ describe('BusStopScreen direction labels and navigation', () => {
       params: expect.objectContaining({ routeName: 'R', direction: '10', subRouteUid: 'U10', stopName: '站牌' }),
     });
   });
+});
+
+it('shows English-only names but navigation and lookup still use canonical names and IDs', async () => {
+  mockNavigate.mockReset();
+  mockGetStopArrivals.mockResolvedValue({ ok: true, data: { stopName: '站牌', stopDisplayName: 'English Stop', arrivals: [row(0, { routeDisplayName: 'English Route', subRouteDisplayName: 'English Branch', headsign: '', headsignDisplayName: 'English Terminal' })] } });
+  await render(<BusStopScreen />);
+  await act(flushPromises);
+  expect(screen.getByText('English Stop')).toBeTruthy();
+  await fireEvent.press(screen.getByText('English Route'));
+  expect(mockNavigate).toHaveBeenCalledWith({ pathname: '/bus/route', params: expect.objectContaining({ routeName: 'R', stopName: '站牌', subRouteUid: 'U0', direction: '0' }) });
+  expect(mockGetStopArrivals.mock.calls.at(-1)?.[0]).toMatchObject({ stopName: '站牌' });
+  expect(mockGetStopArrivals.mock.calls.at(-1)?.[2]).toBe('en');
 });

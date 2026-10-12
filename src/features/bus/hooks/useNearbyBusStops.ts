@@ -1,3 +1,4 @@
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { useEffect, useRef, useState } from 'react';
 
 import { hasMovedBeyond, type LatLng } from '@/shared/geo';
@@ -17,11 +18,22 @@ export interface NearbyBusStopsState {
  * `enabled` 為 false（使用者正在搜尋）時不查，也不取消已回來的結果。
  */
 export function useNearbyBusStops(position: LatLng | null, enabled: boolean): NearbyBusStopsState {
+  useAppTranslation();
+  const lang = getAppLanguage();
   const [state, setState] = useState<NearbyBusStopsState>({ stops: [], loading: false, error: null });
+  const [stateLang, setStateLang] = useState(lang);
+  const lastLanguage = useRef(lang);
   const lastFetched = useRef<LatLng | null>(null);
   const controller = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    if (lastLanguage.current !== lang) {
+      controller.current?.abort();
+      lastFetched.current = null;
+      lastLanguage.current = lang;
+      setStateLang(lang);
+      setState({ stops: [], loading: false, error: null });
+    }
     if (!enabled || !position) return;
     if (!hasMovedBeyond(lastFetched.current, position)) return;
     lastFetched.current = position;
@@ -31,7 +43,7 @@ export function useNearbyBusStops(position: LatLng | null, enabled: boolean): Ne
     setState((prev) => ({ ...prev, loading: true, error: null }));
     const run = async () => {
       try {
-        const res = await getNearbyBusStops(position, current.signal);
+        const res = await getNearbyBusStops(position, current.signal, lang);
         if (current.signal.aborted) return;
         setState({ stops: res.data?.stops ?? [], loading: false, error: res.data ? null : 'NO_DATA' });
       } catch (err) {
@@ -42,7 +54,7 @@ export function useNearbyBusStops(position: LatLng | null, enabled: boolean): Ne
       }
     };
     void run();
-  }, [position, enabled]);
+  }, [position, enabled, lang]);
 
   useEffect(
     () => () => {
@@ -51,5 +63,5 @@ export function useNearbyBusStops(position: LatLng | null, enabled: boolean): Ne
     [],
   );
 
-  return state;
+  return stateLang === lang ? state : { stops: [], loading: Boolean(enabled && position), error: null };
 }

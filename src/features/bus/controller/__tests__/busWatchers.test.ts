@@ -60,7 +60,7 @@ describe('watchLegStopEtas', () => {
     const updates: LegEtaSnapshot[] = [];
     const stop = watchLegStopEtas(leg, false, (s) => updates.push(s), always);
     await flush();
-    expect(mockGetBusRouteDetail).toHaveBeenCalledWith('99延', 'Taichung', undefined, undefined, leg.planContext);
+    expect(mockGetBusRouteDetail).toHaveBeenCalledWith('99延', 'Taichung', undefined, undefined, leg.planContext, 'en');
     expect(updates.map((u) => u.status)).toEqual(['loading', 'ready']);
     expect(peekLegEtas(leg).status).toBe('ready');
     stop();
@@ -152,7 +152,7 @@ describe('watchRideArrival', () => {
     const onEta = jest.fn();
     const stop = watchRideArrival(() => leg, 'KKA-1234', onEta, always);
     await flush();
-    expect(mockFetchRideArrival).toHaveBeenCalledWith(leg, 'KKA-1234', expect.anything());
+    expect(mockFetchRideArrival).toHaveBeenCalledWith(leg, 'KKA-1234', expect.anything(), 'en');
     expect(mockFetchLeg).not.toHaveBeenCalled();
     expect(onEta).toHaveBeenCalledWith(6);
     stop();

@@ -9,7 +9,7 @@ import { logger } from '@/shared/logger';
 import { TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
 
-import { badgePillTone, badgeText } from '../components/busText';
+import { busName, badgePillTone, badgeText } from '../components/busText';
 import EtaPill from '../components/EtaPill';
 import { etaDisplay } from '../components/etaDisplay';
 import RouteBadge from '../components/RouteBadge';
@@ -69,7 +69,7 @@ function useRoutePanelStops(directions: readonly RouteDetailDirection[], selecte
     useCallback(() => {
       const panelStops: PanelStop[] = stopsOfOption(directions, selectedIndex).map((s) => ({
         id: stopId(s.seq, s.name),
-        name: s.name,
+        name: busName(s.displayName, s.name),
         lat: s.lat,
         lng: s.lng,
       }));
@@ -125,7 +125,8 @@ export default function BusRouteScreen() {
   const stopLng = parseFiniteParam(params.stopLng);
   const stopPosition = stopLat !== null && stopLng !== null ? { lat: stopLat, lng: stopLng } : null;
 
-  const { directions, loading, refreshing, error, refresh } = useBusRouteDetail(routeName, city);
+  const { routeDisplayName, directions, loading, refreshing, error, refresh } = useBusRouteDetail(routeName, city);
+  const routeLabel = busName(routeDisplayName, routeName);
   // 選擇以實際方向物件（支線＋方向）識別，不只靠 direction 數字：同方向的不同支線各自一個選項。
   const options = buildDirectionOptions(directions);
   const selectionContext = JSON.stringify([routeName, city, firstParam(params.subRouteUid), parseDirectionParam(params.direction)]);
@@ -184,7 +185,8 @@ export default function BusRouteScreen() {
   const hasBranches = new Set(options.map((o) => o.subRouteUid ?? '')).size > 1;
   const optionLabel = (option: DirectionOption): string => {
     const base = titleText(titleOf(option));
-    return hasBranches && option.subRouteName ? t('nativeBusDirectionSubRoute', { sub: option.subRouteName, direction: base }) : base;
+    const branchLabel = busName(directions[option.index]?.subRouteDisplayName, option.subRouteName);
+    return hasBranches && branchLabel ? t('nativeBusDirectionSubRoute', { sub: branchLabel, direction: base }) : base;
   };
   const headsign = selected ? titleText(titleOf(selected)) : '';
   const segmentOptions = options.map((o) => ({ value: o.key, label: optionLabel(o), selected: o.key === selectedKey }));
@@ -225,8 +227,8 @@ export default function BusRouteScreen() {
   const rawEta = etaSource?.estimateMinutes ?? null;
   const etaMinutes = rawEta !== null && Number.isFinite(rawEta) && rawEta >= 0 ? rawEta : null;
   const reminderContent = (minutes: number) => ({
-    title: t('nativeBusReminderTitle', { route: routeName }),
-    body: t('nativeBusReminderBody', { minutes: Math.max(1, Math.min(REMINDER_LEAD_MINUTES, Math.round(minutes))), stop: trackMatch?.stop.name ?? '' }),
+    title: t('nativeBusReminderTitle', { route: routeLabel }),
+    body: t('nativeBusReminderBody', { minutes: Math.max(1, Math.min(REMINDER_LEAD_MINUTES, Math.round(minutes))), stop: busName(trackMatch?.stop.displayName, trackMatch?.stop.name) }),
   });
   const contentRef = useRef(reminderContent);
   useEffect(() => {
@@ -295,7 +297,8 @@ export default function BusRouteScreen() {
     mapCamera.flyTo([stop.lng, stop.lat], STOP_ZOOM);
   };
 
-  const subtitle = [route.departure && route.destination ? `${route.departure} – ${route.destination}` : '', t('nativeBusRefreshNote')]
+  const selectedDirection = selectedIndex === null ? undefined : directions[selectedIndex];
+  const subtitle = [selectedDirection?.fromDisplayName || selectedDirection?.toDisplayName ? `${busName(selectedDirection.fromDisplayName, route.departure)} – ${busName(selectedDirection.toDisplayName, route.destination)}` : route.departure && route.destination ? `${route.departure} – ${route.destination}` : '', t('nativeBusRefreshNote')]
     .filter(Boolean)
     .join(' · ');
 
@@ -313,10 +316,10 @@ export default function BusRouteScreen() {
     const busLabel = approaching
       ? approaching.stopsAway === 0
         ? t('nativeBusAtYourStop')
-        : `${stops[approaching.bus.index]?.name ?? ''} · ${t('nativeBusStopsAway', { count: approaching.stopsAway })}`
+        : `${busName(stops[approaching.bus.index]?.displayName, stops[approaching.bus.index]?.name)} · ${t('nativeBusStopsAway', { count: approaching.stopsAway })}`
       : null;
     const rideSummary =
-      alightIndex > match.index ? t('nativeBusRideSummary', { stop: stops[alightIndex]?.name ?? '', count: alightIndex - match.index }) : null;
+      alightIndex > match.index ? t('nativeBusRideSummary', { stop: busName(stops[alightIndex]?.displayName, stops[alightIndex]?.name), count: alightIndex - match.index }) : null;
     const reminderLabel = reminderActive ? t('nativeBusReminderOn', { minutes: REMINDER_LEAD_MINUTES }) : t('nativeBusRemindMe');
     return (
       <TrackingCard
@@ -344,7 +347,7 @@ export default function BusRouteScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: routeName }} />
+      <Stack.Screen options={{ title: routeLabel }} />
       <ScrollView
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.content}
@@ -352,7 +355,7 @@ export default function BusRouteScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}>
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <RouteBadge name={routeName} />
+            <RouteBadge name={routeLabel} />
             {headsign ? (
               <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]} numberOfLines={2}>
                 {headsign}
@@ -417,7 +420,7 @@ export default function BusRouteScreen() {
                   return (
                     <StopAxisRow
                       key={stopId(stop.seq, stop.name)}
-                      name={stop.name}
+                      name={busName(stop.displayName, stop.name)}
                       note={mine ? t('nativeBusYouAreHere') : undefined}
                       tag={isAlight ? t('nativeBusAlight') : mine ? t('nativeBusBoard') : undefined}
                       first={index === 0 || index === collapsedCount}
@@ -426,7 +429,7 @@ export default function BusRouteScreen() {
                       selected={isSelected && !mine}
                       bus={bus}
                       trailing={<EtaPill text={etaText} tone={badgePillTone(badge)} />}
-                      accessibilityLabel={`${t('nativeBusStopEtaRowLabel', { seq: stop.seq, name: stop.name, eta: etaText })}${mine ? `，${t('nativeBusYouAreHere')}` : ''}${busSpoken}`}
+                      accessibilityLabel={`${t('nativeBusStopEtaRowLabel', { seq: stop.seq, name: busName(stop.displayName, stop.name), eta: etaText })}${mine ? `，${t('nativeBusYouAreHere')}` : ''}${busSpoken}`}
                       onPress={() => onSelectStop(stop)}
                       footer={
                         isSelected && canAlight ? (

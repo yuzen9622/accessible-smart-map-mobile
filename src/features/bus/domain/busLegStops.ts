@@ -12,6 +12,7 @@ export type EtaTone = 'arriving' | 'soon' | 'normal' | 'muted';
 export interface BusLegStopRow {
   seq: number;
   name: string;
+  displayName?: string;
   stationUid?: string;
   estimateMinutes: number | null;
   statusLabel: string;
@@ -24,6 +25,27 @@ export interface BusLegStopRow {
    * 「尚未發車」.
    */
   pending?: boolean;
+}
+
+/** Enrich UI rows only; keep canonical names/UIDs intact for tracking and matching. */
+export function presentStopRowNames(rows: BusLegStopRow[], leg: BusLeg): BusLegStopRow[] {
+  const sources = leg.intermediateStops ?? [];
+  return rows.map((row) => {
+    if (row.displayName?.trim()) return row;
+    let displayName: string | undefined;
+    if (row.kind === 'board') displayName = leg.fromDisplayName;
+    else if (row.kind === 'alight') displayName = leg.toDisplayName;
+    else {
+      const matches = sources.filter((stop) => {
+        if (row.stationUid && stop.stationUid) return row.stationUid === stop.stationUid;
+        // Canonical-only pairing is allowed only when both lists have a unique exact name.
+        return stop.name === row.name && rows.filter((item) => item.name === row.name).length === 1 &&
+          sources.filter((item) => item.name === row.name).length === 1;
+      });
+      if (matches.length === 1) displayName = matches[0].displayName;
+    }
+    return displayName?.trim() ? { ...row, displayName } : row;
+  });
 }
 
 /**
@@ -243,6 +265,8 @@ export function buildStopRows(
     return {
       seq: stop.seq,
       name: stop.name,
+      displayName: stop.displayName,
+      stationUid: stop.stopUid,
       estimateMinutes: stop.estimateMinutes,
       statusLabel: stop.statusLabel,
       state,
@@ -278,17 +302,19 @@ export function fallbackStopRows(
   }
   const middle = leg.intermediateStops ?? [];
   const names = [
-    { name: leg.departureStop, kind: 'board' as StopRowKind },
+    { name: leg.departureStop, displayName: leg.fromDisplayName, kind: 'board' as StopRowKind },
     ...middle.map((s) => ({
       name: s.name,
+      displayName: s.displayName,
       stationUid: s.stationUid,
       kind: 'intermediate' as StopRowKind,
     })),
-    { name: leg.arrivalStop, kind: 'alight' as StopRowKind },
+    { name: leg.arrivalStop, displayName: leg.toDisplayName, kind: 'alight' as StopRowKind },
   ];
   return names.map((entry, i) => ({
     seq: i,
     name: entry.name,
+    displayName: entry.displayName,
     stationUid: 'stationUid' in entry ? entry.stationUid : undefined,
     estimateMinutes: null,
     statusLabel: '',

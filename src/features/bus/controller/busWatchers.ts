@@ -1,3 +1,4 @@
+import { getAppLanguage, type AppLanguage } from '@/shared/i18n';
 import type { BusLeg } from '@/features/route';
 import { createPoller, type VisibilitySource } from '@/shared/polling';
 
@@ -22,6 +23,7 @@ export function watchLiveBus(
   getLeg: () => BusLeg | null,
   onSnapshot: (snapshot: LegSnapshot) => void,
   visibility: VisibilitySource,
+  lang: AppLanguage = getAppLanguage(),
 ): () => void {
   const poller = createPoller({
     intervalMs: LIVE_BUS_POLL_MS,
@@ -31,7 +33,7 @@ export function watchLiveBus(
       if (!leg) return;
       let snapshot: LegSnapshot;
       try {
-        snapshot = await fetchLegSnapshot(leg, signal);
+        snapshot = await fetchLegSnapshot(leg, signal, lang);
       } catch {
         snapshot = { buses: [], arrival: { eta: null } };
       }
@@ -51,6 +53,7 @@ export function watchRideArrival(
   plate: string,
   onEta: (eta: number | null) => void,
   visibility: VisibilitySource,
+  lang: AppLanguage = getAppLanguage(),
 ): () => void {
   const poller = createPoller({
     intervalMs: LIVE_BUS_POLL_MS,
@@ -60,7 +63,7 @@ export function watchRideArrival(
       if (!leg) return;
       let eta: number | null;
       try {
-        eta = await fetchRideArrival(leg, plate, signal);
+        eta = await fetchRideArrival(leg, plate, signal, lang);
       } catch {
         eta = null;
       }
@@ -87,9 +90,9 @@ function legQuery(leg: BusLeg | null) {
 }
 
 /** 已預熱的快取；hook 用它當初始狀態，展開後第一個 render 就是真資料而不是載入中。 */
-export function peekLegEtas(leg: BusLeg | null): LegEtaSnapshot {
+export function peekLegEtas(leg: BusLeg | null, lang: AppLanguage = getAppLanguage()): LegEtaSnapshot {
   const q = legQuery(leg);
-  const warm = q ? peekRouteDetail(q.routeName, q.city, q.subRouteUid, q.planContext) : null;
+  const warm = q ? peekRouteDetail(q.routeName, q.city, q.subRouteUid, q.planContext, lang) : null;
   return warm ? { directions: warm, status: 'ready' } : { directions: null, status: 'idle' };
 }
 
@@ -105,6 +108,7 @@ export function watchLegStopEtas(
   poll: boolean,
   onUpdate: (snapshot: LegEtaSnapshot) => void,
   visibility: VisibilitySource,
+  lang: AppLanguage = getAppLanguage(),
 ): () => void {
   const q = legQuery(leg);
   if (!q) {
@@ -114,11 +118,11 @@ export function watchLegStopEtas(
 
   let cancelled = false;
   // 已有暖快取就不要蓋一個載入中上去。
-  const last = peekRouteDetail(q.routeName, q.city, q.subRouteUid, q.planContext);
+  const last = peekRouteDetail(q.routeName, q.city, q.subRouteUid, q.planContext, lang);
   onUpdate(last ? { directions: last, status: 'ready' } : { directions: null, status: 'loading' });
 
   const fetchEtas = async (force: boolean, signal?: AbortSignal) => {
-    const fetched = await fetchRouteDetailCached(q.routeName, q.city, { force, subRouteUid: q.subRouteUid, planContext: q.planContext });
+    const fetched = await fetchRouteDetailCached(q.routeName, q.city, { force, subRouteUid: q.subRouteUid, planContext: q.planContext, lang });
     // 回前景的那一輪會 abort 進行中的那一輪；被取代的結果不得晚到蓋掉較新的。
     if (cancelled || signal?.aborted) return;
 

@@ -2,14 +2,15 @@ import { Text } from '@/shared/ui/typography/Text';
 import { useMemo } from "react";
 import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
-import { getLegColor, type AccessibleRoute, type BusLeg } from '@/features/route/domain';
-import { useAppTranslation } from '@/shared/i18n';
+import { getLegColor, presentRouteNames, type AccessibleRoute, type BusLeg } from '@/features/route/domain';
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import {
   buildStopRows,
   fallbackStopRows,
+  presentStopRowNames,
   resolveCurrentStopSeq,
   resolveEtaLabel,
   resolveLegStops,
@@ -19,7 +20,7 @@ import {
 } from '../domain';
 import { useBusLegStopEtas } from '../hooks/useBusLegStopEtas';
 import { busLegKey, useBusStore } from '../store/busStore';
-import { etaLabelText, etaTonePill } from './busText';
+import { busName, etaLabelText, etaTonePill } from './busText';
 import EtaPill from './EtaPill';
 import { BUS_BORDER_COLOR, BUS_ON_ACCENT_COLOR, pillToneStyle } from './palette';
 
@@ -37,6 +38,9 @@ export interface BusLegStopsProps {
  */
 export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg }: BusLegStopsProps) {
   const { t } = useAppTranslation();
+  const lang = getAppLanguage();
+  const projected = presentRouteNames(route, lang).legs[legIndex];
+  const displayLeg = projected?.type === 'BUS' ? projected : rawLeg;
   const leg = useMemo(() => ({ ...rawLeg, planContext: route.routeToken ? { routeToken: route.routeToken, legIndex } : undefined }), [rawLeg, route.routeToken, legIndex]);
   const colors = useThemeColors();
   const isDark = useColorScheme() === 'dark';
@@ -56,10 +60,12 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg }
     rows =
       sliced && sliced.length > 0
         ? buildStopRows(sliced, resolveCurrentStopSeq(sliced, targetBus))
-        : fallbackStopRows(leg, { pending: status === 'idle' || status === 'loading' });
+        : fallbackStopRows(displayLeg, { pending: status === 'idle' || status === 'loading' });
+    rows = presentStopRowNames(rows, displayLeg);
   }
   const intermediateRows = rows && rows.length > 2 ? rows.slice(1, -1) : undefined;
-  const currentStopName = rows?.find((r) => r.state === 'current')?.name;
+  const currentStopName = rows?.find((r) => r.state === 'current');
+  const currentStopLabel = busName(currentStopName?.displayName, currentStopName?.name);
   const stopCount = intermediateRows?.length ?? leg.intermediateStops?.length ?? 0;
 
   const toggle = () => {
@@ -97,7 +103,7 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg }
     <View style={styles.root}>
       <View style={styles.badgeRow}>
         <View style={[styles.routeBadge, { backgroundColor: legColor }]}>
-          <Text style={styles.routeBadgeText}>{leg.routeName}</Text>
+          <Text style={styles.routeBadgeText}>{busName(displayLeg.routeDisplayName, leg.routeName)}</Text>
         </View>
         {waitText ? <Text style={[styles.wait, { color: colors.textSecondary }]}>{t(waitText.key, waitText.params)}</Text> : null}
       </View>
@@ -106,20 +112,20 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg }
         <View
           accessible
           accessibilityLiveRegion="polite"
-          accessibilityLabel={[t('busLiveTracking'), targetBus.plateNumb, currentStopName ? t('busCurrentStopAt', { stop: currentStopName }) : '']
+          accessibilityLabel={[t('busLiveTracking'), targetBus.plateNumb, currentStopLabel ? t('busCurrentStopAt', { stop: currentStopLabel }) : '']
             .filter(Boolean)
             .join(' ')}
           style={styles.live}>
           <View style={styles.liveDot} />
           <Text style={[styles.liveText, { color: colors.textSecondary }]}>{t('busLiveTracking')}</Text>
           <Text style={[styles.plate, { color: colors.text }]}>{targetBus.plateNumb}</Text>
-          {currentStopName ? (
-            <Text style={[styles.liveText, { color: colors.textSecondary }]}>{t('busCurrentStopAt', { stop: currentStopName })}</Text>
+          {currentStopLabel ? (
+            <Text style={[styles.liveText, { color: colors.textSecondary }]}>{t('busCurrentStopAt', { stop: currentStopLabel })}</Text>
           ) : null}
         </View>
       ) : null}
 
-      {renderEndpoint(t('board'), leg.departureStop, leg.departureTime, liveEta)}
+      {renderEndpoint(t('board'), busName(rows?.[0]?.displayName, busName(displayLeg.fromDisplayName, leg.departureStop)), leg.departureTime, liveEta)}
 
       {stopCount > 0 ? (
         <Pressable
@@ -147,16 +153,16 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg }
               plate={targetBus?.plateNumb}
             />
           )) ??
-            leg.intermediateStops?.map((stop) => (
-              <View key={stop.stationUid || stop.name} accessible accessibilityLabel={stop.name} style={styles.stopRow}>
+            displayLeg.intermediateStops?.map((stop) => (
+              <View key={stop.stationUid || stop.name} accessible accessibilityLabel={busName(stop.displayName, stop.name)} style={styles.stopRow}>
                 <View style={[styles.dot, { backgroundColor: legColor }]} />
-                <Text style={[styles.stopName, { color: colors.text }]}>{stop.name}</Text>
+                <Text style={[styles.stopName, { color: colors.text }]}>{busName(stop.displayName, stop.name)}</Text>
               </View>
             ))}
         </View>
       ) : null}
 
-      {renderEndpoint(t('alight'), leg.arrivalStop, leg.arrivalTime, expanded ? resolveLiveEta(rows?.at(-1)?.estimateMinutes) : null)}
+      {renderEndpoint(t('alight'), busName(rows?.at(-1)?.displayName, busName(displayLeg.toDisplayName, leg.arrivalStop)), leg.arrivalTime, expanded ? resolveLiveEta(rows?.at(-1)?.estimateMinutes) : null)}
 
       {leg.nearestBus ? (
         <Text style={[styles.nearest, { color: pillToneStyle('ok', isDark).color }]}>
@@ -176,7 +182,7 @@ function StopRow({ row, legColor, isDark, plate }: { row: BusLegStopRow; legColo
   const text = etaLabelText(t, label);
   const passed = row.state === 'passed';
   const current = row.state === 'current';
-  const a11y = [row.name, current && plate ? `${t('busLiveTracking')} ${plate}` : '', text ?? ''].filter(Boolean).join('，');
+  const a11y = [busName(row.displayName, row.name), current && plate ? `${t('busLiveTracking')} ${plate}` : '', text ?? ''].filter(Boolean).join('，');
   return (
     <View accessible accessibilityLabel={a11y} style={styles.stopRow}>
       <View style={[styles.dot, current && styles.dotCurrent, { backgroundColor: passed ? BUS_BORDER_COLOR : legColor }]} />
@@ -188,7 +194,7 @@ function StopRow({ row, legColor, isDark, plate }: { row: BusLegStopRow; legColo
             passed && styles.passed,
             current && styles.currentName,
           ]}>
-          {row.name}
+          {busName(row.displayName, row.name)}
         </Text>
         {current && plate ? <Text style={[styles.plate, { color: colors.textSecondary }]}>{plate}</Text> : null}
       </View>

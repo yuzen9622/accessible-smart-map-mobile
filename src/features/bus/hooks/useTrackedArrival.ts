@@ -1,3 +1,4 @@
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { useEffect, useState } from 'react';
 
 import { appStateVisibility, createPoller } from '@/shared/polling';
@@ -19,12 +20,14 @@ export function useTrackedArrival(
   stopName: string,
   selection: RideSelection | null,
 ): NextArrival | null {
+  useAppTranslation();
+  const lang = getAppLanguage();
   const [state, setState] = useState<{ key: string; arrival: NextArrival | null }>({ key: '', arrival: null });
   const direction = selection?.direction ?? null;
   const subRouteUid = selection?.subRouteUid;
   const exclusive = selection?.exclusive ?? false;
   const enabled = direction !== null && direction !== 255 && Boolean(routeName && stopName);
-  const key = enabled ? `${city}::${routeName}::${stopName}::${subRouteUid ?? ''}::${direction}::${exclusive}` : '';
+  const key = enabled ? `${lang}::${city}::${routeName}::${stopName}::${subRouteUid ?? ''}::${direction}::${exclusive}` : '';
 
   useEffect(() => {
     if (!enabled || direction === null) return;
@@ -36,7 +39,7 @@ export function useTrackedArrival(
       task: async ({ signal }) => {
         let arrival: NextArrival | null = null;
         try {
-          const res = await getBusArrival({ routeName, stopName, direction, city }, signal);
+          const res = await getBusArrival({ routeName, stopName, direction, city }, signal, lang);
           if (res.ok && res.data) arrival = pickNextArrival(res.data.arrivals, stopName, own);
         } catch {
           arrival = null;
@@ -50,7 +53,7 @@ export function useTrackedArrival(
       current = false;
       poller.stop();
     };
-  }, [enabled, routeName, city, stopName, direction, subRouteUid, exclusive, key]);
+  }, [enabled, routeName, city, stopName, direction, subRouteUid, exclusive, key, lang]);
 
   return state.key === key && key !== '' ? state.arrival : null;
 }

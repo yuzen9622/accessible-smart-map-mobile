@@ -150,7 +150,7 @@ describe('receipt time and sub-route key', () => {
     expect(routeDetailKey('99', 'Taichung')).toBe(routeDetailKey('99', 'Taichung', undefined));
     getBusRouteDetail.mockResolvedValue(ok());
     await fetchRouteDetailCached('99', 'Taichung', { subRouteUid: 'TXG991' });
-    expect(getBusRouteDetail).toHaveBeenCalledWith('99', 'Taichung', undefined, 'TXG991', undefined);
+    expect(getBusRouteDetail).toHaveBeenCalledWith('99', 'Taichung', undefined, 'TXG991', undefined, 'en');
     expect(peekRouteDetail('99', 'Taichung')).toBeNull();
     expect(peekRouteDetail('99', 'Taichung', 'TXG991')).toEqual(directions);
   });
@@ -194,4 +194,20 @@ it("isolates different plans and repeated legs of the same line", async () => {
   await fetchRouteDetailCached("99", "Taipei", { planContext: { routeToken: "one", legIndex: 1 } });
   expect(getBusRouteDetail).toHaveBeenCalledTimes(3);
   expect(peekRouteDetail("99", "Taipei")).toBeNull();
+});
+
+it('isolates both coalescing and settled values by language', async () => {
+  let resolveEn!: (value: unknown) => void;
+  const en = [{ direction: 0, stops: [{ name: '站', displayName: 'Stop' }] }];
+  const zh = [{ direction: 0, stops: [{ name: '站', displayName: '站' }] }];
+  mockGetBusRouteDetail.mockImplementation((...args: unknown[]) => args[5] === 'en' ? new Promise(resolve => { resolveEn = resolve; }) : Promise.resolve({ ok: true, data: { directions: zh } }));
+  const english = fetchRouteDetailCached('99', 'Taipei', { lang: 'en' });
+  const englishAgain = fetchRouteDetailCached('99', 'Taipei', { lang: 'en', force: true });
+  expect(englishAgain).toBe(english);
+  expect(await fetchRouteDetailCached('99', 'Taipei', { lang: 'zh-TW' })).toEqual(zh);
+  resolveEn({ ok: true, data: { directions: en } });
+  expect(await english).toEqual(en);
+  expect(mockGetBusRouteDetail).toHaveBeenCalledTimes(2);
+  expect(peekRouteDetail('99', 'Taipei', undefined, undefined, 'en')).toEqual(en);
+  expect(peekRouteDetail('99', 'Taipei', undefined, undefined, 'zh-TW')).toEqual(zh);
 });

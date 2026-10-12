@@ -101,7 +101,7 @@ describe('useLiveBusTracking', () => {
       await flush();
     });
     expect(useBusStore.getState().liveBusPositions).toEqual([]);
-    expect(mockFetchRideArrival).toHaveBeenCalledWith(expect.objectContaining({ routeName: '307' }), 'KKA-1234', expect.anything());
+    expect(mockFetchRideArrival).toHaveBeenCalledWith(expect.objectContaining({ routeName: '307' }), 'KKA-1234', expect.anything(), 'en');
     expect(useBusStore.getState().legArrival).toEqual({ stop: 'alight', eta: 7 });
 
     await act(() => {

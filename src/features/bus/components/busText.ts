@@ -35,3 +35,5 @@ export function etaLabelText(t: TFunction, label: EtaLabel): string | null {
 export function etaTonePill(tone: EtaTone): PillTone {
   return tone === 'soon' ? 'ok' : tone;
 }
+
+export { busName } from '../domain/sourceNames';

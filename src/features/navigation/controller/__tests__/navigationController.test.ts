@@ -518,12 +518,36 @@ describe('NavigationController step mode (live vs preview)', () => {
 
 it('refreshes language with the same token and preserves the current step', async () => {
   let language: 'zh-TW' | 'en' = 'zh-TW';
-  const { controller, speech, fetchInstructions } = setup({ language: () => language });
+  const { controller, speech, fetchInstructions, reroute } = setup({ language: () => language });
   controller.start(); await flush();
+  const originalRoute = useMapStore.getState().selectRoute?.route;
   useNavStore.setState({ currentStepIndex: 2 });
   language = 'en'; controller.refreshLanguage(); await flush();
   expect(fetchInstructions).toHaveBeenLastCalledWith({ routeToken: 'token-1', userHeading: undefined, language: 'en' }, expect.any(AbortSignal));
   expect(useNavStore.getState().currentStepIndex).toBe(2); expect(speech.stop).toHaveBeenCalled();
+  expect(useMapStore.getState().selectRoute?.route).toBe(originalRoute);
+  expect(reroute.triggerAutoReroute).not.toHaveBeenCalled();
+  controller.stop();
+});
+
+it('discards delayed old-language instructions without replanning the same route', async () => {
+  let language: 'zh-TW' | 'en' = 'zh-TW';
+  const old = deferred<ApiResponse<NavInstructionsData>>();
+  const fetchInstructions = jest.fn()
+    .mockImplementationOnce(() => old.promise)
+    .mockResolvedValueOnce(ok([step('Continue on Roosevelt Road', 0)]));
+  const { controller, reroute } = setup({ language: () => language, fetchInstructions });
+  const originalRoute = useMapStore.getState().selectRoute?.route;
+  controller.start(); await flush();
+  language = 'en'; controller.refreshLanguage(); await flush();
+  old.resolve(ok([step('沿羅斯福路繼續前進', 0)])); await flush();
+  expect(useNavStore.getState().instructions[0].text).toBe('Continue on Roosevelt Road');
+  expect(useMapStore.getState().selectRoute?.route).toBe(originalRoute);
+  expect(reroute.triggerAutoReroute).not.toHaveBeenCalled();
+  expect(fetchInstructions.mock.calls.map(([input]) => input)).toEqual([
+    { routeToken: 'token-1', userHeading: undefined, language: 'zh-TW' },
+    { routeToken: 'token-1', userHeading: undefined, language: 'en' },
+  ]);
   controller.stop();
 });
 

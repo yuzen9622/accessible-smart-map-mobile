@@ -11,6 +11,8 @@ export interface AppConfig {
   privacyPolicyUrl: string | null;
   /** 服務條款網址（EXPO_PUBLIC_TERMS_URL）；未設定時設定頁不顯示入口 */
   termsUrl: string | null;
+  /** LINE 官方帳號 basic ID（EXPO_PUBLIC_LINE_BOT_BASIC_ID，如 `@abc1234`）；未設定時不顯示「回 LINE 回報」 */
+  lineBotBasicId: string | null;
 }
 
 export interface AppConfigEnv {
@@ -20,6 +22,7 @@ export interface AppConfigEnv {
   EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?: string;
   EXPO_PUBLIC_PRIVACY_POLICY_URL?: string;
   EXPO_PUBLIC_TERMS_URL?: string;
+  EXPO_PUBLIC_LINE_BOT_BASIC_ID?: string;
 }
 
 export type AppConfigResult =
@@ -66,6 +69,12 @@ function parseOptionalUrl(raw: string | undefined): string | null {
   }
 }
 
+/** LINE basic ID 是 `@` 開頭的英數字；格式不對視為未設定，避免組出壞掉的 LINE 連結。 */
+function parseLineBasicId(raw: string | undefined): string | null {
+  const value = parseOptional(raw);
+  return value && /^@[a-z0-9._-]+$/i.test(value) ? value : null;
+}
+
 /**
  * 驗證 EXPO_PUBLIC_* 設定。缺值或格式錯誤時回傳錯誤清單，
  * 不以預設值默默連到 localhost（SDD §7.1）。
@@ -90,6 +99,7 @@ export function parseAppConfig(env: AppConfigEnv): AppConfigResult {
       googleIosClientId: parseOptional(env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID),
       privacyPolicyUrl: parseOptionalUrl(env.EXPO_PUBLIC_PRIVACY_POLICY_URL),
       termsUrl: parseOptionalUrl(env.EXPO_PUBLIC_TERMS_URL),
+      lineBotBasicId: parseLineBasicId(env.EXPO_PUBLIC_LINE_BOT_BASIC_ID),
     },
   };
 }

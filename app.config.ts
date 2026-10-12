@@ -15,7 +15,7 @@ function googleIosUrlScheme(clientId: string | undefined): string | null {
 }
 
 /**
- * 免費 Apple ID（Personal Team）不能簽推播、Sign in with Apple、App Groups 這三種 entitlement，
+ * 免費 Apple ID（Personal Team）不能簽推播、Sign in with Apple、App Groups、Associated Domains 這些 entitlement，
  * 裝到自己的 iPhone 做真機測試時會簽章失敗。只在本機 prebuild 時設 `IOS_FREE_SIGNING=1`，
  * 暫時拿掉產生這些 entitlement 的 plugin，並以 `plugins/with-free-signing.ts` 刪掉 Expo 自動加回的部分
  * （Live Activity、Apple 登入、遠端推播在這種 build 不可用）；
@@ -45,6 +45,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     name: config.name ?? '無障礙智慧地圖',
     slug: config.slug ?? 'accessible-smart-map-mobile',
     plugins,
-    ios: freeSigning ? { ...config.ios, usesAppleSignIn: false } : config.ios,
+    // Personal Team 也不能簽 Associated Domains；免費簽章 build 只靠自訂 scheme 開追蹤頁。
+    ios: freeSigning ? { ...config.ios, usesAppleSignIn: false, associatedDomains: [] } : config.ios,
   };
 };

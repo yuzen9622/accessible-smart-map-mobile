@@ -100,7 +100,11 @@
             ]
           }
         ]
-      }
+      },
+      "associatedDomains": [
+        "applinks:map.yuzen.dev",
+        "applinks:map-dev.yuzen.dev"
+      ]
     },
     "android": {
       "adaptiveIcon": {

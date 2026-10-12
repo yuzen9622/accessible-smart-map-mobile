@@ -39,3 +39,24 @@ it.each([
   useNavStore.setState({ isNavigating: true });
   expect(redirectSystemPath({ path, initial: false })).toBe(path);
 });
+
+describe('SOS Universal Links', () => {
+  const token = 'ab'.repeat(16);
+
+  it.each([
+    `https://map.yuzen.dev/zh-TW/sos/?token=${token}`,
+    `https://map.yuzen.dev/zh-TW/sos/?token=${token}&openExternalBrowser=1`,
+    `https://map-dev.yuzen.dev/en/sos?token=${token.toUpperCase()}`,
+  ])('opens the native family tracker for %s', (path) => {
+    expect(redirectSystemPath({ path, initial: true })).toBe(`/sos-track/${token}`);
+  });
+
+  it('sends a malformed token home instead of a broken tracker', () => {
+    expect(redirectSystemPath({ path: 'https://map.yuzen.dev/zh-TW/sos/?token=65f0c0ffee', initial: false })).toBe('/');
+  });
+
+  it('leaves other https paths alone', () => {
+    const path = 'https://map.yuzen.dev/zh-TW/?place=abc';
+    expect(redirectSystemPath({ path, initial: false })).toBe(path);
+  });
+});

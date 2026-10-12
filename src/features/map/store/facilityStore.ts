@@ -13,7 +13,7 @@ interface FacilityState {
   selected: PinnedFacilityCategory[];
   /** 首頁圖層 chip「停車」：開啟時地圖載入並顯示附近無障礙停車（跨重啟保留） */
   showParking: boolean;
-  setFacilities: (facilities: Facility[]) => void;
+  setFacilities: (facilities: Facility[] | null) => void;
   setLoadError: (error: string | null) => void;
   toggleCategory: (category: PinnedFacilityCategory) => void;
   setSelected: (selected: PinnedFacilityCategory[]) => void;

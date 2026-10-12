@@ -18,6 +18,8 @@ export interface DisabledParking {
   areacode?: string;
   quantity: number;
   placeName: string;
+  displayName?: string;
+  displayAddress?: string;
   chargeType?: string;
   spaceLabel?: string;
   isMarked: boolean;
@@ -42,6 +44,8 @@ export interface ParkingLotNearby {
   _id: string;
   carParkId: string;
   name: string;
+  displayName?: string;
+  displayAddress?: string;
   address?: string;
   city: string;
   district?: string;
@@ -152,6 +156,8 @@ function parseParkingSpace(item: Record<string, unknown>): ParkingSpaceNearby | 
     areacode: typeof item.areacode === 'string' ? item.areacode : undefined,
     quantity: item.quantity,
     placeName: item.placeName,
+    displayName: typeof item.displayName === 'string' ? item.displayName : undefined,
+    displayAddress: typeof item.displayAddress === 'string' ? item.displayAddress : undefined,
     chargeType: typeof item.chargeType === 'string' ? item.chargeType : undefined,
     spaceLabel: typeof item.spaceLabel === 'string' ? item.spaceLabel : undefined,
     isMarked: item.isMarked,
@@ -177,6 +183,8 @@ function parseParkingLot(item: Record<string, unknown>): ParkingLotNearby | null
     _id: item._id,
     carParkId: item.carParkId,
     name: item.name,
+    displayName: typeof item.displayName === 'string' ? item.displayName : undefined,
+    displayAddress: typeof item.displayAddress === 'string' ? item.displayAddress : undefined,
     address: typeof item.address === 'string' ? item.address : undefined,
     city: item.city,
     district: typeof item.district === 'string' ? item.district : undefined,

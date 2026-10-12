@@ -96,21 +96,21 @@ export function useNearbyViewModel(initialFilter: NearbyFilter = 'all'): NearbyV
     const distanceText = formatDistance(item.distance);
     if (item.kind === 'facility') {
       sources.add(item.facility.source);
-      const subtitle = [t(SOURCE_KEY[item.facility.source]), item.facility.exitName ?? item.facility.schoolName]
+      const subtitle = [t(SOURCE_KEY[item.facility.source]), item.facility.exitName ?? (item.facility.displaySchoolName?.trim() || item.facility.schoolName)]
         .filter(Boolean)
         .join(' · ');
       return {
         key: `f-${item.id}`,
-        title: item.facility.name,
+        title: item.facility.displayName?.trim() || item.facility.name || t(item.facility.category),
         subtitle,
         distanceText,
         category: item.facility.category,
-        accessibilityLabel: `${item.facility.name}，${t(item.facility.category)}，${subtitle}，${distanceText}`,
+        accessibilityLabel: `${item.facility.displayName?.trim() || item.facility.name || t(item.facility.category)}，${t(item.facility.category)}，${subtitle}，${distanceText}`,
         onPress: () => router.navigate({ pathname: '/facility/[id]', params: { id: item.id } }),
       };
     }
     sources.add('parking');
-    const title = item.parking.type === 'lot' ? item.parking.name : item.parking.placeName;
+    const title = item.parking.displayName?.trim() || (item.parking.type === 'lot' ? item.parking.name : item.parking.placeName) || t('parking');
     const subtitle = t('parking');
     return {
       key: `p-${item.id}`,

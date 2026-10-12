@@ -18,6 +18,7 @@ import {
   type Translate,
 } from '../domain/routeCard';
 import { LEG_LABEL_FILL, scoreToStars } from '../domain/routeDisplay';
+import { orderRouteHighlights } from '../domain/routeMessages';
 import type { AccessibleRoute, RouteLeg } from '../types/route';
 import {
   ROUTE_ACCENT_COLOR,
@@ -86,9 +87,8 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
   const starText = stars === null ? null : t(`starLabel${stars}`);
   const confidenceKey = getConfidenceLabelKey(route.dataConfidence);
   const chain = legChainSegments(route.legs);
-  // 警示類（請留意／無法）排前面再截取，不能被擠進「還有 N 項」
-  const isCaution = (text: string) => text.includes('請留意') || text.includes('無法');
-  const ordered = [...route.accessibilityHighlights].sort((a, b) => Number(isCaution(b)) - Number(isCaution(a)));
+  // 先依原始 index 配對，再排序整組；未知／舊字串不推定為成功。
+  const ordered = orderRouteHighlights(route.accessibilityHighlights, route.accessibilityHighlightDetails);
   const highlights = ordered.slice(0, MAX_HIGHLIGHTS);
   const hiddenHighlights = route.accessibilityHighlights.length - highlights.length;
   // 只列資料真的有的事實：階梯／坡度後端沒給就不顯示（不能當成 0）
@@ -205,11 +205,12 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
           {highlights.length > 0 ? (
             <View style={styles.highlights}>
               {highlights.map((highlight) => {
-                const caution = isCaution(highlight);
+                const caution = highlight.tone === 'caution';
+                const positive = highlight.tone === 'positive';
                 return (
-                  <View key={highlight} style={styles.highlightRow}>
-                    <Icon name={caution ? 'alert' : 'check'} size={14} color={caution ? tones.warn : tones.ok} />
-                    <Text style={[routeStyles.metaText, routeStyles.flex, { color: colors.text }]}>{highlight}</Text>
+                  <View key={highlight.index} style={styles.highlightRow}>
+                    <Icon name={caution ? 'alert' : positive ? 'check' : 'info'} size={14} color={caution ? tones.warn : positive ? tones.ok : colors.textSecondary} />
+                    <Text style={[routeStyles.metaText, routeStyles.flex, { color: colors.text }]}>{highlight.text}</Text>
                   </View>
                 );
               })}
@@ -224,8 +225,8 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
             <View style={[styles.warningCard, { backgroundColor: route.degraded === true ? ROUTE_DANGER_SURFACE : ROUTE_WARN_SURFACE }]}>
               <Icon name="alert" size={16} color={route.degraded === true ? tones.danger : tones.warn} />
               <View style={routeStyles.flex}>
-                {route.warnings.map((warning) => (
-                  <Text key={warning} style={[routeStyles.metaText, { color: colors.text }]}>
+                {route.warnings.map((warning, index) => (
+                  <Text key={index} style={[routeStyles.metaText, { color: colors.text }]}>
                     {warning}
                   </Text>
                 ))}

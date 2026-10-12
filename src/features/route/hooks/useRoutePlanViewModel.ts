@@ -5,7 +5,7 @@ import { AccessibilityInfo } from 'react-native';
 import { SHEET_DETENTS, sheetController, useUserLocationStore } from '@/features/map';
 import { useOnboardingStore } from '@/features/onboarding';
 import { resolveAutocompleteItem, useAutocomplete, type AutocompleteItem } from '@/features/place';
-import { useAppTranslation } from '@/shared/i18n';
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 
 import { computeRoute, selectRouteAt } from '../controller/routeSessionPort';
@@ -160,7 +160,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const originIsMyLocation = origin === null;
   const hasOrigin = originIsMyLocation ? position !== null : true;
   const canStart = hasOrigin && destination !== null && !isLoading && !resolving;
-  const requestKey = planRequestKey({
+  const requestInputs = {
     origin,
     destination,
     travelMode,
@@ -168,12 +168,19 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     avoidStairs: profileAvoidStairs,
     requireElevator: profileRequireElevator,
     canonicalPreferences: planningPreferences,
-  });
+  };
+  // Geometry/conditions identity drives auto-planning. Locale alone must not create another operation.
+  const requestKey = planRequestKey(requestInputs);
+  const localizedRequestKey = planRequestKey({ ...requestInputs, language: getAppLanguage() });
   const aiRequestKey = aiPlan ? planRequestKey({ origin: aiPlan.origin, destination: aiPlan.destination,
     travelMode: aiPlan.effectivePreferences.travelMode, routeMode: aiPlan.effectivePreferences.mode,
     avoidStairs: aiPlan.effectivePreferences.avoidStairs, requireElevator: aiPlan.effectivePreferences.requireElevator,
     canonicalPreferences: aiPlan.effectivePreferences }) : null;
-  const resultsFresh = requestKey !== null && (computedFor === requestKey || aiRequestKey === requestKey) && computeRoutes !== null;
+  // An already selected route remains visible in its original language as a fallback.
+  // Store new results under their locale key, but do not discard geometry or replan just to translate.
+  const matchesComputed = computedFor === requestKey || (['en', 'zh-TW'] as const).some((language) =>
+    computedFor === planRequestKey({ ...requestInputs, language }));
+  const resultsFresh = requestKey !== null && (matchesComputed || aiRequestKey === requestKey) && computeRoutes !== null;
   // 每組條件只自動算一次：失敗時停在錯誤訊息＋重試鈕，不會一直重打 API
   const autoAttempted = useRef<string | null>(null);
 
@@ -241,16 +248,16 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     }
     setInputError(null);
     autoAttempted.current = requestKey;
-    await runPlan(requestKey);
+    await runPlan(localizedRequestKey);
   };
 
   // 起訖點與模式齊全、而且和現有結果對不上時自動算路（編輯起訖點途中不算）
   const autoReady = !aiPlan && canStart && editing === null && !resultsFresh;
-  const autoPlan = useEffectEvent((key: string | null) => void runPlan(key));
+  const autoPlan = useEffectEvent(() => void runPlan(localizedRequestKey));
   useEffect(() => {
     if (!autoReady || autoAttempted.current === requestKey) return;
     autoAttempted.current = requestKey;
-    autoPlan(requestKey);
+    autoPlan();
   }, [autoReady, requestKey]);
 
   const failureText = lastFailure ? t(ROUTE_FAILURE_I18N[lastFailure].key) : null;

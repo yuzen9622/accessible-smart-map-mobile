@@ -72,10 +72,15 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
               />
             ))}
           </View>
-          {route.scoreWarnings?.map((warning) => (
-            <Text key={warning} style={[routeStyles.metaText, { color: colors.textSecondary }]}>
-              {warning}
-            </Text>
+          {/* Full original arrays, including items collapsed in RouteCard and legacy/source warnings. */}
+          {[route.accessibilityHighlights, route.warnings ?? [], route.scoreWarnings ?? []].map((messages, group) => (
+            <View key={group}>
+              {messages.map((message, index) => (
+                <Text key={index} style={[routeStyles.metaText, { color: colors.textSecondary }]}>
+                  {message}
+                </Text>
+              ))}
+            </View>
           ))}
           {route.attribution ? (
             <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{route.attribution}</Text>

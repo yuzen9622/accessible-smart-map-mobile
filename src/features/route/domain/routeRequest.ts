@@ -4,13 +4,15 @@
 
 import { haversineMeters, type LatLng } from '@/shared/geo';
 
-import type { AccessibleRouteRequest, ApiCoordinate, EffectiveRoutePreferences, RouteLeg, RouteMode, TravelMode } from '../types/route';
+import type { AccessibleRouteRequest, ApiCoordinate, EffectiveRoutePreferences, RouteLanguage, RouteLeg, RouteMode, TravelMode } from '../types/route';
 
 // 直線距離超過這個值已遠超任何國內行程（台北–高雄約 300 km），幾乎可以確定起訖點不在服務範圍——
 // 在這裡擋下能給出準確的「距離過遠」訊息，而不是暗示重試有用的「失敗，請再試一次」。
 export const MAX_ROUTE_METERS = 500_000;
 
 export interface ComputeRouteParams {
+  /** Resolved UI language, never the persisted `system` preference. */
+  language?: RouteLanguage;
   origin?: LatLng;
   destination?: LatLng;
   waypoints?: LatLng[];
@@ -61,6 +63,7 @@ export function planRouteRequest(params: ComputeRouteParams, userLocation: LatLn
   }
 
   const request: AccessibleRouteRequest = {};
+  if (params.language) request.language = params.language;
   if (start) request.origin = toApiCoordinate(start);
   if (end) request.destination = toApiCoordinate(end);
   const validWaypoints = waypoints?.filter(isFiniteLatLng) ?? [];

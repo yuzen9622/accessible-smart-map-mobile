@@ -1,4 +1,4 @@
-import type { EffectiveRoutePreferences } from '../types/route';
+import type { EffectiveRoutePreferences, RouteLanguage } from '../types/route';
 
 // 移植自 Web `src/lib/route/routeSession.ts`（commit 5eadc71），邏輯逐行保留。
 // 差異：Web 的 `SheetMode` 是 store 裡的一份狀態；本 App 的 sheet 狀態由 Expo Router
@@ -88,6 +88,7 @@ export function planRequestKey(args: {
   avoidStairs: boolean;
   requireElevator: boolean;
   canonicalPreferences?: EffectiveRoutePreferences | null;
+  language?: RouteLanguage;
 }): string | null {
   if (!args.destination) return null;
   const point = (p: { lat: number; lng: number }) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
@@ -99,5 +100,6 @@ export function planRequestKey(args: {
     args.avoidStairs ? 'no-stairs' : 'stairs',
     args.requireElevator ? 'elevator' : 'any',
     ...(args.canonicalPreferences ? [JSON.stringify(args.canonicalPreferences)] : []),
+    ...(args.language ? [`language:${args.language}`] : []),
   ].join('|');
 }

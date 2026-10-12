@@ -1,6 +1,7 @@
 import { mapCamera, useUserLocationStore } from '@/features/map';
 import { ApiError } from '@/shared/api';
 import type { LatLng } from '@/shared/geo';
+import i18n, { getAppLanguage } from '@/shared/i18n';
 
 import { getAccessibleRoute, getLineRoutePreview } from '../api/route';
 import {
@@ -96,7 +97,8 @@ function fail(failure: RouteFailureKind): ComputeRouteResult {
 }
 
 export async function computeRoute(params: ComputeRouteParams): Promise<ComputeRouteResult> {
-  const plan = planRouteRequest(params, useUserLocationStore.getState().position);
+  const language = getAppLanguage();
+  const plan = planRouteRequest({ ...params, language }, useUserLocationStore.getState().position);
   if (!plan.ok) {
     if (plan.reason === 'too-far') {
       // 使用者已經改了條件：之前還在跑的請求不再代表他要的路線，不能讓它晚到後蓋進來。
@@ -109,6 +111,15 @@ export async function computeRoute(params: ComputeRouteParams): Promise<ComputeR
   }
 
   const { seq, signal } = beginRequest();
+  // Cancel only this pending plan, never replan/reset an already active navigation.
+  // An event (rather than an end-of-request equality check) also guards en → zh-TW → en.
+  const onLanguageChanged = () => {
+    if (isCurrent(seq) && getAppLanguage() !== language) {
+      invalidate();
+      useRouteSessionStore.setState({ isLoading: false });
+    }
+  };
+  i18n.on('languageChanged', onLanguageChanged);
   try {
     const response = await getAccessibleRoute(plan.request, signal);
     if (!isCurrent(seq)) return { ok: false, failure: 'superseded' };
@@ -141,6 +152,7 @@ export async function computeRoute(params: ComputeRouteParams): Promise<ComputeR
     if (!isCurrent(seq)) return { ok: false, failure: 'superseded' };
     return fail(classifyRouteError(error instanceof ApiError ? error.reason : undefined));
   } finally {
+    i18n.off('languageChanged', onLanguageChanged);
     endRequest(signal);
   }
 }

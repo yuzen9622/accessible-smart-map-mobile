@@ -389,6 +389,14 @@ export interface HazardAdvisory {
   penaltyPoints: number;
 }
 
+/** Parallel metadata; index belongs only to its sibling string array. */
+export interface RouteMessageDetail {
+  index: number;
+  code: string;
+  params?: Record<string, string | number | boolean>;
+  message: string;
+}
+
 export interface AccessibleRoute {
   routeId: string;
   /** 可重算路線的導航身分。 */
@@ -400,6 +408,7 @@ export interface AccessibleRoute {
   /** 未降級時不存在，判斷要用 `=== true`。 */
   degraded?: boolean;
   warnings?: string[];
+  warningDetails?: RouteMessageDetail[];
   /** 短效 bearer capability，用來啟動語音導航與 `/route/instructions`（30 分鐘 TTL）。 */
   routeToken?: string;
   routeName: string;
@@ -407,11 +416,13 @@ export interface AccessibleRoute {
   transferCount: number;
   legs: RouteLeg[];
   accessibilityHighlights: string[];
+  accessibilityHighlightDetails?: RouteMessageDetail[];
   accessibilityScore?: number;
   accessibilityLabel?: A11yLabel;
   scoreComponents?: ScoreComponents;
   dataConfidence?: 'high' | 'medium' | 'low';
   scoreWarnings?: string[];
+  scoreWarningDetails?: RouteMessageDetail[];
   totalWalkDistanceM?: number;
   facilities?: Record<string, SlimOsmA11y>;
   attribution?: string;
@@ -489,6 +500,7 @@ export interface ApiCoordinate {
 }
 
 export interface AccessibleRouteRequest {
+  language?: RouteLanguage;
   origin?: string | ApiCoordinate;
   destination?: string | ApiCoordinate;
   waypoints?: (string | ApiCoordinate)[];
@@ -580,6 +592,8 @@ export type AccessibleRouteRerouteData = {
   routeToken: string;
   route: AccessibleRoute;
   warnings: string[];
+  /** Paired with this envelope's warnings, NOT route.warnings. */
+  warningDetails?: RouteMessageDetail[];
   currentStepIndex: 0;
   replayed: boolean;
 } & ({ instructions: NavInstruction[]; steps?: never } | { steps: NavInstruction[]; instructions?: never });

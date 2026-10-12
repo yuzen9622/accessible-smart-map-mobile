@@ -207,3 +207,38 @@ describe('transport', () => {
     expect(res.data).toBeUndefined();
   });
 });
+
+it('preserves name source/display/sidecar fields and exactly nine WALK machine fields', () => {
+  const step = { relativeDirection: 'CONTINUE', absoluteDirection: null, streetName: '道路', bogusName: false,
+    area: false, stairs: false, steepSlope: false, distanceM: 10, location: [121, 25] };
+  const leg = { type: 'WALK', from: '甲', to: '乙', fromNameEn: 'A', toNameEn: 'B',
+    fromDisplayName: 'A', toDisplayName: 'B', steps: [step],
+    stepStreetNames: [{ index: 0, streetName: '道路', nameEn: 'Road', displayName: 'Road' }],
+    a11yFacilities: [{ osmId: 'id', name: '廁所', nameEn: 'Toilet', displayName: 'Toilet' }] };
+  const parsed = parseAccessibleRouteData({ routes: [{ legs: [leg] }] });
+  expect(parsed?.routes[0].legs[0]).toMatchObject(leg);
+  const walk = parsed?.routes[0].legs[0];
+  expect(walk?.type === 'WALK' && Object.keys(walk.steps![0])).toEqual(Object.keys(step));
+});
+
+it('records plan request language but never treats reroute replay language as original provenance', async () => {
+  const { presentRouteNames } = jest.requireActual('../../domain/routeNames');
+  const route = { routeToken: 't', legs: [{ type: 'WALK', from: '甲', to: '乙', fromNameEn: 'A',
+    fromDisplayName: 'Original display', a11yFacilities: [], polyline: [] }] };
+  mockFetchRequest.mockResolvedValue(envelope({ routes: [route] }));
+  const planned = await getAccessibleRoute({ language: 'en' });
+  expect(presentRouteNames(planned.data!.routes[0], 'en').legs[0].fromDisplayName).toBe('Original display');
+  expect(presentRouteNames(planned.data!.routes[0], 'zh-TW').legs[0].fromDisplayName).toBe('甲');
+  mockFetchRequest.mockResolvedValue(envelope({ route, replayed: true, navigationId: 'n', routeVersion: 2,
+    routeToken: 't', instructions: [] }));
+  const replay = await rerouteAccessibleRoute({ routeToken: 't', language: 'en', currentPosition: { latitude: 25, longitude: 121 },
+    previousRouteVersion: 1, reason: 'MANUAL', clientRequestId: 'same' });
+  // Parser preserves original leg references; use a fresh response object to represent a replay from HTTP.
+  // The replay cannot newly assign request language even though the retry requested English.
+  mockFetchRequest.mockResolvedValue(envelope({ route: JSON.parse(JSON.stringify(route)), replayed: true,
+    navigationId: 'n', routeVersion: 2, routeToken: 't', instructions: [] }));
+  const freshReplay = await rerouteAccessibleRoute({ routeToken: 't', language: 'en', currentPosition: { latitude: 25, longitude: 121 },
+    previousRouteVersion: 1, reason: 'MANUAL', clientRequestId: 'same' });
+  expect(replay.data?.routeToken).toBe('t');
+  expect(presentRouteNames(freshReplay.data!.route, 'en').legs[0].fromDisplayName).toBe('A');
+});

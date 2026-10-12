@@ -4,7 +4,7 @@ import { canNavigateRoute } from '../controller/routeSessionPort';
 import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
-import { useAppTranslation } from '@/shared/i18n';
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { RADIUS, TYPE, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
@@ -18,6 +18,7 @@ import {
   type Translate,
 } from '../domain/routeCard';
 import { LEG_LABEL_FILL, scoreToStars } from '../domain/routeDisplay';
+import { presentRouteNames } from '../domain/routeNames';
 import { orderRouteHighlights } from '../domain/routeMessages';
 import type { AccessibleRoute, RouteLeg } from '../types/route';
 import {
@@ -80,13 +81,14 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
       ? t('nativeRouteHoursMinutes', { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 })
       : t('nativeRouteMinutes', { count: totalMinutes });
   const detail = routeFacts(route);
-  const summary = routeSummary(route.legs, translate);
+  const presentation = presentRouteNames(route, getAppLanguage());
+  const summary = routeSummary(presentation.legs, translate);
   const alerts = getRouteAlertsCount(route);
   const score = effectiveAccessibilityScore(route);
   const stars = score === null ? null : scoreToStars(score);
   const starText = stars === null ? null : t(`starLabel${stars}`);
   const confidenceKey = getConfidenceLabelKey(route.dataConfidence);
-  const chain = legChainSegments(route.legs);
+  const chain = legChainSegments(presentation.legs);
   // 先依原始 index 配對，再排序整組；未知／舊字串不推定為成功。
   const ordered = orderRouteHighlights(route.accessibilityHighlights, route.accessibilityHighlightDetails);
   const highlights = ordered.slice(0, MAX_HIGHLIGHTS);

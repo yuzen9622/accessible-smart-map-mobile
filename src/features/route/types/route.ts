@@ -51,6 +51,8 @@ export interface GeoPoint {
 export interface SlimOsmA11y {
   osmId: string;
   name?: string;
+  nameEn?: string;
+  displayName?: string;
   category: 'wheelchair_accessible' | 'kerb_cut' | 'ramp' | 'elevator' | 'toilet';
   wheelchair?: 'yes' | 'limited' | 'no';
   tags?: Record<string, string>;
@@ -78,6 +80,8 @@ export interface ExitInfo {
 
 export interface IntermediateStop {
   name: string;
+  nameEn?: string;
+  displayName?: string;
   stationUid?: string;
   location?: LngLatTuple;
 }
@@ -164,7 +168,25 @@ export interface WalkRestPoint {
   distanceM: number;
 }
 
-export interface WalkLeg {
+/** Additive presentation/source metadata; canonical fields remain query identities. */
+export interface LegSourceNames {
+  fromDisplayName?: string;
+  toDisplayName?: string;
+  routeDisplayName?: string;
+  fromNameEn?: string;
+  toNameEn?: string;
+  routeNameEn?: string;
+}
+
+export interface StepStreetName {
+  /** Index in this leg's original steps, never navigation instructions. */
+  index: number;
+  streetName: string;
+  nameEn?: string;
+  displayName?: string;
+}
+
+export interface WalkLeg extends LegSourceNames {
   type: 'WALK';
   from: string;
   to: string;
@@ -175,6 +197,7 @@ export interface WalkLeg {
   a11yRefs?: string[];
   exitInfo?: ExitInfo | null;
   steps?: WalkStep[];
+  stepStreetNames?: StepStreetName[];
   maxSlopePercent?: number | null;
   crossings?: number | null;
   crossingsWithCurbRamp?: number | null;
@@ -195,7 +218,7 @@ export interface BusPlanContext {
   legIndex: number;
 }
 
-export interface BusLeg {
+export interface BusLeg extends LegSourceNames {
   /** Client-side request context, supplied by the containing planned route. */
   planContext?: BusPlanContext;
   scheduledTrip?: {
@@ -235,7 +258,7 @@ export interface BusLeg {
   alerts?: MatchedAlert[];
 }
 
-export interface MetroLeg {
+export interface MetroLeg extends LegSourceNames {
   type: 'METRO';
   railSystem: string;
   lineId: string;
@@ -261,7 +284,7 @@ export interface MetroLeg {
   alerts?: MetroAlert[];
 }
 
-export interface ThsrLeg {
+export interface ThsrLeg extends LegSourceNames {
   type: 'THSR';
   trainNo: string;
   departureStation: string;
@@ -282,7 +305,7 @@ export interface ThsrLeg {
   alerts?: MatchedAlert[];
 }
 
-export interface TraLeg {
+export interface TraLeg extends LegSourceNames {
   type: 'TRA';
   trainNo: string;
   trainTypeName: string;

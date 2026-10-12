@@ -3,6 +3,7 @@
 // Web 把這些寫在元件檔旁；本 repo 放 domain 讓 jest 在 node 下測，翻譯函式由呼叫端注入。
 
 import { plausibleSlopePercent } from './routeDisplay';
+import { nonEmptyName } from './routeNames';
 import type {
   A11yFeature,
   AccessibleRoute,
@@ -100,13 +101,13 @@ export function routeSummary(legs: readonly RouteLeg[], t: Translate): string {
     .map((leg) => {
       switch (leg.type) {
         case 'BUS':
-          return leg.routeName;
+          return nonEmptyName(leg.routeDisplayName, leg.routeName);
         case 'METRO':
-          return leg.lineName;
+          return nonEmptyName(leg.routeDisplayName, leg.lineName);
         case 'THSR':
-          return `${t('thsr')} ${leg.trainNo}`;
+          return `${nonEmptyName(leg.routeDisplayName, t('thsr'))} ${leg.trainNo}`;
         case 'TRA':
-          return `${leg.trainTypeName}${leg.trainNo}`;
+          return `${nonEmptyName(leg.routeDisplayName, leg.trainTypeName)}${leg.trainNo}`;
         case 'DRIVE':
         case 'MOTORCYCLE':
           return leg.label ?? (leg.type === 'DRIVE' ? t('drive') : t('motorcycle'));
@@ -163,9 +164,9 @@ const FACILITY_DIRECTIONS = new Set<WalkRelativeDirection>([
 const ALONG_DIRECTIONS = new Set<WalkRelativeDirection>(['DEPART', 'CONTINUE', 'STRAIGHT']);
 
 /** 步行步驟的顯示文字（Web `WalkStepsList` 的 useStepText）。 */
-export function walkStepText(step: WalkStep, t: Translate): string {
+export function walkStepText(step: WalkStep, t: Translate, streetName = step.streetName): string {
   const action = t(DIRECTION_KEY[step.relativeDirection]);
-  const street = step.bogusName ? '' : step.streetName.trim();
+  const street = step.bogusName ? '' : streetName.trim();
   const text =
     !street || FACILITY_DIRECTIONS.has(step.relativeDirection)
       ? action
@@ -292,10 +293,10 @@ export function legChainSegments(legs: readonly RouteLeg[]): LegChainSegment[] {
     if (leg.type === 'WALK' && out.at(-1)?.type === 'WALK') continue;
     switch (leg.type) {
       case 'BUS':
-        out.push({ type: leg.type, label: leg.routeName });
+        out.push({ type: leg.type, label: nonEmptyName(leg.routeDisplayName, leg.routeName) });
         break;
       case 'METRO':
-        out.push({ type: leg.type, label: shortMetroLabel(leg.lineName, leg.lineId, leg.railSystem) });
+        out.push({ type: leg.type, label: nonEmptyName(leg.routeDisplayName, shortMetroLabel(leg.lineName, leg.lineId, leg.railSystem)) });
         break;
       case 'THSR':
       case 'TRA':

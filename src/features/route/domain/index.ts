@@ -76,3 +76,5 @@ export {
   hasGatedTravelModes,
   isTravelModeAllowed,
 } from './travelModes';
+
+export { nonEmptyName, recordRouteNameLanguage, presentRouteNames, presentRouteLegNames, walkStreetNames } from './routeNames';

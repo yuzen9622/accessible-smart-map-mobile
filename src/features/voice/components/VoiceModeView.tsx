@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toolDoneLabel, toolLoadingLabel } from '@/features/ai';
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
+import { ensureAiDataConsent } from '@/shared/privacy';
 import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
@@ -307,7 +308,13 @@ export default function VoiceModeView() {
                 icon="refresh"
                 label={t('retry')}
                 accessibilityLabel={t('retry')}
-                onPress={() => startVoiceSession(t)}
+                onPress={() => {
+                  // 期間可能已在設定撤回同意，重新連線前再確認一次（App Store 5.1.2(i)）
+                  const retry = async () => {
+                    if (await ensureAiDataConsent(t)) startVoiceSession(t);
+                  };
+                  void retry();
+                }}
                 background={tones.accentSoft}
                 foreground={tones.accent}
               />

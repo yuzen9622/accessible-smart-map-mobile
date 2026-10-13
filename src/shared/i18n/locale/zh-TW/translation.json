@@ -1638,5 +1638,16 @@
   "nativeSosTrackerStepLabel": "第 {{index}} 步，共 {{total}} 步：{{label}}{{state}}",
   "nativeSosTrackerStepDone": "，已完成",
   "nativeSosTrackerStepCurrent": "，目前進度",
-  "nativeObjectionableContent": "內容含有不當或冒犯性的字詞，請修改後再送出。"
+  "nativeObjectionableContent": "內容含有不當或冒犯性的字詞，請修改後再送出。",
+  "aiConsent": {
+    "title": "AI 功能會把資料傳給 Google",
+    "body": "使用 AI 助理、語音助理、AI 路線分析，以及在障礙回報附上照片時，以下資料會傳到本服務的伺服器，再交由 Google（Gemini、Cloud Vision）處理：\n\n・你輸入的訊息與說話的語音\n・你的位置與路線起訖點\n・你回報時附上的照片\n・你設定的無障礙需求與 AI 記憶\n\n這些資料只用來產生回覆與審查照片。不同意也能繼續使用地圖、搜尋、路線規劃與 SOS；之後可在「設定」隨時撤回。",
+    "accept": "同意並繼續",
+    "decline": "不同意",
+    "privacyPolicy": "查看隱私權政策",
+    "settingLabel": "允許 AI 功能使用我的資料",
+    "settingHint": "開啟後，AI 助理、語音助理、AI 路線分析與回報照片審查會把相關資料交給 Google（Gemini、Cloud Vision）處理。關閉後使用這些功能前會再詢問。"
+  },
+  "nativeContactUs": "聯絡我們",
+  "nativeAuthLegalNotice": "註冊或登入即表示你同意服務條款與隱私權政策。"
 }

@@ -1,6 +1,5 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { openBrowserAsync } from 'expo-web-browser';
 import { useRef } from 'react';
 import { AccessibilityInfo, Alert, Linking, Platform } from 'react-native';
 
@@ -8,9 +7,9 @@ import { runAccountDeletion, selectIsLoggedIn, signOut, useAuthStore } from '@/f
 import { PINNED_FACILITY_CATEGORIES, useFacilityStore, type PinnedFacilityCategory } from '@/features/map';
 import { requestPushPermission, syncPushToken, usePushStatus } from '@/features/notifications';
 import { useOnboardingStore } from '@/features/onboarding';
-import { getAppConfig } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
+import { openLegalDocument, openSupportEmail, requestAiDataConsent } from '@/shared/privacy';
 import {
   QUICK_ACTION_KEYS,
   usePreferencesStore,
@@ -251,6 +250,12 @@ export function useSettingsViewModel() {
     notificationAction,
     notificationActionLabel: t(notificationStatus === 'denied' ? 'nativeOpenSettings' : notificationStatus === 'signedOut' ? 'loginRegisterCta' : 'retry'),
     memoryEnabled: prefs.memoryEnabled,
+    aiDataConsent: prefs.aiDataConsent,
+    // 打開時一定先顯示揭露內容、按「同意」才算數；關閉（撤回）直接生效。
+    setAiDataConsent: (value: boolean) => {
+      if (value) void requestAiDataConsent(t);
+      else prefs.setPreferences({ aiDataConsent: false });
+    },
 
     quickActionOptions,
     mapDefaultFacilityOptions,
@@ -273,25 +278,18 @@ export function useSettingsViewModel() {
 }
 
 export interface LegalLink {
-  key: 'privacy' | 'terms';
+  key: 'privacy' | 'terms' | 'contact';
   label: string;
   open: () => void;
 }
 
-/** 隱私權政策／服務條款（商店審查要求 App 內可查看）；網址未設定就不顯示該項。 */
+/** 隱私權政策／服務條款／聯絡我們（商店審查 5.1.1(i)、1.2 要求 App 內一定找得到，所以一律顯示）。 */
 function legalLinks(t: (key: string) => string): LegalLink[] {
-  const { privacyPolicyUrl, termsUrl } = getAppConfig();
-  const open = (url: string) => async () => {
-    try {
-      await openBrowserAsync(url);
-    } catch (error) {
-      logger.warn('[settings] open legal link failed', error);
-    }
-  };
-  const links: LegalLink[] = [];
-  if (privacyPolicyUrl) links.push({ key: 'privacy', label: t('nativePrivacyPolicy'), open: open(privacyPolicyUrl) });
-  if (termsUrl) links.push({ key: 'terms', label: t('nativeTermsOfService'), open: open(termsUrl) });
-  return links;
+  return [
+    { key: 'privacy', label: t('nativePrivacyPolicy'), open: () => void openLegalDocument('privacy') },
+    { key: 'terms', label: t('nativeTermsOfService'), open: () => void openLegalDocument('terms') },
+    { key: 'contact', label: t('nativeContactUs'), open: () => void openSupportEmail() },
+  ];
 }
 
 export type SettingsViewModel = ReturnType<typeof useSettingsViewModel>;

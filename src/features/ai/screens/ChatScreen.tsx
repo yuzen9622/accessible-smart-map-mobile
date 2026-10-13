@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useCloseScreen } from '@/shared/navigation';
+import { ensureAiDataConsent } from '@/shared/privacy';
 import { useFontScale } from '@/shared/preferences';
 import { TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, useKeyboardInset } from '@/shared/ui';
@@ -50,7 +51,14 @@ export default function ChatScreen({ initialPrompt, voicePanel, composerAccessor
   // AI action（開路線面板、點結果卡）要關掉的是這個 modal，不是當下最上層的任何畫面
   useEffect(() => registerChatDismiss(closeScreen), [closeScreen]);
 
-  const send = (text: string) => void sendChatMessage(text, t);
+  const send = (text: string) => {
+    const run = async () => {
+      // 訊息與位置會交給 Google Gemini：送出前先確認使用者同意（App Store 5.1.2(i)）
+      if (!(await ensureAiDataConsent(t))) return;
+      await sendChatMessage(text, t);
+    };
+    void run();
+  };
 
   const voiceOpen = voicePanel != null && voicePanel !== false;
 

@@ -35,6 +35,7 @@ export function createPreferencesStore(storage: KeyValueStorage = appStorage) {
           memoryEnabled: state.memoryEnabled,
           quickActions: state.quickActions,
           sosAlarmSoundEnabled: state.sosAlarmSoundEnabled,
+          aiDataConsent: state.aiDataConsent,
         }),
         merge: (persisted, current) => ({ ...current, ...sanitizePreferences(persisted) }),
       },

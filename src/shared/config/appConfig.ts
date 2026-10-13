@@ -7,9 +7,9 @@ export interface AppConfig {
   googleWebClientId: string | null;
   /** Google 登入 iOS client ID；Phase 3 前可缺 */
   googleIosClientId: string | null;
-  /** 隱私權政策網址（EXPO_PUBLIC_PRIVACY_POLICY_URL）；未設定時設定頁不顯示入口 */
+  /** 隱私權政策網址覆寫值（EXPO_PUBLIC_PRIVACY_POLICY_URL）；未設定時用 `shared/privacy` 的正式網站預設頁 */
   privacyPolicyUrl: string | null;
-  /** 服務條款網址（EXPO_PUBLIC_TERMS_URL）；未設定時設定頁不顯示入口 */
+  /** 服務條款網址覆寫值（EXPO_PUBLIC_TERMS_URL）；未設定時用 `shared/privacy` 的正式網站預設頁 */
   termsUrl: string | null;
   /** LINE 官方帳號 basic ID（EXPO_PUBLIC_LINE_BOT_BASIC_ID，如 `@abc1234`）；未設定時不顯示「回 LINE 回報」 */
   lineBotBasicId: string | null;

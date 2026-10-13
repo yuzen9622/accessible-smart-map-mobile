@@ -12,6 +12,7 @@ import {
   type SpeechPort,
 } from '../controller/navigationController';
 import { getNavigationSpeechOwner, subscribeSpeechOwner } from '../controller/speechOwnerPort';
+import { spokenDistance } from '../domain/maneuverAnnouncement';
 import { transitSpeechText, type Translate } from '../domain/transitCopy';
 import { useNavStore } from '../store/navStore';
 
@@ -45,6 +46,14 @@ export function useNavigationSession(speech: SpeechPort = silentSpeech): void {
       },
       language: () => (env.current.language === 'en' ? 'en' : 'zh-TW'),
       arrivedText: () => env.current.arrived,
+      maneuverAheadText: (meters, instruction) => {
+        const { translate } = env.current;
+        const spoken = spokenDistance(meters);
+        const distance = translate(spoken.unit === 'km' ? 'navSpeechKilometers' : 'navSpeechMeters', { value: spoken.value });
+        // 英文句中的指令接在「In 120 meters,」之後，首字改小寫。
+        const text = env.current.language === 'en' ? instruction.charAt(0).toLowerCase() + instruction.slice(1) : instruction;
+        return translate('navSpeechAhead', { distance, instruction: text });
+      },
       transitSpeechText: (speech) => transitSpeechText(env.current.translate, speech),
       // 喇叭仲裁：語音助理擁有播報時本機 TTS 不發聲（port 由語音 feature 注入，見 speechOwnerPort.ts）
       geminiOwnsSpeech: () => getNavigationSpeechOwner().geminiOwnsSpeech(),

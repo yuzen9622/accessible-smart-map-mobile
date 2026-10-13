@@ -155,6 +155,7 @@ export interface VoiceNavStep {
   relativeDirection?: string | null;
   streetName?: string | null;
   bearing?: number | null;
+  maneuver?: string | null;
 }
 
 export type VoiceRerouteReason =

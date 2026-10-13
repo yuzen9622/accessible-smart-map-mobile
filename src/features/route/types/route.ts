@@ -574,6 +574,8 @@ export interface NavInstruction {
   stairs?: boolean;
   /** 本指令所屬 leg 的 `polyline` 索引（per-leg），不是串接後整條路徑的索引。 */
   polylineIndex: number | null;
+  /** 路線引擎的步行動作；非步行指引為 null；舊後端沒有此欄位。和使用者朝向無關，不要和 `relativeDirection` 混用。 */
+  maneuver?: WalkRelativeDirection | null;
 }
 
 export type NavWarning = 'WALK_STEPS_UNAVAILABLE' | 'ORS_STEPS_UNAVAILABLE' | 'ROAD_STEPS_UNAVAILABLE';

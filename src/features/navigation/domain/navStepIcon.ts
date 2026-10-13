@@ -3,7 +3,7 @@
 // 的唯一入口），所以這裡回傳名稱，保持 domain 純淨。名稱與 Lucide 元件一一對應（`cornerUpRight` → `CornerUpRight`），
 // HUD 接上時在 `shared/ui` 的 Icon 名稱表補上這些名稱。
 
-import type { NavInstruction } from '@/features/route/domain';
+import type { NavInstruction, WalkRelativeDirection } from '@/features/route/domain';
 
 import { isVehicleLegType } from './legMode';
 
@@ -22,6 +22,21 @@ const TEXT_DIRECTIONS: readonly [RegExp, NavStepIconName][] = [
   [/^(?:Make a U-turn\b|請迴轉)/i, 'arrowDown'],
 ];
 
+// The route engine's own maneuver, independent of user heading and wording.
+// Departure and facility maneuvers are left to the `type` branches in `stepIcon`.
+const MANEUVER_ICONS: Partial<Record<WalkRelativeDirection, NavStepIconName>> = {
+  CONTINUE: 'arrowUp',
+  STRAIGHT: 'arrowUp',
+  LEFT: 'cornerUpLeft',
+  RIGHT: 'cornerUpRight',
+  SLIGHTLY_LEFT: 'arrowUpLeft',
+  SLIGHTLY_RIGHT: 'arrowUpRight',
+  HARD_LEFT: 'undo2',
+  HARD_RIGHT: 'redo2',
+  UTURN_LEFT: 'arrowDown',
+  UTURN_RIGHT: 'arrowDown',
+};
+
 /** Direction arrows, shared by every travel mode — a right turn looks the
  * same whether the user is walking or driving it.
  *
@@ -31,8 +46,14 @@ const TEXT_DIRECTIONS: readonly [RegExp, NavStepIconName][] = [
  * agree. `relativeDirection` is a separate backend-computed field (bearing
  * math) and has been observed to disagree with `text` on some steps — e.g.
  * showing a left-turn arrow while the voice says "向右轉" — which is worse
- * than falling back to a coarser text-pattern match. */
+ * than falling back to a coarser text-pattern match.
+ *
+ * `maneuver` wins over both: it is the routing engine's step type, so a slight
+ * right turn the text calls "continue" still gets a turn arrow. Older backends
+ * omit it and fall through to the text match. */
 function directionIcon(step: NavInstruction): NavStepIconName {
+  const fromManeuver = step.maneuver ? MANEUVER_ICONS[step.maneuver] : undefined;
+  if (fromManeuver) return fromManeuver;
   const fromText = TEXT_DIRECTIONS.find(([pattern]) => pattern.test(step.text.trim()))?.[1];
   if (fromText) return fromText;
   if (step.relativeDirection == null) return 'arrowUp';

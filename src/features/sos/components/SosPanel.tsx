@@ -163,6 +163,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
             {t('nativeSosLoginRequired')}
           </Text>
         </View>
+        <Body>{t('nativeSosNotEmergencyService')}</Body>
         <BigButton label={t('sosCall110')} icon="phone" tone="danger" onPress={model.call110} />
         <BigButton label={t('sosCall119')} icon="phone" tone="danger" onPress={model.call119} />
         <View style={styles.spacer} />
@@ -188,6 +189,10 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
         <CountdownRing progress={model.progress} seconds={model.secondsLeft} />
         <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={styles.countdownDesc}>
           {t('sosCountdownHint')}
+        </Text>
+        {/* SOS 只通知使用者自己的緊急聯絡人，不是緊急服務（App Store 5.1.5）：要講清楚，避免誤以為警消已收到 */}
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={styles.countdownDesc}>
+          {t('nativeSosNotEmergencyService')}
         </Text>
         <View style={styles.countdownActions}>
           <BigButton label={t('sosCountdownCancel')} icon="close" tone="light" onPress={model.cancelCountdown} />
@@ -259,6 +264,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
         <Body>{model.waitingText}</Body>
       </Card>
 
+      <Body>{t('nativeSosNotEmergencyService')}</Body>
       <View style={styles.row}>
         <View style={styles.flex}>
           <BigButton label={t('sosCall110')} icon="phone" tone="danger" onPress={model.call110} />

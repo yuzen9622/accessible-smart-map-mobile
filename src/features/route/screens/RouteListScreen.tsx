@@ -7,6 +7,7 @@ import { useThemeColors } from '@/shared/theme';
 import { EmptyState, Icon } from '@/shared/ui';
 
 import RouteCard from '../components/RouteCard';
+import RouteSafetyNotice from '../components/RouteSafetyNotice';
 import { routeStyles } from '../components/palette';
 import { selectRouteAt } from '../controller/routeSessionPort';
 import { useRouteSessionStore } from '../store/routeSessionStore';
@@ -57,6 +58,7 @@ export default function RouteListScreen({ onStartNavigation }: RouteListScreenPr
               </Text>
             </View>
           ) : null}
+          <RouteSafetyNotice />
           <View style={routeStyles.section}>
             {routes.map((route, index) => (
               <RouteCard

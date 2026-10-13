@@ -5,7 +5,7 @@ import { AccessibilityInfo, Alert, Linking } from 'react-native';
 import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { useUserLocationStore } from '@/features/map';
 import { reverseGeocodeLabel } from '@/features/place';
-import { ApiError } from '@/shared/api';
+import { ApiError, isObjectionableContentError } from '@/shared/api';
 import { haversineMeters, type LatLng } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
@@ -141,7 +141,11 @@ export function useHazardReport(params: HazardReportParams) {
         setResult({ reportId, report: null, merged: false });
         return;
       }
-      const key = error instanceof ApiError ? submitErrorKey(error.reason, error.code) : 'reportFailed';
+      const key = isObjectionableContentError(error)
+        ? 'nativeObjectionableContent'
+        : error instanceof ApiError
+          ? submitErrorKey(error.reason, error.code)
+          : 'reportFailed';
       Alert.alert(t(key));
     } finally {
       setSubmitting(false);

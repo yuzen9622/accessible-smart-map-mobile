@@ -1637,5 +1637,6 @@
   "nativeSosTrackerResolvedDesc": "對方已解除求救，目前平安。",
   "nativeSosTrackerStepLabel": "第 {{index}} 步，共 {{total}} 步：{{label}}{{state}}",
   "nativeSosTrackerStepDone": "，已完成",
-  "nativeSosTrackerStepCurrent": "，目前進度"
+  "nativeSosTrackerStepCurrent": "，目前進度",
+  "nativeObjectionableContent": "內容含有不當或冒犯性的字詞，請修改後再送出。"
 }

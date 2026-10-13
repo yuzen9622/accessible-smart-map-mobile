@@ -17,3 +17,5 @@ export {
 
 export type { SseEvent, SseParser, StreamSseHandlers, StreamSseInit } from './sse';
 export { createSseParser, streamSse } from './sse';
+
+export { OBJECTIONABLE_CONTENT, isObjectionableContentError } from './contentFilter';

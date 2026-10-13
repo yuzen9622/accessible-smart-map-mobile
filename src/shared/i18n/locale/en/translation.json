@@ -1666,5 +1666,6 @@
   "nativeSosTrackerResolvedDesc": "The SOS has been resolved and they’re safe.",
   "nativeSosTrackerStepLabel": "Step {{index}} of {{total}}: {{label}}{{state}}",
   "nativeSosTrackerStepDone": ", done",
-  "nativeSosTrackerStepCurrent": ", current"
+  "nativeSosTrackerStepCurrent": ", current",
+  "nativeObjectionableContent": "Your text contains offensive or inappropriate language. Please edit it and try again."
 }

@@ -44,9 +44,10 @@ interface BigButtonProps {
   icon?: IconName;
   tone?: 'danger' | 'light' | 'outline';
   hint?: string;
+  disabled?: boolean;
 }
 
-function BigButton({ label, onPress, icon, tone = 'light', hint }: BigButtonProps) {
+function BigButton({ label, onPress, icon, tone = 'light', hint, disabled = false }: BigButtonProps) {
   const scale = useFontScale();
   const colors = useThemeColors();
   const background = tone === 'danger' ? DANGER_FILL : tone === 'light' ? WHITE : 'transparent';
@@ -56,11 +57,14 @@ function BigButton({ label, onPress, icon, tone = 'light', hint }: BigButtonProp
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.bigButton,
         { backgroundColor: background, borderColor: tone === 'outline' ? colors.textSecondary : background },
         pressed && styles.pressed,
+        disabled && styles.disabled,
       ]}>
       {icon ? <Icon name={icon} size={24} color={foreground} /> : null}
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.bigButtonText, { color: foreground, fontSize: scaledSize(TYPE.body, scale) }]}>
@@ -306,6 +310,18 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
       <BigButton label={t('sosManualShareLabel')} icon="share" tone="outline" onPress={model.share} />
 
       <Card>
+        <Label>{t('sosViewerCount', { count: model.activeViewerCount })}</Label>
+        <Body>{t('sosResetShareWarning')}</Body>
+        <BigButton
+          label={t('sosResetShareLink')}
+          icon="refresh"
+          tone="outline"
+          disabled={model.resettingShareLink}
+          onPress={model.resetShareLink}
+        />
+      </Card>
+
+      <Card>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ expanded: model.timelineOpen }}
@@ -365,6 +381,7 @@ const styles = StyleSheet.create({
   },
   bigButtonText: { fontWeight: '700' },
   pressed: { opacity: 0.7 },
+  disabled: { opacity: 0.5 },
   countdown: { flex: 1, backgroundColor: DANGER_DEEP, alignItems: 'center', justifyContent: 'center', padding: SPACE.xl, gap: SPACE.lg + 2 },
   countdownTitle: { color: WHITE, fontSize: TYPE.title + 4, fontWeight: '800', textAlign: 'center' },
   countdownDesc: { color: WHITE, fontSize: TYPE.body + 1, textAlign: 'center' },

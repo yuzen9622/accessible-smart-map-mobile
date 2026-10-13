@@ -45,13 +45,20 @@ export function boundContactNames(contacts: EmergencyContact[]): string[] {
   return contacts.filter((c) => c.bindStatus === 'bound').map((c) => c.name);
 }
 
+/** 依後端提供的 lastSeenAt 與活動視窗，由前端計算目前查看裝置數。 */
+export function countActiveSosViewers(snapshot: SosSnapshot | null, now = Date.now()): number {
+  if (!snapshot?.viewers || typeof snapshot.viewerActiveWindowSeconds !== 'number' || snapshot.viewerActiveWindowSeconds < 0) return 0;
+  const activeSince = now - snapshot.viewerActiveWindowSeconds * 1000;
+  return snapshot.viewers.filter(({ lastSeenAt }) => new Date(lastSeenAt).getTime() >= activeSince).length;
+}
+
 /**
- * 分享給其他人的追蹤連結：`/{lng}/sos/?token=<shareToken>`。App 以 Universal Link／App Link 認領這條路徑，
- * 對方有裝 App 就直接開原生追蹤頁，沒裝則由 Web 落地頁轉到地圖追蹤（與 LINE 通知用的是同一條連結）。
+ * 分享給其他人的追蹤連結：`/{lng}/sos/#token=<shareToken>`。fragment 不會送到伺服器或 Referer；
+ * App 以 Universal Link／App Link 認領這條路徑，沒裝 App 才由 Web 落地頁開啟地圖追蹤。
  */
 export function buildSosShareUrl(shareBaseUrl: string, language: string, shareToken: string): string {
   const base = shareBaseUrl.replace(/\/+$/, '');
-  return `${base}/${language}/sos/?token=${encodeURIComponent(shareToken)}`;
+  return `${base}/${language}/sos/#token=${encodeURIComponent(shareToken)}`;
 }
 
 /** 家人端追蹤的處理進度步驟（不含 resolved：解除時整個畫面換成已解除狀態）。 */
@@ -83,8 +90,17 @@ export function buildLineClaimUrl(basicId: string, text: string): string {
   return `https://line.me/R/oaMessage/${basicId}/?${encodeURIComponent(text)}`;
 }
 
-/** 深層連結 `accessiblesmartmap://sos-track/<token>` 或 Web 分享連結的 `?sos=<token>` 都接受；只接受 32 hex。 */
+/** 深層連結 `accessiblesmartmap://sos-track/<token>` 或 Web 分享連結中的 token；只接受 32 hex。 */
 export function parseShareToken(value: string | undefined | null): string | null {
   const trimmed = value?.trim();
   return trimmed && /^[0-9a-f]{32}$/i.test(trimmed) ? trimmed.toLowerCase() : null;
+}
+
+/**
+ * 從公開追蹤 URL 讀取 share token。新連結只放在 fragment，避免送進伺服器與 Referer；
+ * query 僅保留給已經發出的舊連結。兩者同時存在時以 fragment 為準。
+ */
+export function readSosTrackingToken(url: URL): string | null {
+  const fragment = new URLSearchParams(url.hash.replace(/^#/, ''));
+  return parseShareToken(fragment.get('token') ?? url.searchParams.get('token'));
 }

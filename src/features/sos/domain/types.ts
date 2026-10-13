@@ -36,13 +36,20 @@ export interface CreateSosSessionResult {
   notifiedCount: number;
 }
 
+export interface RotateSosShareTokenResult {
+  sessionId: string;
+  shareToken: string;
+}
+
 export interface SosPublicSession {
   type: SosType;
   status: SosStatus;
-  lat: number;
-  lng: number;
-  address: string | null;
-  updatedAt: string;
+  /** 已解除的公開回應刻意不再提供位置。 */
+  lat?: number;
+  lng?: number;
+  address?: string | null;
+  updatedAt?: string;
+  resolvedAt?: string | null;
   /** 家人處理進度（後端刻意不給任何聯絡人姓名）；舊版後端沒有這欄。`pending` = 還沒通知到任何家人。 */
   handlingStatus?: PublicHandlingStatus;
 }
@@ -78,6 +85,10 @@ export interface SosSnapshot {
   acknowledgements: SosAcknowledgement[];
   timeline: SosTimelineEntry[];
   location: { lat: number; lng: number; address: string | null; updatedAt: string } | null;
+  /** 匿名追蹤連結讀取者；舊版後端沒有這些欄位。 */
+  viewers?: { firstSeenAt: string; lastSeenAt: string }[];
+  activeViewerCount?: number;
+  viewerActiveWindowSeconds?: number;
   resolvedAt: string | null;
   updatedAt: string;
 }
@@ -113,6 +124,10 @@ function isAck(v: unknown): v is SosAcknowledgement {
   return isRecord(v) && typeof v.lineUserId === 'string' && strOrNull(v.name) && typeof v.at === 'string';
 }
 
+function isViewer(v: unknown): v is NonNullable<SosSnapshot['viewers']>[number] {
+  return isRecord(v) && typeof v.firstSeenAt === 'string' && typeof v.lastSeenAt === 'string';
+}
+
 function isSnapshotLocation(v: unknown): v is NonNullable<SosSnapshot['location']> {
   return isRecord(v) && isNum(v.lat) && isNum(v.lng) && strOrNull(v.address) && typeof v.updatedAt === 'string';
 }
@@ -131,6 +146,9 @@ export function isSosSnapshot(v: unknown): v is SosSnapshot {
     Array.isArray(v.timeline) &&
     v.timeline.every(isTimelineEntry) &&
     (v.location === null || isSnapshotLocation(v.location)) &&
+    (v.viewers === undefined || (Array.isArray(v.viewers) && v.viewers.every(isViewer))) &&
+    (v.activeViewerCount === undefined || isNum(v.activeViewerCount)) &&
+    (v.viewerActiveWindowSeconds === undefined || isNum(v.viewerActiveWindowSeconds)) &&
     strOrNull(v.resolvedAt) &&
     typeof v.updatedAt === 'string'
   );
@@ -140,16 +158,41 @@ export function isCreateSosSessionResult(v: unknown): v is CreateSosSessionResul
   return isRecord(v) && typeof v.sessionId === 'string' && typeof v.shareToken === 'string' && isNum(v.notifiedCount);
 }
 
+export function isRotateSosShareTokenResult(v: unknown): v is RotateSosShareTokenResult {
+  return isRecord(v) && typeof v.sessionId === 'string' && typeof v.shareToken === 'string';
+}
+
 export function isSosPublicSession(v: unknown): v is SosPublicSession {
+  if (
+    !isRecord(v) ||
+    !SOS_TYPES.some((t) => t === v.type) ||
+    !isStatus(v.status) ||
+    !(v.handlingStatus === undefined || v.handlingStatus === 'pending' || HANDLING.some((h) => h === v.handlingStatus))
+  ) {
+    return false;
+  }
+  if (v.status === 'resolved') return v.resolvedAt === undefined || strOrNull(v.resolvedAt);
   return (
-    isRecord(v) &&
-    SOS_TYPES.some((t) => t === v.type) &&
-    isStatus(v.status) &&
     isNum(v.lat) &&
     isNum(v.lng) &&
-    strOrNull(v.address) &&
-    typeof v.updatedAt === 'string' &&
-    (v.handlingStatus === undefined || v.handlingStatus === 'pending' || HANDLING.some((h) => h === v.handlingStatus))
+    (v.address === undefined || strOrNull(v.address)) &&
+    typeof v.updatedAt === 'string'
+  );
+}
+
+export type TrackableSosPublicSession = SosPublicSession & {
+  status: 'active';
+  lat: number;
+  lng: number;
+  updatedAt: string;
+};
+
+export function isTrackableSosPublicSession(session: SosPublicSession): session is TrackableSosPublicSession {
+  return (
+    session.status === 'active' &&
+    isNum(session.lat) &&
+    isNum(session.lng) &&
+    typeof session.updatedAt === 'string'
   );
 }
 

@@ -30,7 +30,8 @@ function pluginName(plugin: NonNullable<ExpoConfig['plugins']>[number]): string 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const iosUrlScheme = googleIosUrlScheme(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID);
   const freeSigning = process.env.IOS_FREE_SIGNING === '1';
-  let plugins = [...(config.plugins ?? [])];
+  // 放最前面：mod 越晚註冊越早執行，這樣才會在 expo-task-manager 加上 `fetch` 之後才刪掉它
+  let plugins = ['./plugins/with-ios-background-modes.ts', ...(config.plugins ?? [])];
   if (iosUrlScheme) {
     plugins.push(['@react-native-google-signin/google-signin', { iosUrlScheme }]);
   }

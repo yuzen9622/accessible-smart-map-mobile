@@ -98,6 +98,30 @@
             "NSPrivacyCollectedDataTypePurposes": [
               "NSPrivacyCollectedDataTypePurposeAppFunctionality"
             ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeAudioData",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeSensitiveInfo",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
           }
         ]
       },
@@ -150,7 +174,7 @@
       [
         "react-native-audio-api",
         {
-          "iosMicrophonePermission": "語音助理需要使用麥克風，將你的語音即時傳給助理以回覆你。Voice assistant uses the microphone to send your speech to the assistant.",
+          "iosMicrophonePermission": "語音助理會用麥克風把你說的話即時傳給 Google Gemini 處理並回覆你；搜尋時也能用語音輸入取代打字。The microphone lets the voice assistant send your speech to Google Gemini so it can reply, and lets you search by speaking instead of typing.",
           "iosBackgroundMode": false,
           "androidPermissions": [
             "android.permission.RECORD_AUDIO",
@@ -166,8 +190,8 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "搜尋時可以用語音輸入，取代打字。Voice input lets you search by speaking instead of typing.",
-          "speechRecognitionPermission": "搜尋時可以用語音輸入，取代打字。Voice input lets you search by speaking instead of typing."
+          "microphonePermission": "語音助理會用麥克風把你說的話即時傳給 Google Gemini 處理並回覆你；搜尋時也能用語音輸入取代打字。The microphone lets the voice assistant send your speech to Google Gemini so it can reply, and lets you search by speaking instead of typing.",
+          "speechRecognitionPermission": "搜尋時用語音輸入，會由 Apple 語音辨識把你說的話轉成文字。Speech recognition turns what you say into text when you search by voice."
         }
       ],
       [
@@ -182,9 +206,9 @@
           "locationWhenInUsePermission": "用來在地圖上顯示你的位置、搜尋附近的無障礙設施與規劃路線。Your location is used to show nearby accessible facilities and plan routes.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
-          "locationAlwaysAndWhenInUsePermission": "導航進行中切到背景或鎖定螢幕時，持續更新你的位置以播報下一步；只在導航時使用。Your location keeps updating during navigation while the app is in the background, so turn-by-turn guidance continues. Used only while navigating.",
-          "locationAlwaysPermission": "導航進行中切到背景或鎖定螢幕時，持續更新你的位置以播報下一步；只在導航時使用。Your location keeps updating during navigation while the app is in the background, so turn-by-turn guidance continues. Used only while navigating.",
-          "motionUsagePermission": "允許使用裝置動作感測，以支援地圖方向與導航互動。Motion sensor access supports map orientation and navigation interactions.",
+          "locationAlwaysAndWhenInUsePermission": "只在導航進行中或 SOS 求救期間，於背景或鎖定螢幕時持續更新你的位置，讓導航繼續播報下一步，並讓緊急聯絡人看到你的位置；其他時候不會在背景取得位置。Only during navigation or an active SOS, your location keeps updating in the background or on the lock screen so turn-by-turn guidance continues and your emergency contacts can see where you are. It is not used in the background at any other time.",
+          "locationAlwaysPermission": "只在導航進行中或 SOS 求救期間，於背景或鎖定螢幕時持續更新你的位置，讓導航繼續播報下一步，並讓緊急聯絡人看到你的位置；其他時候不會在背景取得位置。Only during navigation or an active SOS, your location keeps updating in the background or on the lock screen so turn-by-turn guidance continues and your emergency contacts can see where you are. It is not used in the background at any other time.",
+          "motionUsagePermission": false,
           "isAndroidForegroundServiceEnabled": true
         }
       ],

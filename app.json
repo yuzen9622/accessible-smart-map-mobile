@@ -208,7 +208,7 @@
           "isAndroidBackgroundLocationEnabled": true,
           "locationAlwaysAndWhenInUsePermission": "只在導航進行中或 SOS 求救期間，於背景或鎖定螢幕時持續更新你的位置，讓導航繼續播報下一步，並讓緊急聯絡人看到你的位置；其他時候不會在背景取得位置。Only during navigation or an active SOS, your location keeps updating in the background or on the lock screen so turn-by-turn guidance continues and your emergency contacts can see where you are. It is not used in the background at any other time.",
           "locationAlwaysPermission": "只在導航進行中或 SOS 求救期間，於背景或鎖定螢幕時持續更新你的位置，讓導航繼續播報下一步，並讓緊急聯絡人看到你的位置；其他時候不會在背景取得位置。Only during navigation or an active SOS, your location keeps updating in the background or on the lock screen so turn-by-turn guidance continues and your emergency contacts can see where you are. It is not used in the background at any other time.",
-          "motionUsagePermission": false,
+          "motionUsagePermission": "本 App 目前不會讀取動作與健身資料；此說明為定位元件的系統需求。若日後啟用，僅用於判斷你是否在步行中以調整導航提示。This app does not currently read motion and fitness data; this description is required by the location component. If enabled in the future, it would only be used to detect walking to adjust navigation guidance.",
           "isAndroidForegroundServiceEnabled": true
         }
       ],

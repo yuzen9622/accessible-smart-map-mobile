@@ -100,16 +100,20 @@ export default function OnboardingPanel({ model, backLabel, skipLabel }: Onboard
             />
           ))}
         </View>
-        <Pressable
-          onPress={model.onSkip}
-          accessibilityRole="button"
-          accessibilityLabel={skipLabel}
-          hitSlop={8}
-          style={styles.headerSideButton}>
-          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.skipText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.callout, scale) }]}>
-            {skipLabel}
-          </Text>
-        </Pressable>
+        {model.canSkip ? (
+          <Pressable
+            onPress={model.onSkip}
+            accessibilityRole="button"
+            accessibilityLabel={skipLabel}
+            hitSlop={8}
+            style={styles.headerSideButton}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.skipText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.callout, scale) }]}>
+              {skipLabel}
+            </Text>
+          </Pressable>
+        ) : (
+          <View style={styles.headerSideButton} />
+        )}
       </View>
 
       <Animated.View key={model.stepId} style={styles.flex} entering={entering}>
@@ -296,12 +300,8 @@ function LocationFooter({ model }: { model: OnboardingPanelProps['model']['locat
   if (model.state === 'granted' || model.state === 'denied' || model.state === 'unsupported') {
     return <PrimaryButton label={model.nextLabel} onPress={model.onNext} />;
   }
-  return (
-    <>
-      <PrimaryButton label={model.allowLabel} onPress={model.onRequest} loading={model.state === 'requesting'} />
-      <SecondaryButton label={model.manualLabel} onPress={model.onNext} disabled={model.state === 'requesting'} />
-    </>
-  );
+  // App Store 5.1.1(iv)：按鈕用中性的「繼續」，且只能接系統權限框，不提供略過。
+  return <PrimaryButton label={model.continueLabel} onPress={model.onRequest} loading={model.state === 'requesting'} />;
 }
 
 function DoneStep({ model }: { model: OnboardingPanelProps['model']['done'] }) {
@@ -365,24 +365,6 @@ function PrimaryButton({
   );
 }
 
-function SecondaryButton({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
-  const colors = useThemeColors();
-  const scale = useFontScale();
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled: !!disabled }}
-      style={({ pressed }) => [styles.secondaryButton, { opacity: disabled ? 0.4 : pressed ? 0.6 : 1 }]}>
-      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: colors.textSecondary, fontWeight: '600', fontSize: scaledSize(TYPE.callout, scale) }}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1 },
@@ -415,7 +397,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secondaryButton: { minHeight: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' },
 
   fontSizeBlock: { width: '100%', marginTop: SPACE.lg, gap: SPACE.lg },
   fontChoiceRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: SPACE.sm },

@@ -1,12 +1,15 @@
-import { GeoJSONSource, Images, Layer } from '@maplibre/maplibre-react-native';
+import { GeoJSONSource, Images, Layer, type GeoJSONSourceRef } from '@maplibre/maplibre-react-native';
+import { useRef } from 'react';
 
 import {
+  FACILITY_CLUSTER_COLOR,
   FACILITY_COLORS,
-  PINNED_FACILITY_CATEGORIES,
+  mapCamera,
   toFacilityCollection,
   useFacilityStore,
   type Facility,
 } from '@/features/map';
+import { logger } from '@/shared/logger';
 
 import { filterPointsAlongRoute } from '../domain/geo';
 import type { LngLatTuple } from '../types/route';
@@ -25,27 +28,80 @@ const ALONG_ROUTE_MAX_DISTANCE_M = 100;
 /**
  * 路線沿途（規劃預覽／導航中）100 公尺內的無障礙設施圖層，與「使用者目前位置附近」的
  * `FacilityLayer` 邏輯分開（測試人員回饋 2026-10-11）：不受首頁「預設顯示設施」勾選限制，
- * 只要路線存在就顯示沿途全部類別的設施，幫助使用者在走之前先知道路上有哪些無障礙設施。
+ * 預設顯示沿途全部類別的設施，但使用者可以在規劃路線面板用 `facilityFilter` 篩選（使用者回饋
+ * 2026-10-15：圖示太多太亂）。同樣用原生 GeoJSONSource cluster 聚合（跟 `FacilityLayer` 同一套，
+ * ADR-04）：點數多時先顯示數量徽章，點一下放大到看得清個別圖示的程度。
  */
 export default function RouteFacilityLayer() {
   const route = useRouteSessionStore((s) => s.navigationRoute?.route ?? s.selectRoute?.route ?? null);
+  const facilityFilter = useRouteSessionStore((s) => s.facilityFilter);
   const facilities = useFacilityStore((state) => state.facilities);
+  const sourceRef = useRef<GeoJSONSourceRef>(null);
 
-  if (!route || !facilities?.length) return null;
+  if (!route || !facilities?.length || facilityFilter.length === 0) return null;
 
   const polyline: LngLatTuple[] = route.legs.flatMap((leg) => leg.polyline);
   const nearby: Facility[] = filterPointsAlongRoute(facilities, polyline, ALONG_ROUTE_MAX_DISTANCE_M);
   if (nearby.length === 0) return null;
 
-  const collection = toFacilityCollection(nearby, new Set(PINNED_FACILITY_CATEGORIES));
+  const collection = toFacilityCollection(nearby, new Set(facilityFilter));
+
+  const handleClusterPress = async (clusterId: number, center: [number, number]) => {
+    try {
+      const zoom = await sourceRef.current?.getClusterExpansionZoom(clusterId);
+      if (zoom !== undefined) mapCamera.easeTo(center, zoom);
+    } catch (error) {
+      logger.warn('[route] facility cluster expansion failed', error);
+    }
+  };
 
   return (
     <>
       <Images images={FACILITY_ICONS} />
-      <GeoJSONSource id="route-facilities" data={collection}>
+      <GeoJSONSource
+        ref={sourceRef}
+        id="route-facilities"
+        data={collection}
+        cluster
+        clusterRadius={50}
+        clusterMaxZoom={16}
+        onPress={(event) => {
+          const feature = event.nativeEvent.features[0];
+          if (!feature || feature.geometry.type !== 'Point') return;
+          event.stopPropagation();
+          const [lng, lat] = feature.geometry.coordinates;
+          const clusterId = feature.properties?.cluster_id;
+          if (typeof clusterId === 'number' && typeof lng === 'number' && typeof lat === 'number') {
+            void handleClusterPress(clusterId, [lng, lat]);
+          }
+        }}>
+        <Layer
+          id="route-facility-clusters"
+          type="circle"
+          filter={['has', 'point_count']}
+          paint={{
+            'circle-color': FACILITY_CLUSTER_COLOR,
+            'circle-radius': ['step', ['get', 'point_count'], 16, 50, 22, 200, 28],
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#FFFFFF',
+          }}
+        />
+        <Layer
+          id="route-facility-cluster-count"
+          type="symbol"
+          filter={['has', 'point_count']}
+          layout={{
+            'text-field': ['get', 'point_count_abbreviated'],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': 13,
+            'text-allow-overlap': true,
+          }}
+          paint={{ 'text-color': '#FFFFFF' }}
+        />
         <Layer
           id="route-facility-points"
           type="circle"
+          filter={['!', ['has', 'point_count']]}
           paint={{
             'circle-color': [
               'match',
@@ -64,6 +120,7 @@ export default function RouteFacilityLayer() {
         <Layer
           id="route-facility-icons"
           type="symbol"
+          filter={['!', ['has', 'point_count']]}
           layout={{
             'icon-image': ['concat', 'facility-', ['get', 'category']],
             'icon-size': 0.24,

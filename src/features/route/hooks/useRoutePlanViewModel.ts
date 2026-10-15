@@ -2,7 +2,13 @@ import { router } from 'expo-router';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 
-import { SHEET_DETENTS, sheetController, useUserLocationStore } from '@/features/map';
+import {
+  PINNED_FACILITY_CATEGORIES,
+  SHEET_DETENTS,
+  sheetController,
+  useUserLocationStore,
+  type PinnedFacilityCategory,
+} from '@/features/map';
 import { useOnboardingStore } from '@/features/onboarding';
 import { resolveAutocompleteItem, useAutocomplete, type AutocompleteItem } from '@/features/place';
 import { useAppTranslation } from '@/shared/i18n';
@@ -23,6 +29,12 @@ import { useRouteSessionStore } from '../store/routeSessionStore';
 import type { AccessibleRoute, RouteMode, TravelMode } from '../types/route';
 
 export type PlanField = 'origin' | 'destination';
+
+const FACILITY_CATEGORY_LABEL_KEY: Record<PinnedFacilityCategory, string> = {
+  elevator: 'elevator',
+  toilet: 'toilet',
+  ramp: 'a11yFeatureRamp',
+};
 
 export interface PlanSuggestion {
   key: string;
@@ -52,6 +64,8 @@ export interface RoutePlanModel {
   resolving: boolean;
   travelModes: PlanOption<TravelMode>[];
   routeModes: PlanOption<RouteMode>[];
+  /** 沿途無障礙設施篩選（使用者回饋 2026-10-15：圖示太多太亂，可以自己選要看哪些類別）。 */
+  facilityFilters: PlanOption<PinnedFacilityCategory>[];
   onSelectRouteMode: (mode: RouteMode) => void;
   gatedHint: string | null;
   canStart: boolean;
@@ -93,6 +107,7 @@ export interface RoutePlanModel {
     startNav: string;
     routeOptions: string;
     close: string;
+    facilityFilterTitle: string;
   };
 }
 
@@ -125,6 +140,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const lastFailure = useRouteSessionStore((s) => s.lastFailure);
   const storedTravelMode = useRouteSessionStore((s) => s.travelMode);
   const storedRouteMode = useRouteSessionStore((s) => s.routeMode);
+  const facilityFilter = useRouteSessionStore((s) => s.facilityFilter);
   const profileRouteMode = useOnboardingStore((s) => s.profile.routeMode);
   const aiPlan = useRouteSessionStore((s) => s.plan);
   const planningPreferences = useRouteSessionStore((s) => s.planningPreferences);
@@ -295,6 +311,17 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       onSelect: () => useRouteSessionStore.getState().setRouteMode(mode),
     })),
     onSelectRouteMode: (mode) => useRouteSessionStore.getState().setRouteMode(mode),
+    facilityFilters: PINNED_FACILITY_CATEGORIES.map((category) => {
+      const label = t(FACILITY_CATEGORY_LABEL_KEY[category]);
+      return {
+        value: category,
+        label,
+        selected: facilityFilter.includes(category),
+        disabled: false,
+        accessibilityLabel: label,
+        onSelect: () => useRouteSessionStore.getState().toggleFacilityFilter(category),
+      };
+    }),
     gatedHint: hasGatedTravelModes(routeMode) ? t('travelModeGatedHint', { a11yMode: routeModeLabel }) : null,
     canStart,
     loading: isLoading,
@@ -340,6 +367,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       startNav: t('startNav'),
       routeOptions: t('routeResultsTitle'),
       close: t('close'),
+      facilityFilterTitle: t('nativeRouteFacilityFilterTitle'),
     },
   };
 }

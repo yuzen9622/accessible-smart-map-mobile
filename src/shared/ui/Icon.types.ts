@@ -93,7 +93,8 @@ export type IconName =
   | 'pill'
   | 'fuel'
   | 'bedDouble'
-  | 'thermometer';
+  | 'thermometer'
+  | 'cuboid';
 
 export interface IconProps {
   name: IconName;

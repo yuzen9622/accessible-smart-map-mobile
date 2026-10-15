@@ -55,7 +55,8 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
 
       <FormSection title={t('settingsEmergencyTitle')} footer={t('settingsEmergencyDesc')}>
         <FormRow label={t('sosContactsManageTitle')} onPress={model.openContacts} />
-        <FormSwitch label={t('nativeSosAlarmSound')} value={model.sosAlarmSoundEnabled} onValueChange={model.setSosAlarmSoundEnabled} />
+        <FormText tone="secondary">{t('nativeSosAlarmSound')}</FormText>
+        <FormSegmented label={t('nativeSosAlarmSound')} value={model.sosAlarmMode} choices={model.sosAlarmModeChoices} onChange={model.setSosAlarmMode} />
       </FormSection>
 
       <FormSection title={t('notification')} footer={t('nativePushDescription')}>

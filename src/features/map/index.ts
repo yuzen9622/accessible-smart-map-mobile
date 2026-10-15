@@ -17,7 +17,7 @@ export { applyDefaultFacilityCategories, useFacilityStore } from './store/facili
 export { PINNED_FACILITY_CATEGORIES, toFacilityCollection, type Facility, type PinnedFacilityCategory } from './domain/facilities';
 export { useNearbyViewModel, type NearbyRow, type NearbyStatus } from './hooks/useNearbyViewModel';
 export { useNearbySummary, type NearbySummary } from './hooks/useNearbySummary';
-export { FACILITY_COLORS } from './domain/facilityStyle';
+export { FACILITY_CLUSTER_COLOR, FACILITY_COLORS } from './domain/facilityStyle';
 export { useEnvironment } from './hooks/useEnvironment';
 export { default as EnvironmentChip } from './components/EnvironmentChip';
 export { formatDistance } from './domain/parking';

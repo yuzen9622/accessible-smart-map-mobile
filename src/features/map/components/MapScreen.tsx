@@ -1,7 +1,8 @@
 import { Camera, Layer, Map, NativeUserLocation } from '@maplibre/maplibre-react-native';
-import { router, useFocusEffect, usePathname } from 'expo-router';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Keyboard, StyleSheet, View, useColorScheme } from 'react-native';
+import { router, useIsFocused, usePathname } from 'expo-router';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Animated, Keyboard, Pressable, StyleSheet, View, useColorScheme } from 'react-native';
+import Reanimated, { FadeIn, FadeOut, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTranslation } from '@/shared/i18n';
@@ -9,6 +10,7 @@ import { getLocationPort } from '@/shared/location';
 import { logger } from '@/shared/logger';
 import { appStorage, readJson } from '@/shared/storage';
 import { ErrorState, LoadingState } from '@/shared/ui';
+import { useSplashStore } from '@/shared/ui/splashStore';
 
 import { mapCamera, registerMapCamera } from '../controller/mapCamera';
 import { sheetController } from '../controller/sheetController';
@@ -37,7 +39,7 @@ import { useMapUiStore } from '../store/mapUiStore';
 import { useUserLocationStore } from '../store/userLocationStore';
 import FacilityLayer from './FacilityLayer';
 import FacilityPills from './FacilityPills';
-import MapLayersMenu from './MapLayersMenu';
+import MapLayersBar from './MapLayersBar';
 import ParkingLayer from './ParkingLayer';
 import MapControls from './MapControls';
 
@@ -82,8 +84,9 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
   const selectedCategories = useFacilityStore((state) => state.selected);
   const toggleCategory = useFacilityStore((state) => state.toggleCategory);
   const toggleParking = useFacilityStore((state) => state.toggleParking);
-  // 「圖層」鈕點開的選單（方案 A：定位＋圖層兩顆主按鈕，3D 收進選單裡，不再常駐佔一顆）
-  const [layersMenuOpen, setLayersMenuOpen] = useState(false);
+  // 「圖層」鈕點開才展開這排圖示；常駐會擋住地圖視野（使用者回饋 2026-10-15）。
+  const [layersBarOpen, setLayersBarOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
   // 初始相機只在第一次 render 決定（之後由 mapCamera 控制）
   const [initialCamera] = useState(() =>
     resolveInitialCamera(readJson(appStorage, LAST_USER_LOCATION_KEY, isLatLng, null)),
@@ -107,9 +110,13 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
 
   // 常駐 sheet：地圖一露出（上面沒有 sheet）就把首頁 sheet 帶出來。用 focus 而非只在掛載時推一次：
   // 萬一 sheet 被關掉也會自動補回；深層連結已帶 sheet 路由時地圖不在最上層，不會重複推。
-  useFocusEffect(useCallback(() => {
-    if (homeSheetEnabled) router.navigate(navigationMode ? '/navigation' : '/explore');
-  }, [homeSheetEnabled, navigationMode]));
+  // 等 `SplashIntro` 淡出動畫跑完才 navigate：避免 sheet 在 splash 蓋著畫面時就先滑上來，
+  // splash 淡出後才「看到」sheet 已經彈好的突兀感（使用者回饋 2026-10-15）。
+  const focused = useIsFocused();
+  const splashDone = useSplashStore((state) => state.done);
+  useEffect(() => {
+    if (focused && splashDone && homeSheetEnabled) router.navigate(navigationMode ? '/navigation' : '/explore');
+  }, [focused, splashDone, homeSheetEnabled, navigationMode]);
 
   const handleToggle3d = async () => {
     const next = !is3d;
@@ -244,37 +251,63 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
               label: t('nativeMapLayers'),
               systemImage: 'square.3.layers.3d',
               shortLabel: '◫',
-              onPress: () => setLayersMenuOpen((value) => !value),
+              onPress: () => setLayersBarOpen((value) => !value),
             },
           ]}
         />
       </Animated.View>
       )}
-      {layersMenuOpen ? (
-        <MapLayersMenu
-          anchorTop={insets.top + 56 + 116}
-          is3d={is3d}
-          onToggle3d={() => void handleToggle3d()}
-          facilityToggles={[
-            ...PINNED_FACILITY_CATEGORIES.map((category) => ({
-              key: category as string,
-              label: t(LAYER_LABEL_KEY[category]),
-              selected: selectedCategories.includes(category),
-              onToggle: () => toggleCategory(category),
-            })),
-            { key: 'parking', label: t('railParking'), selected: showParking, onToggle: toggleParking },
-          ]}
-          onClose={() => setLayersMenuOpen(false)}
-        />
+      {layersBarOpen ? (
+        <>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            onPress={() => setLayersBarOpen(false)}
+          />
+          <Reanimated.View
+            entering={reduceMotion ? undefined : FadeIn.duration(140)}
+            exiting={reduceMotion ? undefined : FadeOut.duration(120)}
+            style={[styles.layersBar, { top: insets.top + 56 + 116 }]}>
+            <MapLayersBar
+              is3d={is3d}
+              onToggle3d={() => void handleToggle3d()}
+              facilityToggles={[
+                ...PINNED_FACILITY_CATEGORIES.map((category) => ({
+                  key: category as string,
+                  label: t(LAYER_LABEL_KEY[category]),
+                  iconName: category,
+                  systemImage: LAYER_SYSTEM_IMAGE[category],
+                  selected: selectedCategories.includes(category),
+                  onToggle: () => toggleCategory(category),
+                })),
+                {
+                  key: 'parking',
+                  label: t('railParking'),
+                  iconName: 'parking',
+                  systemImage: 'parkingsign.square.fill',
+                  selected: showParking,
+                  onToggle: toggleParking,
+                },
+              ]}
+            />
+          </Reanimated.View>
+        </>
       ) : null}
     </View>
   );
 }
 
 const LAYER_LABEL_KEY = { elevator: 'elevator', toilet: 'toilet', ramp: 'a11yFeatureRamp' } as const;
+const LAYER_SYSTEM_IMAGE = {
+  elevator: 'arrow.up.arrow.down.square.fill',
+  toilet: 'toilet.fill',
+  ramp: 'figure.roll',
+} as const;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
   controls: { position: 'absolute', right: 16 },
+  layersBar: { position: 'absolute', right: 16, alignItems: 'flex-end' },
 });

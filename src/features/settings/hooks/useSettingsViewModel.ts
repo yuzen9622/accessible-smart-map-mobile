@@ -17,6 +17,7 @@ import {
   type FontSizeLevel,
   type LanguagePreference,
   type QuickActionKey,
+  type SosAlarmMode,
   type ThemeMode,
 } from '@/shared/preferences';
 
@@ -181,6 +182,11 @@ export function useSettingsViewModel() {
     { value: 'zh-TW', label: '中文' },
     { value: 'en', label: 'English' },
   ];
+  const sosAlarmModeChoices: Choice<SosAlarmMode>[] = [
+    { value: 'sound', label: t('nativeSosAlarmModeSound') },
+    { value: 'vibrate', label: t('nativeSosAlarmModeVibrate') },
+    { value: 'silent', label: t('nativeSosAlarmModeSilent') },
+  ];
 
   // 候選項目固定用 QUICK_ACTION_KEYS 的順序列出（勾選/取消不會讓清單跳動）；
   // 首頁實際顯示的順序交給 prefs.quickActions 自己的順序（useExploreViewModel 依它排列）。
@@ -243,8 +249,9 @@ export function useSettingsViewModel() {
     language: prefs.language,
     languageChoices,
     setLanguage: (value: LanguagePreference) => prefs.setPreferences({ language: value }),
-    sosAlarmSoundEnabled: prefs.sosAlarmSoundEnabled,
-    setSosAlarmSoundEnabled: (value: boolean) => prefs.setPreferences({ sosAlarmSoundEnabled: value }),
+    sosAlarmMode: prefs.sosAlarmMode,
+    sosAlarmModeChoices,
+    setSosAlarmMode: (value: SosAlarmMode) => prefs.setPreferences({ sosAlarmMode: value }),
     notifications: prefs.notifications,
     setNotifications,
     notificationStatusText: t(`nativePushStatus_${notificationStatus}`),

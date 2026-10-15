@@ -122,6 +122,8 @@ export interface ExploreViewModel {
   onSearchFocus: () => void;
   /** 離開搜尋框、且還沒打字：切回 `idle` 首頁。已有查詢字串時交給 `mode` 自己判斷，不需要這個。 */
   onSearchBlur: () => void;
+  /** 「最近搜尋」／「搜尋結果」畫面的明確返回鍵：清空查詢、收鍵盤、sheet 收回首頁高度。 */
+  onCancelSearch: () => void;
   /** 自動完成請求 in-flight。 */
   loading: boolean;
   /** 自動完成請求或解析所選地點失敗（與「沒有結果」區分）。 */
@@ -169,6 +171,8 @@ export interface ExploreViewModel {
     searchHistory: string;
     searchResults: string;
     noResults: string;
+    searching: string;
+    cancelSearch: string;
     recentSearches: string;
     moreActions: string;
     quickServices: string;
@@ -395,6 +399,15 @@ export function useExploreViewModel(): ExploreViewModel {
       setSearchFocused(false);
       if (query.trim() === '') sheetController.collapse();
     },
+    // 「最近搜尋」／「搜尋結果」兩種全高畫面都沒有返回鍵，刪光文字才會退回首頁，使用者回報
+    // 完全不知道怎麼離開（2026-10-15）。加一顆明確的取消鍵：清空查詢、收鍵盤、把 sheet 收回去。
+    onCancelSearch: () => {
+      Keyboard.dismiss();
+      setQuery('');
+      setResolveFailed(false);
+      setSearchFocused(false);
+      sheetController.collapse();
+    },
     loading,
     error: autocompleteError || resolveFailed,
     onRetry: () => {
@@ -473,6 +486,8 @@ export function useExploreViewModel(): ExploreViewModel {
       searchHistory: t('searchHistory'),
       searchResults: t('searchResults'),
       noResults: t('nativeNoSearchResults'),
+      searching: t('nativeSearching'),
+      cancelSearch: t('cancel'),
       recentSearches: t('recentSearches'),
       moreActions: t('nativeHomeMoreActions'),
       quickServices: t('nativeHomeQuickServices'),

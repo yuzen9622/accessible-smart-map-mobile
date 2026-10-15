@@ -241,6 +241,10 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
           <Pressable accessibilityRole="button" onPress={model.onStart} style={routeStyles.primaryButton}>
             <Text style={routeStyles.primaryButtonText}>{model.labels.replan}</Text>
           </Pressable>
+          <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
+            {model.labels.facilityFilterTitle}
+          </Text>
+          <View style={routeStyles.chipsRow}>{model.facilityFilters.map((option) => renderOption(option))}</View>
           {model.results.routes.map((route, index) => (
             <RouteCard
               key={route.routeId || String(index)}

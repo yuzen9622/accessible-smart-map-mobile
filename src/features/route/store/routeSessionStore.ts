@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { PINNED_FACILITY_CATEGORIES, type PinnedFacilityCategory } from '@/features/map';
 import type { LatLng } from '@/shared/geo';
 
 import type { RouteFailureKind } from '../domain/routeRequest';
@@ -57,6 +58,9 @@ export interface RouteSessionState {
    */
   travelMode: TravelMode;
   routeMode: RouteMode | null;
+  /** 路線沿途要顯示哪些無障礙設施類別（使用者回饋 2026-10-15：圖示太亂，要能篩選）；
+   * 預設全選，跟規劃路線「想先知道路上有哪些設施」的用途一致，不是首頁地圖預設空的那套。 */
+  facilityFilter: PinnedFacilityCategory[];
 
   setOrigin: (origin: LatLng | null, name?: string) => void;
   setDestination: (destination: LatLng | null, name?: string) => void;
@@ -64,6 +68,7 @@ export interface RouteSessionState {
   selectRouteIndex: (index: number) => void;
   setTravelMode: (travelMode: TravelMode) => void;
   setRouteMode: (routeMode: RouteMode | null) => void;
+  toggleFacilityFilter: (category: PinnedFacilityCategory) => void;
   /**
    * 清除路線 session 的唯一實作（SDD §6.3 不變量）。feature 內部使用；外部一律呼叫
    * `RouteSessionPort.endRouteSession`，它會先 abort 進行中的網路請求。
@@ -104,6 +109,7 @@ export const useRouteSessionStore = create<RouteSessionState>()((set, get) => ({
   selectionGeneration: 0,
   travelMode: 'transit',
   routeMode: null,
+  facilityFilter: [...PINNED_FACILITY_CATEGORIES],
 
   setOrigin: (origin, name = '') => set({ origin, originName: name }),
   setDestination: (destination, name = '') => set({ destination, destinationName: name }),
@@ -120,5 +126,11 @@ export const useRouteSessionStore = create<RouteSessionState>()((set, get) => ({
   },
   setTravelMode: (travelMode) => set({ travelMode }),
   setRouteMode: (routeMode) => set({ routeMode }),
+  toggleFacilityFilter: (category) =>
+    set((state) => ({
+      facilityFilter: state.facilityFilter.includes(category)
+        ? state.facilityFilter.filter((c) => c !== category)
+        : [...state.facilityFilter, category],
+    })),
   endRouteSession: () => set((s) => ({ ...CLEARED_SESSION, requestSeq: s.requestSeq + 1, selectionGeneration: s.selectionGeneration + 1 })),
 }));

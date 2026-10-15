@@ -32,7 +32,13 @@ const THEN_TEXT = 'rgba(255,255,255,0.9)';
  * - 使用者拖曳地圖後出現「回到導航」。
  * 剩餘時間／預計抵達與語音、2D/3D、結束按鈕是 sheet 的收合列（`NavigationTripBar`），步驟清單在其下方，HUD 不重複。
  */
-export default function NavigationHUD() {
+export interface NavigationHUDProps {
+  /** 頂部橫幅實際渲染高度（pt，含 safe-area top）；呼叫端用來讓語音膠囊貼在橫幅下方，
+   * 不用再憑經驗寫死一個高度猜測值（使用者回饋 2026-10-15：指示文字一多行就蓋到語音膠囊）。 */
+  onBannerHeightChange?: (height: number) => void;
+}
+
+export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDProps) {
   const { t } = useAppTranslation();
   const instructionError = useNavStore((s) => s.instructionError);
   const colors = useThemeColors();
@@ -102,6 +108,9 @@ export default function NavigationHUD() {
       {/* 導航中橫幅是實心主色，狀態列一律淺色字 */}
       <StatusBar style="light" />
       <View pointerEvents="box-none" style={styles.top}>
+        <View
+          pointerEvents="box-none"
+          onLayout={onBannerHeightChange ? (event) => onBannerHeightChange(event.nativeEvent.layout.height) : undefined}>
         {instructionError ? (
           <View style={[styles.banner, { paddingTop: insets.top + 8 }]}>
             <Text accessibilityLiveRegion="assertive" style={styles.bannerInstruction}>{t(instructionError === 'expired' ? 'nativeRouteTokenExpired' : 'nativeInstructionsUnavailable')}</Text>
@@ -209,6 +218,7 @@ export default function NavigationHUD() {
             ) : null}
           </View>
         )}
+        </View>
 
         <View pointerEvents="box-none" style={styles.stack}>
         {showReroute ? (

@@ -104,18 +104,29 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             color={model.voiceInput.status === 'listening' ? tones.accent : colors.textSecondary}
           />
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={model.account.label}
-          onPress={model.account.onPress}
-          hitSlop={6}
-          style={[styles.avatar, { backgroundColor: model.account.initial ? ACCENT_FILL : colors.background }]}>
-          {model.account.initial ? (
-            <Text style={styles.avatarText}>{model.account.initial}</Text>
-          ) : (
-            <Icon name="user" size={22} color={colors.textSecondary} />
-          )}
-        </Pressable>
+        {model.mode !== 'idle' ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={model.labels.cancelSearch}
+            onPress={model.onCancelSearch}
+            hitSlop={6}
+            style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
+            <Text style={[styles.cancelButtonText, { color: accentText }]}>{model.labels.cancelSearch}</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={model.account.label}
+            onPress={model.account.onPress}
+            hitSlop={6}
+            style={[styles.avatar, { backgroundColor: model.account.initial ? ACCENT_FILL : colors.background }]}>
+            {model.account.initial ? (
+              <Text style={styles.avatarText}>{model.account.initial}</Text>
+            ) : (
+              <Icon name="user" size={22} color={colors.textSecondary} />
+            )}
+          </Pressable>
+        )}
       </View>
 
       {model.mode === 'history' ? (
@@ -247,7 +258,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
               </Pressable>
             </View>
             {model.shortcutFilters.length > 1 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shortcutFilterScroll}>
+              <View style={styles.shortcutFilterRow}>
                 {model.shortcutFilters.map((filter) => (
                   <Pressable
                     key={filter.key}
@@ -265,10 +276,10 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                     </Text>
                   </Pressable>
                 ))}
-              </ScrollView>
+              </View>
             ) : null}
             {model.shortcuts.length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutsRow}>
+              <View style={styles.shortcutsGrid}>
                 {model.shortcuts.map((shortcut) => (
                   <Pressable
                     key={shortcut.key}
@@ -289,7 +300,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                     ) : null}
                   </Pressable>
                 ))}
-              </ScrollView>
+              </View>
             ) : null}
           </View>
         </>
@@ -335,6 +346,15 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                 <Text style={[styles.resultTitle, { color: colors.text }]}>{model.labels.retry}</Text>
               </Pressable>
             </View>
+          ) : model.resultRows.length === 0 && model.loading ? (
+            // 剛打完字、結果還沒回來：不擋著不顯示任何東西，不然使用者會以為整個畫面卡住
+            // （使用者回饋 2026-10-15：搜尋「餐廳」時空白超過 2 秒，以為沒反應、不知道怎麼辦）。
+            <View style={styles.empty} accessible accessibilityLabel={model.labels.searching}>
+              <ActivityIndicator size="small" color={colors.textSecondary} />
+              <Text accessibilityRole="text" style={[styles.emptyText, { color: colors.textSecondary }]}>
+                {model.labels.searching}
+              </Text>
+            </View>
           ) : model.resultRows.length === 0 && !model.loading ? (
             <View style={styles.empty}>
               <Icon name="search" size={28} color={colors.textSecondary} />
@@ -352,6 +372,8 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 const styles = StyleSheet.create({
   avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  cancelButton: { minHeight: 36, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
+  cancelButtonText: { fontSize: 15, fontWeight: '600' },
   voiceButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.sm, paddingBottom: 32, gap: 18 },
   flex: { flex: 1 },
@@ -369,17 +391,16 @@ const styles = StyleSheet.create({
   needsText: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
   addShortcutButton: { minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center' },
-  shortcutFilterScroll: { marginBottom: SPACE.sm },
+  shortcutFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.sm, marginBottom: SPACE.sm },
   shortcutFilterChip: {
     paddingHorizontal: SPACE.md,
     paddingVertical: 6,
     borderRadius: RADIUS.pill,
     borderWidth: 1,
-    marginRight: SPACE.sm,
   },
   shortcutFilterText: { fontSize: 13, fontWeight: '600' },
-  shortcutsRow: { flexDirection: 'row', gap: SPACE.lg, paddingHorizontal: 4 },
-  shortcut: { width: 76, alignItems: 'center', gap: 4 },
+  shortcutsGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  shortcut: { width: '25%', alignItems: 'center', gap: 4, paddingVertical: SPACE.sm },
   shortcutIcon: {
     width: 56,
     height: 56,

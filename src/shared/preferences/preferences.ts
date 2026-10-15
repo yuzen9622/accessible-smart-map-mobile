@@ -15,6 +15,10 @@ export type LanguagePreference = 'system' | 'zh-TW' | 'en';
 export const QUICK_ACTION_KEYS = ['assistant', 'bus', 'hazard', 'train'] as const;
 export type QuickActionKey = (typeof QUICK_ACTION_KEYS)[number];
 
+/** SOS 啟用時的提示方式；只有一種警報音檔，所以不是「選哪首音效」而是響／震動／靜音三選一。 */
+export const SOS_ALARM_MODES = ['sound', 'vibrate', 'silent'] as const;
+export type SosAlarmMode = (typeof SOS_ALARM_MODES)[number];
+
 export interface Preferences {
   themeMode: ThemeMode;
   /** Web 版也只存在本機、不同步到帳號（`settingsHighContrastLocalHint`）。 */
@@ -27,8 +31,8 @@ export interface Preferences {
   memoryEnabled: boolean;
   /** 首頁「快速服務」要顯示哪些項目、依什麼順序（參考網頁版「首頁快捷方式」，使用者回饋 2026-10-11）。 */
   quickActions: QuickActionKey[];
-  /** SOS 啟用時是否播放警報聲吸引旁人注意（測試人員回饋 2026-10-11）；預設開啟。 */
-  sosAlarmSoundEnabled: boolean;
+  /** SOS 啟用時的提示方式（使用者回饋 2026-10-15：只有單一音效，改成響／震動／靜音三選一）；預設響。 */
+  sosAlarmMode: SosAlarmMode;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -39,7 +43,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   notifications: false,
   memoryEnabled: true,
   quickActions: [...QUICK_ACTION_KEYS],
-  sosAlarmSoundEnabled: true,
+  sosAlarmMode: 'sound',
 };
 
 /**
@@ -59,6 +63,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isQuickActionKey(value: unknown): value is QuickActionKey {
   return typeof value === 'string' && (QUICK_ACTION_KEYS as readonly string[]).includes(value);
+}
+
+function isSosAlarmMode(value: unknown): value is SosAlarmMode {
+  return typeof value === 'string' && (SOS_ALARM_MODES as readonly string[]).includes(value);
+}
+
+/** 舊版只有 on/off：關掉的人原意是「不想被打擾」，不是「完全沒事也不用提醒」，退回震動比直接靜音安全。 */
+function sanitizeSosAlarmMode(value: unknown, legacyEnabled: unknown): SosAlarmMode {
+  if (isSosAlarmMode(value)) return value;
+  if (legacyEnabled === false) return 'vibrate';
+  return 'sound';
 }
 
 /** 壞資料（型別不對、重複、全部被濾掉）一律退回預設全開，首頁「快速服務」不會開天窗。 */
@@ -83,6 +98,6 @@ export function sanitizePreferences(value: unknown): Preferences {
     notifications: value.notifications === true,
     memoryEnabled: value.memoryEnabled !== false,
     quickActions: sanitizeQuickActions(value.quickActions),
-    sosAlarmSoundEnabled: value.sosAlarmSoundEnabled !== false,
+    sosAlarmMode: sanitizeSosAlarmMode(value.sosAlarmMode, value.sosAlarmSoundEnabled),
   };
 }

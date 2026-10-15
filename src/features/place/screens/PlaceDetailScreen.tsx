@@ -2,7 +2,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { ErrorState } from '@/shared/ui';
+import { ErrorState, HeaderCloseButton } from '@/shared/ui';
 
 import PlaceDetailPanel from '../components/PlaceDetailPanel';
 import PlaceDetailSkeleton from '../components/PlaceDetailSkeleton';
@@ -30,7 +30,7 @@ export default function PlaceDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: place?.name ?? t('placeInfoLabel') }} />
+      <Stack.Screen options={{ title: place?.name ?? t('placeInfoLabel'), headerLeft: () => <HeaderCloseButton /> }} />
       {loading ? (
         <PlaceDetailSkeleton />
       ) : error || !place ? (

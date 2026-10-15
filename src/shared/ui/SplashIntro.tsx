@@ -13,6 +13,8 @@ import Animated, {
 
 import { useAppTranslation } from '@/shared/i18n';
 
+import { useSplashStore } from './splashStore';
+
 const LIGHT_BG = '#3C70FC';
 const DARK_BG = '#000000';
 
@@ -36,9 +38,13 @@ export default function SplashIntro() {
 
   useEffect(() => {
     void SplashScreen.hideAsync();
+    // 一般 JS function（非 worklet）：`finish` 跑在 UI thread，worklet 裡不能直接呼叫
+    // `useSplashStore.getState()`（store 物件在 UI thread 不存在），要經 `runOnJS` 轉回 JS thread 呼叫。
+    const markSplashDone = () => useSplashStore.getState().markDone();
     const finish = () => {
       'worklet';
       runOnJS(setDone)(true);
+      runOnJS(markSplashDone)();
     };
     if (reduceMotion) {
       logoOpacity.value = 1;

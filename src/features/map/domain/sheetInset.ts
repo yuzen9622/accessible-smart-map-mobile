@@ -2,7 +2,7 @@
  * 地圖常駐 sheet 的 detent（佔螢幕高度比例）。peek 只露出搜尋框；half 顯示清單；full 蓋住地圖。
  * 需與 app/_layout.tsx 的 formSheet `sheetAllowedDetents` 一致（兩處都從這裡讀）。
  */
-export const SHEET_DETENTS = [0.15, 0.5, 1] as const;
+export const SHEET_DETENTS = [0.22, 0.5, 1] as const;
 export const SHEET_UNDIMMED_DETENT_INDEX = 1;
 /**
  * 導航中的 peek：只露出收合列（剩餘時間＋語音／2D3D／結束），步驟清單要往上滑才出現（對齊 Google Maps）。

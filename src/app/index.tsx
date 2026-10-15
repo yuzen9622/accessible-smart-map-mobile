@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,6 +26,9 @@ export default function Index() {
   const isNavigating = useNavStore((s) => s.isNavigating);
   const insets = useSafeAreaInsets();
   const { t } = useAppTranslation();
+  // HUD 橫幅實際高度（含 safe-area top）；轉彎指示文字長短會變，量實際高度才不會被蓋住
+  // （使用者回饋 2026-10-15：之前寫死 190 猜測值，文字一多行就蓋到語音膠囊）。
+  const [hudBannerHeight, setHudBannerHeight] = useState(190);
   useNavigationEffects();
   useLiveBusTracking();
   useEnvironment();
@@ -54,21 +57,22 @@ export default function Index() {
       overlays={
         <>
           {isNavigating ? (
-            <NavigationHUD />
+            <NavigationHUD onBannerHeightChange={setHudBannerHeight} />
           ) : (
             <View pointerEvents="box-none" style={[styles.pill, { top: insets.top + 8 }]}>
               <EnvironmentChip />
               <RouteSessionPill isNavigating={isNavigating} />
             </View>
           )}
-          {/* 離線提示與語音對話膠囊（聊天關著或切回文字時顯示）；導航中放到 HUD 下方，不擋轉向提示 */}
-          <View pointerEvents="box-none" style={[styles.voice, { top: insets.top + (isNavigating ? 190 : 60) }]}>
+          {/* 離線提示與語音對話膠囊（聊天關著或切回文字時顯示）；導航中放到 HUD 下方，不擋轉向提示。
+              `hudBannerHeight` 已含 safe-area top，導航中不用再加 insets.top。 */}
+          <View pointerEvents="box-none" style={[styles.voice, { top: isNavigating ? hudBannerHeight + 16 : insets.top + 60 }]}>
             <OfflineBanner message={isNavigating ? t('nativeOfflineNavigating') : undefined} />
             <VoiceFloatingIndicator />
           </View>
           {/* SOS 在導航中也要按得到（行動不便者最可能在路上需要求助）：導航時移到 HUD 下方。
               跟上方「定位／圖層」按鈕欄拉開更大間距，降低誤觸（方案 A，測試人員回饋 2026-10-11）。 */}
-          <View pointerEvents="box-none" style={[styles.sos, { top: insets.top + (isNavigating ? 280 : 220) }]}>
+          <View pointerEvents="box-none" style={[styles.sos, { top: isNavigating ? hudBannerHeight + 106 : insets.top + 220 }]}>
             <SosButton />
           </View>
         </>

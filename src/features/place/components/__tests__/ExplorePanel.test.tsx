@@ -6,7 +6,7 @@ import ExplorePanel from '../ExplorePanel';
 
 const noop = () => {};
 const model: ExploreViewModel = {
-  query: '', onQueryChange: noop, onSearchFocus: noop, onSearchBlur: noop, loading: false, error: false, onRetry: noop,
+  query: '', onQueryChange: noop, onSearchFocus: noop, onSearchBlur: noop, onCancelSearch: noop, loading: false, error: false, onRetry: noop,
   mode: 'idle', historyRows: [], resultRows: [], onOpenNearby: noop, onOpenSaved: noop,
   categoryShortcuts: { sectionTitle: 'Find nearby', nearbyFacilities: [], moreTitle: 'More categories', moreCategories: [] },
   showBrand: false,
@@ -20,7 +20,7 @@ const model: ExploreViewModel = {
   voiceInput: { status: 'idle', label: 'Voice conversation', accessibilityLabel: 'Voice conversation', onToggle: noop },
   labels: {
     searchPlaceholder: 'Search', nearbyA11y: 'Nearby', savedPlaces: 'Saved', searchHistory: 'History',
-    searchResults: 'Results', noResults: 'No results', recentSearches: 'Recent', moreActions: 'More',
+    searchResults: 'Results', noResults: 'No results', searching: 'Searching', cancelSearch: 'Cancel', recentSearches: 'Recent', moreActions: 'More',
     quickServices: 'Quick services', networkError: 'Network error', retry: 'Retry',
   },
 };

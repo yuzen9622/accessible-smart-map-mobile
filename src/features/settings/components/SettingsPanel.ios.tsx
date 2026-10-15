@@ -110,7 +110,20 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
 
         <Section title={t('settingsEmergencyTitle')} footer={<Text>{t('settingsEmergencyDesc')}</Text>}>
           <Button label={t('sosContactsManageTitle')} onPress={model.openContacts} />
-          <Toggle label={t('nativeSosAlarmSound')} isOn={model.sosAlarmSoundEnabled} onIsOnChange={model.setSosAlarmSoundEnabled} />
+          <Picker<string>
+            label={t('nativeSosAlarmSound')}
+            selection={model.sosAlarmMode}
+            onSelectionChange={(v) => {
+              const choice = model.sosAlarmModeChoices.find((c) => c.value === v);
+              if (choice) model.setSosAlarmMode(choice.value);
+            }}
+            modifiers={[pickerStyle('menu')]}>
+            {model.sosAlarmModeChoices.map((c) => (
+              <Text key={c.value} modifiers={[tag(c.value)]}>
+                {c.label}
+              </Text>
+            ))}
+          </Picker>
         </Section>
 
         <Section title={t('notification')} footer={<Text>{t('nativePushDescription')}</Text>}>

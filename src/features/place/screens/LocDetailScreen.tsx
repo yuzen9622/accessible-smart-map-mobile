@@ -2,7 +2,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { ErrorState } from '@/shared/ui';
+import { ErrorState, HeaderCloseButton } from '@/shared/ui';
 
 import PlaceDetailPanel from '../components/PlaceDetailPanel';
 import PlaceDetailSkeleton from '../components/PlaceDetailSkeleton';
@@ -51,7 +51,9 @@ export default function LocDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: entry?.kind === 'place' ? entry.place.name : t('placeInfoLabel') }} />
+      <Stack.Screen
+        options={{ title: entry?.kind === 'place' ? entry.place.name : t('placeInfoLabel'), headerLeft: () => <HeaderCloseButton /> }}
+      />
       {!validCoords ? (
         <ErrorState title={t('nativePlaceLoadError')} systemImage="exclamationmark.triangle" />
       ) : !entry || loading ? (

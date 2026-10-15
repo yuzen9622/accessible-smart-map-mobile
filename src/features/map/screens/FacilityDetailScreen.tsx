@@ -1,7 +1,7 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { EmptyState, LoadingState } from '@/shared/ui';
+import { EmptyState, HeaderCloseButton, LoadingState } from '@/shared/ui';
 
 import FacilityDetailPanel from '../components/FacilityDetailPanel';
 import { useFacilityDetail } from '../hooks/useFacilityDetail';
@@ -13,7 +13,7 @@ export default function FacilityDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: t('accessibleTitle') }} />
+      <Stack.Screen options={{ title: t('accessibleTitle'), headerLeft: () => <HeaderCloseButton /> }} />
       {model.status === 'loading' ? <LoadingState label={t('loading')} /> : null}
       {model.status === 'not-found' ? (
         <EmptyState title={t('nativeFacilityNotFound')} systemImage="mappin.slash" />

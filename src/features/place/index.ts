@@ -4,6 +4,7 @@ export { default as ExplorePanel } from './screens/ExploreScreen';
 export { default as PlaceDetailPanel } from './components/PlaceDetailPanel';
 export { default as SavedPlacesPanel } from './screens/SavedPlacesScreen';
 export { default as PlacePinLayer } from './components/PlacePinLayer';
+export { default as QuickActionsDock } from './components/QuickActionsDock';
 
 export { usePlaceDetail } from './hooks/usePlaceDetail';
 export { useReverseGeocode } from './hooks/useReverseGeocode';

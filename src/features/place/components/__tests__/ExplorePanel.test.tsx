@@ -11,17 +11,14 @@ const model: ExploreViewModel = {
   categoryShortcuts: { sectionTitle: 'Find nearby', nearbyFacilities: [], moreTitle: 'More categories', moreCategories: [] },
   showBrand: false,
   header: { title: 'Where to?', needs: { label: 'Wheelchair', accessibilityLabel: 'Needs', onPress: noop } },
+  planRoute: { label: 'Plan route', accessibilityLabel: 'Plan route', onPress: jest.fn() },
   shortcuts: [], shortcutFilters: [], addShortcut: { label: 'Add', accessibilityLabel: 'Add a frequent place', onPress: noop }, nearbySummary: null,
-  quickActions: [
-    { key: 'assistant', label: 'Assistant', iconName: 'sparkles', color: '#7048E8', onPress: jest.fn() },
-    { key: 'bus', label: 'Bus', iconName: 'bus', color: '#0F9960', onPress: noop },
-  ],
   account: { label: 'Settings', initial: null, onPress: noop },
   voiceInput: { status: 'idle', label: 'Voice conversation', accessibilityLabel: 'Voice conversation', onToggle: noop },
   labels: {
     searchPlaceholder: 'Search', nearbyA11y: 'Nearby', savedPlaces: 'Saved', searchHistory: 'History',
     searchResults: 'Results', noResults: 'No results', searching: 'Searching', cancelSearch: 'Cancel', recentSearches: 'Recent', moreActions: 'More',
-    quickServices: 'Quick services', networkError: 'Network error', retry: 'Retry',
+    networkError: 'Network error', retry: 'Retry',
   },
 };
 
@@ -45,22 +42,19 @@ it('shows the needs pill only when the brand row is visible', async () => {
   expect(view.getByText('Wheelchair')).toBeTruthy();
 });
 
-it('idle mode shows quick services (no plan-route tile), nearby summary, and a shortcuts section with its own add button', async () => {
+it('idle mode shows a plan-route button, nearby summary, and a shortcuts section with its own add button', async () => {
   const home: ExploreViewModel = {
     ...model,
     shortcuts: [{ key: 'home', title: 'Home', meta: null, iconName: 'bookmark', color: '#495057', onPress: noop }],
     nearbySummary: { text: 'Nearby facilities', dots: [], onPress: noop },
   };
   const view = await render(<ExplorePanel model={home} />);
-  expect(view.getByText('Quick services')).toBeTruthy();
-  expect(view.getByRole('button', { name: 'Assistant' })).toBeTruthy();
-  expect(view.getByRole('button', { name: 'Bus' })).toBeTruthy();
-  expect(view.queryByRole('button', { name: 'Plan route' })).toBeNull();
+  expect(view.getByRole('button', { name: 'Plan route' })).toBeTruthy();
   expect(view.getByText('Nearby facilities')).toBeTruthy();
   expect(view.getByText('Saved')).toBeTruthy();
   expect(view.getByText('Home')).toBeTruthy();
-  await fireEvent.press(view.getByRole('button', { name: 'Assistant' }));
-  expect(home.quickActions[0].onPress).toHaveBeenCalledTimes(1);
+  await fireEvent.press(view.getByRole('button', { name: 'Plan route' }));
+  expect(home.planRoute.onPress).toHaveBeenCalledTimes(1);
   await fireEvent.press(view.getByRole('button', { name: 'Add a frequent place' }));
 });
 
@@ -74,18 +68,22 @@ it('history mode (search focused, no query yet) shows deletable recent searches 
   };
   const view = await render(<ExplorePanel model={historyModel} />);
   expect(view.getByText('Recent place')).toBeTruthy();
-  expect(view.queryByText('Quick services')).toBeNull();
-  expect(view.queryByRole('button', { name: 'Assistant' })).toBeNull();
+  expect(view.queryByRole('button', { name: 'Plan route' })).toBeNull();
   await fireEvent.press(view.getByRole('button', { name: 'Delete Recent place' }));
   expect(onDelete).toHaveBeenCalledTimes(1);
 });
 
 it('updates the rendered home text and search input immediately for every font preference', async () => {
-  const view = await render(<ExplorePanel model={{ ...model, showBrand: true }} />);
+  const home: ExploreViewModel = {
+    ...model,
+    showBrand: true,
+    shortcuts: [{ key: 'home', title: 'Home', meta: null, iconName: 'bookmark', color: '#495057', onPress: noop }],
+  };
+  const view = await render(<ExplorePanel model={home} />);
   for (const [level, scale] of [['small', 0.875], ['medium', 1], ['large', 1.25], ['mega', 1.375]] as const) {
     await act(() => usePreferencesStore.getState().setPreferences({ fontSize: level }));
     expect(view.getByPlaceholderText('Search')).toHaveStyle({ fontSize: 16 * scale });
-    expect(view.getByText('Assistant')).toHaveStyle({ fontSize: 13 * scale });
+    expect(view.getByText('Home')).toHaveStyle({ fontSize: 13 * scale });
   }
 });
 

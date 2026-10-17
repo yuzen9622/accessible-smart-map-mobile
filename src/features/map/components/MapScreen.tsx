@@ -253,6 +253,16 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
               shortLabel: '◫',
               onPress: () => setLayersBarOpen((value) => !value),
             },
+            {
+              // 規劃路線在首頁 sheet 要滑開才看得到；地圖常駐一顆，不必先展開 sheet 才能開始規劃
+              // （使用者回饋 2026-10-17：跟網頁版左側常駐入口比，手機版這個功能太容易被忽略）。
+              key: 'planRoute',
+              label: t('planRoute'),
+              systemImage: 'signpost.right.and.left.fill',
+              shortLabel: '➜',
+              variant: 'primary',
+              onPress: () => router.navigate('/plan'),
+            },
           ]}
         />
       </Animated.View>

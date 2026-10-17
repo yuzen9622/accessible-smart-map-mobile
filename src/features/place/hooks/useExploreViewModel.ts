@@ -17,7 +17,6 @@ import { ROUTE_MODE_LABEL_KEY, useOnboardingStore } from '@/features/onboarding'
 import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
-import { usePreferencesStore, type QuickActionKey } from '@/shared/preferences';
 import { useDictation, type DictationStatus } from '@/shared/speech';
 import type { IconName } from '@/shared/ui';
 
@@ -59,15 +58,6 @@ export interface ExploreRow {
  */
 export type ExploreMode = 'idle' | 'history' | 'results';
 
-export interface ExploreQuickAction {
-  key: QuickActionKey;
-  label: string;
-  iconName: 'sparkles' | 'bus' | 'alert' | 'trainFront';
-  /** 圖示底色：每個項目各自一色，不再全部套用同一個 accentSoft（使用者回饋 2026-10-11，太單調）。 */
-  color: string;
-  onPress: () => void;
-}
-
 /** 「去哪裡」下方的常去地點圓鈕（收藏前幾筆） */
 export interface ExploreShortcut {
   key: string;
@@ -107,20 +97,17 @@ const SAVED_CATEGORY_COLOR: Record<BuiltInSavedPlaceCategory, string> = {
   other: '#495057',
 };
 
-/** 快速服務每格各自一色，不再全部套用同一個 accent 藍（使用者回饋 2026-10-11：太單調）。 */
-const QUICK_ACTION_COLOR: Record<QuickActionKey, string> = {
-  assistant: '#7048E8',
-  bus: '#0F9960',
-  hazard: '#E8590C',
-  train: '#1864AB',
-};
-
 export interface ExploreViewModel {
   query: string;
   onQueryChange: (text: string) => void;
   /** 點進搜尋框：sheet 展開到全高（Apple 地圖），鍵盤才不會蓋住結果；且在還沒打字時切到 `history` 模式。 */
   onSearchFocus: () => void;
-  /** 離開搜尋框、且還沒打字：切回 `idle` 首頁。已有查詢字串時交給 `mode` 自己判斷，不需要這個。 */
+  /**
+   * TextInput 失焦時呼叫。**不會**切回 `idle` 首頁——`ScrollView` 的 `keyboardDismissMode="on-drag"`
+   * 一開始下滑手勢就會讓輸入框失焦（RN 行為，不是滑到底才觸發），若在這裡把 `mode` 切回 `idle`／收合
+   * sheet，使用者一開始下滑想捲動「最近搜尋」清單，畫面就會直接彈回首頁（使用者回饋 2026-10-17）。
+   * 離開搜尋改交給明確的「取消」鍵（`onCancelSearch`）或選到一筆結果／最近搜尋。
+   */
   onSearchBlur: () => void;
   /** 「最近搜尋」／「搜尋結果」畫面的明確返回鍵：清空查詢、收鍵盤、sheet 收回首頁高度。 */
   onCancelSearch: () => void;
@@ -149,6 +136,9 @@ export interface ExploreViewModel {
   showBrand: boolean;
   /** 大標「去哪裡？」與右側的行動需求 pill（點了到設定的需求頁） */
   header: { title: string; needs: { label: string; accessibilityLabel: string; onPress: () => void } };
+  /** 搜尋框下方常駐「規劃路線」入口：不需要先搜到地點，直接開路線面板選起訖點
+   * （與網頁版左側常駐「規劃路線」對齊；地點詳情頁的「規劃路線」按鈕是另一條帶目的地的捷徑，兩者並存）。 */
+  planRoute: { label: string; accessibilityLabel: string; onPress: () => void };
   /** 收藏地點（依下方 shortcutFilters 勾選的分類篩選，全部收藏可橫向滑動瀏覽）；
    * 旁邊的「新增」是常去地點區塊標題右側的小按鈕，不再混在圓鈕那排裡 */
   shortcuts: ExploreShortcut[];
@@ -157,7 +147,6 @@ export interface ExploreViewModel {
   addShortcut: { label: string; accessibilityLabel: string; onPress: () => void };
   /** 沒有定位或設施未載入時為 null */
   nearbySummary: ExploreNearbySummary | null;
-  quickActions: ExploreQuickAction[];
   /** 搜尋框右側的帳號／設定按鈕（Apple 地圖的頭像位置）；已登入顯示名字首字 */
   account: { label: string; initial: string | null; onPress: () => void };
   /** 搜尋框的語音輸入：原地辨識、講完直接把文字填進搜尋框觸發搜尋，不開啟任何對話 UI
@@ -175,7 +164,6 @@ export interface ExploreViewModel {
     cancelSearch: string;
     recentSearches: string;
     moreActions: string;
-    quickServices: string;
     networkError: string;
     retry: string;
   };
@@ -209,7 +197,6 @@ export function useExploreViewModel(): ExploreViewModel {
   const routeMode = useOnboardingStore((state) => state.profile.routeMode);
   const addSearchHistory = useSavedPlacesStore((state) => state.addSearchHistory);
   const removeSearchHistory = useSavedPlacesStore((state) => state.removeSearchHistory);
-  const enabledQuickActions = usePreferencesStore((state) => state.quickActions);
   const setSelectedPlace = usePlaceUiStore((state) => state.setSelectedPlace);
   const { suggestions, loading, error: autocompleteError, retry, sessionToken, resetSession } = useAutocomplete(query, userLocation ?? undefined);
   const dictation = useDictation((transcript) => {
@@ -395,10 +382,8 @@ export function useExploreViewModel(): ExploreViewModel {
       sheetController.raiseTo(SHEET_DETENTS.length - 1);
       setSearchFocused(true);
     },
-    onSearchBlur: () => {
-      setSearchFocused(false);
-      if (query.trim() === '') sheetController.collapse();
-    },
+    // 刻意不在這裡動 searchFocused／sheet（見上面介面的註解）：失焦不等於使用者要離開搜尋。
+    onSearchBlur: () => {},
     // 「最近搜尋」／「搜尋結果」兩種全高畫面都沒有返回鍵，刪光文字才會退回首頁，使用者回報
     // 完全不知道怎麼離開（2026-10-15）。加一顆明確的取消鍵：清空查詢、收鍵盤、把 sheet 收回去。
     onCancelSearch: () => {
@@ -429,41 +414,11 @@ export function useExploreViewModel(): ExploreViewModel {
         onPress: () => router.navigate('/settings/needs'),
       },
     },
+    planRoute: { label: t('planRoute'), accessibilityLabel: t('planRoute'), onPress: () => router.navigate('/plan') },
     shortcuts,
     shortcutFilters,
     addShortcut: { label: t('nativeHomeAddShortcut'), accessibilityLabel: t('nativeHomeAddShortcutA11y'), onPress: openSaved },
     nearbySummary: summary,
-    // 順序與顯示／隱藏依設定頁「首頁快捷方式」的 enabledQuickActions（參考網頁版，使用者回饋 2026-10-11）；
-    // 規劃路線沒有在候選清單裡——地點詳情頁本來就有「規劃路線」主按鈕，這裡不必重複放。
-    quickActions: enabledQuickActions
-      .map((key): ExploreQuickAction | null => {
-        switch (key) {
-          // 公車（Phase 2）：只經 sheet 路由切換面板，place 不 import 那個 feature。
-          case 'bus':
-            return { key: 'bus', label: t('busInfo'), iconName: 'bus', color: QUICK_ACTION_COLOR.bus, onPress: () => router.navigate('/bus') };
-          // AI 助理（Phase 4）：root modal；place 不 import ai feature
-          case 'assistant':
-            return {
-              key: 'assistant', label: t('assistShort'), iconName: 'sparkles', color: QUICK_ACTION_COLOR.assistant,
-              onPress: () => router.navigate('/chat'),
-            };
-          // 危險通報（Phase 3）：root modal，未登入也能送
-          case 'hazard':
-            return {
-              key: 'hazard', label: t('reportHazard'), iconName: 'alert', color: QUICK_ACTION_COLOR.hazard,
-              onPress: () => router.navigate('/hazard-report'),
-            };
-          // 火車／高鐵時刻（測試人員回饋 2026-10-11）：root modal，place 不 import train feature
-          case 'train':
-            return {
-              key: 'train', label: t('nativeTrainSearchTitle'), iconName: 'trainFront', color: QUICK_ACTION_COLOR.train,
-              onPress: () => router.navigate('/train'),
-            };
-          default:
-            return null;
-        }
-      })
-      .filter((action): action is ExploreQuickAction => action !== null),
     account: {
       label: userName ? `${t('settingTitle')}，${userName}` : t('settingTitle'),
       initial: userName ? userName.trim().slice(0, 1).toUpperCase() : null,
@@ -490,7 +445,6 @@ export function useExploreViewModel(): ExploreViewModel {
       cancelSearch: t('cancel'),
       recentSearches: t('recentSearches'),
       moreActions: t('nativeHomeMoreActions'),
-      quickServices: t('nativeHomeQuickServices'),
       networkError: t('nativeNetworkError'),
       retry: t('retry'),
     },

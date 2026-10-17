@@ -1,6 +1,13 @@
 /**
  * 地圖常駐 sheet 的 detent（佔螢幕高度比例）。peek 只露出搜尋框；half 顯示清單；full 蓋住地圖。
  * 需與 app/_layout.tsx 的 formSheet `sheetAllowedDetents` 一致（兩處都從這裡讀）。
+ *
+ * peek 曾經從 0.15 調到 0.22（2026-10-15），是為了讓「快速服務」格子在 peek 就露出來；
+ * 2026-10-17 把快速服務搬到地圖上常駐的 `QuickActionsDock` 後一度把 peek 改回 0.15，
+ * 但「收藏地點」也跟著被壓出 peek 範圍——收藏地點是使用者自己存的捷徑，比快速服務更需要
+ * 一眼就點得到，不該為了讓 sheet 看起來輕一點而藏起來（使用者回饋 2026-10-17：「收藏地點就是
+ * 要直覺可以點開，不然為什麼要收藏？」）。改回 0.22，讓 peek 同時露出搜尋框、規劃路線、
+ * 收藏地點；sheet 的「輕量」交給 `QuickActionsDock` 跟它之間留夠間距來表達，不是靠壓低 sheet。
  */
 export const SHEET_DETENTS = [0.22, 0.5, 1] as const;
 export const SHEET_UNDIMMED_DETENT_INDEX = 1;

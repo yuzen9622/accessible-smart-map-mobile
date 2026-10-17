@@ -37,7 +37,7 @@ export default function FacilityPills() {
         offset={CIRCLE_CENTER_OFFSET}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${pill.facility.name}，${distanceText}`}
+          accessibilityLabel={`${pill.facility.displayName?.trim() || pill.facility.name}，${distanceText}`}
           onPress={() => router.navigate({ pathname: '/facility/[id]', params: { id: pill.id } })}
           style={[styles.pill, { backgroundColor: colors.background }]}>
           <View style={[styles.circle, { backgroundColor: FACILITY_COLORS[pill.facility.category] }]}>

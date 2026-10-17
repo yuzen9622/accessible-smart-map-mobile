@@ -138,6 +138,8 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
         </Section>
 
         <Section title={t('aiMemoryTitle')} footer={<Text>{t('aiMemoryDesc')}</Text>}>
+          <Toggle label={t('aiConsent.settingLabel')} isOn={model.aiDataConsent} onIsOnChange={model.setAiDataConsent} />
+          <Text modifiers={secondary}>{t('aiConsent.settingHint')}</Text>
           <Button label={t('aiMemoryTitle')} onPress={model.openMemory} />
         </Section>
 

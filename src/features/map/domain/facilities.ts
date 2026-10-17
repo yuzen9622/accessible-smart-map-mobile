@@ -10,6 +10,8 @@ export type FacilitySource = 'metro' | 'osm' | 'campus' | 'bathroom' | 'parking'
 export interface Facility {
   id: string;
   name: string;
+  displayName?: string;
+  displaySchoolName?: string;
   category: PinnedFacilityCategory;
   source: FacilitySource;
   lng: number;
@@ -72,6 +74,8 @@ export function parseFacility(item: unknown): Facility | null {
   return {
     id: item._id,
     name: item.name,
+    displayName: typeof item.displayName === 'string' ? item.displayName : undefined,
+    displaySchoolName: typeof item.displaySchoolName === 'string' ? item.displaySchoolName : undefined,
     category: item.category,
     source: item.source,
     lng,
@@ -100,7 +104,7 @@ export function toFacilityCollection(
       type: 'Feature',
       id: facility.id,
       geometry: { type: 'Point', coordinates: [facility.lng, facility.lat] },
-      properties: { id: facility.id, name: facility.name, category: facility.category },
+      properties: { id: facility.id, name: facility.displayName?.trim() || facility.name, category: facility.category },
     });
   }
   return { type: 'FeatureCollection', features };

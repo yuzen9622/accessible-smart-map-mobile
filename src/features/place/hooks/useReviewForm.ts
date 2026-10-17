@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AccessibilityInfo, Alert } from 'react-native';
 
+import { isObjectionableContentError } from '@/shared/api';
 import { useAppTranslation } from '@/shared/i18n';
 import { useCloseScreen } from '@/shared/navigation';
 
@@ -64,7 +65,8 @@ export function useReviewForm() {
       AccessibilityInfo.announceForAccessibility(existing ? t('reviewUpdated') : t('reviewSubmitted'));
       closeScreen();
     } catch (error) {
-      Alert.alert(error instanceof Error && error.message ? error.message : t('reviewSubmitError'));
+      if (isObjectionableContentError(error)) Alert.alert(t('nativeObjectionableContent'));
+      else Alert.alert(error instanceof Error && error.message ? error.message : t('reviewSubmitError'));
     } finally {
       setSubmitting(false);
     }

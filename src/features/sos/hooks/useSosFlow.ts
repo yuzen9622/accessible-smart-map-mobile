@@ -16,11 +16,20 @@ import {
   cancelSosCountdown,
   clearSosStartError,
   dismissResolvedSos,
+  refreshSosSnapshot,
   resolveSos,
+  resetSosShareLink,
   restartSosLifecycle,
   sendSosNow,
 } from '../controller/sosController';
-import { boundContactNames, buildSosShareUrl, handlingSummary, HANDLING_LABEL_KEY, TIMELINE_LABEL_KEY } from '../domain/sosDisplay';
+import {
+  boundContactNames,
+  buildSosShareUrl,
+  countActiveSosViewers,
+  handlingSummary,
+  HANDLING_LABEL_KEY,
+  TIMELINE_LABEL_KEY,
+} from '../domain/sosDisplay';
 import type { SosType } from '../domain/types';
 import { useSosStore } from '../store/sosStore';
 
@@ -35,6 +44,8 @@ export function useSosFlow() {
   const state = useSosStore();
   const position = useUserLocationStore((s) => s.position);
   const [timelineOpen, setTimelineOpen] = useState(false);
+  const [viewerNow, setViewerNow] = useState(() => Date.now());
+  const [resettingShareLink, setResettingShareLink] = useState(false);
 
   // 打開畫面時若沒有進行中的 SOS，直接開始倒數（地圖上的 SOS 按鈕就是觸發點）。
   useEffect(() => {
@@ -61,6 +72,18 @@ export function useSosFlow() {
     return () => sub.remove();
   }, []);
 
+  // Public reads do not emit owner SSE updates. Refresh the owner snapshot while this screen is open,
+  // and also advance the local clock so entries age out at viewerActiveWindowSeconds.
+  useEffect(() => {
+    if (state.phase !== 'active') return;
+    void refreshSosSnapshot();
+    const timer = setInterval(() => {
+      setViewerNow(Date.now());
+      void refreshSosSnapshot();
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [state.phase]);
+
   const openTel = (number: string) => {
     const call = async () => {
       try {
@@ -81,6 +104,29 @@ export function useSosFlow() {
     } catch (error) {
       logger.warn('[sos] share failed', error);
     }
+  };
+
+  const confirmResetShareLink = () => {
+    if (resettingShareLink) return;
+    Alert.alert(t('sosResetShareLink'), t('sosResetShareConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('sosResetShareLink'),
+        style: 'destructive',
+        onPress: () => {
+          const run = async () => {
+            setResettingShareLink(true);
+            try {
+              const ok = await resetSosShareLink();
+              Alert.alert(t(ok ? 'sosResetShareSuccess' : 'sosResetShareFailed'));
+            } finally {
+              setResettingShareLink(false);
+            }
+          };
+          void run();
+        },
+      },
+    ]);
   };
 
   const confirmResolve = () => {
@@ -108,6 +154,7 @@ export function useSosFlow() {
         ? t('sosAckCount', { count: summary.count })
         : t('sosContinuousSharing');
   const bound = boundContactNames(state.contacts);
+  const activeViewerCount = countActiveSosViewers(state.snapshot, viewerNow);
 
   return {
     loggedIn,
@@ -134,6 +181,9 @@ export function useSosFlow() {
     toggleTimeline: () => setTimelineOpen((open) => !open),
     locationSyncFailed: state.locationSyncFailed,
     backgroundDenied: state.backgroundDenied,
+    activeViewerCount,
+    resettingShareLink,
+    resetShareLink: confirmResetShareLink,
     streamStatus: state.lifecycleStatus,
     call110: () => openTel('110'),
     call119: () => openTel('119'),

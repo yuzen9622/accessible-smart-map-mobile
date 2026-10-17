@@ -1,3 +1,4 @@
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { useEffect, useRef, useState } from 'react';
 
 import { appStateVisibility, createPoller } from '@/shared/polling';
@@ -11,6 +12,7 @@ export const ROUTE_DETAIL_REFRESH_MS = 30_000;
 
 export interface BusRouteDetailState {
   directions: RouteDetailDirection[];
+  routeDisplayName?: string;
   /** 第一次載入（還沒有任何資料）。 */
   loading: boolean;
   /** 下拉更新中。 */
@@ -23,11 +25,12 @@ async function fetchDirections(
   routeName: string,
   city: string,
   signal?: AbortSignal,
-): Promise<{ ok: true; directions: RouteDetailDirection[] } | { ok: false; error: BusSearchError }> {
+  lang?: ReturnType<typeof getAppLanguage>,
+): Promise<{ ok: true; directions: RouteDetailDirection[]; routeDisplayName?: string } | { ok: false; error: BusSearchError }> {
   try {
-    const res = await getBusRouteDetail(routeName, city, signal);
+    const res = await getBusRouteDetail(routeName, city, signal, undefined, undefined, lang);
     if (!res.ok || !res.data || res.data.directions.length === 0) return { ok: false, error: 'NO_DATA' };
-    return { ok: true, directions: res.data.directions };
+    return { ok: true, directions: res.data.directions, routeDisplayName: res.data.routeDisplayName };
   } catch (err) {
     return { ok: false, error: err instanceof Error && err.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK' };
   }
@@ -41,8 +44,10 @@ async function fetchDirections(
  * 換參數後才完成的舊請求（輪詢或手動更新）也不會寫入。
  */
 export function useBusRouteDetail(routeName: string, city: string): BusRouteDetailState {
-  const key = `${city}::${routeName}`;
-  const [state, setState] = useState<{ key: string; directions: RouteDetailDirection[]; loading: boolean; error: BusSearchError | null }>({
+  useAppTranslation();
+  const lang = getAppLanguage();
+  const key = `${lang}::${city}::${routeName}`;
+  const [state, setState] = useState<{ key: string; directions: RouteDetailDirection[]; routeDisplayName?: string; loading: boolean; error: BusSearchError | null }>({
     key,
     directions: [],
     loading: true,
@@ -67,7 +72,7 @@ export function useBusRouteDetail(routeName: string, city: string): BusRouteDeta
           manual.current = null;
           setRefreshingKey(null);
         }
-        const result = await fetchDirections(routeName, city, signal);
+        const result = await fetchDirections(routeName, city, signal, lang);
         if (signal.aborted || generation.current !== mine || requests.current !== request) return;
         setState((prev) => applyResult(prev, key, result));
       },
@@ -78,7 +83,7 @@ export function useBusRouteDetail(routeName: string, city: string): BusRouteDeta
       manual.current?.abort();
       poller.stop();
     };
-  }, [routeName, city, key]);
+  }, [routeName, city, key, lang]);
 
   const refresh = async () => {
     const mine = generation.current;
@@ -87,7 +92,7 @@ export function useBusRouteDetail(routeName: string, city: string): BusRouteDeta
     const controller = new AbortController();
     manual.current = controller;
     setRefreshingKey(key);
-    const result = await fetchDirections(routeName, city, controller.signal);
+    const result = await fetchDirections(routeName, city, controller.signal, lang);
     if (manual.current === controller && generation.current === mine) {
       manual.current = null;
       setRefreshingKey(null);
@@ -97,17 +102,17 @@ export function useBusRouteDetail(routeName: string, city: string): BusRouteDeta
   };
 
   const current = state.key === key ? state : { key, directions: [], loading: true, error: null };
-  return { directions: current.directions, loading: current.loading, refreshing: refreshingKey === key, error: current.error, refresh };
+  return { routeDisplayName: current.routeDisplayName, directions: current.directions, loading: current.loading, refreshing: refreshingKey === key, error: current.error, refresh };
 }
 
 type FetchResult = Awaited<ReturnType<typeof fetchDirections>>;
 
 function applyResult(
-  prev: { key: string; directions: RouteDetailDirection[]; loading: boolean; error: BusSearchError | null },
+  prev: { key: string; directions: RouteDetailDirection[]; routeDisplayName?: string; loading: boolean; error: BusSearchError | null },
   key: string,
   result: FetchResult,
 ) {
   const base = prev.key === key ? prev.directions : [];
-  if (result.ok) return { key, directions: result.directions, loading: false, error: null };
-  return { key, directions: stripLiveEta(base), loading: false, error: result.error };
+  if (result.ok) return { key, routeDisplayName: result.routeDisplayName, directions: result.directions, loading: false, error: null };
+  return { key, routeDisplayName: prev.key === key ? prev.routeDisplayName : undefined, directions: stripLiveEta(base), loading: false, error: result.error };
 }

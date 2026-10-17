@@ -44,9 +44,10 @@ interface BigButtonProps {
   icon?: IconName;
   tone?: 'danger' | 'light' | 'outline';
   hint?: string;
+  disabled?: boolean;
 }
 
-function BigButton({ label, onPress, icon, tone = 'light', hint }: BigButtonProps) {
+function BigButton({ label, onPress, icon, tone = 'light', hint, disabled = false }: BigButtonProps) {
   const scale = useFontScale();
   const colors = useThemeColors();
   const background = tone === 'danger' ? DANGER_FILL : tone === 'light' ? WHITE : 'transparent';
@@ -56,11 +57,14 @@ function BigButton({ label, onPress, icon, tone = 'light', hint }: BigButtonProp
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.bigButton,
         { backgroundColor: background, borderColor: tone === 'outline' ? colors.textSecondary : background },
         pressed && styles.pressed,
+        disabled && styles.disabled,
       ]}>
       {icon ? <Icon name={icon} size={24} color={foreground} /> : null}
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.bigButtonText, { color: foreground, fontSize: scaledSize(TYPE.body, scale) }]}>
@@ -159,6 +163,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
             {t('nativeSosLoginRequired')}
           </Text>
         </View>
+        <Body>{t('nativeSosNotEmergencyService')}</Body>
         <BigButton label={t('sosCall110')} icon="phone" tone="danger" onPress={model.call110} />
         <BigButton label={t('sosCall119')} icon="phone" tone="danger" onPress={model.call119} />
         <View style={styles.spacer} />
@@ -184,6 +189,10 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
         <CountdownRing progress={model.progress} seconds={model.secondsLeft} />
         <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={styles.countdownDesc}>
           {t('sosCountdownHint')}
+        </Text>
+        {/* SOS 只通知使用者自己的緊急聯絡人，不是緊急服務（App Store 5.1.5）：要講清楚，避免誤以為警消已收到 */}
+        <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={styles.countdownDesc}>
+          {t('nativeSosNotEmergencyService')}
         </Text>
         <View style={styles.countdownActions}>
           <BigButton label={t('sosCountdownCancel')} icon="close" tone="light" onPress={model.cancelCountdown} />
@@ -255,6 +264,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
         <Body>{model.waitingText}</Body>
       </Card>
 
+      <Body>{t('nativeSosNotEmergencyService')}</Body>
       <View style={styles.row}>
         <View style={styles.flex}>
           <BigButton label={t('sosCall110')} icon="phone" tone="danger" onPress={model.call110} />
@@ -304,6 +314,18 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
       </Card>
 
       <BigButton label={t('sosManualShareLabel')} icon="share" tone="outline" onPress={model.share} />
+
+      <Card>
+        <Label>{t('sosViewerCount', { count: model.activeViewerCount })}</Label>
+        <Body>{t('sosResetShareWarning')}</Body>
+        <BigButton
+          label={t('sosResetShareLink')}
+          icon="refresh"
+          tone="outline"
+          disabled={model.resettingShareLink}
+          onPress={model.resetShareLink}
+        />
+      </Card>
 
       <Card>
         <Pressable
@@ -365,6 +387,7 @@ const styles = StyleSheet.create({
   },
   bigButtonText: { fontWeight: '700' },
   pressed: { opacity: 0.7 },
+  disabled: { opacity: 0.5 },
   countdown: { flex: 1, backgroundColor: DANGER_DEEP, alignItems: 'center', justifyContent: 'center', padding: SPACE.xl, gap: SPACE.lg + 2 },
   countdownTitle: { color: WHITE, fontSize: TYPE.title + 4, fontWeight: '800', textAlign: 'center' },
   countdownDesc: { color: WHITE, fontSize: TYPE.body + 1, textAlign: 'center' },

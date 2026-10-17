@@ -5,11 +5,12 @@ import { AccessibilityInfo, Alert, Linking } from 'react-native';
 import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { useUserLocationStore } from '@/features/map';
 import { reverseGeocodeLabel } from '@/features/place';
-import { ApiError } from '@/shared/api';
+import { ApiError, isObjectionableContentError } from '@/shared/api';
 import { haversineMeters, type LatLng } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import { useCloseScreen } from '@/shared/navigation';
+import { ensureAiDataConsent } from '@/shared/privacy';
 
 import { createHazardReport, uncertainReportId } from '../api/hazardApi';
 import { pickHazardPhoto, type HazardPhoto } from '../controller/photoPicker';
@@ -80,6 +81,8 @@ export function useHazardReport(params: HazardReportParams) {
   const choosePhoto = (source: 'camera' | 'library') => {
     const run = async () => {
       try {
+        // 照片上傳後會經 Google Cloud Vision 自動審查：附照片前先確認使用者同意（App Store 5.1.2(i)）
+        if (!(await ensureAiDataConsent(t))) return;
         const result = await pickHazardPhoto(source);
         if (result.kind === 'ok') {
           setPhoto(result.photo);
@@ -141,7 +144,11 @@ export function useHazardReport(params: HazardReportParams) {
         setResult({ reportId, report: null, merged: false });
         return;
       }
-      const key = error instanceof ApiError ? submitErrorKey(error.reason, error.code) : 'reportFailed';
+      const key = isObjectionableContentError(error)
+        ? 'nativeObjectionableContent'
+        : error instanceof ApiError
+          ? submitErrorKey(error.reason, error.code)
+          : 'reportFailed';
       Alert.alert(t(key));
     } finally {
       setSubmitting(false);

@@ -1,6 +1,17 @@
 import { createMemoryStorage } from '@/shared/storage';
 
-import { buildSosShareUrl, handlingSummary, parseShareToken } from '../sosDisplay';
+import {
+  buildLineClaimUrl,
+  buildSosShareUrl,
+  countActiveSosViewers,
+  handlingSummary,
+  locationFreshness,
+  parseShareToken,
+  readSosTrackingToken,
+  trackerProgressIndex,
+  TRACKER_PROGRESS_STEPS,
+} from '../sosDisplay';
+import { isSosPublicSession } from '../types';
 import {
   SOS_MAX_AGE_MS,
   SOS_STORAGE_KEY,
@@ -89,8 +100,56 @@ describe('display helpers', () => {
     expect(handlingSummary(null)).toEqual({ kind: 'sharing' });
   });
 
-  it('builds share links with the share token, not the session id', () => {
-    expect(buildSosShareUrl('https://map.yuzen.dev/', 'zh-TW', 'ab'.repeat(16))).toBe(`https://map.yuzen.dev/zh-TW?sos=${'ab'.repeat(16)}`);
+  it('computes active viewers from lastSeenAt and the server-provided window', () => {
+    const now = Date.parse('2026-10-13T10:05:00Z');
+    expect(
+      countActiveSosViewers(
+        {
+          ...base,
+          viewers: [
+            { firstSeenAt: '2026-10-13T10:00:00Z', lastSeenAt: '2026-10-13T10:02:00Z' },
+            { firstSeenAt: '2026-10-13T10:00:00Z', lastSeenAt: '2026-10-13T10:01:59Z' },
+            { firstSeenAt: 'invalid', lastSeenAt: 'invalid' },
+          ],
+          activeViewerCount: 99,
+          viewerActiveWindowSeconds: 180,
+        },
+        now,
+      ),
+    ).toBe(1);
+    expect(countActiveSosViewers({ ...base, viewers: [], viewerActiveWindowSeconds: 180 }, now)).toBe(0);
+  });
+
+  it('builds fragment share links with the share token, not the session id', () => {
+    expect(buildSosShareUrl('https://map.yuzen.dev/', 'zh-TW', 'ab'.repeat(16))).toBe(
+      `https://map.yuzen.dev/zh-TW/sos/#token=${'ab'.repeat(16)}`,
+    );
+  });
+
+  it('reads fragment tokens first and keeps legacy query links working', () => {
+    const token = 'ab'.repeat(16);
+    const oldToken = 'cd'.repeat(16);
+    expect(readSosTrackingToken(new URL(`https://map.yuzen.dev/zh-TW/sos/#token=${token}`))).toBe(token);
+    expect(readSosTrackingToken(new URL(`https://map.yuzen.dev/zh-TW/sos/?token=${oldToken}`))).toBe(oldToken);
+    expect(readSosTrackingToken(new URL(`https://map.yuzen.dev/zh-TW/sos/?token=${oldToken}#token=${token}`))).toBe(token);
+  });
+
+  it('computes current viewers from lastSeenAt and the server window', () => {
+    const now = Date.parse('2026-10-13T02:00:00Z');
+    expect(
+      countActiveSosViewers(
+        {
+          ...base,
+          viewers: [
+            { firstSeenAt: '2026-10-13T01:00:00Z', lastSeenAt: '2026-10-13T01:59:30Z' },
+            { firstSeenAt: '2026-10-13T01:00:00Z', lastSeenAt: '2026-10-13T01:50:00Z' },
+          ],
+          viewerActiveWindowSeconds: 180,
+        },
+        now,
+      ),
+    ).toBe(1);
+    expect(countActiveSosViewers(base, now)).toBe(0);
   });
 
   it('accepts only 32-hex share tokens', () => {
@@ -103,5 +162,58 @@ describe('display helpers', () => {
     expect(isSosSnapshot(base)).toBe(true);
     expect(isSosSnapshot({ ...base, handlingStatus: 'lost' })).toBe(false);
     expect(isSosSnapshot({ ...base, location: null })).toBe(true);
+    expect(
+      isSosSnapshot({
+        ...base,
+        viewers: [{ firstSeenAt: '2026-10-13T01:00:00Z', lastSeenAt: '2026-10-13T01:01:00Z' }],
+        activeViewerCount: 1,
+        viewerActiveWindowSeconds: 180,
+      }),
+    ).toBe(true);
+    expect(isSosSnapshot({ ...base, viewers: [{ firstSeenAt: 'x' }] })).toBe(false);
+    expect(isSosSnapshot({ ...base, viewerActiveWindowSeconds: '180' })).toBe(false);
+  });
+});
+
+describe('family tracker display', () => {
+  it('maps handling status onto the progress steps', () => {
+    expect(trackerProgressIndex(undefined)).toBe(-1);
+    expect(trackerProgressIndex('pending')).toBe(-1);
+    expect(trackerProgressIndex('notified')).toBe(0);
+    expect(trackerProgressIndex('en_route')).toBe(3);
+    expect(trackerProgressIndex('resolved')).toBe(TRACKER_PROGRESS_STEPS.length - 1);
+  });
+
+  it('flags a location older than five minutes as stale', () => {
+    const now = Date.parse('2026-10-12T10:10:00Z');
+    expect(locationFreshness('2026-10-12T10:09:30Z', now)).toEqual({ kind: 'justNow' });
+    expect(locationFreshness('2026-10-12T10:07:00Z', now)).toEqual({ kind: 'minutes', minutes: 3, stale: false });
+    expect(locationFreshness('2026-10-12T10:04:00Z', now)).toEqual({ kind: 'minutes', minutes: 6, stale: true });
+  });
+
+  it('prefills the LINE claim command for the official account', () => {
+    expect(buildLineClaimUrl('@abc1234', '我處理')).toBe(
+      `https://line.me/R/oaMessage/@abc1234/?${encodeURIComponent('我處理')}`,
+    );
+  });
+
+  it('accepts active sessions with location and resolved sessions without location', () => {
+    const active = { type: 'body', status: 'active', lat: 25, lng: 121, address: null, updatedAt: '2026-10-12T10:00:00Z' };
+    expect(isSosPublicSession(active)).toBe(true);
+    expect(
+      isSosPublicSession({ type: 'body', status: 'active', lat: 25, lng: 121, updatedAt: '2026-10-12T10:00:00Z' }),
+    ).toBe(true);
+    expect(isSosPublicSession({ ...active, handlingStatus: 'pending' })).toBe(true);
+    expect(isSosPublicSession({ ...active, handlingStatus: 'en_route' })).toBe(true);
+    expect(isSosPublicSession({ ...active, handlingStatus: 'bogus' })).toBe(false);
+    expect(
+      isSosPublicSession({
+        type: 'body',
+        status: 'resolved',
+        handlingStatus: 'resolved',
+        resolvedAt: '2026-10-12T10:05:00Z',
+      }),
+    ).toBe(true);
+    expect(isSosPublicSession({ type: 'body', status: 'active', handlingStatus: 'notified' })).toBe(false);
   });
 });

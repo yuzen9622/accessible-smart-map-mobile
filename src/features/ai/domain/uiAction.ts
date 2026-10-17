@@ -61,7 +61,7 @@ interface CloseChatAction {
 // ── Union ──
 
 export type UIAction =
-  | { type: 'route-error' }
+  | { type: 'route-error'; message?: string }
   | ShowMarkersAction
   | ClearMarkersAction
   | FlyToAction

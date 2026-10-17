@@ -17,6 +17,10 @@ const KAOHSIUNG = { lat: 22.6273, lng: 120.3014 };
 const TOKYO = { lat: 35.6812, lng: 139.7671 };
 
 describe('planRouteRequest', () => {
+  it.each(['en', 'zh-TW'] as const)('sends resolved %s language in the body', (language) => {
+    const plan = planRouteRequest({ origin: TAIPEI_MAIN, destination: CITY_HALL, language }, null);
+    expect(plan.ok && plan.request.language).toBe(language);
+  });
   it('preserves canonical false, none, future departure and accessibility preferences on explicit replan', () => {
     const canonicalPreferences = {
       ...routePlanFixture().effectivePreferences, transitPreference: 'none' as const, maxTransfers: 0,

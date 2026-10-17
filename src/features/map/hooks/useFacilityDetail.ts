@@ -69,7 +69,8 @@ export function useFacilityDetail(id: string): FacilityDetailModel {
   if (!facility) return { status: 'not-found' };
 
   const rows: FacilityDetailRow[] = [];
-  const place = facility.exitName ?? facility.schoolName;
+  const place = facility.exitName ?? (facility.displaySchoolName?.trim() || facility.schoolName);
+  const title = facility.displayName?.trim() || facility.name || t(facility.category);
   if (place) rows.push({ icon: 'mapPin', label: t(facility.exitName ? 'exitInfo' : 'nativeFacilityLocation'), value: place });
   const wheelchair = wheelchairRow(facility.wheelchair);
   if (wheelchair) rows.push({ icon: 'accessibility', label: t('wheelchairAccess'), value: t(wheelchair.value), tone: wheelchair.tone });
@@ -83,7 +84,7 @@ export function useFacilityDetail(id: string): FacilityDetailModel {
 
   return {
     status: 'ready',
-    title: facility.name,
+    title,
     eyebrow: `${t(facility.category)} · ${t(SOURCE_KEY[facility.source])}`,
     rows,
     planRouteLabel: t('planRoute'),
@@ -96,7 +97,7 @@ export function useFacilityDetail(id: string): FacilityDetailModel {
     onShowOnMap: () => mapCamera.flyTo([facility.lng, facility.lat], 18),
     mismatchLabel: t('nativeFacilityMismatch'),
     reportLabel: t('nativeFacilityReport'),
-    reportAccessibilityLabel: t('nativeFacilityReportLabel', { name: facility.name }),
+    reportAccessibilityLabel: t('nativeFacilityReportLabel', { name: title }),
     onReport: () =>
       router.navigate({
         pathname: '/hazard-report',

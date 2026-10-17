@@ -37,6 +37,7 @@ function Settings() {
     themeChoices: [], fontChoices: [], languageChoices: [], legalLinks: [], needsSummary: 'Needs', version: '1',
     quickActionOptions: [],
     mapDefaultFacilityOptions: [],
+    sosAlarmMode: 'sound', sosAlarmModeChoices: [], setSosAlarmMode: () => {},
   } as unknown as SettingsPanelProps['model'];
   return <SettingsPanel model={model} />;
 }

@@ -1,4 +1,6 @@
-import { act, fireEvent, render } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+
+import { ensureAiDataConsent } from '@/shared/privacy';
 
 import { startVoiceSession, dismissVoiceSession } from '../../controller/voiceController';
 import { initialVoiceViewState } from '../../domain/voiceViewState';
@@ -19,6 +21,7 @@ jest.mock('../../controller/voiceController', () => ({
   startVoiceSession: jest.fn(), dismissVoiceSession: jest.fn(), endVoiceSession: jest.fn(),
   retryRouteContextSync: jest.fn(), resumeVoicePlayback: jest.fn(), toggleVoiceMute: jest.fn(),
 }));
+jest.mock('@/shared/privacy', () => ({ ensureAiDataConsent: jest.fn() }));
 jest.mock('../VoiceWaveform', () => () => null);
 jest.mock('../../store/voiceLevels', () => ({ voiceLevelFor: () => ({ value: 0 }) }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
@@ -34,6 +37,7 @@ jest.mock('react-native-reanimated', () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(ensureAiDataConsent).mockResolvedValue(true);
   useVoiceStore.setState({ ...initialVoiceViewState, routeSyncState: 'idle', launchOrigin: null });
 });
 
@@ -44,9 +48,19 @@ it.each(['zh-TW', 'en'] as const)('shows recoverable errors and working retry/cl
   const message = language === 'en' ? "We couldn't verify this route result. Please retry voice." : '無法確認這次路線結果，請重試語音';
   expect(view.getByText(message)).toBeTruthy();
   await fireEvent.press(view.getByRole('button', { name: language === 'en' ? 'Retry' : '重新嘗試' }));
-  expect(startVoiceSession).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(startVoiceSession).toHaveBeenCalledTimes(1));
   await fireEvent.press(view.getByRole('button', { name: language === 'en' ? 'Close' : '關閉' }));
   expect(dismissVoiceSession).toHaveBeenCalledTimes(1);
+});
+
+it('does not reconnect voice when the user has not consented to sharing data with AI', async () => {
+  mockLanguage = 'zh-TW';
+  jest.mocked(ensureAiDataConsent).mockResolvedValue(false);
+  useVoiceStore.setState({ status: { status: 'error', code: 'ROUTE_RESPONSE_INVALID' } });
+  const view = await render(<VoiceModeView />);
+  await fireEvent.press(view.getByRole('button', { name: '重新嘗試' }));
+  await waitFor(() => expect(ensureAiDataConsent).toHaveBeenCalledTimes(1));
+  expect(startVoiceSession).not.toHaveBeenCalled();
 });
 
 it('replaces the pending tool label with a failure notice while retaining voice controls', async () => {

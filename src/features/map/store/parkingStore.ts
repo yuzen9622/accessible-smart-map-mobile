@@ -5,7 +5,7 @@ import type { ParkingNearbyItem } from '../domain/parking';
 interface ParkingState {
   /** null = 尚未查詢 */
   items: ParkingNearbyItem[] | null;
-  setItems: (items: ParkingNearbyItem[]) => void;
+  setItems: (items: ParkingNearbyItem[] | null) => void;
 }
 
 export const useParkingStore = create<ParkingState>()((set) => ({

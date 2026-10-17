@@ -16,8 +16,16 @@ describe('parseAppConfig', () => {
         googleIosClientId: null,
         privacyPolicyUrl: null,
         termsUrl: null,
+        lineBotBasicId: null,
       },
     });
+  });
+
+  it('LINE basic ID 只接受 @ 開頭的英數字，其他視為未設定', () => {
+    const ok = parseAppConfig({ ...valid, EXPO_PUBLIC_LINE_BOT_BASIC_ID: ' @abc1234 ' });
+    const bad = parseAppConfig({ ...valid, EXPO_PUBLIC_LINE_BOT_BASIC_ID: 'abc/../x' });
+    expect(ok.ok && ok.config.lineBotBasicId).toBe('@abc1234');
+    expect(bad.ok && bad.config.lineBotBasicId).toBeNull();
   });
 
   it('隱私權政策／服務條款網址只接受 https，其他視為未設定（不擋啟動）', () => {

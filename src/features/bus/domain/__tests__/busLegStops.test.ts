@@ -6,6 +6,7 @@ import {
   fallbackStopRows,
   normalizeStopName,
   parseStatusLabel,
+  presentStopRowNames,
   resolveCurrentStopSeq,
   resolveEtaLabel,
   resolveLegDirection,
@@ -159,6 +160,31 @@ describe('fallbackStopRows', () => {
     expect(rows.every((r) => r.estimateMinutes === null)).toBe(true);
     expect(rows.every((r) => r.state === 'upcoming')).toBe(true);
     expect(rows[1].stationUid).toBe('UID-1');
+  });
+
+  it('keeps presentation fields separate from canonical stop identity', () => {
+    const rows = fallbackStopRows({ ...leg, fromDisplayName: 'Banqiao', toDisplayName: 'Taipei Main Station',
+      intermediateStops: [{ name: '中間站', stationUid: 'UID-1', displayName: 'Middle' }],
+    });
+    expect(rows.map((row) => row.displayName)).toEqual(['Banqiao', 'Middle', 'Taipei Main Station']);
+    expect(rows.map((row) => row.name)).toEqual(['板橋', '中間站', '台北車站']);
+    expect(rows[1].stationUid).toBe('UID-1');
+  });
+
+  it('pairs equal-name intermediate rows by UID and leaves ambiguous canonical-only rows alone', () => {
+    const rows = buildStopRows([
+      stop(1, '板橋'), stop(2, '同名站', { stopUid: 'A' }), stop(3, '同名站', { stopUid: 'B' }), stop(4, '台北車站'),
+    ], null);
+    const projected = { ...leg, intermediateStops: [
+      { name: '同名站', stationUid: 'A', displayName: 'First' },
+      { name: '同名站', stationUid: 'B', displayName: 'Second' },
+    ] };
+    expect(presentStopRowNames(rows, projected).map((row) => row.displayName)).toEqual([undefined, 'First', 'Second', undefined]);
+    expect(presentStopRowNames(rows.map((row) => ({ ...row, stationUid: undefined })), projected).every((row) => !row.displayName)).toBe(true);
+    expect(rows[1].name).toBe('同名站');
+    expect(presentStopRowNames(rows, { ...projected, intermediateStops: [
+      { name: '同名站', stationUid: 'other', displayName: 'Wrong' },
+    ] })[1].displayName).toBeUndefined();
   });
 
   it('still yields board and alight without intermediate stops', () => {

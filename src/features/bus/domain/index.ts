@@ -6,6 +6,7 @@ export {
   fallbackStopRows,
   normalizeStopName,
   parseStatusLabel,
+  presentStopRowNames,
   resolveCurrentStopSeq,
   resolveEtaLabel,
   resolveLegDirection,

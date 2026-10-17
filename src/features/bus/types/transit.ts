@@ -23,6 +23,8 @@ export type BusDirection = 0 | 1 | 2 | 10 | 255;
 export type TrackableBusDirection = Exclude<BusDirection, 255>;
 
 export interface RouteDetailStop {
+  displayName?: string;
+
   plateNumb?: string;
   stopUid?: string;
   seq: number;
@@ -37,7 +39,16 @@ export interface RouteDetailStop {
   statusLabel: string;
 }
 
+export interface BusRouteDetailData {
+  routeDisplayName?: string;
+  directions: RouteDetailDirection[];
+}
+
 export interface RouteDetailDirection {
+  subRouteDisplayName?: string;
+  fromDisplayName?: string;
+  toDisplayName?: string;
+
   direction: BusDirection;
   stops: RouteDetailStop[];
   /** 這組站序屬於哪個子路線（99 vs 99延）。 */
@@ -51,6 +62,9 @@ export interface RouteDetailDirection {
 }
 
 export interface BusArrivalItem {
+  stopDisplayName?: string;
+  subRouteDisplayName?: string;
+
   stopName: string;
   direction: BusDirection;
   directionLabel: string;
@@ -64,6 +78,9 @@ export interface BusArrivalItem {
 }
 
 export interface BusArrivalData {
+  routeDisplayName?: string;
+  stopDisplayName?: string;
+
   routeName: string;
   city: string;
   stopName: string;
@@ -71,6 +88,8 @@ export interface BusArrivalData {
 }
 
 export interface LiveBus {
+  subRouteDisplayName?: string;
+
   plateNumb: string;
   direction: BusDirection;
   directionLabel?: string;
@@ -100,6 +119,8 @@ export interface LiveBus {
 }
 
 export interface LiveBusPositionsData {
+  routeDisplayName?: string;
+
   routeName: string;
   city: string;
   count: number;
@@ -108,6 +129,10 @@ export interface LiveBusPositionsData {
 }
 
 export interface BusSearchResult {
+  routeDisplayName?: string;
+  departureDisplayName?: string;
+  destinationDisplayName?: string;
+
   routeName: string;
   city: string;
   departure: string;
@@ -115,23 +140,30 @@ export interface BusSearchResult {
 }
 
 export interface BusStopSearchResult {
+  stopDisplayName?: string;
+
   stopUid: string;
   stopName: string;
   city: string;
   coordinates: [number, number]; // [lng, lat]
   routes: string[];
+  routeDisplayNames?: string[];
   /** 只有 nearby-stops 會帶（公尺）。 */
   distance?: number;
 }
 
 /** `/bus/stop-arrivals` 的一列：某條路線（子路線＋方向）下一班到這個站牌的時間與車輛。 */
 export interface StopArrival {
+  routeDisplayName?: string;
+  subRouteDisplayName?: string;
+
   routeName: string;
   subRouteUid?: string;
   subRouteName?: string;
   direction: BusDirection;
   /** 該子路線該方向的終點站（「往 X」）；後端查不到時為 null。 */
   headsign: string | null;
+  headsignDisplayName?: string | null;
   estimateMinutes: number | null;
   /** 顯示用複合文字：可能是 TDX StopStatus 原文（正常、尚未發車、末班車已過…）或下一班時刻；不是官方狀態碼。 */
   statusLabel: string;
@@ -142,6 +174,8 @@ export interface StopArrival {
 }
 
 export interface StopArrivalsData {
+  stopDisplayName?: string;
+
   stopName: string;
   city: string;
   arrivals: StopArrival[];

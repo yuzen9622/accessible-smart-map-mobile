@@ -6,6 +6,7 @@ import type { AccessibleRoute } from '@/features/route/domain';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import { useFontScale } from '@/shared/preferences';
+import { ensureAiDataConsent } from '@/shared/privacy';
 import { RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
@@ -80,8 +81,13 @@ export default function RouteExplanationCard({ route }: RouteExplanationCardProp
           <Pressable
             accessibilityRole="button"
             onPress={() => {
-              setRequested(route);
-              setAttempt((n) => n + 1);
+              // 路線起訖點會交給 Google Gemini 分析：先確認使用者同意（App Store 5.1.2(i)）
+              const request = async () => {
+                if (!(await ensureAiDataConsent(t))) return;
+                setRequested(route);
+                setAttempt((n) => n + 1);
+              };
+              void request();
             }}
             style={({ pressed }) => [styles.button, { borderColor: tones.accent }, pressed && styles.pressed]}>
             <Text style={[styles.buttonText, { color: tones.accent, fontSize: body }]}>

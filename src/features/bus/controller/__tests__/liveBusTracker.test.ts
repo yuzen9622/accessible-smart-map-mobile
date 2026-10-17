@@ -38,7 +38,7 @@ describe("planned bus tracking", () => {
     expect(buses).toHaveLength(1);
     expect(buses[0]).toMatchObject({ plateNumb: "BUS-10", estimateTime: 8, direction: 1 });
     expect(mockApi.getBusArrival).not.toHaveBeenCalled();
-    expect(mockApi.getBusRouteDetail).toHaveBeenCalledWith("99延", "Taichung", undefined, "BRANCH", leg.planContext);
+    expect(mockApi.getBusRouteDetail).toHaveBeenCalledWith("99延", "Taichung", undefined, "BRANCH", leg.planContext, "en");
   });
   it("does not query a generic next bus when plan context is missing", async () => {
     expect(await fetchLeg({ ...leg, planContext: undefined }, signal)).toEqual([]);

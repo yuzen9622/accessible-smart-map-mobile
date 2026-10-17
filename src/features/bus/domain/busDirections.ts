@@ -1,3 +1,4 @@
+import { busName } from './sourceNames';
 import type {
   BusArrivalItem,
   BusDirection,
@@ -127,7 +128,12 @@ export function directionTitle(
   if (option.direction === 2) return { kind: 'loop' };
   if (option.direction === 10) return { kind: 'circular' };
   if (option.direction === 255) return { kind: 'unknown' };
-  const terminal = directions[option.index]?.stops.at(-1)?.name ?? '';
+  const d = directions[option.index];
+  const stop = d?.stops.at(-1);
+  const terminal = busName(stop?.displayName, stop?.name);
+  const display = d?.toDisplayName;
+  if (display?.trim()) return { kind: 'headsign', name: display };
+  if (stop?.displayName?.trim()) return { kind: 'headsign', name: terminal };
   const preferred = option.direction === 0 ? route.destination : route.departure;
   return { kind: 'headsign', name: (option.exclusive && preferred) || terminal };
 }

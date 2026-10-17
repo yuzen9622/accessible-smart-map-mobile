@@ -5,9 +5,11 @@ import { logger } from '@/shared/logger';
 
 import { getRouteSessionSnapshot, subscribeRouteSession, invalidateRouteConversations } from '@/features/route';
 import { getRouteConversationRequest } from './routeConversation';
-import { getAppLanguage } from '@/shared/i18n';
+import { recordRouteNameLanguage } from '@/features/route/domain';
+import i18n, { getAppLanguage } from '@/shared/i18n';
 import { isRouteTool } from '../domain/routePlan';
-import { streamChat } from '../api/aiApi';
+import { ChatHttpError, streamChat } from '../api/aiApi';
+import { backendErrorText } from '../domain/backendError';
 import { applyStreamSignal, settleBubble, type ChatStreamSignal } from '../domain/chatStream';
 import { toChatHistory, toPriorTurns } from '../domain/conversationHistory';
 import { mapToolToActions } from '../domain/toolActionMapper';
@@ -49,7 +51,8 @@ function findEntry(id: string): ChatEntry | undefined {
 type ErrorSignal = Extract<ChatStreamSignal, { type: 'error' }>;
 
 function errorText(signal: ErrorSignal | null, t: Translate): string {
-  return signal?.code === 429 ? t('nativeAiErrorRateLimit') : t('nativeAiError');
+  return backendErrorText(signal?.reason, signal?.message, t)
+    ?? (signal?.code === 429 ? t('nativeAiErrorRateLimit') : t('nativeAiError'));
 }
 
 export async function sendChatMessage(rawText: string, t: Translate): Promise<void> {
@@ -67,6 +70,11 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
   const controller = new AbortController();
   inflight = controller;
   const startedAt = Date.now();
+  const language = getAppLanguage();
+  const onLanguageChanged = () => {
+    if (getAppLanguage() !== language) controller.abort();
+  };
+  i18n.on('languageChanged', onLanguageChanged);
   let applying = false;
   // 這一輪自己認定「目前正確」的 generation：每次這一輪自己成功套用路線工具結果後都會同步更新。
   // 一輪對話常常連續發兩個路線工具呼叫（例如先查附近地點、再規劃到其中一個候選站）；比對時要拿
@@ -80,8 +88,8 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
   const unsubscribe = subscribeRouteSession((state, previous) => {
     if (!applying && state.selectionGeneration !== previous.selectionGeneration) controller.abort();
   });
-  const failRoute = () => {
-    const notice = t('nativeAiRouteUnavailable');
+  const failRoute = (message?: string) => {
+    const notice = message ?? t('nativeAiRouteUnavailable');
     updateEntry(assistant.id, (entry) => ({ ...entry, notice }));
     AccessibilityInfo.announceForAccessibility(notice);
     controller.abort();
@@ -94,7 +102,7 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
     await streamChat(
       {
         messages,
-        language: getAppLanguage(),
+        language,
         ...getRouteConversationRequest(),
         temperature: 0.7,
         ...(position ? { userLocation: { latitude: position.lat, longitude: position.lng } } : {}),
@@ -119,7 +127,10 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
           try {
             applying = true;
             for (const action of mapToolToActions(signal.name, signal.result, call?.args, t)) {
-              if (!executeAction(action).ok) { failRoute(); return; }
+              if (action.type === 'show-route') {
+                action.routes.forEach((route) => recordRouteNameLanguage(route, language));
+              }
+              if (!executeAction(action).ok) { failRoute(action.type === 'route-error' ? action.message : undefined); return; }
             }
             if (signal.callId) applied.add(signal.callId);
             // 這次套用如果是路線工具，自己的 generation 會往前推一格；同步基準值，
@@ -137,9 +148,13 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
     // 取消：保留已收到的部分（對齊 Web：AbortError 仍走 finally 收尾）
     if (!controller.signal.aborted) {
       outcome.failed = true;
+      if (error instanceof ChatHttpError) outcome.error = {
+        type: 'error', code: error.status, reason: error.reason, message: error.serverMessage ?? '',
+      };
       logger.warn('[ai] chat stream failed', error);
     }
   } finally {
+    i18n.off('languageChanged', onLanguageChanged);
     unsubscribe();
     if (inflight === controller) inflight = null;
     const current = findEntry(assistant.id);

@@ -1,4 +1,5 @@
 import { useAppTranslation } from '@/shared/i18n';
+import { openLegalDocument } from '@/shared/privacy';
 import { FormButton, FormInput, FormScreen, FormSection, FormSegmented, FormText } from '@/shared/ui';
 
 import type { AuthPanelProps } from './AuthPanel.types';
@@ -92,6 +93,14 @@ export default function AuthPanel({ model }: AuthPanelProps) {
           <FormButton label={t('auth.backToLogin')} variant="secondary" onPress={() => model.setMode('login')} />
         ) : null}
       </FormSection>
+
+      {model.mode !== 'forgot' ? (
+        // 註冊／第三方登入都會建立帳號：同意條款與隱私權政策的說明要在送出前看得到（App Store 5.1.1(i)）
+        <FormSection footer={t('nativeAuthLegalNotice')}>
+          <FormButton label={t('nativeTermsOfService')} variant="secondary" onPress={() => void openLegalDocument('terms')} />
+          <FormButton label={t('nativePrivacyPolicy')} variant="secondary" onPress={() => void openLegalDocument('privacy')} />
+        </FormSection>
+      ) : null}
     </FormScreen>
   );
 }

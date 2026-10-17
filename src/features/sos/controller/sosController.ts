@@ -18,6 +18,7 @@ import {
   getSosSession,
   openSosStream,
   resolveSosSession,
+  rotateSosShareToken,
   updateSosLocation,
 } from '../api/sosApi';
 import { startSosAlarm, stopSosAlarm } from './sosAlarm';
@@ -376,6 +377,57 @@ function finishResolved(synced = true): void {
   else markResolvePending(appStorage);
   useSosStore.setState({ phase: 'resolved' });
   announce(i18n.t('sosResolvedTitle'));
+}
+
+let ownerSnapshotRefreshing = false;
+let ownerSnapshotGeneration = 0;
+
+/**
+ * 公開讀取不會觸發 owner SSE；發出者畫面開著時要定期重讀快照，才能取得最新 viewer lastSeenAt。
+ */
+export async function refreshSosSnapshot(): Promise<void> {
+  const { sessionId, phase } = useSosStore.getState();
+  if (!sessionId || phase !== 'active' || ownerSnapshotRefreshing) return;
+  const generation = ownerSnapshotGeneration;
+  ownerSnapshotRefreshing = true;
+  try {
+    const snapshot = await getSosSession(sessionId);
+    const current = useSosStore.getState();
+    if (
+      snapshot &&
+      generation === ownerSnapshotGeneration &&
+      current.sessionId === sessionId &&
+      current.phase === 'active'
+    ) {
+      applySnapshot(snapshot);
+    }
+  } catch (error) {
+    logger.warn('[sos] refresh owner snapshot failed', error);
+  } finally {
+    ownerSnapshotRefreshing = false;
+  }
+}
+
+export async function resetSosShareLink(): Promise<boolean> {
+  const { sessionId, phase } = useSosStore.getState();
+  if (!sessionId || phase !== 'active') return false;
+  try {
+    const rotated = await rotateSosShareToken(sessionId);
+    const current = useSosStore.getState();
+    if (rotated.sessionId !== sessionId || current.sessionId !== sessionId || current.phase !== 'active') return false;
+    // Ignore an owner snapshot that began before rotation and still contains
+    // viewers associated with the now-invalid link.
+    ownerSnapshotGeneration += 1;
+    useSosStore.setState({
+      shareToken: rotated.shareToken,
+      snapshot: current.snapshot ? { ...current.snapshot, viewers: [], activeViewerCount: 0 } : null,
+    });
+    saveActiveSos(appStorage, sessionId, rotated.shareToken, currentUserId());
+    return true;
+  } catch (error) {
+    logger.warn('[sos] reset share link failed', error);
+    return false;
+  }
 }
 
 export type ResolveSosResult = { synced: boolean };

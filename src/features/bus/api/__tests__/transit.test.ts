@@ -201,3 +201,37 @@ it('sends only the route capability and full leg index for a planned bus', async
   expect(mockFetchRequest.mock.calls[0][0]).toBe('https://api.test/api/v1/a11y/accessible-route/bus-arrivals?routeToken=plan-token&legIndex=2');
   expect(res.data?.directions[0].stops[0].plateNumb).toBe('BUS-10');
 });
+
+it('preserves endpoint-specific display fields and aligned route labels without changing IDs', async () => {
+  mockFetchRequest.mockResolvedValue(envelope({ stops: [
+    { stopUid: 'id-a', stopName: '同名', stopDisplayName: 'A', coordinates: [121, 25], routes: ['1', 42, '2'], routeDisplayNames: ['One', 'bad', 'Two'] },
+    { stopUid: 'id-b', stopName: '同名', stopDisplayName: 'B', coordinates: [122, 25], routes: ['1', '2'], routeDisplayNames: ['One', null] },
+  ] }));
+  const result = await getNearbyBusStops({ lat: 25, lng: 121 }, undefined, 'en');
+  expect(result.data?.stops.map(s => [s.stopUid, s.stopName, s.stopDisplayName, s.routes, s.routeDisplayNames])).toEqual([
+    ['id-a', '同名', 'A', ['1', '2'], ['One', 'Two']],
+    ['id-b', '同名', 'B', ['1', '2'], ['One', '2']],
+  ]);
+  expect(mockFetchRequest.mock.calls[0][0]).toContain('lang=en');
+});
+
+it('keeps route-detail stop displayName and direction labels, but does not send lang to strict planned endpoint', async () => {
+  mockFetchRequest.mockResolvedValue(envelope({ routeDisplayName: 'Route', directions: [{ direction: 0, subRouteDisplayName: 'Branch', fromDisplayName: 'Origin', toDisplayName: 'Destination', stops: [{ seq: 1, name: '原名', displayName: 'Name', lat: 25, lng: 121 }] }] }));
+  const result = await getBusRouteDetail('99', 'Taipei', undefined, undefined, undefined, 'en');
+  expect(result.data?.routeDisplayName).toBe('Route');
+  expect(result.data?.directions[0]).toMatchObject({ subRouteDisplayName: 'Branch', fromDisplayName: 'Origin', toDisplayName: 'Destination', stops: [{ name: '原名', displayName: 'Name' }] });
+  expect(mockFetchRequest.mock.calls[0][0]).toContain('lang=en');
+  await getBusRouteDetail('99', 'Taipei', undefined, undefined, { routeToken: 'token', legIndex: 0 }, 'en');
+  expect(mockFetchRequest.mock.calls[1][0]).toBe('https://api.test/api/v1/a11y/accessible-route/bus-arrivals?routeToken=token&legIndex=0');
+});
+
+it('preserves arrival, position, search and stop-board display fields', async () => {
+  mockFetchRequest.mockResolvedValue(envelope({ routeName: '99', routeDisplayName: 'Route', stopName: '站', stopDisplayName: 'Stop', arrivals: [{ stopName: '站', direction: 0, subRouteDisplayName: 'Branch', stopDisplayName: 'Stop' }] }));
+  expect((await getBusArrival({}, undefined, 'en')).data).toMatchObject({ routeName: '99', routeDisplayName: 'Route', stopDisplayName: 'Stop', arrivals: [{ stopDisplayName: 'Stop', subRouteDisplayName: 'Branch' }] });
+  mockFetchRequest.mockResolvedValue(envelope({ routeDisplayName: 'Route', buses: [{ plateNumb: 'P', direction: 0, lat: 25, lng: 121, subRouteDisplayName: 'Branch' }] }));
+  expect((await getLiveBusPositions({ routeName: '99' }, undefined, 'en')).data).toMatchObject({ routeDisplayName: 'Route', buses: [{ subRouteDisplayName: 'Branch' }] });
+  mockFetchRequest.mockResolvedValue(envelope({ routes: [{ routeName: '99', city: 'Taipei', routeDisplayName: 'Route', departureDisplayName: 'From', destinationDisplayName: 'To' }] }));
+  expect((await searchBusRoutes('99', null, undefined, 'en')).data?.routes[0]).toMatchObject({ routeDisplayName: 'Route', departureDisplayName: 'From', destinationDisplayName: 'To' });
+  mockFetchRequest.mockResolvedValue(envelope({ stopDisplayName: 'Stop', arrivals: [{ routeName: '99', direction: 0, routeDisplayName: 'Route', subRouteDisplayName: 'Branch', headsignDisplayName: 'To' }] }));
+  expect((await getStopArrivals({ stopName: '站', city: 'Taipei', position: { lat: 25, lng: 121 } }, undefined, 'en')).data).toMatchObject({ stopDisplayName: 'Stop', arrivals: [{ routeDisplayName: 'Route', subRouteDisplayName: 'Branch', headsignDisplayName: 'To' }] });
+});

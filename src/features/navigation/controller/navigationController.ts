@@ -5,6 +5,7 @@ import {
   projectToPath,
   shortestAngleLerp,
   type AccessibleRoute,
+  type NavInstruction,
   type NavInstructionsData,
   type NavInstructionsRequest,
 } from '@/features/route/domain';
@@ -15,6 +16,8 @@ import { instructionProgress } from '../domain/instructionProgress';
 import type { VisibilitySource } from '@/shared/polling';
 
 import { selectAdvisoryAnnouncement } from '../domain/advisorySpeech';
+import { stripStepDistance } from '../domain/hudProgress';
+import { isStraightManeuver, selectManeuverStage, type ManeuverStage } from '../domain/maneuverAnnouncement';
 import { requestForegroundLocationFix } from '../domain/foregroundLocation';
 import { isVehicleLegType, resolveActiveLegType, resolveCurrentLegType, resolveNavHeading } from '../domain/legMode';
 import { shouldSpeakLocally } from '../domain/navigationAudio';
@@ -80,6 +83,8 @@ export interface NavigationControllerDeps {
   now?: () => number;
   onLegHandoff?: (stepIndex: number, target: LatLng | null) => void;
   onStepChange?: (stepIndex: number) => void;
+  /** 「X 公尺後，{instruction}」的播報文字（i18n）；沒有時只念指令。 */
+  maneuverAheadText?: (distanceM: number, instruction: string) => string;
   /** 公車段等車／搭乘的播報文字（i18n）；沒有時不播報公車段情境。 */
   transitSpeechText?: TransitRideDeps['speechText'];
 }
@@ -94,6 +99,20 @@ const HEADING_WRITE_MS = 80;
 const HEADING_TAU_MS = 320;
 const COMPASS_FRESH_MS = 1500;
 const COMPASS_MIN_DELTA_DEG = 1;
+
+/** 目前步驟的分段播報進度（見 `domain/maneuverAnnouncement.ts`）。 */
+interface ManeuverAnnouncer {
+  instructions: readonly NavInstruction[] | null;
+  stepIndex: number;
+  spoken: Set<ManeuverStage>;
+  advanceDistanceM: number | null;
+  /** 下一次播報前要先說的話（下車提示、被直接越過的出發指令）。 */
+  prefix: string | null;
+}
+
+function freshAnnouncer(): ManeuverAnnouncer {
+  return { instructions: null, stepIndex: -1, spoken: new Set(), advanceDistanceM: null, prefix: null };
+}
 
 export function createNavigationController(deps: NavigationControllerDeps): NavigationController {
   let loadedLanguage = deps.language();
@@ -117,6 +136,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
   let trailingHeading: ReturnType<typeof setTimeout> | null = null;
 
   const spokenAdvisoryKeys = new Set<string>();
+  let announcer = freshAnnouncer();
   const transit = createTransitRideRuntime({
     geometry,
     route: () => currentRoute(),
@@ -139,6 +159,61 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
 
   function currentRoute(): AccessibleRoute | null {
     return getRouteSessionSnapshot().navigationRoute?.route ?? null;
+  }
+
+  /** 實際導航由定位驅動播報時機；預覽與語音接手時沿用「換步驟就念全文」。 */
+  function staged(): boolean {
+    const nav = useNavStore.getState();
+    return nav.stepMode === 'live' && nav.navigationSource === 'local' && geometry.path != null;
+  }
+
+  function aheadText(distanceM: number, instruction: string): string {
+    return deps.maneuverAheadText ? deps.maneuverAheadText(distanceM, instruction) : instruction;
+  }
+
+  /** 目前步驟換了：重設分段播報；上一步一次都沒念到（出發指令一開始就越過）時，把它併進下一次播報。 */
+  function resetAnnouncer(instructions: readonly NavInstruction[], stepIndex: number, prefix: string | null): void {
+    const skipped =
+      announcer.instructions === instructions && announcer.spoken.size === 0 ? instructions[announcer.stepIndex] : undefined;
+    const depart =
+      skipped?.type === 'depart' && !transit.ownsStepSpeech(stepIndex) ? stripStepDistance(skipped.text) : null;
+    announcer = {
+      instructions,
+      stepIndex,
+      spoken: new Set(),
+      advanceDistanceM: null,
+      prefix: [depart, prefix].filter(Boolean).join(' ') || null,
+    };
+  }
+
+  /** 依到下一個轉向點的距離念「X 公尺後…」「…」；每段只念一次。 */
+  function announceManeuver(): void {
+    const nav = useNavStore.getState();
+    if (nav.arrived || !staged()) return;
+    const distanceM = nav.distanceToNextM;
+    const step = nav.instructions[nav.currentStepIndex];
+    if (!step || distanceM == null || transit.ownsStepSpeech(nav.currentStepIndex)) return;
+    if (announcer.instructions !== nav.instructions || announcer.stepIndex !== nav.currentStepIndex) {
+      resetAnnouncer(nav.instructions, nav.currentStepIndex, null);
+    }
+    const straight = isStraightManeuver(step);
+    const stage = selectManeuverStage(distanceM, step.legType, announcer.spoken, announcer.advanceDistanceM, straight);
+    if (!stage) {
+      // 直行步驟沒有 advance；原本跟著 advance 念的 prefix（下車提示、被越過的出發指令）要立刻單獨念，不能拖到 now。
+      if (straight && announcer.prefix && announcer.spoken.size === 0) {
+        announcer.spoken.add('advance');
+        const text = announcer.prefix;
+        announcer.prefix = null;
+        speak(text);
+      }
+      return;
+    }
+    announcer.spoken.add(stage);
+    if (stage === 'advance') announcer.advanceDistanceM = distanceM;
+    const body = stage === 'now' ? step.text : aheadText(distanceM, stripStepDistance(step.text));
+    const text = announcer.prefix ? `${announcer.prefix} ${body}` : body;
+    announcer.prefix = null;
+    speak(text);
   }
 
   function resetHeading(): void {
@@ -210,7 +285,10 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     // 預覽中定位來到路線附近 → 升級成實際導航；手動選的步驟作廢，改從第 0 步由定位重新推算
     // （引擎只會往前推，不從 0 起算會停在使用者預覽到的那一步）。
     const promoted = nav.stepMode === 'preview';
-    if (promoted) nav.setStepMode('live');
+    if (promoted) {
+      nav.setStepMode('live');
+      announcer = freshAnnouncer();
+    }
     transit.observe(position);
 
     // 偏離路線超過 500 m：`advanceNavigation` 的投影已無意義、一律回傳 null（見該檔註解），
@@ -273,6 +351,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     nav.setProgress({ ...result.progress, ...(progress ? { remainingM: progress.remainingM } : {}) });
     transit.sync();
     if (result.arrivedNow) nav.setArrived(true);
+    announceManeuver();
   }
 
   /** 同一個 fix 的位置與航向分兩次寫入 store：合併成一次處理。 */
@@ -387,12 +466,17 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       if (state.instructionError && state.instructionError !== previous.instructionError) deps.speech.stop();
       if (state.instructions !== previous.instructions || state.currentStepIndex !== previous.currentStepIndex) {
         const step = state.instructions[state.currentStepIndex];
-        // 公車段的上車／下車指令改由等車／搭乘導引播報（含即時分鐘數），不念後端的靜態文字。
-        if (step && !transit.ownsStepSpeech(state.currentStepIndex)) {
-          const prefix =
-            state.instructions === previous.instructions
-              ? transit.alightPrefix(previous.currentStepIndex, state.currentStepIndex)
-              : null;
+        const prefix =
+          state.instructions === previous.instructions
+            ? transit.alightPrefix(previous.currentStepIndex, state.currentStepIndex)
+            : null;
+        if (staged()) {
+          // 實際導航：等這個樣本的進度寫入後，由 `announceManeuver` 依距離決定念什麼；
+          // 換了一份指令（重算、換語言）不一定伴隨新定位，主動用目前位置重算一次。
+          resetAnnouncer(state.instructions, state.currentStepIndex, prefix);
+          if (state.instructions !== previous.instructions) queuePosition();
+        } else if (step && !transit.ownsStepSpeech(state.currentStepIndex)) {
+          // 公車段的上車／下車指令改由等車／搭乘導引播報（含即時分鐘數），不念後端的靜態文字。
           speak(prefix ? `${prefix} ${step.text}` : step.text);
         }
         if (state.currentStepIndex !== previous.currentStepIndex) deps.onStepChange?.(state.currentStepIndex);
@@ -441,6 +525,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       engine = { offRouteHits: 0, lastLegType: null };
       resetHeading();
       spokenAdvisoryKeys.clear();
+      announcer = freshAnnouncer();
       const location = useUserLocationStore.getState();
       location.setNavigationAccuracy(true);
       cleanups.push(() => useUserLocationStore.getState().setNavigationAccuracy(false));
@@ -506,7 +591,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       void loadInstructions(false);
       const nav = useNavStore.getState();
       const step = nav.instructions[nav.currentStepIndex];
-      if (step && !transit.ownsStepSpeech(nav.currentStepIndex)) speak(step.text);
+      if (step && !staged() && !transit.ownsStepSpeech(nav.currentStepIndex)) speak(step.text);
       queuePosition();
     },
     stop() {

@@ -130,7 +130,7 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
       const items = locationItems(asRecArray(res.facilities), t, {
         prefix: 'a11yfac',
         title: (f) =>
-          str(f.name) || enumLabel(A11Y_CATEGORIES, 'nativeAiA11yCategory_', f.category, t) || str(f.category),
+          str(f.displayName) || str(f.name) || enumLabel(A11Y_CATEGORIES, 'nativeAiA11yCategory_', f.category, t) || str(f.category),
         subtitle: (f) =>
           joinDot([
             enumLabel(A11Y_CATEGORIES, 'nativeAiA11yCategory_', f.category, t) || str(f.category),
@@ -149,9 +149,9 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
     case 'findNearbyParking': {
       const items = locationItems(asRecArray(res.parkingSpots), t, {
         prefix: 'parking',
-        title: (p) => str(p.placeName) || str(p.name) || t('nativeAiCardParking'),
+        title: (p) => str(p.displayName) || str(p.placeName) || str(p.name) || t('nativeAiCardParking'),
         subtitle: (p) =>
-          joinDot([str(p.address) || str(p.district) || str(p.city), str(p.spaceLabel)]) || str(p.chargeType),
+          joinDot([str(p.displayAddress) || str(p.address) || str(p.district) || str(p.city), str(p.spaceLabel)]) || str(p.chargeType),
         badge: (p) => {
           const q = str(p.disabledSpaces ?? p.quantity ?? p.availableSpaces);
           return q != null ? t('nativeAiParkingSpaces', { value: q }) : undefined;
@@ -196,7 +196,7 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
         prefix: 'bus',
         id: (b, i) => str(b.plateNumb) || str(b.PlateNumb) || String(i),
         title: (b) => {
-          const route = str(b.routeName);
+          const route = str(b.routeDisplayName) || str(res.routeDisplayName) || str(b.routeName);
           const plate = str(b.plateNumb);
           if (route && plate && route !== plate) {
             return `${route} · ${plate}`;
@@ -235,21 +235,21 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
       const dirs = asRecArray(res.directions);
       const stops: Rec[] = [];
       for (const d of dirs) {
-        const dirLabel = localName(d.destination ?? d.DestinationStop) || str(d.direction);
+        const dirLabel = str(d.toDisplayName) || localName(d.destination ?? d.DestinationStop) || str(d.direction);
         for (const s of asRecArray(d.stops)) stops.push({ ...s, __dir: dirLabel });
       }
       const items = locationItems(stops, t, {
         prefix: 'stop',
         id: (s, i) =>
           str(s.StopUID) || str(s.stopUid) || str(s.StopID) || str(s.stopId) || localName(s.StopName) || String(i),
-        title: (s) => localName(s.StopName) || str(s.stopName) || str(s.name) || t('nativeAiStopFallback'),
+        title: (s) => str(s.displayName) || str(s.stopDisplayName) || localName(s.StopName) || str(s.stopName) || str(s.name) || t('nativeAiStopFallback'),
         subtitle: (s) => {
           const etaRaw = s.EstimateTime ?? s.estimateTime ?? s.eta;
           const eta = typeof etaRaw === 'number' ? fmtEtaSeconds(etaRaw, t) : str(etaRaw);
           return joinDot([str(s.__dir), eta]);
         },
       });
-      const routeName = localName(res.routeName) || str(res.routeNo);
+      const routeName = str(res.routeDisplayName) || localName(res.routeName) || str(res.routeNo);
       return items.length
         ? {
             heading: routeName ? t('nativeAiCardBusStopsOf', { route: routeName }) : t('nativeAiCardBusStops'),
@@ -269,11 +269,11 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
           return {
             id: `sched_${i}`,
             title: rawTime || fallback,
-            subtitle: joinDot([localName(s.destination ?? s.DestinationStop), str(s.note)]),
+            subtitle: joinDot([str(s.subRouteDisplayName) || localName(s.destination ?? s.DestinationStop), str(s.note)]),
           };
         })
         .filter((it) => it.title !== fallback || it.subtitle);
-      const routeName = localName(res.routeName);
+      const routeName = str(res.routeDisplayName) || localName(res.routeName);
       return items.length
         ? {
             heading: routeName ? t('nativeAiCardBusTimetableOf', { route: routeName }) : t('nativeAiCardBusTimetable'),
@@ -380,14 +380,11 @@ const MAX_DISPLAY_ITEMS_PER_GROUP = 12;
 
 function mergeIntoExistingGroup(existing: ToolResultGroup, incoming: ToolResultGroup): ToolResultGroup {
   const seenIds = new Set(existing.items.map((it) => it.id));
-  const seenKeys = new Set(existing.items.map((it) => `${it.title}_${it.subtitle ?? ''}`));
 
   const mergedItems = [...existing.items];
   for (const it of incoming.items) {
-    const key = `${it.title}_${it.subtitle ?? ''}`;
-    if (!seenIds.has(it.id) && !seenKeys.has(key)) {
+    if (!seenIds.has(it.id)) {
       seenIds.add(it.id);
-      seenKeys.add(key);
       mergedItems.push(it);
     }
   }

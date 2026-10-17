@@ -1,4 +1,5 @@
 import { ApiError, type ApiResponse } from '@/shared/api';
+import { changeAppLanguage } from '@/shared/i18n';
 
 import type { AccessibleRoute, AccessibleRouteData, RoutePreviewPageData } from '../../types/route';
 import { useRouteSessionStore } from '../../store/routeSessionStore';
@@ -17,6 +18,7 @@ const mockUserLocation: { position: { lat: number; lng: number } | null } = { po
 jest.mock('@/features/map', () => ({
   mapCamera: { fitBounds: (...args: unknown[]) => mockFitBounds(...args) },
   useUserLocationStore: { getState: () => mockUserLocation },
+  PINNED_FACILITY_CATEGORIES: jest.requireActual('@/features/map/domain/facilities').PINNED_FACILITY_CATEGORIES,
 }));
 
 const mockGetAccessibleRoute = jest.fn();
@@ -71,7 +73,8 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  await changeAppLanguage('zh-TW');
   mockFitBounds.mockReset();
   mockGetAccessibleRoute.mockReset();
   mockGetLineRoutePreview.mockReset();
@@ -80,6 +83,49 @@ beforeEach(() => {
 });
 
 describe('computeRoute', () => {
+  it('reads current UI language rather than a stale caller or account preference', async () => {
+    await changeAppLanguage('en');
+    mockGetAccessibleRoute.mockResolvedValue(ok({ routes: [route('en')] }));
+    await computeRoute({ origin: ORIGIN, destination: DEST, language: 'zh-TW' });
+    expect(mockGetAccessibleRoute.mock.calls[0][0].language).toBe('en');
+  });
+
+  it('cancels a pending plan on language change, including a switch back, without replanning', async () => {
+    const pending = deferred<ApiResponse<AccessibleRouteData>>();
+    mockGetAccessibleRoute.mockReturnValue(pending.promise);
+    const running = computeRoute({ origin: ORIGIN, destination: DEST });
+    await changeAppLanguage('en');
+    expect(mockGetAccessibleRoute.mock.calls[0][1].aborted).toBe(true);
+    expect(useRouteSessionStore.getState().isLoading).toBe(false);
+    await changeAppLanguage('zh-TW');
+    pending.resolve(ok({ routes: [route('stale')] }));
+    expect(await running).toEqual({ ok: false, failure: 'superseded' });
+    expect(mockGetAccessibleRoute).toHaveBeenCalledTimes(1);
+    expect(useRouteSessionStore.getState().computeRoutes).toBeNull();
+    expect(mockFitBounds).not.toHaveBeenCalled();
+  });
+
+  it('does not let an old-language error overwrite the new-language result', async () => {
+    let rejectOld!: (error: Error) => void;
+    const old = new Promise<never>((_resolve, reject) => { rejectOld = reject; });
+    mockGetAccessibleRoute.mockReturnValueOnce(old).mockResolvedValueOnce(ok({ routes: [route('en')] }));
+    const running = computeRoute({ origin: ORIGIN, destination: DEST });
+    await changeAppLanguage('en');
+    await computeRoute({ origin: ORIGIN, destination: DEST });
+    rejectOld(new ApiError('old', 422, 'NO_ROUTE'));
+    expect(await running).toEqual({ ok: false, failure: 'superseded' });
+    expect(useRouteSessionStore.getState().lastFailure).toBeNull();
+    expect(useRouteSessionStore.getState().selectRoute?.route.routeId).toBe('en');
+  });
+
+  it('leaves a completed route and its geometry untouched on language change', async () => {
+    mockGetAccessibleRoute.mockResolvedValue(ok({ routes: [route('kept')] }));
+    await computeRoute({ origin: ORIGIN, destination: DEST });
+    const before = useRouteSessionStore.getState();
+    await changeAppLanguage('en');
+    expect(useRouteSessionStore.getState()).toBe(before);
+    expect(mockGetAccessibleRoute).toHaveBeenCalledTimes(1);
+  });
   it('stores results, selects the first route and frames it', async () => {
     mockGetAccessibleRoute.mockResolvedValue(ok({ routes: [route('a'), route('b')], waypoints: [{ lat: 25.05, lng: 121.53 }] }));
 
@@ -96,6 +142,7 @@ describe('computeRoute', () => {
       origin: { latitude: 25.0478, longitude: 121.517 },
       destination: { latitude: 25.0408, longitude: 121.5654 },
       mode: 'wheelchair',
+      language: 'zh-TW',
     });
   });
 

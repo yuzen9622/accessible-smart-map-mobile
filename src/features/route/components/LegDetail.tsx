@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
-import { useAppTranslation } from '@/shared/i18n';
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
@@ -21,6 +21,7 @@ import {
   type Translate,
 } from '../domain/routeCard';
 import { A11Y_FEATURE_COLOR, formatDuration, getLegColor, pointLabel } from '../domain/routeDisplay';
+import { nonEmptyName, presentRouteLegNames, walkStreetNames } from '../domain/routeNames';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import type { DriveLeg, MatchedAlert, MetroAlert, RouteLeg, TrafficLevel, WalkLeg, WalkRestPoint } from '../types/route';
 import Disclosure from './Disclosure';
@@ -53,13 +54,13 @@ function legTitle(leg: RouteLeg, t: Translate): string {
     case 'WALK':
       return t('walk');
     case 'BUS':
-      return leg.subRouteName ?? leg.routeName;
+      return nonEmptyName(leg.routeDisplayName, nonEmptyName(leg.subRouteName, leg.routeName));
     case 'METRO':
-      return leg.lineName;
+      return nonEmptyName(leg.routeDisplayName, leg.lineName);
     case 'THSR':
-      return `${t('thsr')} ${leg.trainNo}`;
+      return `${nonEmptyName(leg.routeDisplayName, t('thsr'))} ${leg.trainNo}`;
     case 'TRA':
-      return `${leg.trainTypeName}${leg.trainNo}`;
+      return `${nonEmptyName(leg.routeDisplayName, leg.trainTypeName)}${leg.trainNo}`;
     case 'DRIVE':
     case 'MOTORCYCLE':
       return leg.label ?? (leg.type === 'DRIVE' ? t('drive') : t('motorcycle'));
@@ -86,7 +87,7 @@ function Alerts({ alerts, tones }: { alerts: readonly (MatchedAlert | MetroAlert
   );
 }
 
-function WalkDetail({ leg, engine, t, tones }: { leg: WalkLeg; engine?: string; t: Translate; tones: RouteTones }) {
+function WalkDetail({ leg, engine, t, tones, streetNames }: { leg: WalkLeg; engine?: string; t: Translate; tones: RouteTones; streetNames: string[] }) {
   const colors = useThemeColors();
   const metrics = engine === 'pedestrian-a11y' ? walkA11yMetrics(leg) : null;
   const exit = leg.exitInfo;
@@ -165,7 +166,7 @@ function WalkDetail({ leg, engine, t, tones }: { leg: WalkLeg; engine?: string; 
             const warnings = [step.stairs ? t('walkStepStairsWarning') : null, step.steepSlope ? t('walkStepSteepSlopeWarning') : null]
               .filter(Boolean)
               .join('、');
-            const text = walkStepText(step, t);
+            const text = walkStepText(step, t, streetNames[index]);
             const color = step.stairs ? tones.danger : step.steepSlope ? tones.warn : colors.text;
             return (
               <View
@@ -276,11 +277,12 @@ function DriveDetail({
  * 捷運／高鐵／台鐵（起訖站、站數、時刻、設施亮點、營運公告）、開車（路況、沿線事件、步驟）。
  * 所有文字都是可讀的列表內容，這個畫面就是 SDD §10「路線文字步驟」的替代路徑。
  */
-export default function LegDetail({ leg, busStops, engine, isFirst = false, isLast = false }: LegDetailProps) {
+export default function LegDetail({ leg: originalLeg, busStops, engine, isFirst = false, isLast = false }: LegDetailProps) {
   const colors = useThemeColors();
   const tones = routeTones(useColorScheme() === 'dark');
   const { t } = useAppTranslation();
   const translate = t as Translate;
+  const leg = presentRouteLegNames(originalLeg, getAppLanguage());
 
   return (
     <View style={[routeStyles.card, { backgroundColor: ROUTE_SURFACE_COLOR }]}>
@@ -292,11 +294,13 @@ export default function LegDetail({ leg, busStops, engine, isFirst = false, isLa
           {legTitle(leg, translate)}
         </Text>
       </View>
-      {leg.type === 'WALK' ? <WalkDetail leg={leg} engine={engine} t={translate} tones={tones} /> : null}
+      {leg.type === 'WALK' && originalLeg.type === 'WALK' ? (
+        <WalkDetail leg={leg} engine={engine} t={translate} tones={tones} streetNames={walkStreetNames(originalLeg, getAppLanguage())} />
+      ) : null}
       {leg.type === 'BUS' ? (
         <>
           {busStops ?? (
-            <Text style={[routeStyles.bodyText, { color: colors.text }]}>{`${leg.departureStop} → ${leg.arrivalStop}`}</Text>
+            <Text style={[routeStyles.bodyText, { color: colors.text }]}>{`${nonEmptyName(leg.fromDisplayName, leg.departureStop)} → ${nonEmptyName(leg.toDisplayName, leg.arrivalStop)}`}</Text>
           )}
           <Alerts alerts={leg.alerts} tones={tones} />
         </>
@@ -305,8 +309,8 @@ export default function LegDetail({ leg, busStops, engine, isFirst = false, isLa
         <>
           <Text style={[routeStyles.bodyText, { color: colors.text }]}>
             {leg.departureTime && leg.arrivalTime
-              ? `${leg.departureStation} ${leg.departureTime} → ${leg.arrivalStation} ${leg.arrivalTime}`
-              : `${leg.departureStation} → ${leg.arrivalStation}`}
+              ? `${nonEmptyName(leg.fromDisplayName, leg.departureStation)} ${leg.departureTime} → ${nonEmptyName(leg.toDisplayName, leg.arrivalStation)} ${leg.arrivalTime}`
+              : `${nonEmptyName(leg.fromDisplayName, leg.departureStation)} → ${nonEmptyName(leg.toDisplayName, leg.arrivalStation)}`}
           </Text>
           <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>
             {[leg.type === 'METRO' ? t('stopsUnit', { count: leg.stopsCount }) : null, t('approxTime', { time: formatDuration(leg.rideMinutes) })]

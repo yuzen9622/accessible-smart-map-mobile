@@ -42,8 +42,8 @@ export function nearbyFacilityRows(
     .slice(0, NEARBY_FACILITY_ROW_LIMIT)
     .map(({ item, kind }) => ({
       key: `${item.category}-${item.id}`,
-      name: item.name,
-      address: item.address,
+      name: (typeof item.displayName === 'string' && item.displayName.trim()) || item.name || item.typeLabel,
+      address: (typeof item.displayAddress === 'string' && item.displayAddress.trim()) || item.address,
       typeLabel: item.typeLabel,
       distanceText: formatDistance(item.distanceMeters),
       kind,

@@ -1,3 +1,4 @@
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { useEffect, useState } from 'react';
 
 import { logger } from '@/shared/logger';
@@ -22,12 +23,14 @@ export interface RouteLiveBuses {
  * 不會寫入，換選擇的第一個 render 也不會回傳另一組的車。
  */
 export function useRouteLiveBuses(routeName: string, city: string, selection: RideSelection | null): RouteLiveBuses {
+  useAppTranslation();
+  const lang = getAppLanguage();
   const [state, setState] = useState<{ key: string; buses: LiveBus[] }>({ key: '', buses: [] });
   const direction = selection?.direction ?? null;
   const subRouteUid = selection?.subRouteUid;
   const exclusive = selection?.exclusive ?? false;
   // 唯一性是缺 UID 資料能否安全配對的前提；前提改變後不能重用舊的已過濾結果。
-  const key = direction === null ? '' : `${city}::${routeName}::${subRouteUid ?? ''}::${direction}::${exclusive}`;
+  const key = direction === null ? '' : `${lang}::${city}::${routeName}::${subRouteUid ?? ''}::${direction}::${exclusive}`;
 
   useEffect(() => {
     if (direction === null || !routeName) return;
@@ -38,7 +41,7 @@ export function useRouteLiveBuses(routeName: string, city: string, selection: Ri
       visibility: appStateVisibility,
       task: async ({ signal }) => {
         try {
-          const res = await getLiveBusPositions({ routeName, city, direction }, signal);
+          const res = await getLiveBusPositions({ routeName, city, direction }, signal, lang);
           if (signal.aborted || !current) return;
           const buses = res.ok ? (res.data?.buses ?? []).filter((b) => belongsToSelection(b, own)) : [];
           setState({ key, buses });
@@ -54,7 +57,7 @@ export function useRouteLiveBuses(routeName: string, city: string, selection: Ri
       current = false;
       poller.stop();
     };
-  }, [routeName, city, direction, subRouteUid, exclusive, key]);
+  }, [routeName, city, direction, subRouteUid, exclusive, key, lang]);
 
   return state.key === key && key !== '' ? { buses: state.buses, settled: true } : { buses: [], settled: false };
 }

@@ -33,6 +33,11 @@ export interface Preferences {
   quickActions: QuickActionKey[];
   /** SOS 啟用時的提示方式（使用者回饋 2026-10-15：只有單一音效，改成響／震動／靜音三選一）；預設響。 */
   sosAlarmMode: SosAlarmMode;
+  /**
+   * 是否同意把 AI 功能需要的資料（訊息、語音、位置、照片、無障礙需求）交給 Google 處理（App Store 5.1.2(i)）。
+   * 只存在本機、預設不同意；第一次用 AI 功能時由 `shared/privacy` 詢問，設定頁可撤回。
+   */
+  aiDataConsent: boolean;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -44,6 +49,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   memoryEnabled: true,
   quickActions: [...QUICK_ACTION_KEYS],
   sosAlarmMode: 'sound',
+  aiDataConsent: false,
 };
 
 /**
@@ -99,5 +105,6 @@ export function sanitizePreferences(value: unknown): Preferences {
     memoryEnabled: value.memoryEnabled !== false,
     quickActions: sanitizeQuickActions(value.quickActions),
     sosAlarmMode: sanitizeSosAlarmMode(value.sosAlarmMode, value.sosAlarmSoundEnabled),
+    aiDataConsent: value.aiDataConsent === true,
   };
 }

@@ -138,8 +138,8 @@ export interface StreamSseInit {
 
 export interface StreamSseHandlers {
   onEvent: (event: SseEvent) => void;
-  /** 回應標頭到達時呼叫；在這裡 throw（例如非 2xx）會讓 `streamSse` reject、不讀 body。 */
-  onOpen?: (response: { status: number; ok: boolean }) => void;
+  /** 回應標頭到達時呼叫；失敗時可讀 JSON error body 再 throw，成功則保留 body 給 SSE reader。 */
+  onOpen?: (response: { status: number; ok: boolean; json?: () => Promise<unknown> }) => void | Promise<void>;
   signal?: AbortSignal;
 }
 
@@ -160,7 +160,7 @@ export async function streamSse(
     signal: handlers.signal ?? null,
   });
 
-  handlers.onOpen?.({ status: response.status, ok: response.ok });
+  await handlers.onOpen?.({ status: response.status, ok: response.ok, json: () => response.json() });
 
   const body = response.body;
   if (!body) {

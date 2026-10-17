@@ -105,3 +105,14 @@ it('prefers the text-derived arrow over relativeDirection when they disagree —
 it('falls back to relativeDirection when the text does not match a known maneuver prefix', () => {
   expect(stepIcon(instruction({ text: 'Continue onto Main St', relativeDirection: 'ahead-right' }))).toBe('arrowUpRight');
 });
+
+it('prefers the route engine maneuver over the text, so a slight turn worded as "continue" still bends', () => {
+  expect(stepIcon(instruction({ text: '請繼續直行', maneuver: 'RIGHT' }))).toBe('cornerUpRight');
+  expect(stepIcon(instruction({ text: 'Turn right', maneuver: 'CONTINUE' }))).toBe('arrowUp');
+});
+
+it('falls back to the text when the maneuver is missing, null or has no arrow of its own', () => {
+  expect(stepIcon(instruction({ text: 'Turn right' }))).toBe('cornerUpRight');
+  expect(stepIcon(instruction({ text: 'Turn right', maneuver: null }))).toBe('cornerUpRight');
+  expect(stepIcon(instruction({ text: 'Turn right', maneuver: 'ELEVATOR' }))).toBe('cornerUpRight');
+});

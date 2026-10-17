@@ -9,6 +9,7 @@ import { useThemeColors } from '@/shared/theme';
 import { EmptyState, Icon } from '@/shared/ui';
 
 import LegDetail from '../components/LegDetail';
+import RouteSafetyNotice from '../components/RouteSafetyNotice';
 import { ROUTE_ON_ACCENT_COLOR, routeStyles } from '../components/palette';
 import { formatDuration } from '../domain/routeDisplay';
 import { useRouteSessionStore } from '../store/routeSessionStore';
@@ -56,6 +57,7 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
             <Text style={routeStyles.primaryButtonText}>{t('startNav')}</Text>
           </Pressable>
           {!canNavigateRoute(route) ? <Text style={{ color: colors.textSecondary }}>{t('nativeRouteTokenUnavailable')}</Text> : null}
+          <RouteSafetyNotice />
           {renderExplanation ? renderExplanation(route) : null}
           <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.text }]}>
             {route.routeName}
@@ -72,10 +74,15 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
               />
             ))}
           </View>
-          {route.scoreWarnings?.map((warning) => (
-            <Text key={warning} style={[routeStyles.metaText, { color: colors.textSecondary }]}>
-              {warning}
-            </Text>
+          {/* Full original arrays, including items collapsed in RouteCard and legacy/source warnings. */}
+          {[route.accessibilityHighlights, route.warnings ?? [], route.scoreWarnings ?? []].map((messages, group) => (
+            <View key={group}>
+              {messages.map((message, index) => (
+                <Text key={index} style={[routeStyles.metaText, { color: colors.textSecondary }]}>
+                  {message}
+                </Text>
+              ))}
+            </View>
           ))}
           {route.attribution ? (
             <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{route.attribution}</Text>

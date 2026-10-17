@@ -32,4 +32,11 @@ describe('toNavInstruction', () => {
     expect(out.bearing).toBeNull();
     expect(out.streetName).toBeNull();
   });
+
+  it('只接受已知的 maneuver；未知值為 null，舊後端缺欄位時不放 key', () => {
+    expect(toNavInstruction({ ...base, maneuver: 'CONTINUE' }).maneuver).toBe('CONTINUE');
+    expect(toNavInstruction({ ...base, maneuver: 'TURN_RIGHT' }).maneuver).toBeNull();
+    expect(toNavInstruction({ ...base, maneuver: null }).maneuver).toBeNull();
+    expect(toNavInstruction(base)).not.toHaveProperty('maneuver');
+  });
 });

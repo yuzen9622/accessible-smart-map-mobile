@@ -1,3 +1,4 @@
+import { busName } from '../components/busText';
 import { Text, TextInput } from '@/shared/ui/typography/Text';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -16,7 +17,7 @@ import { useNearbyBusStops } from '../hooks/useNearbyBusStops';
 import { useBusPanelStore, type PanelStop } from '../store/busPanelStore';
 
 function toPanelStops(stops: BusStopSearchResult[]): PanelStop[] {
-  return stops.map((s) => ({ id: s.stopUid || s.stopName, name: s.stopName, lat: s.coordinates[1], lng: s.coordinates[0] }));
+  return stops.map((s) => ({ id: s.stopUid || s.stopName, name: busName(s.stopDisplayName, s.stopName), lat: s.coordinates[1], lng: s.coordinates[0] }));
 }
 
 /** 站牌列只露出前幾條路線，其餘收成「+N」——大站牌有近 40 條路線，全列出來會把一列撐成一整面。 */
@@ -84,7 +85,7 @@ export default function BusPanelScreen() {
                 key={`${stop.stopUid}-${stop.stopName}-${stop.coordinates.join(',')}`}
                 accessibilityRole="button"
                 accessibilityLabel={t('nativeBusStopRowLabel', {
-                  name: stop.stopName,
+                  name: busName(stop.stopDisplayName, stop.stopName),
                   city: group.label,
                   distance: distance || t('nativeBusDistanceUnknown'),
                   count: stop.routes.length,
@@ -96,12 +97,12 @@ export default function BusPanelScreen() {
                 </View>
                 <View style={styles.rowTexts}>
                   <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
-                    {stop.stopName}
+                    {busName(stop.stopDisplayName, stop.stopName)}
                   </Text>
                   {stop.routes.length > 0 ? (
                     <View style={styles.chips} importantForAccessibility="no-hide-descendants">
-                      {preview.map((route) => (
-                        <RouteBadge key={route} name={route} small />
+                      {preview.map((route, routeIndex) => (
+                        <RouteBadge key={route} name={busName(stop.routeDisplayNames?.[routeIndex], route)} small />
                       ))}
                       {more > 0 ? (
                         <Text style={[styles.moreText, { color: colors.textSecondary }]}>{t('nativeBusMoreRoutes', { count: more })}</Text>
@@ -130,9 +131,9 @@ export default function BusPanelScreen() {
               key={`${route.city}-${route.routeName}-${route.departure}-${route.destination}`}
               accessibilityRole="button"
               accessibilityLabel={t('nativeBusRouteRowLabel', {
-                route: route.routeName,
-                departure: route.departure,
-                destination: route.destination,
+                route: busName(route.routeDisplayName, route.routeName),
+                departure: busName(route.departureDisplayName, route.departure),
+                destination: busName(route.destinationDisplayName, route.destination),
                 city: group.label,
               })}
               onPress={() =>
@@ -142,11 +143,11 @@ export default function BusPanelScreen() {
                 })
               }
               style={({ pressed }) => [styles.row, separator(index), pressed && styles.pressed]}>
-              <RouteBadge name={route.routeName} />
+              <RouteBadge name={busName(route.routeDisplayName, route.routeName)} />
               <View style={styles.rowTexts}>
-                {route.departure || route.destination ? (
+                {busName(route.departureDisplayName, route.departure) || busName(route.destinationDisplayName, route.destination) ? (
                   <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
-                    {`${route.departure} – ${route.destination}`}
+                    {`${busName(route.departureDisplayName, route.departure)} – ${busName(route.destinationDisplayName, route.destination)}`}
                   </Text>
                 ) : null}
               </View>

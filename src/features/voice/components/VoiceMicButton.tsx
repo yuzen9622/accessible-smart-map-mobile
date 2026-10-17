@@ -4,6 +4,7 @@ import { Alert, Keyboard, Pressable, StyleSheet, View } from 'react-native';
 
 import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { useAppTranslation } from '@/shared/i18n';
+import { ensureAiDataConsent } from '@/shared/privacy';
 import { ACCENT_FILL, ON_ACCENT_FILL } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
@@ -32,7 +33,7 @@ export default function VoiceMicButton() {
     else startVoiceSession(t);
   };
 
-  const onPress = () => {
+  const onPress = async () => {
     if (!resumable && !loggedIn) {
       Alert.alert(t('chatbot.voice.loginRequired'), undefined, [
         { text: t('cancel'), style: 'cancel' },
@@ -40,6 +41,8 @@ export default function VoiceMicButton() {
       ]);
       return;
     }
+    // 語音會即時串流給 Google Gemini：開麥克風前先確認使用者同意（App Store 5.1.2(i)）
+    if (!resumable && !(await ensureAiDataConsent(t))) return;
     Keyboard.dismiss();
     const button = buttonRef.current;
     if (!button) {
@@ -57,7 +60,7 @@ export default function VoiceMicButton() {
       ref={buttonRef}
       accessibilityRole="button"
       accessibilityLabel={t('chatbot.voice.micLabel')}
-      onPress={onPress}
+      onPress={() => void onPress()}
       hitSlop={6}
       style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
       <Icon name="audioLines" size={18} color={ON_ACCENT_FILL} strokeWidth={2.4} />

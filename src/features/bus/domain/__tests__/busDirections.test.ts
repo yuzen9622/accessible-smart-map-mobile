@@ -1,3 +1,4 @@
+import { matchStopInRoute } from '../stopBoard';
 import type { BusArrivalItem, RouteDetailDirection } from '../../types/transit';
 import {
   belongsToSelection,
@@ -201,4 +202,17 @@ describe('stripLiveEta', () => {
     const stripped = stripLiveEta([{ direction: 0, stops: [stop('A', 1, 2, 3, '正常')], subRouteUid: 'U1' }]);
     expect(stripped).toEqual([{ direction: 0, subRouteUid: 'U1', stops: [{ seq: 1, name: 'A', lat: 2, lng: 1, estimateMinutes: null, statusLabel: '' }] }]);
   });
+});
+
+it('display headsigns do not change branch keys or canonical stop matching', () => {
+  const directions = [
+    { direction: 0 as const, subRouteUid: 'a', subRouteName: '原支線', subRouteDisplayName: 'Branch A', toDisplayName: 'Terminal A', stops: [{ seq: 1, stopUid: 'a', name: '同名', displayName: 'A', lat: 25, lng: 121, estimateMinutes: null, statusLabel: '' }] },
+    { direction: 0 as const, subRouteUid: 'b', subRouteName: '原支線', subRouteDisplayName: 'Branch B', toDisplayName: 'Terminal B', stops: [{ seq: 1, stopUid: 'b', name: '同名', displayName: 'B', lat: 25, lng: 122, estimateMinutes: null, statusLabel: '' }] },
+  ];
+  const options = buildDirectionOptions(directions);
+  expect(options[0].key).not.toBe(options[1].key);
+  expect(directionTitle(directions, options[0], {})).toEqual({ kind: 'headsign', name: 'Terminal A' });
+  expect(directionTitle(directions, options[1], {})).toEqual({ kind: 'headsign', name: 'Terminal B' });
+  expect(matchStopInRoute(directions, '同名', { lat: 25, lng: 122 })?.stop.stopUid).toBe('b');
+  expect(matchStopInRoute(directions, 'B', { lat: 25, lng: 122 })).toBeNull();
 });

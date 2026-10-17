@@ -110,6 +110,13 @@ describe('planRequestKey', () => {
     requireElevator: false,
   };
 
+  it('keeps language-specific cache identities distinct from the operation identity', () => {
+    const en = planRequestKey({ ...base, language: 'en' });
+    const zh = planRequestKey({ ...base, language: 'zh-TW' });
+    expect(en).not.toBe(zh);
+    expect(en).not.toBe(planRequestKey(base));
+  });
+
   it('沒有目的地時不能算', () => {
     expect(planRequestKey({ ...base, destination: null })).toBeNull();
   });

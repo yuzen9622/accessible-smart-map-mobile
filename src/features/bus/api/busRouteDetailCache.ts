@@ -1,3 +1,4 @@
+import { getAppLanguage, type AppLanguage } from '@/shared/i18n';
 import type { BusPlanContext } from "@/features/route";
 // 移植自 Web `src/lib/transit/busRouteDetailCache.ts`（commit 5eadc71），邏輯逐行保留。
 // 放在 api 層：它是 `getBusRouteDetail` 的去重快取，不含 UI 或 store。
@@ -31,8 +32,8 @@ interface Entry {
 const cache = new Map<string, Entry>();
 
 /** 只有實際對後端送出 subRouteUid 時 key 才帶它：不同子路線的 payload 不共用。 */
-export function routeDetailKey(routeName: string, city: string, subRouteUid?: string, planContext?: BusPlanContext): string {
-  return JSON.stringify([city, routeName, subRouteUid ?? null, planContext?.routeToken ?? null, planContext?.legIndex ?? null]);
+export function routeDetailKey(routeName: string, city: string, subRouteUid?: string, planContext?: BusPlanContext, lang: AppLanguage = getAppLanguage()): string {
+  return JSON.stringify([lang, city, routeName, subRouteUid ?? null, planContext?.routeToken ?? null, planContext?.legIndex ?? null]);
 }
 
 /** The cached directions when a fresh entry exists, else null. Never fetches. */
@@ -41,8 +42,9 @@ export function peekRouteDetail(
   city: string,
   subRouteUid?: string,
   planContext?: BusPlanContext,
+  lang: AppLanguage = getAppLanguage(),
 ): RouteDetailDirection[] | null {
-  const entry = cache.get(routeDetailKey(routeName, city, subRouteUid, planContext));
+  const entry = cache.get(routeDetailKey(routeName, city, subRouteUid, planContext, lang));
   if (!entry?.settled) return null;
   if (Date.now() - entry.at > TTL_MS) return null;
   return entry.value ?? null;
@@ -63,9 +65,10 @@ export function peekRouteDetail(
 export function fetchRouteDetailCached(
   routeName: string,
   city: string,
-  opts?: { force?: boolean; subRouteUid?: string; planContext?: BusPlanContext },
+  opts?: { force?: boolean; subRouteUid?: string; planContext?: BusPlanContext; lang?: AppLanguage },
 ): Promise<RouteDetailDirection[] | null> {
-  const key = routeDetailKey(routeName, city, opts?.subRouteUid, opts?.planContext);
+  const lang = opts?.lang ?? getAppLanguage();
+  const key = routeDetailKey(routeName, city, opts?.subRouteUid, opts?.planContext, lang);
   const existing = cache.get(key);
 
   if (existing) {
@@ -89,7 +92,7 @@ export function fetchRouteDetailCached(
 
   entry.promise = (async () => {
     try {
-      const res = await getBusRouteDetail(routeName, city, undefined, opts?.subRouteUid, opts?.planContext);
+      const res = await getBusRouteDetail(routeName, city, undefined, opts?.subRouteUid, opts?.planContext, lang);
       const directions = res.ok ? res.data?.directions : undefined;
       if (!directions) {
         fail();

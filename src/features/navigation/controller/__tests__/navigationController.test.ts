@@ -154,6 +154,96 @@ describe('NavigationController', () => {
     controller.stop();
   });
 
+  // Regression: the step advanced 18 m before the corner, so the HUD and the voice
+  // told the user about the *next* turn before they had taken this one.
+  it('announces a turn ahead, again when close, and at the corner — and only moves on once the user has turned', async () => {
+    const { controller, speech } = setup({
+      maneuverAheadText: (meters, instruction) => `${Math.round(meters / 10) * 10}m後${instruction}`,
+    });
+    fix(25.05, 121.5);
+    controller.start();
+    await flush();
+    // 右轉 is at ~202 m. Standing on the origin, the depart step is done at once and is folded into the first call-out.
+    expect(useNavStore.getState().currentStepIndex).toBe(1);
+    expect(speech.speak).toHaveBeenLastCalledWith('出發 200m後右轉', 'zh-TW');
+
+    speech.speak.mockClear();
+    fix(25.05, 121.5012); // ~81 m left: between the advance and prepare distances.
+    await flush();
+    expect(speech.speak).not.toHaveBeenCalled();
+
+    fix(25.05, 121.5017); // ~30 m left.
+    await flush();
+    expect(speech.speak).toHaveBeenLastCalledWith('30m後右轉', 'zh-TW');
+
+    fix(25.05, 121.50195); // ~5 m left.
+    await flush();
+    expect(speech.speak).toHaveBeenLastCalledWith('右轉', 'zh-TW');
+    expect(useNavStore.getState().currentStepIndex).toBe(1);
+
+    speech.speak.mockClear();
+    fix(25.05, 121.502); // On the corner, not turned yet: the HUD keeps showing this turn.
+    await flush();
+    expect(useNavStore.getState().currentStepIndex).toBe(1);
+    expect(speech.speak).not.toHaveBeenCalled();
+
+    fix(25.05, 121.5021); // ~10 m into the next segment: the turn was taken.
+    await flush();
+    expect(useNavStore.getState().currentStepIndex).toBe(2);
+    expect(speech.speak).toHaveBeenLastCalledWith('190m後左轉', 'zh-TW');
+    controller.stop();
+  });
+
+  it('calls a straight step once at the point, never "X m ahead", and says a carried prefix at once', async () => {
+    const instructions = [
+      step('出發', 0, { type: 'depart', maneuver: 'DEPART' }),
+      step('繼續直行', 2, { maneuver: 'CONTINUE' }),
+      step('左轉', 4, { maneuver: 'LEFT' }),
+      step('抵達', 5, { type: 'arrive', maneuver: null }),
+    ];
+    const { controller, speech } = setup({
+      fetchInstructions: jest.fn(async () => ok(instructions)),
+      maneuverAheadText: (meters, instruction) => `${Math.round(meters / 10) * 10}m後${instruction}`,
+    });
+    fix(25.05, 121.5);
+    controller.start();
+    await flush();
+    // The skipped depart instruction is spoken straight away instead of waiting ~200 m for the straight point.
+    expect(useNavStore.getState().currentStepIndex).toBe(1);
+    expect(speech.speak).toHaveBeenLastCalledWith('出發', 'zh-TW');
+
+    speech.speak.mockClear();
+    fix(25.05, 121.5012); // ~81 m left.
+    await flush();
+    fix(25.05, 121.5017); // ~30 m left.
+    await flush();
+    expect(speech.speak).not.toHaveBeenCalled();
+
+    fix(25.05, 121.50195); // ~5 m left.
+    await flush();
+    fix(25.05, 121.502);
+    await flush();
+    expect(speech.speak.mock.calls).toEqual([['繼續直行', 'zh-TW']]);
+    controller.stop();
+  });
+
+  it('still stages a turn the backend marks as RIGHT', async () => {
+    const instructions = [step('出發', 0, { type: 'depart' }), step('右轉', 2, { maneuver: 'RIGHT' }), step('左轉', 4), step('抵達', 5, { type: 'arrive' })];
+    const { controller, speech } = setup({
+      fetchInstructions: jest.fn(async () => ok(instructions)),
+      maneuverAheadText: (meters, instruction) => `${Math.round(meters / 10) * 10}m後${instruction}`,
+    });
+    fix(25.05, 121.5);
+    controller.start();
+    await flush();
+    fix(25.05, 121.5017);
+    await flush();
+    fix(25.05, 121.50195);
+    await flush();
+    expect(speech.speak.mock.calls.map(([text]) => text)).toEqual(['出發 200m後右轉', '30m後右轉', '右轉']);
+    controller.stop();
+  });
+
   it('hands a confirmed off-route episode to the reroute coordinator and clears it on return', async () => {
     const { controller, reroute } = setup();
     controller.start();
@@ -518,12 +608,36 @@ describe('NavigationController step mode (live vs preview)', () => {
 
 it('refreshes language with the same token and preserves the current step', async () => {
   let language: 'zh-TW' | 'en' = 'zh-TW';
-  const { controller, speech, fetchInstructions } = setup({ language: () => language });
+  const { controller, speech, fetchInstructions, reroute } = setup({ language: () => language });
   controller.start(); await flush();
+  const originalRoute = useMapStore.getState().selectRoute?.route;
   useNavStore.setState({ currentStepIndex: 2 });
   language = 'en'; controller.refreshLanguage(); await flush();
   expect(fetchInstructions).toHaveBeenLastCalledWith({ routeToken: 'token-1', userHeading: undefined, language: 'en' }, expect.any(AbortSignal));
   expect(useNavStore.getState().currentStepIndex).toBe(2); expect(speech.stop).toHaveBeenCalled();
+  expect(useMapStore.getState().selectRoute?.route).toBe(originalRoute);
+  expect(reroute.triggerAutoReroute).not.toHaveBeenCalled();
+  controller.stop();
+});
+
+it('discards delayed old-language instructions without replanning the same route', async () => {
+  let language: 'zh-TW' | 'en' = 'zh-TW';
+  const old = deferred<ApiResponse<NavInstructionsData>>();
+  const fetchInstructions = jest.fn()
+    .mockImplementationOnce(() => old.promise)
+    .mockResolvedValueOnce(ok([step('Continue on Roosevelt Road', 0)]));
+  const { controller, reroute } = setup({ language: () => language, fetchInstructions });
+  const originalRoute = useMapStore.getState().selectRoute?.route;
+  controller.start(); await flush();
+  language = 'en'; controller.refreshLanguage(); await flush();
+  old.resolve(ok([step('沿羅斯福路繼續前進', 0)])); await flush();
+  expect(useNavStore.getState().instructions[0].text).toBe('Continue on Roosevelt Road');
+  expect(useMapStore.getState().selectRoute?.route).toBe(originalRoute);
+  expect(reroute.triggerAutoReroute).not.toHaveBeenCalled();
+  expect(fetchInstructions.mock.calls.map(([input]) => input)).toEqual([
+    { routeToken: 'token-1', userHeading: undefined, language: 'zh-TW' },
+    { routeToken: 'token-1', userHeading: undefined, language: 'en' },
+  ]);
   controller.stop();
 });
 

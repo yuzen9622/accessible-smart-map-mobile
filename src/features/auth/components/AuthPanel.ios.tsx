@@ -23,6 +23,7 @@ import { View, useWindowDimensions } from 'react-native';
 
 import { useSemanticColors } from '@/shared/theme';
 import { useAppTranslation } from '@/shared/i18n';
+import { openLegalDocument } from '@/shared/privacy';
 import { FormPrimaryButton, FormSecondaryButton, KeyboardAvoidingHost } from '@/shared/ui';
 
 import AppleSignInButton from './AppleSignInButton';
@@ -165,6 +166,14 @@ export default function AuthPanel({ model }: AuthPanelProps) {
           ) : null}
           {model.mode === 'forgot' ? <Button label={t('auth.backToLogin')} onPress={() => model.setMode('login')} /> : null}
         </Section>
+
+        {model.mode !== 'forgot' ? (
+          // 註冊／第三方登入都會建立帳號：同意條款與隱私權政策的說明要在送出前看得到（App Store 5.1.1(i)）
+          <Section footer={<Text>{t('nativeAuthLegalNotice')}</Text>}>
+            <Button label={t('nativeTermsOfService')} onPress={() => void openLegalDocument('terms')} />
+            <Button label={t('nativePrivacyPolicy')} onPress={() => void openLegalDocument('privacy')} />
+          </Section>
+        ) : null}
       </Form>
     </KeyboardAvoidingHost>
   );

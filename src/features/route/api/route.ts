@@ -1,6 +1,8 @@
 import { fetchRequest, getAccessToken, type ApiResponse } from '@/shared/api';
 import { getAppConfig } from '@/shared/config';
 
+import { recordRouteNameLanguage } from '../domain/routeNames';
+
 import type {
   AccessibleRoute,
   AccessibleRouteData,
@@ -54,8 +56,12 @@ function isFiniteNumber(value: unknown): value is number {
 function withRouteDefaults(raw: Record<string, unknown> & { legs: unknown[] }, index: number): AccessibleRoute {
   const legs = raw.legs.map((leg) => {
     const record = leg as Record<string, unknown>;
+    // SAFETY: isRouteShape checked each leg is a record with a known type; polyline is an array or defaulted here.
+    // Remaining per-mode fields/coordinate contents rely on the backend DTO, not deep runtime validation.
     return (Array.isArray(record.polyline) ? record : { ...record, polyline: [] }) as unknown as RouteLeg;
   });
+  // SAFETY: raw passed isRouteShape and legs now have polyline defaults; scalar defaults are applied below.
+  // Optional metadata and per-mode nested fields remain backend-contract assumptions, not fully validated.
   const route = { ...raw, legs } as unknown as AccessibleRoute;
   return {
     ...route,
@@ -70,6 +76,8 @@ function withRouteDefaults(raw: Record<string, unknown> & { legs: unknown[] }, i
 export function parseAccessibleRouteData(value: unknown): AccessibleRouteData | undefined {
   if (!isRecord(value) || !Array.isArray(value.routes)) return undefined;
   const routes = value.routes.filter(isRouteShape).map(withRouteDefaults);
+  // SAFETY: value is a record with routes[]; only shape-checked routes with defaults survive above.
+  // Other envelope fields are preserved under the backend DTO contract, without deep validation.
   return { ...(value as unknown as AccessibleRouteData), routes };
 }
 
@@ -81,6 +89,8 @@ function parseNavInstructionsData(value: unknown): NavInstructionsData | undefin
   if (!isRecord(value) || !Array.isArray(value.instructions) || !value.instructions.every(isNavInstruction)) {
     return undefined;
   }
+  // SAFETY: instructions is an array of records with string text/type. Other instruction fields and
+  // envelope metadata rely on the backend contract; this guard is intentionally not a full schema validator.
   return value as unknown as NavInstructionsData;
 }
 
@@ -97,6 +107,8 @@ function parseRerouteData(value: unknown): AccessibleRouteRerouteData | undefine
   ) {
     return undefined;
   }
+  // SAFETY: the guard checked navigationId/token strings, numeric version, known route leg types,
+  // and an instructions/steps list with string text/type. Replay/warnings and deeper fields are DTO assumptions.
   return { ...(value as unknown as AccessibleRouteRerouteData), route: withRouteDefaults(value.route, 0) };
 }
 
@@ -111,6 +123,8 @@ function parseRoutePreviewPageData(value: unknown): RoutePreviewPageData | undef
     return undefined;
   }
   const routes = value.routes.filter((r) => Array.isArray(r.legs) && r.legs.every(isLegShape));
+  // SAFETY: the guard checked sessionId, destination record and routes records; the filter checked
+  // legs[] and known leg types. Coordinates, mode-specific fields and other metadata are not deeply validated.
   return { ...(value as unknown as RoutePreviewPageData), routes: routes as unknown as RoutePreviewPageData['routes'] };
 }
 
@@ -142,7 +156,10 @@ export async function getAccessibleRoute(
     requireAuth: Boolean(getAccessToken()),
     timeoutMs: ROUTE_TIMEOUT_MS,
   });
-  return narrow(response, parseAccessibleRouteData);
+  const parsed = narrow(response, parseAccessibleRouteData);
+  const language = request.language;
+  if (language) parsed.data?.routes.forEach((route) => recordRouteNameLanguage(route, language));
+  return parsed;
 }
 
 export async function rerouteAccessibleRoute(
@@ -164,7 +181,10 @@ export async function rerouteAccessibleRoute(
     signal,
     timeoutMs: ROUTE_TIMEOUT_MS,
   });
-  return narrow(response, parseRerouteData);
+  const parsed = narrow(response, parseRerouteData);
+  // Idempotent replay may belong to a different original request language.
+  if (request.language && parsed.data?.replayed === false) recordRouteNameLanguage(parsed.data.route, request.language);
+  return parsed;
 }
 
 /** body 只能有 `routeToken`／`userHeading`／`language`，不得送整個 route 物件（SDD §6.3）。 */

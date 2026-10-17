@@ -51,6 +51,8 @@ export interface GeoPoint {
 export interface SlimOsmA11y {
   osmId: string;
   name?: string;
+  nameEn?: string;
+  displayName?: string;
   category: 'wheelchair_accessible' | 'kerb_cut' | 'ramp' | 'elevator' | 'toilet';
   wheelchair?: 'yes' | 'limited' | 'no';
   tags?: Record<string, string>;
@@ -78,6 +80,8 @@ export interface ExitInfo {
 
 export interface IntermediateStop {
   name: string;
+  nameEn?: string;
+  displayName?: string;
   stationUid?: string;
   location?: LngLatTuple;
 }
@@ -164,7 +168,25 @@ export interface WalkRestPoint {
   distanceM: number;
 }
 
-export interface WalkLeg {
+/** Additive presentation/source metadata; canonical fields remain query identities. */
+export interface LegSourceNames {
+  fromDisplayName?: string;
+  toDisplayName?: string;
+  routeDisplayName?: string;
+  fromNameEn?: string;
+  toNameEn?: string;
+  routeNameEn?: string;
+}
+
+export interface StepStreetName {
+  /** Index in this leg's original steps, never navigation instructions. */
+  index: number;
+  streetName: string;
+  nameEn?: string;
+  displayName?: string;
+}
+
+export interface WalkLeg extends LegSourceNames {
   type: 'WALK';
   from: string;
   to: string;
@@ -175,6 +197,7 @@ export interface WalkLeg {
   a11yRefs?: string[];
   exitInfo?: ExitInfo | null;
   steps?: WalkStep[];
+  stepStreetNames?: StepStreetName[];
   maxSlopePercent?: number | null;
   crossings?: number | null;
   crossingsWithCurbRamp?: number | null;
@@ -195,7 +218,7 @@ export interface BusPlanContext {
   legIndex: number;
 }
 
-export interface BusLeg {
+export interface BusLeg extends LegSourceNames {
   /** Client-side request context, supplied by the containing planned route. */
   planContext?: BusPlanContext;
   scheduledTrip?: {
@@ -235,7 +258,7 @@ export interface BusLeg {
   alerts?: MatchedAlert[];
 }
 
-export interface MetroLeg {
+export interface MetroLeg extends LegSourceNames {
   type: 'METRO';
   railSystem: string;
   lineId: string;
@@ -261,7 +284,7 @@ export interface MetroLeg {
   alerts?: MetroAlert[];
 }
 
-export interface ThsrLeg {
+export interface ThsrLeg extends LegSourceNames {
   type: 'THSR';
   trainNo: string;
   departureStation: string;
@@ -282,7 +305,7 @@ export interface ThsrLeg {
   alerts?: MatchedAlert[];
 }
 
-export interface TraLeg {
+export interface TraLeg extends LegSourceNames {
   type: 'TRA';
   trainNo: string;
   trainTypeName: string;
@@ -389,6 +412,14 @@ export interface HazardAdvisory {
   penaltyPoints: number;
 }
 
+/** Parallel metadata; index belongs only to its sibling string array. */
+export interface RouteMessageDetail {
+  index: number;
+  code: string;
+  params?: Record<string, string | number | boolean>;
+  message: string;
+}
+
 export interface AccessibleRoute {
   routeId: string;
   /** 可重算路線的導航身分。 */
@@ -400,6 +431,7 @@ export interface AccessibleRoute {
   /** 未降級時不存在，判斷要用 `=== true`。 */
   degraded?: boolean;
   warnings?: string[];
+  warningDetails?: RouteMessageDetail[];
   /** 短效 bearer capability，用來啟動語音導航與 `/route/instructions`（30 分鐘 TTL）。 */
   routeToken?: string;
   routeName: string;
@@ -407,11 +439,13 @@ export interface AccessibleRoute {
   transferCount: number;
   legs: RouteLeg[];
   accessibilityHighlights: string[];
+  accessibilityHighlightDetails?: RouteMessageDetail[];
   accessibilityScore?: number;
   accessibilityLabel?: A11yLabel;
   scoreComponents?: ScoreComponents;
   dataConfidence?: 'high' | 'medium' | 'low';
   scoreWarnings?: string[];
+  scoreWarningDetails?: RouteMessageDetail[];
   totalWalkDistanceM?: number;
   facilities?: Record<string, SlimOsmA11y>;
   attribution?: string;
@@ -489,6 +523,7 @@ export interface ApiCoordinate {
 }
 
 export interface AccessibleRouteRequest {
+  language?: RouteLanguage;
   origin?: string | ApiCoordinate;
   destination?: string | ApiCoordinate;
   waypoints?: (string | ApiCoordinate)[];
@@ -539,6 +574,8 @@ export interface NavInstruction {
   stairs?: boolean;
   /** 本指令所屬 leg 的 `polyline` 索引（per-leg），不是串接後整條路徑的索引。 */
   polylineIndex: number | null;
+  /** 路線引擎的步行動作；非步行指引為 null；舊後端沒有此欄位。和使用者朝向無關，不要和 `relativeDirection` 混用。 */
+  maneuver?: WalkRelativeDirection | null;
 }
 
 export type NavWarning = 'WALK_STEPS_UNAVAILABLE' | 'ORS_STEPS_UNAVAILABLE' | 'ROAD_STEPS_UNAVAILABLE';
@@ -580,6 +617,8 @@ export type AccessibleRouteRerouteData = {
   routeToken: string;
   route: AccessibleRoute;
   warnings: string[];
+  /** Paired with this envelope's warnings, NOT route.warnings. */
+  warningDetails?: RouteMessageDetail[];
   currentStepIndex: 0;
   replayed: boolean;
 } & ({ instructions: NavInstruction[]; steps?: never } | { steps: NavInstruction[]; instructions?: never });

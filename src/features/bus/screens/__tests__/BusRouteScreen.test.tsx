@@ -22,6 +22,7 @@ jest.mock('@/features/map', () => ({
   useMapUiStore: (selector: (s: { sheetInset: number }) => number) => selector({ sheetInset: 0 }),
 }));
 jest.mock('@/shared/i18n', () => ({
+  getAppLanguage: () => 'en',
   useAppTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${Object.values(params).join(',')}` : key),
   }),

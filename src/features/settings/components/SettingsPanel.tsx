@@ -71,6 +71,8 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
       </FormSection>
 
       <FormSection title={t('aiMemoryTitle')} footer={t('aiMemoryDesc')}>
+        <FormSwitch label={t('aiConsent.settingLabel')} value={model.aiDataConsent} onValueChange={model.setAiDataConsent} />
+        <FormText tone="secondary">{t('aiConsent.settingHint')}</FormText>
         <FormRow label={t('aiMemoryTitle')} value={model.memoryEnabled ? t('aiMemoryEnabled') : t('aiMemoryDisabled')} onPress={model.openMemory} />
       </FormSection>
 

@@ -48,6 +48,27 @@ describe('getRouteInstructions', () => {
 });
 
 describe('rerouteAccessibleRoute', () => {
+  it('keeps envelope and route warning indices separate, including replay under another language', async () => {
+    const data = {
+      navigationId: 'n', previousRouteVersion: 1, routeVersion: 2, routeToken: 'new-token',
+      replayed: true, currentStepIndex: 0, instructions: [],
+      warnings: ['source alert', 'Sparse data'],
+      warningDetails: [{ index: 1, code: 'ROUTE_DATA_SPARSE', message: 'Sparse data' }],
+      route: { legs: [], warnings: ['Sparse data'], warningDetails: [{ index: 0, code: 'ROUTE_DATA_SPARSE', message: 'Sparse data' }] },
+    };
+    mockFetchRequest.mockResolvedValue(envelope(data));
+    for (const language of ['en', 'zh-TW'] as const) {
+      const response = await rerouteAccessibleRoute({
+        routeToken: 't', currentPosition: { latitude: 25, longitude: 121 },
+        previousRouteVersion: 1, reason: 'MANUAL', clientRequestId: 'same-operation', language,
+      });
+      expect(response.data).toMatchObject(data);
+      expect(response.data?.warningDetails?.[0].index).toBe(1);
+      expect(response.data?.route.warningDetails?.[0].index).toBe(0);
+    }
+    expect(mockFetchRequest.mock.calls.map((call) => call[1].body.language)).toEqual(['en', 'zh-TW']);
+    expect(mockFetchRequest.mock.calls.map((call) => call[1].body.clientRequestId)).toEqual(['same-operation', 'same-operation']);
+  });
   it('whitelists the reroute body', async () => {
     mockFetchRequest.mockResolvedValue(envelope(null));
     const request = JSON.parse(
@@ -79,6 +100,22 @@ describe('rerouteAccessibleRoute', () => {
 });
 
 describe('parseAccessibleRouteData', () => {
+  it('preserves all optional details, source strings and localized supplementary fields', () => {
+    const raw = {
+      legs: [{ type: 'WALK' }],
+      warnings: ['source alert', 'No connector'],
+      warningDetails: [{ index: 1, code: 'ROUTE_WALK_CONNECTOR_UNAVAILABLE', message: 'No connector', params: { gapM: 20 } }],
+      scoreWarnings: ['Conservative score'],
+      scoreWarningDetails: [{ index: 0, code: 'ROUTE_DATA_SPARSE', message: 'Conservative score' }],
+      accessibilityHighlights: ['A toilet nearby'],
+      accessibilityHighlightDetails: [{ index: 0, code: 'ROUTE_TOILET_AVAILABLE', message: 'A toilet nearby', params: { count: 1 } }],
+      factors: [{ text: 'Limited data' }], accessibilitySummary: 'Conservative estimate',
+    };
+    const slopeConstraint = { requestedMaxPercent: 5, enforced: false, note: 'Slope limit not enforced' };
+    const parsed = parseAccessibleRouteData({ routes: [raw], slopeConstraint });
+    expect(parsed?.routes[0]).toMatchObject(raw);
+    expect(parsed?.slopeConstraint).toEqual(slopeConstraint);
+  });
   it('keeps good routes and fills fields Web also treats as optional', () => {
     const data = parseAccessibleRouteData({
       routes: [
@@ -112,6 +149,13 @@ describe('parseAccessibleRouteData', () => {
 });
 
 describe('transport', () => {
+  it.each(['en', 'zh-TW'] as const)('forwards initial planning language %s without changing authentication', async (language) => {
+    mockFetchRequest.mockResolvedValue(envelope({ routes: [] }));
+    await getAccessibleRoute({ query: 'station', language });
+    expect(mockFetchRequest.mock.calls[0][1]).toMatchObject({
+      body: { query: 'station', language }, requireAuth: false,
+    });
+  });
   it('posts the route request and passes the abort signal through', async () => {
     mockFetchRequest.mockResolvedValue(envelope({ routes: [] }));
     const controller = new AbortController();
@@ -162,4 +206,39 @@ describe('transport', () => {
     expect(mockFetchRequest.mock.calls[0][0]).toBe('https://api.test/api/v1/line/route-preview?sessionId=a%2Fb%20c');
     expect(res.data).toBeUndefined();
   });
+});
+
+it('preserves name source/display/sidecar fields and exactly nine WALK machine fields', () => {
+  const step = { relativeDirection: 'CONTINUE', absoluteDirection: null, streetName: '道路', bogusName: false,
+    area: false, stairs: false, steepSlope: false, distanceM: 10, location: [121, 25] };
+  const leg = { type: 'WALK', from: '甲', to: '乙', fromNameEn: 'A', toNameEn: 'B',
+    fromDisplayName: 'A', toDisplayName: 'B', steps: [step],
+    stepStreetNames: [{ index: 0, streetName: '道路', nameEn: 'Road', displayName: 'Road' }],
+    a11yFacilities: [{ osmId: 'id', name: '廁所', nameEn: 'Toilet', displayName: 'Toilet' }] };
+  const parsed = parseAccessibleRouteData({ routes: [{ legs: [leg] }] });
+  expect(parsed?.routes[0].legs[0]).toMatchObject(leg);
+  const walk = parsed?.routes[0].legs[0];
+  expect(walk?.type === 'WALK' && Object.keys(walk.steps![0])).toEqual(Object.keys(step));
+});
+
+it('records plan request language but never treats reroute replay language as original provenance', async () => {
+  const { presentRouteNames } = jest.requireActual('../../domain/routeNames');
+  const route = { routeToken: 't', legs: [{ type: 'WALK', from: '甲', to: '乙', fromNameEn: 'A',
+    fromDisplayName: 'Original display', a11yFacilities: [], polyline: [] }] };
+  mockFetchRequest.mockResolvedValue(envelope({ routes: [route] }));
+  const planned = await getAccessibleRoute({ language: 'en' });
+  expect(presentRouteNames(planned.data!.routes[0], 'en').legs[0].fromDisplayName).toBe('Original display');
+  expect(presentRouteNames(planned.data!.routes[0], 'zh-TW').legs[0].fromDisplayName).toBe('甲');
+  mockFetchRequest.mockResolvedValue(envelope({ route, replayed: true, navigationId: 'n', routeVersion: 2,
+    routeToken: 't', instructions: [] }));
+  const replay = await rerouteAccessibleRoute({ routeToken: 't', language: 'en', currentPosition: { latitude: 25, longitude: 121 },
+    previousRouteVersion: 1, reason: 'MANUAL', clientRequestId: 'same' });
+  // Parser preserves original leg references; use a fresh response object to represent a replay from HTTP.
+  // The replay cannot newly assign request language even though the retry requested English.
+  mockFetchRequest.mockResolvedValue(envelope({ route: JSON.parse(JSON.stringify(route)), replayed: true,
+    navigationId: 'n', routeVersion: 2, routeToken: 't', instructions: [] }));
+  const freshReplay = await rerouteAccessibleRoute({ routeToken: 't', language: 'en', currentPosition: { latitude: 25, longitude: 121 },
+    previousRouteVersion: 1, reason: 'MANUAL', clientRequestId: 'same' });
+  expect(replay.data?.routeToken).toBe('t');
+  expect(presentRouteNames(freshReplay.data!.route, 'en').legs[0].fromDisplayName).toBe('A');
 });

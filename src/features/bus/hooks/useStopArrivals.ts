@@ -1,3 +1,4 @@
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { useEffect, useRef, useState } from 'react';
 
 import { ApiError } from '@/shared/api';
@@ -17,25 +18,26 @@ export type StopArrivalsStatus = 'loading' | 'ready' | 'unavailable' | 'error';
 
 export interface StopArrivalsState {
   status: StopArrivalsStatus;
+  stopDisplayName?: string;
   arrivals: StopArrival[];
   refreshing: boolean;
   refresh: () => Promise<void>;
 }
 
-type FetchResult = { ok: true; arrivals: StopArrival[] } | { ok: false; unavailable: boolean };
+type FetchResult = { ok: true; arrivals: StopArrival[]; stopDisplayName?: string } | { ok: false; unavailable: boolean };
 
-async function fetchArrivals(stopName: string, city: string, position: LatLng, signal?: AbortSignal): Promise<FetchResult> {
+async function fetchArrivals(stopName: string, city: string, position: LatLng, signal?: AbortSignal, lang?: ReturnType<typeof getAppLanguage>): Promise<FetchResult> {
   try {
-    const res = await getStopArrivals({ stopName, city, position }, signal);
+    const res = await getStopArrivals({ stopName, city, position }, signal, lang);
     if (!res.ok || !res.data) return { ok: false, unavailable: false };
-    return { ok: true, arrivals: res.data.arrivals };
+    return { ok: true, arrivals: res.data.arrivals, stopDisplayName: res.data.stopDisplayName };
   } catch (error) {
     return { ok: false, unavailable: error instanceof ApiError && error.code === 404 };
   }
 }
 
-function toState(key: string, result: FetchResult): { key: string; status: StopArrivalsStatus; arrivals: StopArrival[] } {
-  if (result.ok) return { key, status: 'ready', arrivals: result.arrivals };
+function toState(key: string, result: FetchResult): { key: string; status: StopArrivalsStatus; stopDisplayName?: string; arrivals: StopArrival[] } {
+  if (result.ok) return { key, status: 'ready', stopDisplayName: result.stopDisplayName, arrivals: result.arrivals };
   return { key, status: result.unavailable ? 'unavailable' : 'error', arrivals: [] };
 }
 
@@ -47,10 +49,12 @@ function toState(key: string, result: FetchResult): { key: string; status: StopA
  * 資料連同它屬於哪個站牌一起存，換站牌後才完成的舊請求（輪詢或手動更新）不會寫入。
  */
 export function useStopArrivals(stopName: string, city: string, position: LatLng | null, active: boolean): StopArrivalsState {
+  useAppTranslation();
+  const lang = getAppLanguage();
   const lat = position?.lat ?? null;
   const lng = position?.lng ?? null;
-  const key = `${city}::${stopName}::${lat ?? ''},${lng ?? ''}`;
-  const initial = (forKey: string): { key: string; status: StopArrivalsStatus; arrivals: StopArrival[] } => ({
+  const key = `${lang}::${city}::${stopName}::${lat ?? ''},${lng ?? ''}`;
+  const initial = (forKey: string): { key: string; status: StopArrivalsStatus; stopDisplayName?: string; arrivals: StopArrival[] } => ({
     key: forKey,
     status: position ? 'loading' : 'unavailable',
     arrivals: [],
@@ -74,7 +78,7 @@ export function useStopArrivals(stopName: string, city: string, position: LatLng
           manual.current = null;
           setRefreshingKey(null);
         }
-        const result = await fetchArrivals(stopName, city, { lat, lng }, signal);
+        const result = await fetchArrivals(stopName, city, { lat, lng }, signal, lang);
         if (!signal.aborted && generation.current === mine && requests.current === request) setState(toState(key, result));
       },
     });
@@ -84,7 +88,7 @@ export function useStopArrivals(stopName: string, city: string, position: LatLng
       manual.current?.abort();
       poller.stop();
     };
-  }, [stopName, city, lat, lng, active, key]);
+  }, [stopName, city, lat, lng, active, key, lang]);
 
   const refresh = async () => {
     if (lat === null || lng === null) return;
@@ -94,7 +98,7 @@ export function useStopArrivals(stopName: string, city: string, position: LatLng
     const controller = new AbortController();
     manual.current = controller;
     setRefreshingKey(key);
-    const result = await fetchArrivals(stopName, city, { lat, lng }, controller.signal);
+    const result = await fetchArrivals(stopName, city, { lat, lng }, controller.signal, lang);
     if (manual.current === controller && generation.current === mine) {
       manual.current = null;
       setRefreshingKey(null);
@@ -104,5 +108,5 @@ export function useStopArrivals(stopName: string, city: string, position: LatLng
   };
 
   const current = state.key === key ? state : initial(key);
-  return { status: current.status, arrivals: current.arrivals, refreshing: refreshingKey === key, refresh };
+  return { stopDisplayName: current.stopDisplayName, status: current.status, arrivals: current.arrivals, refreshing: refreshingKey === key, refresh };
 }

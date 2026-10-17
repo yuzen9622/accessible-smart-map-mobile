@@ -1,3 +1,4 @@
+import { getAppLanguage, type AppLanguage } from '@/shared/i18n';
 import type { BusLeg } from '@/features/route';
 
 import { fetchRouteDetailCached } from '../api/busRouteDetailCache';
@@ -57,11 +58,11 @@ export interface LegSnapshot {
 const NO_ARRIVAL: LegArrival = { eta: null };
 
 /** 實際營運的支線與方向（GTFS 方向不可信）；認不出唯一乘車區間就回 null。 */
-async function resolveSelection(leg: BusLeg): Promise<{ selection: RideSelection; stops: RouteDetailStop[] } | null> {
+async function resolveSelection(leg: BusLeg, lang: AppLanguage): Promise<{ selection: RideSelection; stops: RouteDetailStop[] } | null> {
   if (!leg.planContext) return null;
   // route-detail 已被站序預熱，通常是讀快取。
   const city = leg.tdxCity ?? leg.cityCode ?? '';
-  const directions = city ? await fetchRouteDetailCached(tdxRouteName(leg), city, { subRouteUid: leg.subRouteUid, planContext: leg.planContext }) : null;
+  const directions = city ? await fetchRouteDetailCached(tdxRouteName(leg), city, { subRouteUid: leg.subRouteUid, planContext: leg.planContext, lang }) : null;
   const ride = resolveLegRide(directions ?? undefined, leg);
   if (!ride) return null;
   // 站序資料沒有帶支線 ID 時，退回規劃器訂的那一支：回傳紀錄若自稱別的支線就能被排除。
@@ -75,17 +76,17 @@ async function resolveSelection(leg: BusLeg): Promise<{ selection: RideSelection
  * 解析本 leg 使用者要搭的那一台車，連同該班次在上車站的 ETA。無法鎖定車牌時 `buses` 為空陣列：認不出來的車比沒有更糟，
  * 因為「這條線上的某台車」的 marker 會被讀成「你的車」；ETA 只採後端已確認的班次；未確認時由介面顯示原定時刻。
  */
-export async function fetchLegSnapshot(leg: BusLeg, signal: AbortSignal): Promise<LegSnapshot> {
+export async function fetchLegSnapshot(leg: BusLeg, signal: AbortSignal, lang: AppLanguage = getAppLanguage()): Promise<LegSnapshot> {
   // 認不出唯一乘車區間（重複站名、多個候選、缺資料、方向未知）就不追車：保留排程，不猜。
   if (signal.aborted) return { buses: [], arrival: NO_ARRIVAL };
-  const resolved = await resolveSelection(leg);
+  const resolved = await resolveSelection(leg, lang);
   if (!resolved || signal.aborted) return { buses: [], arrival: NO_ARRIVAL };
   const { selection, stops } = resolved;
 
   const board = stops[0];
   const arrival = { plate: board?.plateNumb, eta: board?.estimateMinutes ?? null };
   if (!arrival.plate || arrival.eta === null) return { buses: [], arrival: NO_ARRIVAL };
-  const posRes = await getLiveBusPositions({ routeName: tdxRouteName(leg), city: leg.tdxCity, direction: selection.direction }, signal);
+  const posRes = await getLiveBusPositions({ routeName: tdxRouteName(leg), city: leg.tdxCity, direction: selection.direction }, signal, lang);
   if (signal.aborted) return { buses: [], arrival: NO_ARRIVAL };
   const legArrival: LegArrival = arrival.plate ? { eta: arrival.eta, plate: arrival.plate } : { eta: arrival.eta };
 
@@ -120,22 +121,23 @@ export async function fetchLegSnapshot(leg: BusLeg, signal: AbortSignal): Promis
 }
 
 /** {@link fetchLegSnapshot} 只取車輛（路線卡展開時的 marker）。 */
-export async function fetchLeg(leg: BusLeg, signal: AbortSignal): Promise<LiveBus[]> {
-  return (await fetchLegSnapshot(leg, signal)).buses;
+export async function fetchLeg(leg: BusLeg, signal: AbortSignal, lang: AppLanguage = getAppLanguage()): Promise<LiveBus[]> {
+  return (await fetchLegSnapshot(leg, signal, lang)).buses;
 }
 
 /**
  * 已上車：使用者那台車（`plate`）到**下車站**的分鐘數。只採同站、同支線、同方向、同車牌的那一筆——
  * 下車站的下一班常是前一班車，拿它的數字會把剩餘時間報短。對不上或查詢失敗回 null，由呼叫端改用估算。
  */
-export async function fetchRideArrival(leg: BusLeg, plate: string, signal: AbortSignal): Promise<number | null> {
-  const resolved = await resolveSelection(leg);
+export async function fetchRideArrival(leg: BusLeg, plate: string, signal: AbortSignal, lang: AppLanguage = getAppLanguage()): Promise<number | null> {
+  const resolved = await resolveSelection(leg, lang);
   if (!resolved) return null;
   const { selection } = resolved;
   try {
     const res = await getBusArrival(
       { routeName: tdxRouteName(leg), stopName: leg.arrivalStop, direction: selection.direction, city: leg.tdxCity },
       signal,
+      lang,
     );
     if (!res.ok || !res.data?.arrivals) return null;
     const mine = res.data.arrivals.find(

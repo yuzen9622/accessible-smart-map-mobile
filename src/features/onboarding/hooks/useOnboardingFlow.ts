@@ -163,6 +163,8 @@ export function useOnboardingFlow() {
     totalSteps: ONBOARDING_STEP_IDS.length,
     progressText: t('onboarding.stepOf', { current: stepIndex + 1, total: ONBOARDING_STEP_IDS.length }),
     canGoBack: stepIndex > 0,
+    // App Store 5.1.1(iv)：定位說明頁之後一定要接系統權限框，不能提供「略過」讓使用者繞過或延後請求。
+    canSkip: ONBOARDING_STEP_IDS[stepIndex] !== 'location',
     onBack: goBack,
     onSkip: handleSkip,
 
@@ -216,9 +218,8 @@ export function useOnboardingFlow() {
         t('onboarding.location.benefit3'),
       ],
       privacy: t('onboarding.location.privacy'),
-      allowLabel: t('onboarding.location.allow'),
+      continueLabel: t('onboarding.location.continue'),
       requestingLabel: t('onboarding.location.requesting'),
-      manualLabel: t('onboarding.location.manual'),
       nextLabel: t('onboarding.next'),
       state: locationState,
       outcomeText:

@@ -6,6 +6,7 @@ import {
   isCreateContactResult,
   isCreateSosSessionResult,
   isEmergencyContact,
+  isRotateSosShareTokenResult,
   isSosPublicSession,
   isSosSnapshot,
   normalizeContact,
@@ -13,6 +14,7 @@ import {
   type CreateSosSessionInput,
   type CreateSosSessionResult,
   type EmergencyContact,
+  type RotateSosShareTokenResult,
   type SosPublicSession,
   type SosSnapshot,
 } from '../domain/types';
@@ -64,6 +66,13 @@ export async function updateSosLocation(sessionId: string, body: { lat: number; 
 export async function resolveSosSession(sessionId: string): Promise<void> {
   const res = await authenticatedRequest(`${SOS}/${encodeURIComponent(sessionId)}/resolve`, { method: 'PATCH' });
   if (!ok(res)) throw new ApiError(res.message, res.code);
+}
+
+/** 換發公開追蹤 token；舊連結與舊 viewer 紀錄立即失效。 */
+export async function rotateSosShareToken(sessionId: string): Promise<RotateSosShareTokenResult> {
+  const res = await authenticatedRequest(`${SOS}/${encodeURIComponent(sessionId)}/share-token`, { method: 'POST' });
+  if (!ok(res) || !isRotateSosShareTokenResult(res.data)) throw new ApiError(res.message, res.code);
+  return res.data;
 }
 
 /** 只有發起者能讀的完整快照：首次載入、輪詢備援、重啟復原都用它。 */

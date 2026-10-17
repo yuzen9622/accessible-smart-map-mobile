@@ -1,4 +1,5 @@
 import { fetchRequest } from '@/shared/api';
+import { getAppLanguage, type AppLanguage } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import { appStorage, readJson } from '@/shared/storage';
 
@@ -25,18 +26,18 @@ function isFacilityCache(value: unknown): value is FacilityCache {
   );
 }
 
-export function readCachedFacilities(now = Date.now()): { facilities: Facility[]; fresh: boolean } | null {
-  const cache = readJson<FacilityCache | null>(appStorage, CACHE_KEY, isFacilityCache, null);
+export function readCachedFacilities(now = Date.now(), lang: AppLanguage = getAppLanguage()): { facilities: Facility[]; fresh: boolean } | null {
+  const cache = readJson<FacilityCache | null>(appStorage, `${CACHE_KEY}.${lang}`, isFacilityCache, null);
   if (!cache) return null;
   return { facilities: parseFacilities(cache.items), fresh: now - cache.savedAt < FACILITIES_CACHE_TTL_MS };
 }
 
-export async function fetchFacilities(signal?: AbortSignal): Promise<Facility[]> {
-  const response = await fetchRequest(FACILITIES_PATH, { signal });
+export async function fetchFacilities(signal?: AbortSignal, lang: AppLanguage = getAppLanguage()): Promise<Facility[]> {
+  const response = await fetchRequest(`${FACILITIES_PATH}&lang=${lang}`, { signal });
   const items = Array.isArray(response.data) ? response.data : [];
   try {
     const cache: FacilityCache = { savedAt: Date.now(), items };
-    appStorage.set(CACHE_KEY, JSON.stringify(cache));
+    if (!signal?.aborted) appStorage.set(`${CACHE_KEY}.${lang}`, JSON.stringify(cache));
   } catch (error) {
     logger.warn('[facilities] cache write failed', error);
   }

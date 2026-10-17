@@ -37,6 +37,14 @@ describe('interpretChatSseEvent（後端標準 SSE）', () => {
     });
   });
 
+  it('reads SSE data.reason while preserving numeric code and tool result.reason separately', () => {
+    expect(ev('error', JSON.stringify({ code: 500, message: 'fallback', reason: 'WRONG_LEVEL', data: { reason: 'AI_EMPTY_RESPONSE' } })))
+      .toEqual({ type: 'error', code: 500, message: 'fallback', reason: 'AI_EMPTY_RESPONSE' });
+    const result = { reason: 'NO_ROUTE', error: 'No route', ok: false };
+    expect(ev('tool_result', JSON.stringify({ name: 'plan_route', result })))
+      .toMatchObject({ type: 'tool-result', result });
+  });
+
   it('error：有 code 與 message；缺 code 為 null', () => {
     expect(ev('error', JSON.stringify({ code: 429, message: '太多請求' }))).toEqual({
       type: 'error',

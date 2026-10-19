@@ -1,8 +1,7 @@
 import { Camera, Layer, Map, NativeUserLocation } from '@maplibre/maplibre-react-native';
 import { router, useIsFocused, usePathname } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Keyboard, Pressable, StyleSheet, View, useColorScheme } from 'react-native';
-import Reanimated, { FadeIn, FadeOut, useReducedMotion } from 'react-native-reanimated';
+import { Animated, Keyboard, StyleSheet, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTranslation } from '@/shared/i18n';
@@ -84,9 +83,6 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
   const selectedCategories = useFacilityStore((state) => state.selected);
   const toggleCategory = useFacilityStore((state) => state.toggleCategory);
   const toggleParking = useFacilityStore((state) => state.toggleParking);
-  // 「圖層」鈕點開才展開這排圖示；常駐會擋住地圖視野（使用者回饋 2026-10-15）。
-  const [layersBarOpen, setLayersBarOpen] = useState(false);
-  const reduceMotion = useReducedMotion();
   // 初始相機只在第一次 render 決定（之後由 mapCamera 控制）
   const [initialCamera] = useState(() =>
     resolveInitialCamera(readJson(appStorage, LAST_USER_LOCATION_KEY, isLatLng, null)),
@@ -247,13 +243,6 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
               onPress: () => void handleLocate(),
             },
             {
-              key: 'layers',
-              label: t('nativeMapLayers'),
-              systemImage: 'square.3.layers.3d',
-              shortLabel: '◫',
-              onPress: () => setLayersBarOpen((value) => !value),
-            },
-            {
               // 2D／3D 跟設施圖層篩選放在同一排圖示時使用者分不出哪顆在控制視角（使用者回饋：那排
               // 圖示長得都一樣，圈起來那顆其實只是在切 2D／3D）；獨立成自己的常駐按鈕。
               key: 'toggle3d',
@@ -266,41 +255,34 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
         />
       </Animated.View>
       )}
-      {layersBarOpen ? (
-        <>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            onPress={() => setLayersBarOpen(false)}
+      {/* 設施篩選常駐貼在 sheet 上緣（使用者回饋：右邊「圖層」按鈕/彈出卡片不需要了，改成像搜尋框
+          上方那排一樣直接看得到、點得到，不用先點開）。 */}
+      {navigationMode ? null : (
+        <Animated.View
+          pointerEvents="box-none"
+          style={[styles.facilityBar, { bottom: sheetInset + 12, opacity: controlsOpacity }]}>
+          <MapLayersBar
+            facilityToggles={[
+              ...PINNED_FACILITY_CATEGORIES.map((category) => ({
+                key: category as string,
+                label: t(LAYER_LABEL_KEY[category]),
+                iconName: category,
+                systemImage: LAYER_SYSTEM_IMAGE[category],
+                selected: selectedCategories.includes(category),
+                onToggle: () => toggleCategory(category),
+              })),
+              {
+                key: 'parking',
+                label: t('railParking'),
+                iconName: 'parking',
+                systemImage: 'parkingsign.square.fill',
+                selected: showParking,
+                onToggle: toggleParking,
+              },
+            ]}
           />
-          <Reanimated.View
-            entering={reduceMotion ? undefined : FadeIn.duration(140)}
-            exiting={reduceMotion ? undefined : FadeOut.duration(120)}
-            style={[styles.layersBar, { top: insets.top + 56 + 116 }]}>
-            <MapLayersBar
-              facilityToggles={[
-                ...PINNED_FACILITY_CATEGORIES.map((category) => ({
-                  key: category as string,
-                  label: t(LAYER_LABEL_KEY[category]),
-                  iconName: category,
-                  systemImage: LAYER_SYSTEM_IMAGE[category],
-                  selected: selectedCategories.includes(category),
-                  onToggle: () => toggleCategory(category),
-                })),
-                {
-                  key: 'parking',
-                  label: t('railParking'),
-                  iconName: 'parking',
-                  systemImage: 'parkingsign.square.fill',
-                  selected: showParking,
-                  onToggle: toggleParking,
-                },
-              ]}
-            />
-          </Reanimated.View>
-        </>
-      ) : null}
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -316,5 +298,5 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
   controls: { position: 'absolute', right: 16 },
-  layersBar: { position: 'absolute', right: 16, alignItems: 'flex-end' },
+  facilityBar: { position: 'absolute', left: 16, right: 16 },
 });

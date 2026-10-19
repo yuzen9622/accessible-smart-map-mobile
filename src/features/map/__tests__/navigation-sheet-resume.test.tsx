@@ -1,6 +1,8 @@
 import { act, render } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
+import { useSplashStore } from '@/shared/ui/splashStore';
+
 import MapScreen from '../components/MapScreen';
 import { useMapUiStore } from '../store/mapUiStore';
 
@@ -8,13 +10,7 @@ let mockFocused = true;
 jest.mock('expo-router', () => ({
   router: { navigate: jest.fn() },
   usePathname: () => '/',
-  useFocusEffect: (callback: () => void) => {
-    const React = jest.requireActual<typeof import('react')>('react');
-    const focused = mockFocused;
-    React.useEffect(() => {
-      if (focused) return callback();
-    }, [callback, focused]);
-  },
+  useIsFocused: () => mockFocused,
 }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../hooks/useBasemapStyle', () => ({ useBasemapStyle: () => ({ status: 'loading' }) }));
@@ -33,6 +29,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockFocused = true;
   useMapUiStore.setState({ sheetInset: 0, sheetDetentIndex: 0 });
+  // `MapScreen` 要等 `SplashIntro` 淡出動畫結束才 navigate（見元件內註解）；splash 預設 `done: false`。
+  useSplashStore.setState({ done: true });
 });
 
 it('restores the navigation panel when the map regains focus during navigation', async () => {

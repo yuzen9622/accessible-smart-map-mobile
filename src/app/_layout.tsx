@@ -148,6 +148,7 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
       <Stack.Screen name="content-report" options={{ presentation: 'modal', headerShown: true, title: t('contentReport'), headerLeft: () => <HeaderCloseButton /> }} />
       <Stack.Screen name="review" options={{ presentation: 'modal', headerShown: true }} />
       <Stack.Screen name="train" options={{ presentation: 'modal', headerShown: true }} />
+      <Stack.Screen name="environment" options={{ presentation: 'modal', headerShown: true }} />
       {/* 聊天只有一個：已開著時再開（深層連結 `chat?q=`）沿用同一個 modal，只換預填問題 */}
       <Stack.Screen name="chat" dangerouslySingular={() => 'chat'} options={{ presentation: 'modal', headerShown: true }} />
     </Stack>

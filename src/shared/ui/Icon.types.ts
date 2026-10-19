@@ -94,7 +94,9 @@ export type IconName =
   | 'fuel'
   | 'bedDouble'
   | 'thermometer'
-  | 'cuboid';
+  | 'cuboid'
+  | 'cloudSun'
+  | 'droplets';
 
 export interface IconProps {
   name: IconName;

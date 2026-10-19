@@ -156,7 +156,12 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
         style={styles.map}
         mapStyle={basemap.style}
         logo={false}
-        compass={false}
+        // 一般瀏覽不需要指南針（地圖預設朝北，不會旋轉）；導航中鏡頭會跟著行進方向轉動，
+        // 朝向不再直觀，需要指南針才看得出「北」在哪（使用者回饋，參考 Google 地圖導航畫面）。
+        // 貼在收合列上緣（用 sheetInset 定位，跟設施篩選列同一招），不擋 HUD 橫幅與轉彎指示。
+        compass={navigationMode}
+        compassPosition={{ bottom: sheetInset + 16, right: 16 }}
+        compassHiddenFacingNorth={false}
         onRegionWillChange={(event) => {
           const { userInteraction, center, zoom, bounds } = event.nativeEvent;
           panStart.current = userInteraction ? { sample: { center, zoom, bounds }, collapsed: false } : null;

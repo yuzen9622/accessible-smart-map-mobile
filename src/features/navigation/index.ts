@@ -1,6 +1,6 @@
 // navigation feature 公開出口。
 export { startNavigation, stopNavigation } from './controller/navigationLifecycle';
-export { beginNavigation, endArrivedNavigation, endNavigation } from './controller/navigationSession';
+export { beginNavigation, endNavigation } from './controller/navigationSession';
 export { localRerouteCoordinator, REROUTE_COOLDOWN_MS } from './controller/localRerouteCoordinator';
 export { applyRouteReplacement, handleVoiceRerouteEvent, normalizeRerouteReplacement } from './controller/rerouteCoordinator';
 export type { RouteReplacement, VoiceRerouteCoordinatorEvent } from './controller/rerouteCoordinator';

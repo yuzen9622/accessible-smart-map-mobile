@@ -7,7 +7,7 @@ import { useAppTranslation } from '@/shared/i18n';
 import { useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
-import { endArrivedNavigation } from '../controller/navigationSession';
+import { endNavigation } from '../controller/navigationSession';
 import { stepIcon } from '../domain/navStepIcon';
 import NavigationTripBar from '../components/NavigationTripBar';
 import { useNavStore } from '../store/navStore';
@@ -55,7 +55,7 @@ export default function NavigationStepsScreen() {
             <Icon name="circleCheck" size={28} color="#1B7F3B" />
             <Text style={[styles.text, { color: colors.text }]}>{arrived ? t('arrived') : t('preparingNav')}</Text>
             {isNavigating ? (
-              <Pressable accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endArrivedNavigation} style={styles.end}>
+              <Pressable accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.end}>
                 <Text style={styles.endText}>{t('endNav')}</Text>
               </Pressable>
             ) : null}

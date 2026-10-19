@@ -11,7 +11,7 @@ import { ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors } from '
 import { AnimatedNumberText, GlassCard, Icon } from '@/shared/ui';
 
 import { localRerouteCoordinator } from '../controller/localRerouteCoordinator';
-import { endNavigation } from '../controller/navigationSession';
+import { endArrivedNavigation, endNavigation } from '../controller/navigationSession';
 import { rerouteStripText, stripStepDistance } from '../domain/hudProgress';
 import { findLegHandoffIndex, isVehicleLegType, resolveActiveLegType } from '../domain/legMode';
 import { stepIcon } from '../domain/navStepIcon';
@@ -127,7 +127,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                 <Text style={styles.bannerInstruction}>{t('arrivedDesc')}</Text>
               </View>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.arrivedButton}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endArrivedNavigation} style={styles.arrivedButton}>
               <Text style={styles.arrivedButtonText}>{t('endNav')}</Text>
             </Pressable>
           </View>

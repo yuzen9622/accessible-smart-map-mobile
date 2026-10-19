@@ -254,14 +254,13 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
               onPress: () => setLayersBarOpen((value) => !value),
             },
             {
-              // 規劃路線在首頁 sheet 要滑開才看得到；地圖常駐一顆，不必先展開 sheet 才能開始規劃
-              // （使用者回饋 2026-10-17：跟網頁版左側常駐入口比，手機版這個功能太容易被忽略）。
-              key: 'planRoute',
-              label: t('planRoute'),
-              systemImage: 'signpost.right.and.left.fill',
-              shortLabel: '➜',
-              variant: 'primary',
-              onPress: () => router.navigate('/plan'),
+              // 2D／3D 跟設施圖層篩選放在同一排圖示時使用者分不出哪顆在控制視角（使用者回饋：那排
+              // 圖示長得都一樣，圈起來那顆其實只是在切 2D／3D）；獨立成自己的常駐按鈕。
+              key: 'toggle3d',
+              label: is3d ? t('switchTo2D') : t('switchTo3D'),
+              systemImage: 'cube',
+              shortLabel: is3d ? '2D' : '3D',
+              onPress: () => void handleToggle3d(),
             },
           ]}
         />
@@ -280,8 +279,6 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
             exiting={reduceMotion ? undefined : FadeOut.duration(120)}
             style={[styles.layersBar, { top: insets.top + 56 + 116 }]}>
             <MapLayersBar
-              is3d={is3d}
-              onToggle3d={() => void handleToggle3d()}
               facilityToggles={[
                 ...PINNED_FACILITY_CATEGORIES.map((category) => ({
                   key: category as string,

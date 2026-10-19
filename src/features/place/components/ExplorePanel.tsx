@@ -2,7 +2,7 @@ import { Text, TextInput } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { useFontScale } from '@/shared/preferences';
-import { ACCENT_FILL, BUTTON_HEIGHT, RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { ExplorePanelProps, ExploreRow } from './ExplorePanel.types';
@@ -191,15 +191,28 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
         </>
       ) : model.mode === 'idle' ? (
         <>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={model.planRoute.accessibilityLabel}
-            onPress={model.planRoute.onPress}
-            style={({ pressed }) => [styles.planRouteButton, pressed && styles.pressed]}>
-            <Icon name="navigation" size={20} color="#FFFFFF" />
-            <Text style={styles.planRouteText}>{model.planRoute.label}</Text>
-            <Icon name="chevronRight" size={16} color="#FFFFFF" />
-          </Pressable>
+          <View style={styles.section}>
+            <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>
+              {model.labels.quickServices}
+            </Text>
+            <View style={styles.quickGrid}>
+              {model.quickActions.map((action) => (
+                <Pressable
+                  key={action.key}
+                  accessibilityRole="button"
+                  accessibilityLabel={action.label}
+                  onPress={action.onPress}
+                  style={({ pressed }) => [styles.quickTile, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
+                  <View style={[styles.quickTileIcon, { backgroundColor: action.color }]}>
+                    <Icon name={action.iconName} size={20} color="#FFFFFF" />
+                  </View>
+                  <Text style={[styles.quickTileText, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
+                    {action.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
 
           {model.nearbySummary ? (
             <Pressable
@@ -376,16 +389,6 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
   },
   needsText: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
-  planRouteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACE.sm,
-    minHeight: BUTTON_HEIGHT,
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: SPACE.lg,
-    backgroundColor: ACCENT_FILL,
-  },
-  planRouteText: { flex: 1, color: '#FFFFFF', fontSize: TYPE.body, fontWeight: '700' },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
   addShortcutButton: { minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center' },
   shortcutFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.sm, marginBottom: SPACE.sm },
@@ -412,6 +415,24 @@ const styles = StyleSheet.create({
   },
   shortcutTitle: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
   shortcutMeta: { fontSize: 12, textAlign: 'center' },
+  quickGrid: { flexDirection: 'row', gap: SPACE.sm },
+  quickTile: {
+    flex: 1,
+    minHeight: 84,
+    borderRadius: RADIUS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: SPACE.sm,
+    paddingHorizontal: 4,
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  quickTileIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  quickTileText: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
   facilityGrid: { flexDirection: 'row', gap: SPACE.sm },
   facilityTile: {
     flex: 1,

@@ -8,6 +8,7 @@ import {
   mapCamera,
   sheetBottomInset,
   sheetController,
+  sheetNavigation,
   useMapUiStore,
   useNearbySummary,
   useUserLocationStore,
@@ -218,7 +219,8 @@ export function useExploreViewModel(): ExploreViewModel {
     mapCamera.flyTo([entry.position.lng, entry.position.lat], 17);
     Keyboard.dismiss();
     setSearchFocused(false);
-    router.navigate(placeDetailHref(entry));
+    // 從搜尋建議開啟時要先等地點詳情 API，期間使用者可能已開了 modal
+    sheetNavigation.whenVisible(() => router.navigate(placeDetailHref(entry)));
   };
 
   const handlePickSuggestion = async (item: AutocompleteItem) => {

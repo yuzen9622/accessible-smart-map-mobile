@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 
-import { mapCamera } from '@/features/map';
+import { mapCamera, sheetNavigation } from '@/features/map';
 import { fitSelectedRoute } from '@/features/route';
 import { startBackgroundLocation, stopBackgroundLocation, type BackgroundLocationTexts } from '@/shared/location';
 import { logger } from '@/shared/logger';
@@ -20,7 +20,7 @@ export function beginNavigation(texts: BackgroundLocationTexts): void {
   // Web 預設不播報（瀏覽器要使用者手勢才能發聲）；原生沒有這個限制，導航一開始就播報，
   // 使用者可在 HUD 關掉（差異記在 port-ledger）。
   useNavStore.getState().setVoiceEnabled(true);
-  router.navigate('/navigation');
+  sheetNavigation.whenVisible(() => router.navigate('/navigation'));
   const run = async () => {
     try {
       await startBackgroundLocation(texts);
@@ -48,6 +48,8 @@ export function endNavigation(): void {
   void run();
   // 回到路線結果：堆疊裡有 `/routes` 就退回它，沒有（例：深層連結直接開導航）就把目前畫面換成它。
   // 不用 router.back()：導航頁的上一頁不一定是路線頁（從明細頁開始導航時是明細）。
-  router.dismissTo('/routes');
+  // sheet 被蓋住期間開始又結束（語音）時導航頁從沒顯示過：dismissTo 會把 sheet 底層的首頁換掉，改成推上路線結果。
+  const backToRoutes = sheetNavigation.hasPending() ? () => router.navigate('/routes') : () => router.dismissTo('/routes');
+  sheetNavigation.whenVisible(backToRoutes);
   fitSelectedRoute();
 }

@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 
-import { mapCamera } from '@/features/map';
+import { mapCamera, sheetNavigation } from '@/features/map';
 import { applyAiRoutePlan, applyComputedRoutes, fitSelectedRoute } from '@/features/route';
 import type { LatLng } from '@/shared/geo';
 
@@ -62,7 +62,7 @@ export function closeChat(): void {
 
 export function openRoutePanel(): void {
   closeChat();
-  router.navigate('/routes');
+  sheetNavigation.whenVisible(() => router.navigate('/routes'));
 }
 
 export function executeAction(action: UIAction): ActionResult {
@@ -108,6 +108,6 @@ export function openAiResult(item: ToolResultItem): void {
   mapCamera.flyTo(lngLat(position), 17);
   if (marker?.kind === 'place' && marker.googlePlaceId) {
     const id = marker.googlePlaceId.startsWith('google:') ? marker.googlePlaceId : `google:${marker.googlePlaceId}`;
-    router.navigate({ pathname: '/place/[id]', params: { id } });
+    sheetNavigation.whenVisible(() => router.navigate({ pathname: '/place/[id]', params: { id } }));
   }
 }

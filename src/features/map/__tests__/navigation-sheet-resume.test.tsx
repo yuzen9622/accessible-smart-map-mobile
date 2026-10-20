@@ -1,6 +1,8 @@
 import { act, render } from '@testing-library/react-native';
 import { router } from 'expo-router';
 
+import { useSplashStore } from '@/shared/ui/splashStore';
+
 import MapScreen from '../components/MapScreen';
 import { useMapUiStore } from '../store/mapUiStore';
 
@@ -8,13 +10,7 @@ let mockFocused = true;
 jest.mock('expo-router', () => ({
   router: { navigate: jest.fn() },
   usePathname: () => '/',
-  useFocusEffect: (callback: () => void) => {
-    const React = jest.requireActual<typeof import('react')>('react');
-    const focused = mockFocused;
-    React.useEffect(() => {
-      if (focused) return callback();
-    }, [callback, focused]);
-  },
+  useIsFocused: () => mockFocused,
 }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('../hooks/useBasemapStyle', () => ({ useBasemapStyle: () => ({ status: 'loading' }) }));
@@ -33,6 +29,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockFocused = true;
   useMapUiStore.setState({ sheetInset: 0, sheetDetentIndex: 0 });
+  useSplashStore.setState({ done: true });
 });
 
 it('restores the navigation panel when the map regains focus during navigation', async () => {
@@ -52,6 +49,43 @@ it('opens search when no navigation is active', async () => {
 it('does not present a sheet before onboarding completes', async () => {
   await render(<MapScreen navigationMode homeSheetEnabled={false} />);
   expect(router.navigate).not.toHaveBeenCalled();
+});
+
+it.each([
+  { navigationMode: false, destination: '/explore' },
+  { navigationMode: true, destination: '/navigation' },
+])('waits for splash completion before opening $destination', async ({ navigationMode, destination }) => {
+  useSplashStore.setState({ done: false });
+  await render(<MapScreen navigationMode={navigationMode} />);
+  expect(router.navigate).not.toHaveBeenCalled();
+
+  await act(() => useSplashStore.getState().markDone());
+  expect(router.navigate).toHaveBeenCalledTimes(1);
+  expect(router.navigate).toHaveBeenCalledWith(destination);
+});
+
+it('does not open a sheet when splash completes while the map is not focused', async () => {
+  mockFocused = false;
+  useSplashStore.setState({ done: false });
+  const view = await render(<MapScreen navigationMode />);
+  await act(() => useSplashStore.getState().markDone());
+  expect(router.navigate).not.toHaveBeenCalled();
+
+  mockFocused = true;
+  await view.rerender(<MapScreen navigationMode />);
+  expect(router.navigate).toHaveBeenCalledTimes(1);
+  expect(router.navigate).toHaveBeenCalledWith('/navigation');
+});
+
+it('does not open a sheet when splash completes before onboarding', async () => {
+  useSplashStore.setState({ done: false });
+  const view = await render(<MapScreen homeSheetEnabled={false} />);
+  await act(() => useSplashStore.getState().markDone());
+  expect(router.navigate).not.toHaveBeenCalled();
+
+  await view.rerender(<MapScreen homeSheetEnabled />);
+  expect(router.navigate).toHaveBeenCalledTimes(1);
+  expect(router.navigate).toHaveBeenCalledWith('/explore');
 });
 
 it('does not repeat navigation on unrelated map updates while focused', async () => {

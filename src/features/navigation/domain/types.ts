@@ -7,6 +7,15 @@ import type { RerouteReason } from '@/features/route/domain';
 
 export type HeadingSource = 'compass' | 'gps' | null;
 export type NavigationSource = 'local' | 'voice';
+export interface VoiceTransit {
+  onVehicle: boolean;
+  leg: {
+    mode: 'BUS' | 'METRO' | 'TRA' | 'THSR';
+    from: string;
+    to: string;
+    routeName?: string;
+  } | null;
+}
 export type RerouteStatus = 'idle' | 'pending' | 'error';
 export type NavViewMode = '3d' | '2d';
 /**
@@ -26,6 +35,7 @@ export type VoiceStatusName =
   | 'ready'
   | 'listening'
   | 'model-speaking'
+  | 'ending'
   | 'reconnecting'
   | 'playback-blocked'
   | 'needs-login'
@@ -34,7 +44,7 @@ export type VoiceStatusName =
 
 /** 語音通道能不能承載說話（Web `isVoiceSpeechChannelLive`，逐行移植）。 */
 export function isVoiceSpeechChannelLive(status: VoiceStatusName): boolean {
-  return status === 'ready' || status === 'listening' || status === 'model-speaking' || status === 'playback-blocked';
+  return status === 'ready' || status === 'listening' || status === 'model-speaking' || status === 'ending' || status === 'playback-blocked';
 }
 
 /** 導航中的主動警報（Web `VoiceNavAdvisory`）。 */

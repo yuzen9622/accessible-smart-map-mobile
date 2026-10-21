@@ -60,7 +60,11 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
   const advisories = useNavStore((s) => s.advisories);
   const followPaused = useNavStore((s) => s.followPaused);
   const stepMode = useNavStore((s) => s.stepMode);
-  const transitGuide = useNavStore((s) => s.transitGuide);
+  const localTransitGuide = useNavStore((s) => s.transitGuide);
+  const voiceTransit = useNavStore((s) => s.voiceTransit);
+  const transitGuide = navigationSource === 'local' ? localTransitGuide : null;
+  const voiceLeg = navigationSource === 'voice' && voiceTransit?.onVehicle ? voiceTransit.leg : null;
+  const voiceTransitLine = voiceLeg ? [voiceLeg.routeName, `${voiceLeg.from} → ${voiceLeg.to}`].filter(Boolean).join(' · ') : null;
 
   const step = instructions[currentStepIndex];
   // 第一個定位樣本進來前引擎還沒算出距離：先用這一步的規劃距離，大字不會空著。
@@ -186,6 +190,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                   style={step ? styles.bannerInstruction : styles.bannerTitle}>
                   {instructionText}
                 </Text>
+                {voiceTransitLine ? <Text style={styles.bannerMeta}>{voiceTransitLine}</Text> : null}
                 {transitLine ? <Text style={styles.bannerMeta}>{transitLine}</Text> : null}
               </View>
             </View>

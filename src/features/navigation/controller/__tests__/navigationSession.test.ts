@@ -30,7 +30,7 @@ it('shows the navigation panel, then clears the route session and returns home',
 
   expect(router.navigate).toHaveBeenCalledWith('/navigation');
   expect(endRouteSession).toHaveBeenCalledTimes(1);
-  expect(router.dismissTo).toHaveBeenCalledWith('/');
+  expect(router.dismissTo).toHaveBeenCalledWith('/explore');
 });
 
 it('clears the route immediately and returns home after the modal closes without reopening navigation', () => {
@@ -44,5 +44,5 @@ it('clears the route immediately and returns home after the modal closes without
   sheetNavigation.setVisible(true);
   expect(router.navigate).not.toHaveBeenCalled();
   expect(router.dismissTo).toHaveBeenCalledTimes(1);
-  expect(router.dismissTo).toHaveBeenCalledWith('/');
+  expect(router.dismissTo).toHaveBeenCalledWith('/explore');
 });

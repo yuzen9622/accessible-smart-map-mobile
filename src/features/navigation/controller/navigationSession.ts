@@ -53,5 +53,5 @@ function stopEngineAndLocation(): void {
 export function endNavigation(): void {
   stopEngineAndLocation();
   endRouteSession();
-  sheetNavigation.whenVisible(() => router.dismissTo('/'));
+  sheetNavigation.whenVisible(() => router.dismissTo('/explore'));
 }

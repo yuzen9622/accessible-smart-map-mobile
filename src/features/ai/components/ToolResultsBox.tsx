@@ -7,6 +7,7 @@ import { RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/s
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { ToolCardIcon, ToolResultGroup, ToolResultItem } from '../domain/toolResultCards';
+import { httpResultUrl } from '../domain/resultUrl';
 
 export interface ToolResultsBoxProps {
   groups: ToolResultGroup[];
@@ -25,27 +26,29 @@ const ICON: Record<ToolCardIcon, IconName> = {
   nav: 'navigation',
 };
 
-/** 對齊 Web `MAX_DISPLAY_ITEMS_PER_GROUP`。 */
-const MAX_DISPLAY = 12;
+const DISPLAY_PAGE_SIZE = 12;
 const CARD_WIDTH = 220;
 
 /**
  * 工具結果卡（對齊 Web `AIChatBot.tsx` `ToolResultsBox`）：標題列（圖示、標題、筆數、展開／收起）、
  * 多組時的分頁 chips、摘要，下方橫向捲動的結果卡。點卡片飛到該處或開啟詳情（由呼叫端決定）。
  */
-export default function ToolResultsBox({ groups, isDark, onOpenItem }: ToolResultsBoxProps) {
+export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxProps) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   const tones = useSemanticColors();
   const fontScale = useFontScale();
   const [expanded, setExpanded] = useState(true);
   const [tab, setTab] = useState(0);
+  const [visibleCounts, setVisibleCounts] = useState<Record<string, number>>({});
   if (groups.length === 0) return null;
 
   const active = groups[Math.min(tab, groups.length - 1)];
   const total = groups.reduce((sum, group) => sum + group.items.length, 0);
   const heading = groups.length > 1 ? t('nativeAiCardRelated') : active.heading;
-  const items = active.items.slice(0, MAX_DISPLAY);
+  const activeKey = `${active.icon}-${active.heading}`;
+  const visibleCount = visibleCounts[activeKey] ?? DISPLAY_PAGE_SIZE;
+  const items = active.items.slice(0, visibleCount);
 
   return (
     <View style={[styles.box, { backgroundColor: tones.surface }]}>
@@ -106,11 +109,11 @@ export default function ToolResultsBox({ groups, isDark, onOpenItem }: ToolResul
               decelerationRate="fast"
               contentContainerStyle={styles.cards}>
               {items.map((item) => {
-                const openable = Boolean(item.marker ?? item.position);
+                const openable = Boolean(item.marker ?? item.position ?? httpResultUrl(item.url));
                 return (
                   <Pressable
                     key={item.id}
-                    accessibilityRole={openable ? 'button' : 'text'}
+                    accessibilityRole={httpResultUrl(item.url) ? 'link' : openable ? 'button' : 'text'}
                     accessibilityLabel={[item.title, item.subtitle, item.badge].filter(Boolean).join('，')}
                     accessibilityHint={openable ? t('nativeAiCardOpenHint') : undefined}
                     disabled={!openable}
@@ -120,17 +123,17 @@ export default function ToolResultsBox({ groups, isDark, onOpenItem }: ToolResul
                       { backgroundColor: colors.background, borderColor: tones.separator },
                       pressed && styles.pressed,
                     ]}>
-                    <Text numberOfLines={2} style={[styles.cardTitle, { color: colors.text, fontSize: scaledSize(TYPE.callout, fontScale) }]}>
+                    <Text style={[styles.cardTitle, { color: colors.text, fontSize: scaledSize(TYPE.callout, fontScale) }]}>
                       {item.title}
                     </Text>
                     {item.subtitle ? (
-                      <Text numberOfLines={2} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, fontScale) }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, fontScale) }}>
                         {item.subtitle}
                       </Text>
                     ) : null}
                     {item.badge ? (
                       <View style={[styles.badge, { backgroundColor: tones.accentSoft }]}>
-                        <Text numberOfLines={1} style={[styles.badgeText, { color: tones.accent, fontSize: scaledSize(TYPE.caption, fontScale) }]}>
+                        <Text style={[styles.badgeText, { color: tones.accent, fontSize: scaledSize(TYPE.caption, fontScale) }]}>
                           {item.badge}
                         </Text>
                       </View>
@@ -139,6 +142,16 @@ export default function ToolResultsBox({ groups, isDark, onOpenItem }: ToolResul
                 );
               })}
             </ScrollView>
+          ) : null}
+          {items.length < active.items.length ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setVisibleCounts(previous => ({ ...previous, [activeKey]: visibleCount + DISPLAY_PAGE_SIZE }))}
+              style={[styles.more, { backgroundColor: tones.accentSoft }]}>
+              <Text style={{ color: tones.accent, fontSize: scaledSize(TYPE.subhead, fontScale) }}>
+                {t('nativeAiShowMoreResults', { shown: items.length, total: active.items.length })}
+              </Text>
+            </Pressable>
           ) : null}
         </>
       ) : null}
@@ -171,6 +184,7 @@ const styles = StyleSheet.create({
   tabText: { fontWeight: '600', maxWidth: 160 },
   note: { paddingHorizontal: 12 },
   cards: { gap: 8, paddingHorizontal: 12 },
+  more: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginHorizontal: 12, padding: 8, borderRadius: RADIUS.small },
   card: {
     width: CARD_WIDTH,
     borderRadius: RADIUS.small + 2,

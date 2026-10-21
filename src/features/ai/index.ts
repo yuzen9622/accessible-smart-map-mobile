@@ -11,7 +11,8 @@ export {
   sendChatMessage,
   stopChatStreaming,
 } from './controller/chatController';
-export { closeChat, executeAction, openRoutePanel } from './controller/actionExecutor';
+export { default as ToolResultsBox } from './components/ToolResultsBox';
+export { closeChat, executeAction, openAiResult, openRoutePanel } from './controller/actionExecutor';
 export { useChatStore, type ChatEntry } from './store/chatStore';
 export { useAiBootstrap } from './hooks/useAiBootstrap';
 

@@ -4,6 +4,13 @@ import type { Translate } from './types';
 
 /** 後端 `src/config/ai/tool.ts` 有的工具；不在這張表的工具走 fallback（原始名稱）。 */
 export const KNOWN_TOOL_NAMES: readonly string[] = [
+  'proposeNavigationCandidate',
+  'confirmNavigationCandidateSwitch',
+  'startNavigation',
+  'stopNavigation',
+  'repeatNavStep',
+  'getActiveNavigationContext',
+  'endVoiceSession',
   'findGooglePlaces',
   'findA11yPlaces',
   'getA11yFacilityDetails',

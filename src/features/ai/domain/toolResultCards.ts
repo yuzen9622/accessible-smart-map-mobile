@@ -2,6 +2,7 @@
 // 所有使用者可見的中文（標題、標籤、摘要）改由注入的 `t` 產生；`target`（Web 的面板物件）改為 `marker`（AiMarker）。
 import { a11yPlacesToMarkers, asRecArray, at, getLatLng, googlePlacesToMarkers, isOk, isRec } from './aiResults';
 import type { Translate } from './types';
+import { httpResultUrl } from './resultUrl';
 import type { AiMarker } from './uiAction';
 import type { LatLng } from '@/shared/geo';
 
@@ -14,6 +15,7 @@ export type ToolResultItem = {
   title: string;
   subtitle?: string;
   badge?: string;
+  url?: string;
   position?: LatLng | null;
   // 有 marker → 可開既有詳情；否則有 position → 飛到該點
   marker?: AiMarker;
@@ -26,8 +28,6 @@ export type ToolResultGroup = {
   /** 顯示在標題下的摘要文字（建議、天氣描述等） */
   note?: string;
 };
-
-const MAX_ITEMS = 30;
 
 // --- 列舉 → 標籤（對照 route domain 的後端型別）；key 為 `nativeAiA11yCategory_*` 等 ---
 const A11Y_CATEGORIES = ['wheelchair_accessible', 'kerb_cut', 'ramp', 'elevator', 'toilet'];
@@ -87,7 +87,7 @@ function locationItems(
   },
 ): ToolResultItem[] {
   const out: ToolResultItem[] = [];
-  items.slice(0, MAX_ITEMS).forEach((it, i) => {
+  items.forEach((it, i) => {
     const position = getLatLng(it);
     if (opts.requirePosition && !position) return;
     const rawId =
@@ -107,14 +107,120 @@ function joinDot(parts: (string | null | undefined)[]): string | undefined {
   return parts.filter(Boolean).join(' · ') || undefined;
 }
 
-/**
- * 把任一工具的結果正規化成統一的卡片群組；無法渲染時回 null。
- */
+function busScheduleText(value: unknown, t: Translate): string | undefined {
+  return asRecArray(value).map((schedule) => {
+    const frequencies = asRecArray(schedule.frequencies).map((frequency) => {
+      if (frequency.scheduleType === 'trip') {
+        return joinDot([str(frequency.serviceDays), t('nativeAiOriginDeparture', {
+          stop: str(frequency.originStopDisplayName) || str(frequency.originStopName) || '',
+          time: str(frequency.originDepartureTime) || '',
+        }), ...asRecArray(frequency.stopTimes).map((stop) => joinDot([str(stop.stopDisplayName) || str(stop.stopName), str(stop.arrivalTime)]))]);
+      }
+      return joinDot([str(frequency.serviceDays), [str(frequency.start), str(frequency.end)].filter(Boolean).join('–'),
+        t('nativeAiHeadway', { min: str(frequency.minHeadwayMins) || '?', max: str(frequency.maxHeadwayMins) || '?' })]);
+    });
+    return joinDot([str(schedule.subRouteDisplayName) || str(schedule.subRouteName), str(schedule.directionLabel),
+      schedule.first ? t('nativeAiFirstLastService', { first: str(schedule.first) || '', last: str(schedule.last) || '' }) : undefined,
+      ...frequencies]);
+  }).filter(Boolean).join('\n') || undefined;
+}
+
+function campusName(campus: Rec): string | undefined {
+  return joinDot([str(campus.displaySchoolName) || str(campus.schoolName), str(campus.displayBranchName) || str(campus.branchName)]);
+}
+
+/** 把工具結果正規化成既有的卡片群組。 */
 export function getToolResultGroup(name: string, result: unknown, t: Translate): ToolResultGroup | null {
   if (!isOk(result)) return null;
   const res: Rec = result;
 
   switch (name) {
+    case 'findCampusAccessibility': {
+      const items = locationItems(asRecArray(res.campuses), t, {
+        prefix: 'campus', id: (campus) => str(campus.campusId), title: campusName,
+        subtitle: (campus) => joinDot([str(campus.displayAddress) || str(campus.address), str(campus.phone),
+          t('nativeAiCampusFacilityCount', { count: Number(campus.facilityCount ?? 0) }),
+          ...asRecArray(campus.facTypeSummary).map((entry) => `${str(entry.label) || str(entry.code)} ${str(entry.count) || ''}`)]),
+      });
+      return items.length ? { heading: t('nativeAiCardCampus'), icon: 'a11y', items,
+        note: t('nativeAiCampusPage', { page: Number(res.page ?? 1), pages: Number(res.totalPages ?? 1), total: Number(res.totalCount ?? items.length) }) } : null;
+    }
+    case 'getCampusAccessibilityDetails': {
+      const campus = isRec(res.campus) ? res.campus : {};
+      const items = locationItems(asRecArray(res.facilities), t, {
+        prefix: `campus_${str(campus.campusId) || ''}`, id: (facility) => str(facility.facUid),
+        title: (facility) => str(facility.displayName) || str(facility.name) || str(facility.facType) || str(facility.type),
+        subtitle: (facility) => joinDot([str(facility.building), str(facility.facType) || str(facility.type),
+          Array.isArray(facility.floors) ? facility.floors.map(str).filter(Boolean).join(', ') : undefined,
+          ...asRecArray(facility.specs).map((spec) => `${str(spec.label) || ''}: ${str(spec.value) || ''}`)]),
+      });
+      const facilityCount = items.length;
+      if (campusName(campus) || getLatLng(campus)) items.unshift({ id: `campus_${str(campus.campusId) || '0'}`, title: campusName(campus) || t('nativeAiCardCampus'), position: getLatLng(campus) });
+      return items.length ? { heading: campusName(campus) || t('nativeAiCardCampus'), icon: 'a11y', items,
+        note: joinDot([str(campus.displayAddress) || str(campus.address), str(campus.phone),
+          t('nativeAiCampusFacilityCount', { count: Number(res.totalMatchedFacilities ?? facilityCount) }),
+          res.truncated ? t('nativeAiResultsTruncated', { count: facilityCount }) : undefined]) } : null;
+    }
+    case 'getBusArrival': {
+      const items = locationItems(asRecArray(res.arrivals), t, {
+        prefix: 'arrival', id: (arrival, index) => `${str(arrival.subRouteUid) || index}_${str(arrival.direction) || index}`,
+        title: (arrival) => str(arrival.stopDisplayName) || str(arrival.stopName) || str(res.stopDisplayName) || str(res.stopName),
+        subtitle: (arrival) => joinDot([str(res.routeDisplayName) || str(res.routeName), str(arrival.subRouteDisplayName) || str(arrival.subRouteName), str(arrival.directionLabel),
+          typeof arrival.estimateMinutes === 'number' ? t('nativeAiEtaMinutes', { minutes: arrival.estimateMinutes }) : undefined,
+          str(arrival.statusLabel), str(arrival.plateNumb)]),
+      });
+      return items.length ? { heading: t('nativeAiCardBusArrival'), icon: 'bus', items } : null;
+    }
+    case 'findNearbyBusStops': {
+      const items = locationItems(asRecArray(res.stops), t, {
+        prefix: 'nearby_stop', title: (stop) => str(stop.stopDisplayName) || str(stop.stopName),
+        subtitle: (stop) => {
+          const routes = stop.routeDisplayNames ?? stop.routes;
+          return joinDot([Array.isArray(routes) ? routes.map(str).filter(Boolean).join(', ') : undefined,
+            typeof stop.distance === 'number' ? t('nativeAiDistanceAbout', { value: Math.round(stop.distance) }) : undefined]);
+        },
+      });
+      return items.length ? { heading: t('nativeAiCardBusStops'), icon: 'bus', items } : null;
+    }
+    case 'getTrainTimetable':
+    case 'getStationTimetable': {
+      const stationName = (value: unknown) => str(at(value, 'displayName')) || str(at(value, 'name'));
+      const items = asRecArray(res.trains).map((train, index) => ({
+        id: `train_${str(train.trainNo) || index}_${str(train.departureTime) || index}`,
+        title: joinDot([str(train.trainNo), str(train.trainTypeDisplayName) || str(train.trainType), str(train.departureTime), str(train.arrivalTime)]) || t('nativeAiScheduleFallback'),
+        subtitle: joinDot([stationName(res.origin) || stationName(res.station), stationName(res.destination) || str(train.destinationDisplayName) || str(train.destination),
+          typeof train.durationMinutes === 'number' ? t('nativeAiDurationMinutes', { minutes: train.durationMinutes }) : undefined,
+          train.arrivesNextDay ? t('nativeAiNextDay') : undefined]),
+      }));
+      return items.length ? { heading: t('nativeAiCardTrainTimetable'), icon: 'bus', items, note: joinDot([str(res.railSystem), str(res.date), str(res.note),
+        res.firstTrain ? t('nativeAiFirstLastService', { first: str(res.firstTrain) || '', last: str(res.lastTrain) || '' }) : undefined]) } : null;
+    }
+    case 'getMetroAlerts':
+    case 'getTransitAlerts': {
+      const alerts = asRecArray(res.alerts).flatMap((entry) => Array.isArray(entry.alerts)
+        ? asRecArray(entry.alerts).map((alert) => ({ ...alert, railSystem: entry.railSystem, updatedAt: entry.updatedAt })) : [entry]);
+      const items = alerts.map((alert, index) => ({ id: `alert_${str(alert.railSystem) || ''}_${str(alert.alertId) || index}`,
+        title: str(alert.title) || t('nativeAiCardTransitAlerts'),
+        subtitle: joinDot([str(alert.description), str(alert.railSystem), ...asRecArray(alert.stations).map((station) => str(station.name) || str(station.id)),
+          str(alert.startTime), str(alert.endTime), str(alert.updateTime) || str(alert.updatedAt)]), url: httpResultUrl(alert.alertUrl),
+      }));
+      const summary = str(res.summary);
+      if (!items.length && summary) items.push({ id: 'alert_summary', title: summary, subtitle: undefined, url: undefined });
+      return items.length ? { heading: t('nativeAiCardTransitAlerts'), icon: 'hazard', note: str(res.summary), items } : null;
+    }
+    case 'searchAccessibilityGuide': {
+      const items = asRecArray(res.results).map((guide, index) => ({ id: `guide_${index}`, title: str(guide.title) || t('nativeAiCardGuide'),
+        subtitle: str(guide.content), badge: joinDot([str(guide.category), str(guide.source)]), url: httpResultUrl(guide.source) }));
+      const message = str(res.message);
+      if (!items.length && message) items.push({ id: 'guide_empty', title: message, subtitle: undefined, badge: undefined, url: undefined });
+      return items.length ? { heading: t('nativeAiCardGuide'), icon: 'a11y', items } : null;
+    }
+    case 'webSearch': {
+      const items = asRecArray(res.sources).map((source, index) => ({ id: `web_${index}`, title: str(source.title) || str(source.domain) || str(source.url) || t('nativeAiCardSources'),
+        subtitle: str(source.domain) || str(source.url), url: httpResultUrl(source.url) }));
+      if (!items.length && str(res.answer)) items.push({ id: 'web_answer', title: t('nativeAiCardSources'), subtitle: undefined, url: undefined });
+      return items.length ? { heading: t('nativeAiCardSources'), icon: 'search', note: str(res.answer), items } : null;
+    }
     case 'findGooglePlaces': {
       const items = markersToItems(googlePlacesToMarkers(result, t));
       return items.length ? { heading: t('nativeAiCardPlaces'), icon: 'search', items } : null;
@@ -134,6 +240,7 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
         subtitle: (f) =>
           joinDot([
             enumLabel(A11Y_CATEGORIES, 'nativeAiA11yCategory_', f.category, t) || str(f.category),
+            isRec(f.tags) ? Object.entries(f.tags).map(([key, value]) => `${key}: ${str(value) ?? ''}`).join('\n') : undefined,
             f.wheelchair === 'yes'
               ? t('nativeAiWheelchairYes')
               : f.wheelchair === 'limited'
@@ -172,20 +279,19 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
     // HazardReport[]: { hazardType, reportedLocation.coordinates, description, status, aiAnalysis.summary }
     case 'getNearbyHazards': {
       const data = at(res, 'data');
-      const reports = asRecArray(at(data, 'reports') ?? res.reports ?? data);
+      const reports = [...asRecArray(at(data, 'reports') ?? res.reports ?? data), ...asRecArray(at(data, 'roadEvents'))];
       const items = locationItems(reports, t, {
         prefix: 'hazard',
-        title: (r) =>
+        title: (r) => str(r.title) ||
           enumLabel(HAZARD_TYPES, 'nativeAiHazardType_', r.hazardType, t) ||
           str(r.hazardType) ||
           str(r.type) ||
           t('nativeAiHazardFallback'),
-        subtitle: (r) =>
-          str(r.description) ||
-          str(at(r, 'aiAnalysis', 'summary')) ||
-          enumLabel(HAZARD_STATUSES, 'nativeAiHazardStatus_', r.status, t) ||
-          str(r.status),
-        requirePosition: true,
+        subtitle: (r) => joinDot([
+          str(r.description) || str(at(r, 'aiAnalysis', 'summary')),
+          str(r.locationDescription), str(r.source), str(r.severity),
+          enumLabel(HAZARD_STATUSES, 'nativeAiHazardStatus_', r.status, t) || str(r.status),
+        ]),
       });
       return items.length ? { heading: t('nativeAiCardHazards'), icon: 'hazard', items } : null;
     }
@@ -196,7 +302,7 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
         prefix: 'bus',
         id: (b, i) => str(b.plateNumb) || str(b.PlateNumb) || String(i),
         title: (b) => {
-          const route = str(b.routeDisplayName) || str(res.routeDisplayName) || str(b.routeName);
+          const route = str(b.routeDisplayName) || str(res.routeDisplayName) || str(b.routeName) || str(res.routeName);
           const plate = str(b.plateNumb);
           if (route && plate && route !== plate) {
             return `${route} · ${plate}`;
@@ -209,7 +315,6 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
             b.stopsAway != null ? t('nativeAiStopsAway', { count: Number(b.stopsAway) }) : str(b.statusLabel),
           ]),
         badge: (b) => (isAffirmative(b.isLowFloor) || isAffirmative(b.hasLiftOrRamp) ? t('nativeAiLowFloor') : undefined),
-        requirePosition: true,
       });
       const count = str(res.count);
       const low = str(res.lowFloorCount);
@@ -234,19 +339,19 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
     case 'getBusRouteDetail': {
       const dirs = asRecArray(res.directions);
       const stops: Rec[] = [];
-      for (const d of dirs) {
-        const dirLabel = str(d.toDisplayName) || localName(d.destination ?? d.DestinationStop) || str(d.direction);
-        for (const s of asRecArray(d.stops)) stops.push({ ...s, __dir: dirLabel });
+      for (const [index, d] of dirs.entries()) {
+        const dirLabel = str(d.toDisplayName) || str(d.to) || localName(d.destination ?? d.DestinationStop) || str(d.directionLabel) || str(d.direction);
+        for (const s of asRecArray(d.stops)) stops.push({ ...s, __dir: dirLabel, __directionId: `${str(d.subRouteUid) ?? index}_${str(d.direction) ?? index}` });
       }
       const items = locationItems(stops, t, {
         prefix: 'stop',
         id: (s, i) =>
-          str(s.StopUID) || str(s.stopUid) || str(s.StopID) || str(s.stopId) || localName(s.StopName) || String(i),
+          `${s.__directionId}_${str(s.StopUID) || str(s.stopUid) || str(s.StopID) || str(s.stopId) || localName(s.StopName) || i}_${str(s.seq) ?? i}`,
         title: (s) => str(s.displayName) || str(s.stopDisplayName) || localName(s.StopName) || str(s.stopName) || str(s.name) || t('nativeAiStopFallback'),
         subtitle: (s) => {
           const etaRaw = s.EstimateTime ?? s.estimateTime ?? s.eta;
           const eta = typeof etaRaw === 'number' ? fmtEtaSeconds(etaRaw, t) : str(etaRaw);
-          return joinDot([str(s.__dir), eta]);
+          return joinDot([str(s.__dir), typeof s.estimateMinutes === 'number' ? t('nativeAiEtaMinutes', { minutes: s.estimateMinutes }) : eta, str(s.statusLabel)]);
         },
       });
       const routeName = str(res.routeDisplayName) || localName(res.routeName) || str(res.routeNo);
@@ -255,15 +360,17 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
             heading: routeName ? t('nativeAiCardBusStopsOf', { route: routeName }) : t('nativeAiCardBusStops'),
             icon: 'bus',
             items,
+            note: busScheduleText(res.schedules, t),
           }
         : null;
     }
 
     case 'getBusTimetable': {
+      const scheduleText = busScheduleText(res.schedules, t);
+      if (scheduleText) return { heading: str(res.routeDisplayName) || str(res.routeName) || t('nativeAiCardBusTimetable'), icon: 'bus', note: str(res.note), items: [{ id: 'bus_schedule', title: t('nativeAiCardBusTimetable'), subtitle: scheduleText }] };
       const schedules = asRecArray(res.schedules);
       const fallback = t('nativeAiScheduleFallback');
       const items: ToolResultItem[] = schedules
-        .slice(0, MAX_ITEMS)
         .map((s, i) => {
           const rawTime = str(s.time) || str(s.DepartureTime) || str(s.departureTime) || str(s.ArrivalTime);
           return {
@@ -332,7 +439,7 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
       }
       // cameras.items（EnvironmentData）或 nearbyCctv（工具別名）；多半無座標
       const cams = asRecArray(at(res, 'cameras', 'items') ?? res.nearbyCctv);
-      cams.slice(0, MAX_ITEMS).forEach((c, i) => {
+      cams.forEach((c, i) => {
         items.push({
           id: `cctv_${i}`,
           title: str(c.name) || str(c.title) || t('nativeAiCctvFallback'),
@@ -347,7 +454,7 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
     // NavInstruction[]: { text, type, relativeDirection, distanceM, streetName }（無座標）
     case 'getNavInstructions': {
       const instructions = asRecArray(res.instructions);
-      const items: ToolResultItem[] = instructions.slice(0, MAX_ITEMS).map((step, i) => {
+      const items: ToolResultItem[] = instructions.map((step, i) => {
         const dist =
           typeof step.distanceM === 'number' && step.distanceM > 0
             ? step.distanceM >= 1000
@@ -376,27 +483,16 @@ export function getToolResultGroup(name: string, result: unknown, t: Translate):
   }
 }
 
-const MAX_DISPLAY_ITEMS_PER_GROUP = 12;
-
 function mergeIntoExistingGroup(existing: ToolResultGroup, incoming: ToolResultGroup): ToolResultGroup {
-  const seenIds = new Set(existing.items.map((it) => it.id));
-
-  const mergedItems = [...existing.items];
-  for (const it of incoming.items) {
-    if (!seenIds.has(it.id)) {
-      seenIds.add(it.id);
-      mergedItems.push(it);
-    }
-  }
-
-  let mergedNote = existing.note;
-  if (incoming.note && incoming.note !== existing.note) {
-    mergedNote = existing.note ? `${existing.note} · ${incoming.note}` : incoming.note;
-  }
+  const merged = new Map(existing.items.map((item) => [item.id, item]));
+  const replacesExisting = incoming.items.some((item) => merged.has(item.id));
+  for (const item of incoming.items) merged.set(item.id, item);
+  const mergedItems = [...merged.values()];
+  const mergedNote = replacesExisting ? incoming.note : joinDot([existing.note, incoming.note !== existing.note ? incoming.note : undefined]);
 
   return {
     ...existing,
-    items: mergedItems.slice(0, MAX_DISPLAY_ITEMS_PER_GROUP),
+    items: mergedItems,
     note: mergedNote,
   };
 }
@@ -404,7 +500,7 @@ function mergeIntoExistingGroup(existing: ToolResultGroup, incoming: ToolResultG
 /**
  * 將一則訊息內的多個 ToolActivity 聚合為去重且整理過的 ToolResultGroup 列表。
  * - 相同 heading/icon 的群組自動合併並依據 id 去重
- * - 單一群組限制最多顯示項目數，避免畫面過度膨脹
+ * - 保留全部結果，由卡片元件分批顯示
  */
 export function getAggregatedToolResults(
   activities: { name: string; result?: unknown; status?: string }[] | undefined,
@@ -415,7 +511,7 @@ export function getAggregatedToolResults(
   const groups: ToolResultGroup[] = [];
 
   for (const act of activities) {
-    if (act.status === 'running') continue;
+    if (act.status === 'running' || act.status === 'error') continue;
     const group = getToolResultGroup(act.name, act.result, t);
     if (!group?.items.length) continue;
 
@@ -426,7 +522,7 @@ export function getAggregatedToolResults(
     } else {
       groups.push({
         ...group,
-        items: group.items.slice(0, MAX_DISPLAY_ITEMS_PER_GROUP),
+        items: group.items,
       });
     }
   }

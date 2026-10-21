@@ -13,6 +13,8 @@ export const fakeUserLocationStore = useUserLocationStore;
 
 export const mapModule = {
   mapCamera: { fitBounds: () => {}, flyTo: () => {}, easeTo: () => {} },
+  // sheet 永遠露出：面板導向立刻執行。
+  sheetNavigation: { whenVisible: (navigate: () => void) => navigate() },
   useUserLocationStore,
   // 純常數，沒有原生模組依賴，直接用真的（route store 的 facilityFilter 初始值會展開它）。
   PINNED_FACILITY_CATEGORIES,

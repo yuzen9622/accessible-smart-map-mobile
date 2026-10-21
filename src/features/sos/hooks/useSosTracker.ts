@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Linking } from 'react-native';
 
-import { useUserLocationStore } from '@/features/map';
+import { sheetNavigation, useUserLocationStore } from '@/features/map';
 import { computeRoute } from '@/features/route';
 import { getAppConfig } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
@@ -80,7 +80,7 @@ export function useSosTracker(rawToken: string | undefined) {
       return;
     }
     const result = await computeRoute({ destination: { lat: session.lat, lng: session.lng }, travelMode: 'drive' });
-    if (result.ok) router.navigate('/routes');
+    if (result.ok) sheetNavigation.whenVisible(() => router.navigate('/routes'));
     else if (result.failure !== 'superseded') Alert.alert(t('nativeRouteErrorFailed'));
   };
 

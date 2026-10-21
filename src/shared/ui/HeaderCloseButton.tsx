@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleSheet } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useCloseScreen } from '@/shared/navigation';
@@ -28,5 +28,10 @@ export default function HeaderCloseButton({ onPress }: { onPress?: () => void })
 }
 
 const styles = StyleSheet.create({
-  button: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
+  // iOS 26 導覽列會替按鈕包一層 Liquid Glass 背景並自帶內距；內容再撐成 44×44 會被包成橢圓，
+  // 所以 iOS 交給系統決定尺寸（玻璃按鈕本身已達 44pt 觸控範圍），Android 才自己補足觸控尺寸。
+  button: Platform.select({
+    ios: { width: 22, height: 22, justifyContent: 'center', alignItems: 'center' },
+    default: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' },
+  }),
 });

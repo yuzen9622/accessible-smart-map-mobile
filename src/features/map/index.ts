@@ -1,6 +1,7 @@
 export { default as MapScreen, type MapScreenProps } from './components/MapScreen';
 export { mapCamera } from './controller/mapCamera';
 export { sheetController } from './controller/sheetController';
+export { sheetNavigation } from './controller/sheetNavigation';
 export {
   SHEET_DETENTS,
   SHEET_UNDIMMED_DETENT_INDEX,

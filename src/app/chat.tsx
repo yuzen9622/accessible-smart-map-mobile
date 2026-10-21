@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleSheet } from 'react-native';
 
 import { ChatScreen, clearChat, useChatStore } from '@/features/ai';
 import { VoiceMicButton, VoiceModeView, isVoiceSessionActive, useVoiceStore } from '@/features/voice';
@@ -45,6 +45,10 @@ export default function ChatRoute() {
 }
 
 const styles = StyleSheet.create({
-  button: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  // 同 HeaderCloseButton：iOS 26 導覽列的玻璃背景自帶內距，內容需與圖示同尺寸才會是正圓
+  button: Platform.select({
+    ios: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
+    default: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  }),
   dim: { opacity: 0.4 },
 });

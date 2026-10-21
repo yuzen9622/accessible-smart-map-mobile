@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 
-import { mapCamera } from '@/features/map';
+import { mapCamera, sheetNavigation } from '@/features/map';
 import { endRouteSession } from '@/features/route';
 import { startBackgroundLocation, stopBackgroundLocation, type BackgroundLocationTexts } from '@/shared/location';
 import { logger } from '@/shared/logger';
@@ -20,7 +20,7 @@ export function beginNavigation(texts: BackgroundLocationTexts): void {
   // Web 預設不播報（瀏覽器要使用者手勢才能發聲）；原生沒有這個限制，導航一開始就播報，
   // 使用者可在 HUD 關掉（差異記在 port-ledger）。
   useNavStore.getState().setVoiceEnabled(true);
-  router.navigate('/navigation');
+  sheetNavigation.whenVisible(() => router.navigate('/navigation'));
   const run = async () => {
     try {
       await startBackgroundLocation(texts);
@@ -53,5 +53,5 @@ function stopEngineAndLocation(): void {
 export function endNavigation(): void {
   stopEngineAndLocation();
   endRouteSession();
-  router.dismissTo('/');
+  sheetNavigation.whenVisible(() => router.dismissTo('/'));
 }

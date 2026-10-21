@@ -11,6 +11,7 @@ import {
   sheetBottomInset,
   sheetConfig,
   sheetController,
+  sheetNavigation,
   useMapUiStore,
 } from '@/features/map';
 import { useNavStore } from '@/features/navigation';
@@ -130,7 +131,9 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
             hasFocusedSheet.current = true;
             state.setSheetDetentIndex(index);
             setSheetInset(sheetBottomInset(index, height));
+            sheetNavigation.setVisible(true);
           },
+          blur: () => sheetNavigation.setVisible(false),
         }}
       />
       <Stack.Screen

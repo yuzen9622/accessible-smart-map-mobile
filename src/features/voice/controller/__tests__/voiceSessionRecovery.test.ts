@@ -30,7 +30,7 @@ jest.mock('@/features/auth', () => {
 });
 jest.mock('@/features/map', () => {
   const { create } = jest.requireActual('zustand');
-  return { useUserLocationStore: create(() => ({ position: { lat: 25, lng: 121 } })), mapCamera: { flyTo: jest.fn(), fitBounds: jest.fn() } };
+  return { useUserLocationStore: create(() => ({ position: { lat: 25, lng: 121 } })), mapCamera: { flyTo: jest.fn(), fitBounds: jest.fn() }, sheetNavigation: { whenVisible: (navigate: () => void) => navigate() } };
 });
 jest.mock('@/features/route', () => ({
   getRouteSessionSnapshot: () => mockRouteState,

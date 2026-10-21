@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { ApiError } from '@/shared/api';
-import { mapCamera } from '@/features/map';
+import { mapCamera, sheetNavigation } from '@/features/map';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 
@@ -91,7 +91,7 @@ export function useMyReportDetail(id: string | undefined) {
       // 先關掉整個設定 modal（parent＝root stack），再打開這筆回報的地圖詳情；直接 navigate 只會把設定 stack 退回首頁
       navigation.getParent()?.goBack();
       mapCamera.flyTo([lng, lat], 17);
-      router.navigate({ pathname: '/hazard/[id]', params: { id: report._id } });
+      sheetNavigation.whenVisible(() => router.navigate({ pathname: '/hazard/[id]', params: { id: report._id } }));
     },
     confirmCount: report.confirmCount ?? 0,
     denyCount: report.denyCount ?? 0,

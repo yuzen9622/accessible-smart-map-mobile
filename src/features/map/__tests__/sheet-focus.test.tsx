@@ -3,11 +3,13 @@ import type { ReactNode } from 'react';
 import { Dimensions } from 'react-native';
 
 import RootLayout from '@/app/_layout';
+import { sheetNavigation } from '../controller/sheetNavigation';
 import { sheetBottomInset } from '../domain/sheetInset';
 import { useMapUiStore } from '../store/mapUiStore';
 
 type SheetListeners = {
   focus: () => void;
+  blur: () => void;
   sheetDetentChange: (event: { data: { index: number } }) => void;
 };
 let mockSheetListeners: SheetListeners;
@@ -30,6 +32,7 @@ jest.mock('expo-status-bar', () => ({ StatusBar: () => null }));
 jest.mock('@/features/map', () => ({
   ...jest.requireActual('../domain/sheetInset'),
   ...jest.requireActual('../store/mapUiStore'),
+  ...jest.requireActual('../controller/sheetNavigation'),
   sheetController: { available: false },
 }));
 jest.mock('@/features/ai', () => ({ useAiBootstrap: () => {} }));
@@ -98,4 +101,35 @@ it('initializes a directly opened place sheet at half, then preserves a later co
     sheetDetentIndex: 0,
     sheetInset: sheetBottomInset(0, Dimensions.get('window').height),
   });
+});
+
+it('holds a panel change while a modal covers the sheet and applies it once the sheet is visible again', async () => {
+  await render(<RootLayout />);
+  await act(() => mockSheetListeners.focus());
+  const openRoutes = jest.fn();
+
+  // Settings opened over the sheet; an AI route result arrives meanwhile.
+  await act(() => mockSheetListeners.blur());
+  sheetNavigation.whenVisible(openRoutes);
+  expect(openRoutes).not.toHaveBeenCalled();
+
+  await act(() => mockSheetListeners.focus());
+  expect(openRoutes).toHaveBeenCalledTimes(1);
+
+  sheetNavigation.whenVisible(openRoutes);
+  expect(openRoutes).toHaveBeenCalledTimes(2);
+});
+
+it('applies only the latest panel change requested while the sheet was covered', async () => {
+  await render(<RootLayout />);
+  await act(() => mockSheetListeners.blur());
+  const stale = jest.fn();
+  const latest = jest.fn();
+  sheetNavigation.whenVisible(stale);
+  sheetNavigation.whenVisible(latest);
+
+  await act(() => mockSheetListeners.focus());
+  await act(() => mockSheetListeners.focus());
+  expect(stale).not.toHaveBeenCalled();
+  expect(latest).toHaveBeenCalledTimes(1);
 });

@@ -28,14 +28,20 @@ function scaledStyle(style: StyleProp<TextStyle>, scale: number, nested = false)
   };
 }
 
+interface FixedSizeProp {
+  /** Glanceable chrome (navigation HUD) keeps its design size: ignores both the app preference and Dynamic Type. */
+  fixedSize?: boolean;
+}
+
 /** Use unscaled design sizes here. Existing `scaledSize` callers keep native Text. */
-export function Text({ style, children, ref, ...props }: TextProps & { ref?: Ref<NativeText> }) {
-  const scale = useFontScale();
+export function Text({ style, children, ref, fixedSize = false, ...props }: TextProps & FixedSizeProp & { ref?: Ref<NativeText> }) {
+  const appScale = useFontScale();
+  const scale = fixedSize ? 1 : appScale;
   const highContrast = usePreferencesStore(s => s.highContrast);
   const nested = useContext(InsideText);
   return (
     <InsideText.Provider value>
-      <NativeText {...props} ref={ref} style={[style, scaledStyle(style, scale, nested), contrastWeight(style, highContrast, nested)]}>
+      <NativeText {...props} {...(fixedSize ? { allowFontScaling: false } : {})} ref={ref} style={[style, scaledStyle(style, scale, nested), contrastWeight(style, highContrast, nested)]}>
         {children}
       </NativeText>
     </InsideText.Provider>

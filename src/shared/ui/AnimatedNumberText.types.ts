@@ -10,6 +10,8 @@ export interface AnimatedNumberTextProps {
   /** 未縮放的設計點數，元件會套用 App 偏好與系統字級。 */
   fontSize: number;
   fontWeight?: AnimatedNumberWeight;
+  /** true：固定在設計點數，不跟 App 偏好與系統字級放大（導航 HUD 這類一眼掃過的資訊）。 */
+  fixedSize?: boolean;
   color: ColorValue;
   /** 螢幕閱讀器讀的文字；預設用 `text`。 */
   accessibilityLabel?: string;

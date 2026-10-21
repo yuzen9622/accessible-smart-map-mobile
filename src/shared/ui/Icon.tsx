@@ -95,6 +95,8 @@ import Fuel from 'lucide-react-native/icons/fuel';
 import BedDouble from 'lucide-react-native/icons/bed-double';
 import Thermometer from 'lucide-react-native/icons/thermometer';
 import Cuboid from 'lucide-react-native/icons/cuboid';
+import CloudSun from 'lucide-react-native/icons/cloud-sun';
+import Droplets from 'lucide-react-native/icons/droplets';
 import { View } from 'react-native';
 
 import type { IconName, IconProps } from './Icon.types';
@@ -196,6 +198,8 @@ const ICONS: Record<IconName, LucideIcon> = {
   bedDouble: BedDouble,
   thermometer: Thermometer,
   cuboid: Cuboid,
+  cloudSun: CloudSun,
+  droplets: Droplets,
 };
 
 /**

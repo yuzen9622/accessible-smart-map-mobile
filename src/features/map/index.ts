@@ -12,6 +12,7 @@ export {
 export { useMapUiStore, type MapFollowMode, type MapFollowState } from './store/mapUiStore';
 export { default as FacilityDetailScreen } from './screens/FacilityDetailScreen';
 export { default as NearbyScreen } from './screens/NearbyScreen';
+export { default as EnvironmentDetailScreen } from './screens/EnvironmentDetailScreen';
 export { default as ParkingLayer } from './components/ParkingLayer';
 export { useUserLocationStore } from './store/userLocationStore';
 export { applyDefaultFacilityCategories, useFacilityStore } from './store/facilityStore';

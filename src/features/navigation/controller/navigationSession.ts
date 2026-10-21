@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 
 import { mapCamera, sheetNavigation } from '@/features/map';
-import { fitSelectedRoute } from '@/features/route';
+import { endRouteSession } from '@/features/route';
 import { startBackgroundLocation, stopBackgroundLocation, type BackgroundLocationTexts } from '@/shared/location';
 import { logger } from '@/shared/logger';
 
@@ -31,11 +31,7 @@ export function beginNavigation(texts: BackgroundLocationTexts): void {
   void run();
 }
 
-/**
- * 結束導航（HUD「結束」確認、抵達後「結束導航」）：停止引擎與背景定位、解除鏡頭跟隨，
- * sheet 回到路線結果並把路線框回畫面。路線 session 保留（pill 仍可結束它），對齊 Web。
- */
-export function endNavigation(): void {
+function stopEngineAndLocation(): void {
   stopNavigation();
   mapCamera.stopFollow();
   const run = async () => {
@@ -46,10 +42,16 @@ export function endNavigation(): void {
     }
   };
   void run();
-  // 回到路線結果：堆疊裡有 `/routes` 就退回它，沒有（例：深層連結直接開導航）就把目前畫面換成它。
-  // 不用 router.back()：導航頁的上一頁不一定是路線頁（從明細頁開始導航時是明細）。
-  // sheet 被蓋住期間開始又結束（語音）時導航頁從沒顯示過：dismissTo 會把 sheet 底層的首頁換掉，改成推上路線結果。
-  const backToRoutes = sheetNavigation.hasPending() ? () => router.navigate('/routes') : () => router.dismissTo('/routes');
-  sheetNavigation.whenVisible(backToRoutes);
-  fitSelectedRoute();
+}
+
+/**
+ * 結束導航（HUD／收合列「結束」確認、抵達後「結束導航」、指示失效後「重新規劃」共用同一個出口）：
+ * 停止引擎與背景定位、解除鏡頭跟隨，並把路線 session 一併清掉——不論是中途放棄還是抵達，
+ * 「結束導航」都是明確的終止動作，不該留著「回到路線」膠囊讓使用者以為還能接著走（使用者回饋：
+ * 結束導航後跳開，但路線規劃的膠囊還留在畫面上，過時的目的地／剩餘時間一直在）。直接退回首頁。
+ */
+export function endNavigation(): void {
+  stopEngineAndLocation();
+  endRouteSession();
+  sheetNavigation.whenVisible(() => router.dismissTo('/'));
 }

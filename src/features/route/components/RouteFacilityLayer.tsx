@@ -63,7 +63,10 @@ export default function RouteFacilityLayer() {
         id="route-facilities"
         data={collection}
         cluster
-        clusterRadius={50}
+        // 沿途設施沒有首頁 `FacilityPills` 先篩掉最近的那幾個，車站、賣場旁常常同時有好幾個廁所／電梯
+        // 擠在幾十公尺內；clusterRadius 比首頁圖層（50）大，讓這些點更容易先合併成一顆數字徽章，
+        // 而不是縮圖未展開時一堆馬桶圖示疊在一起（使用者回饋：規劃路線的設施顯示太醜了好多馬桶）。
+        clusterRadius={80}
         clusterMaxZoom={16}
         onPress={(event) => {
           const feature = event.nativeEvent.features[0];

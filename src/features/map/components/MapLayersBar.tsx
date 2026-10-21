@@ -1,60 +1,63 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/shared/ui/typography/Text';
+import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
-import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { RADIUS, SPACE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { MapLayersBarProps } from './MapLayersBar.types';
 
 /**
- * 常駐橫向圖層捷徑列（取代方案 A 的「圖層」彈出選單，使用者回饋：開合選單多一步、
- * 設施圖示分類不直覺）。2D／3D 視角切換 + 電梯／坡道／廁所／停車每個都是獨立按鈕，
- * 點一下直接套用，選取中的按鈕反白；不需要再開合卡片。
+ * 常駐貼在首頁 sheet 上緣的設施篩選列（取代方案 A 的「圖層」按鈕＋彈出選單，使用者回饋：
+ * 右邊常駐的「圖層」入口跟彈出卡片不需要了，直接像搜尋框上方那樣貼著 sheet 常駐顯示）。
+ * 電梯／坡道／廁所／停車每個都是獨立膠囊，點一下直接套用，選取中的反白；不需要再開合卡片。
+ * 每顆各自一個白底膠囊（不是單一大卡片裡的色塊），放不下時橫向捲動，不會像擠在同一條列裡
+ * 那樣互相擠壓文字寬度（使用者回饋截圖實測：擠在一起時標籤被截斷成「...」）。
  */
-export default function MapLayersBar({ is3d, onToggle3d, facilityToggles }: MapLayersBarProps) {
-  const { t } = useAppTranslation();
+export default function MapLayersBar({ facilityToggles }: MapLayersBarProps) {
   const colors = useThemeColors();
   const tones = useSemanticColors();
 
-  const items = [
-    { key: '3d', label: t('switchTo3D'), iconName: 'cuboid' as const, selected: is3d, onToggle: onToggle3d },
-    ...facilityToggles,
-  ];
-
   return (
-    <View style={[styles.bar, { backgroundColor: colors.backgroundElement }]}>
-      {items.map((item) => (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.content}
+      accessibilityRole="none">
+      {facilityToggles.map((item) => (
         <Pressable
           key={item.key}
           accessibilityRole="button"
           accessibilityState={{ selected: item.selected }}
           accessibilityLabel={item.label}
           onPress={item.onToggle}
-          style={[styles.button, item.selected && { backgroundColor: tones.accentSoft }]}>
-          <Icon name={item.iconName} size={20} color={item.selected ? tones.accent : colors.textSecondary} />
+          style={[
+            styles.button,
+            { backgroundColor: item.selected ? tones.accentSoft : colors.background },
+          ]}>
+          <Icon name={item.iconName} size={18} color={item.selected ? tones.accent : colors.textSecondary} />
+          <Text style={[styles.label, { color: item.selected ? tones.accent : colors.text }]} numberOfLines={1}>
+            {item.label}
+          </Text>
         </Pressable>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  bar: {
-    flexDirection: 'row',
-    borderRadius: RADIUS.pill,
-    padding: 4,
-    gap: 4,
-    shadowColor: '#000000',
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
+  content: { flexDirection: 'row', gap: SPACE.sm },
   button: {
-    minWidth: 44,
-    minHeight: 44,
-    borderRadius: RADIUS.pill,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    minHeight: 44,
+    paddingHorizontal: SPACE.md,
+    borderRadius: RADIUS.pill,
+    shadowColor: '#000000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
+  label: { fontSize: 14, fontWeight: '600' },
 });

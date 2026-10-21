@@ -73,3 +73,14 @@ export function parseEnvironment(data: unknown): EnvironmentInfo {
   }
   return { weather: parseWeather(data.weather), airQuality: parseAirQuality(data.airQuality) };
 }
+
+/** 空氣品質分級對應的文字顏色（跟後端 `classifyPm25` 的中文分級一一對應）；
+ * `EnvironmentChip` 跟 `EnvironmentDetailSheet` 共用同一份，分級顏色才會一致。
+ * 沒有對應到（例如降級時缺資料）就用預設文字色，不特別上色。 */
+export const AIR_QUALITY_COLOR: Record<string, string> = {
+  良好: '#2B8A3E',
+  普通: '#E8A33D',
+  對敏感族群不健康: '#E8590C',
+  不健康: '#C92A2A',
+  非常不健康: '#862E2E',
+};

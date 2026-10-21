@@ -18,6 +18,7 @@ import { ROUTE_MODE_LABEL_KEY, useOnboardingStore } from '@/features/onboarding'
 import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
+import { usePreferencesStore, type QuickActionKey } from '@/shared/preferences';
 import { useDictation, type DictationStatus } from '@/shared/speech';
 import type { IconName } from '@/shared/ui';
 
@@ -59,6 +60,15 @@ export interface ExploreRow {
  */
 export type ExploreMode = 'idle' | 'history' | 'results';
 
+export interface ExploreQuickAction {
+  key: QuickActionKey;
+  label: string;
+  iconName: 'sparkles' | 'bus' | 'alert' | 'trainFront';
+  /** 圖示底色：每個項目各自一色，不再全部套用同一個 accentSoft（使用者回饋 2026-10-11，太單調）。 */
+  color: string;
+  onPress: () => void;
+}
+
 /** 「去哪裡」下方的常去地點圓鈕（收藏前幾筆） */
 export interface ExploreShortcut {
   key: string;
@@ -96,6 +106,14 @@ const SAVED_CATEGORY_COLOR: Record<BuiltInSavedPlaceCategory, string> = {
   transport: '#0C8599',
   medical: '#E03131',
   other: '#495057',
+};
+
+/** 快速服務每格各自一色，不再全部套用同一個 accent 藍（使用者回饋 2026-10-11：太單調）。 */
+const QUICK_ACTION_COLOR: Record<QuickActionKey, string> = {
+  assistant: '#7048E8',
+  bus: '#0F9960',
+  hazard: '#E8590C',
+  train: '#1864AB',
 };
 
 export interface ExploreViewModel {
@@ -137,9 +155,6 @@ export interface ExploreViewModel {
   showBrand: boolean;
   /** 大標「去哪裡？」與右側的行動需求 pill（點了到設定的需求頁） */
   header: { title: string; needs: { label: string; accessibilityLabel: string; onPress: () => void } };
-  /** 搜尋框下方常駐「規劃路線」入口：不需要先搜到地點，直接開路線面板選起訖點
-   * （與網頁版左側常駐「規劃路線」對齊；地點詳情頁的「規劃路線」按鈕是另一條帶目的地的捷徑，兩者並存）。 */
-  planRoute: { label: string; accessibilityLabel: string; onPress: () => void };
   /** 收藏地點（依下方 shortcutFilters 勾選的分類篩選，全部收藏可橫向滑動瀏覽）；
    * 旁邊的「新增」是常去地點區塊標題右側的小按鈕，不再混在圓鈕那排裡 */
   shortcuts: ExploreShortcut[];
@@ -148,6 +163,7 @@ export interface ExploreViewModel {
   addShortcut: { label: string; accessibilityLabel: string; onPress: () => void };
   /** 沒有定位或設施未載入時為 null */
   nearbySummary: ExploreNearbySummary | null;
+  quickActions: ExploreQuickAction[];
   /** 搜尋框右側的帳號／設定按鈕（Apple 地圖的頭像位置）；已登入顯示名字首字 */
   account: { label: string; initial: string | null; onPress: () => void };
   /** 搜尋框的語音輸入：原地辨識、講完直接把文字填進搜尋框觸發搜尋，不開啟任何對話 UI
@@ -165,6 +181,7 @@ export interface ExploreViewModel {
     cancelSearch: string;
     recentSearches: string;
     moreActions: string;
+    quickServices: string;
     networkError: string;
     retry: string;
   };
@@ -198,6 +215,7 @@ export function useExploreViewModel(): ExploreViewModel {
   const routeMode = useOnboardingStore((state) => state.profile.routeMode);
   const addSearchHistory = useSavedPlacesStore((state) => state.addSearchHistory);
   const removeSearchHistory = useSavedPlacesStore((state) => state.removeSearchHistory);
+  const enabledQuickActions = usePreferencesStore((state) => state.quickActions);
   const setSelectedPlace = usePlaceUiStore((state) => state.setSelectedPlace);
   const { suggestions, loading, error: autocompleteError, retry, sessionToken, resetSession } = useAutocomplete(query, userLocation ?? undefined);
   const dictation = useDictation((transcript) => {
@@ -416,11 +434,41 @@ export function useExploreViewModel(): ExploreViewModel {
         onPress: () => router.navigate('/settings/needs'),
       },
     },
-    planRoute: { label: t('planRoute'), accessibilityLabel: t('planRoute'), onPress: () => router.navigate('/plan') },
     shortcuts,
     shortcutFilters,
     addShortcut: { label: t('nativeHomeAddShortcut'), accessibilityLabel: t('nativeHomeAddShortcutA11y'), onPress: openSaved },
     nearbySummary: summary,
+    // 順序與顯示／隱藏依設定頁「首頁快捷方式」的 enabledQuickActions（參考網頁版，使用者回饋 2026-10-11）；
+    // 規劃路線沒有在候選清單裡——地點詳情頁本來就有「規劃路線」主按鈕，這裡不必重複放。
+    quickActions: enabledQuickActions
+      .map((key): ExploreQuickAction | null => {
+        switch (key) {
+          // 公車（Phase 2）：只經 sheet 路由切換面板，place 不 import 那個 feature。
+          case 'bus':
+            return { key: 'bus', label: t('busInfo'), iconName: 'bus', color: QUICK_ACTION_COLOR.bus, onPress: () => router.navigate('/bus') };
+          // AI 助理（Phase 4）：root modal；place 不 import ai feature
+          case 'assistant':
+            return {
+              key: 'assistant', label: t('assistShort'), iconName: 'sparkles', color: QUICK_ACTION_COLOR.assistant,
+              onPress: () => router.navigate('/chat'),
+            };
+          // 危險通報（Phase 3）：root modal，未登入也能送
+          case 'hazard':
+            return {
+              key: 'hazard', label: t('reportHazard'), iconName: 'alert', color: QUICK_ACTION_COLOR.hazard,
+              onPress: () => router.navigate('/hazard-report'),
+            };
+          // 火車／高鐵時刻（測試人員回饋 2026-10-11）：root modal，place 不 import train feature
+          case 'train':
+            return {
+              key: 'train', label: t('nativeTrainSearchTitle'), iconName: 'trainFront', color: QUICK_ACTION_COLOR.train,
+              onPress: () => router.navigate('/train'),
+            };
+          default:
+            return null;
+        }
+      })
+      .filter((action): action is ExploreQuickAction => action !== null),
     account: {
       label: userName ? `${t('settingTitle')}，${userName}` : t('settingTitle'),
       initial: userName ? userName.trim().slice(0, 1).toUpperCase() : null,
@@ -447,6 +495,7 @@ export function useExploreViewModel(): ExploreViewModel {
       cancelSearch: t('cancel'),
       recentSearches: t('recentSearches'),
       moreActions: t('nativeHomeMoreActions'),
+      quickServices: t('nativeHomeQuickServices'),
       networkError: t('nativeNetworkError'),
       retry: t('retry'),
     },

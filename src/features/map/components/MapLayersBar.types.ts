@@ -13,8 +13,7 @@ export interface MapLayersBarToggle {
 }
 
 export interface MapLayersBarProps {
-  is3d: boolean;
-  onToggle3d: () => void;
-  /** 電梯／坡道／廁所／停車 */
+  /** 電梯／坡道／廁所／停車；2D／3D 是獨立的常駐按鈕（見 `MapControls`），不在這排裡
+   * （使用者回饋：這排圖示都長一樣，分不出哪顆是在切視角）。 */
   facilityToggles: MapLayersBarToggle[];
 }

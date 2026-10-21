@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 
 import { sheetNavigation } from '@/features/map';
+import { endRouteSession } from '@/features/route';
 
 import { beginNavigation, endNavigation } from '../navigationSession';
 
@@ -9,7 +10,7 @@ jest.mock('@/features/map', () => ({
   ...jest.requireActual('@/features/map/controller/sheetNavigation'),
   mapCamera: { stopFollow: () => {} },
 }));
-jest.mock('@/features/route', () => ({ fitSelectedRoute: () => {} }));
+jest.mock('@/features/route', () => ({ endRouteSession: jest.fn() }));
 jest.mock('@/shared/location', () => ({ startBackgroundLocation: async () => {}, stopBackgroundLocation: async () => {} }));
 jest.mock('@/shared/logger', () => ({ logger: { warn: () => {} } }));
 jest.mock('../navigationLifecycle', () => ({ startNavigation: () => true, stopNavigation: () => {} }));
@@ -19,26 +20,29 @@ const texts = { notificationTitle: 'title', notificationBody: 'body' };
 beforeEach(() => {
   jest.mocked(router.navigate).mockClear();
   jest.mocked(router.dismissTo).mockClear();
+  jest.mocked(endRouteSession).mockClear();
 });
 
-it('shows the navigation panel, then returns the sheet to the route results', () => {
+it('shows the navigation panel, then clears the route session and returns home', () => {
   sheetNavigation.setVisible(true);
   beginNavigation(texts);
   endNavigation();
 
   expect(router.navigate).toHaveBeenCalledWith('/navigation');
-  expect(router.dismissTo).toHaveBeenCalledWith('/routes');
+  expect(endRouteSession).toHaveBeenCalledTimes(1);
+  expect(router.dismissTo).toHaveBeenCalledWith('/');
 });
 
-it('keeps the home panel under the route results when voice starts and ends navigation behind a modal', () => {
+it('clears the route immediately and returns home after the modal closes without reopening navigation', () => {
   sheetNavigation.setVisible(false);
   beginNavigation(texts);
   endNavigation();
+  expect(endRouteSession).toHaveBeenCalledTimes(1);
   expect(router.navigate).not.toHaveBeenCalled();
+  expect(router.dismissTo).not.toHaveBeenCalled();
 
   sheetNavigation.setVisible(true);
-  // The navigation panel was never shown, so dismissing to /routes would replace the sheet's root panel.
-  expect(router.dismissTo).not.toHaveBeenCalled();
-  expect(router.navigate).toHaveBeenCalledTimes(1);
-  expect(router.navigate).toHaveBeenCalledWith('/routes');
+  expect(router.navigate).not.toHaveBeenCalled();
+  expect(router.dismissTo).toHaveBeenCalledTimes(1);
+  expect(router.dismissTo).toHaveBeenCalledWith('/');
 });

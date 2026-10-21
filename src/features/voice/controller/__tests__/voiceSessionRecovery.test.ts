@@ -1,4 +1,5 @@
-import { startVoiceSession, endVoiceSession, dismissVoiceSession } from '@/features/voice/controller/voiceController';
+import { startVoiceSession, endVoiceSession, dismissVoiceSession, toggleVoiceMute } from '@/features/voice/controller/voiceController';
+import { onVoiceSessionTerminal } from '@/features/voice/controller/voiceNavigationBridge';
 import { useVoiceStore } from '@/features/voice/store/voiceStore';
 import { isVoiceSessionActive, shouldShowVoicePill } from '@/features/voice/domain/voiceStatus';
 import { registerChatDismiss } from '@/features/ai/controller/actionExecutor';
@@ -226,6 +227,50 @@ describe('voice session recovery through the production controller', () => {
     await jest.advanceTimersByTimeAsync(10_001);
     expect(state()).toMatchObject({ status: 'listening', visible: true, sentEnd: false, routeSync: 'error' });
   });
+});
+
+it('hands the pre-terminal mute preference to navigation before the voice UI resets it', async () => {
+  await speaking();
+  toggleVoiceMute();
+  expect(useVoiceStore.getState().isMuted).toBe(true);
+  endVoiceSession();
+  expect(useVoiceStore.getState().isMuted).toBe(false);
+  expect(onVoiceSessionTerminal).toHaveBeenLastCalledWith({ muted: true, reason: 'ended' });
+});
+
+it.each(['findA11yPlaces', 'trackBuses'])('keeps only the latest successful %s snapshot on the live voice view while preserving chat history', async name => {
+  await speaking();
+  const result = name === 'trackBuses'
+    ? [{ ok: true, buses: [{ plateNumb: 'A', lat: 25, lng: 121 }, { plateNumb: 'B', lat: 25.1, lng: 121 }] }, { ok: true, buses: [{ plateNumb: 'A', lat: 25.2, lng: 121 }] }]
+    : [{ ok: true, places: { nearbyBathroom: [{ _id: 'old', name: '舊結果', latitude: 25, longitude: 121 }] } }, { ok: true, places: { nearbyBathroom: [{ _id: 'new', name: '新結果', latitude: 25.1, longitude: 121 }] } }];
+  result.forEach((value, index) => {
+    event({ type: 'tool_call', name, callId: `snapshot-${index}`, turnId: 't' });
+    event({ type: 'tool_result', name, callId: `snapshot-${index}`, turnId: 't', ok: true, result: value });
+  });
+  expect(useVoiceStore.getState().toolResults).toEqual([expect.objectContaining({ name, result: result[1] })]);
+  endVoiceSession();
+  const turns = jest.mocked(appendVoiceTurns).mock.calls.at(-1)?.[0] ?? [];
+  expect(turns.flatMap(turn => turn.tools).filter(tool => tool.name === name).map(tool => tool.result)).toEqual(result);
+});
+
+it('publishes complete tool results during voice instead of waiting for session end', async () => {
+  await speaking();
+  const result = { ok: true, stops: [{ stopUid: 'stop-a', stopName: '市政府', lat: 25, lng: 121 }] };
+  event({ type: 'tool_call', name: 'findNearbyBusStops', callId: 'nearby-a', turnId: 't' });
+  event({ type: 'tool_result', name: 'findNearbyBusStops', callId: 'nearby-a', turnId: 't', ok: true, result });
+  expect(useVoiceStore.getState().toolResults).toEqual([expect.objectContaining({ name: 'findNearbyBusStops', result })]);
+  expect(state().visible).toBe(true);
+});
+
+it.each(['interrupted', 'turn.complete', 'disconnect'] as const)('%s clears an unfinished query indicator', async boundary => {
+  await speaking();
+  event({ type: 'tool_call', name: 'getBusArrival', callId: 'arrival-a', turnId: 't' });
+  expect(useVoiceStore.getState().activeTool?.type).toBe('call');
+  if (boundary === 'disconnect') socket().onclose?.({ code: 1006, reason: '' });
+  else event({ type: boundary });
+  expect(useVoiceStore.getState().activeTool).toBeNull();
+  event({ type: 'tool_result', name: 'getBusArrival', callId: 'arrival-a', turnId: 't', ok: true, result: { ok: true, arrivals: [] } });
+  expect(useVoiceStore.getState().toolResults).toEqual([]);
 });
 
 it('keeps voice alive when location is denied, allowing the model to ask for an origin', async () => {

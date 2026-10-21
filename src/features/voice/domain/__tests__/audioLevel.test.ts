@@ -22,6 +22,7 @@ const ALL_STATUSES: VoiceStatusName[] = [
   'ready',
   'listening',
   'model-speaking',
+  'ending',
   'reconnecting',
   'playback-blocked',
   'needs-login',

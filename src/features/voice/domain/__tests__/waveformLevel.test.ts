@@ -21,6 +21,8 @@ describe('floatLevel', () => {
 describe('waveformLevelSource', () => {
   it('AI 說話讀播放、聆聽讀麥克風、靜音或其他狀態不讀', () => {
     expect(waveformLevelSource('model-speaking', false)).toBe('model');
+    expect(waveformLevelSource('ending', false)).toBe('model');
+    expect(waveformMode('ending', false)).toBe('live');
     expect(waveformLevelSource('listening', false)).toBe('mic');
     expect(waveformLevelSource('listening', true)).toBeNull();
     expect(waveformLevelSource('connecting', false)).toBeNull();

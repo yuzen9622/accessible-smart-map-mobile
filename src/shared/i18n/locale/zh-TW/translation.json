@@ -89,6 +89,7 @@
       "statusReconnecting": "連線中斷，重連中",
       "statusPlaybackBlocked": "播放已暫停",
       "statusNeedsLogin": "請重新登入",
+      "statusEnding": "正在結束對話…",
       "statusEnded": "對話已結束",
       "errorConflict": "已在其他裝置開啟語音對話",
       "errorSessionEnded": "語音連線已中斷，請重試",

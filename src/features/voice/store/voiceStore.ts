@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { initialVoiceViewState, type VoiceViewMode, type VoiceViewState } from '../domain/voiceViewState';
+import type { VoiceToolEvent } from '../domain/voiceSession';
 
 /** 語音按鈕在視窗中的中心與尺寸：語音畫面從這裡「長」出音波（過場動畫的起點）。 */
 export interface VoiceLaunchOrigin {
@@ -12,6 +13,7 @@ export interface VoiceLaunchOrigin {
 }
 
 interface VoiceStore extends VoiceViewState {
+  toolResults: VoiceToolEvent[];
   routeSyncState: import('../domain/routeContextSync').RouteSyncState;
   setViewMode: (mode: VoiceViewMode) => void;
   /** 只給過場動畫用；語音畫面播完開場動畫就清掉。 */
@@ -26,6 +28,7 @@ interface VoiceStore extends VoiceViewState {
  */
 export const useVoiceStore = create<VoiceStore>((set) => ({
   ...initialVoiceViewState,
+  toolResults: [],
   routeSyncState: 'idle',
   setViewMode: (viewMode) => set({ viewMode }),
   launchOrigin: null,

@@ -71,6 +71,7 @@ function createHarness(opts?: {
   language?: VoiceSessionDeps['getLanguage'];
   conversation?: VoiceSessionDeps['getRouteConversation'];
   onRouteSyncState?: VoiceSessionDeps['onRouteSyncState'];
+  onToolEvent?: VoiceSessionDeps['onToolEvent'];
 }) {
   const sockets: FakeSocket[] = [];
   const captureCalls: CaptureCall[] = [];
@@ -89,7 +90,7 @@ function createHarness(opts?: {
   const onTranscriptCorrection = jest.fn();
   const onTurnComplete = jest.fn();
   const onInterrupted = jest.fn();
-  const onToolEvent = jest.fn();
+  const onToolEvent = jest.fn(opts?.onToolEvent);
   const onNavigationEvent = jest.fn();
 
   const createSocket = jest.fn((url: string) => {
@@ -218,6 +219,95 @@ async function bringToListening(
   call?.resolve();
   await flush();
 }
+
+it('keeps consecutive tool results flowing while their own route updates await the turn boundary', async () => {
+  const h = createHarness({
+    conversation: () => ({ routeContractVersion: 1, routeContext: null }),
+    onToolEvent: event => { if (event.type === 'result') h.controller.syncRouteContext(); },
+  });
+  h.controller.start();
+  const s = h.sockets[0];
+  s.triggerOpen();
+  s.triggerMessage(JSON.stringify({ type: 'session.ready', capabilities: { aiRouteContractVersion: 1, routeContextSync: true } }));
+  s.triggerMessage(JSON.stringify({ type: 'route.context.ack', requestId: 'selection-1', selectionVersion: 1, ok: true, routeId: null, navigationId: null, routeVersion: null }));
+  h.captureCalls[0].resolve(); await flush();
+  for (const callId of ['a', 'b']) s.triggerMessage(JSON.stringify({ type: 'tool_call', name: 'planAccessibleRoute', callId, turnId: 't' }));
+  for (const callId of ['a', 'b']) s.triggerMessage(JSON.stringify({ type: 'tool_result', name: 'planAccessibleRoute', callId, turnId: 't', ok: true, result: { ok: true } }));
+  expect(h.onToolEvent.mock.calls.map(([e]) => [e.type, e.callId])).toEqual([['call', 'a'], ['call', 'b'], ['result', 'a'], ['result', 'b']]);
+  const contexts = () => s.sent.filter((v): v is string => typeof v === 'string').map(v => JSON.parse(v)).filter(v => v.type === 'route.context.set');
+  expect(contexts()).toHaveLength(1);
+  s.triggerMessage(JSON.stringify({ type: 'turn.complete' }));
+  expect(contexts()).toHaveLength(2);
+});
+
+describe('server-requested farewell', () => {
+  it('stops uplink, plays the farewell, and drains before a normal end', async () => {
+    const h = createHarness();
+    h.controller.start();
+    await bringToListening(h);
+    const s = h.sockets[0];
+    s.triggerMessage(JSON.stringify({ type: 'session.ending', reason: 'user_request' }));
+    expect(h.captureCalls[0].stop).toHaveBeenCalledTimes(1);
+    expect(h.lastStatus()?.status).toBe('ending');
+    h.captureCalls[0].onFrame(new ArrayBuffer(480));
+    expect(s.sent.filter(v => v instanceof ArrayBuffer)).toHaveLength(0);
+    const farewell = new ArrayBuffer(960);
+    s.triggerMessage(farewell);
+    expect(h.playback.play).toHaveBeenCalledWith(farewell);
+    h.playback.isPlaying.mockReturnValue(true);
+    s.triggerClose(1000, 'session-ended');
+    expect(h.playback.clear).not.toHaveBeenCalled();
+    expect(h.playback.dispose).not.toHaveBeenCalled();
+    h.playback.isPlaying.mockReturnValue(false);
+    h.playback.drain();
+    expect(h.lastStatus()?.status).toBe('ended');
+    expect(h.playback.dispose).toHaveBeenCalledTimes(1);
+    expect(h.onNavigationEvent).not.toHaveBeenCalled();
+  });
+
+  it('finishes a closed farewell if the user mutes the remaining queue', async () => {
+    const h = createHarness();
+    h.controller.start();
+    await bringToListening(h);
+    const s = h.sockets[0];
+    s.triggerMessage(JSON.stringify({ type: 'session.ending' }));
+    h.playback.isPlaying.mockReturnValue(true);
+    s.triggerClose(1000);
+    h.playback.setMuted.mockImplementation(() => h.playback.isPlaying.mockReturnValue(false));
+    h.controller.setMuted(true);
+    expect(h.lastStatus()?.status).toBe('ended');
+  });
+
+  it('does not revive an async microphone setup after session.ending', async () => {
+    const h = createHarness();
+    h.controller.start();
+    const s = h.sockets[0];
+    s.triggerOpen();
+    s.triggerMessage(readyMessage());
+    s.triggerMessage(JSON.stringify({ type: 'session.ending' }));
+    h.captureCalls[0].resolve();
+    await flush();
+    expect(h.captureCalls[0].stop).toHaveBeenCalledTimes(1);
+    expect(h.lastStatus()?.status).toBe('ending');
+    s.triggerClose(1000);
+    expect(h.lastStatus()?.status).toBe('ended');
+  });
+
+  it('does not reconnect or flush route changes during a farewell', async () => {
+    let language: 'zh-TW' | 'en' = 'zh-TW';
+    const h = createHarness({ language: () => language });
+    h.controller.start();
+    await bringToListening(h);
+    const s = h.sockets[0];
+    s.triggerMessage(JSON.stringify({ type: 'session.ending' }));
+    language = 'en';
+    h.controller.syncLanguage();
+    s.triggerClose(1006);
+    await jest.advanceTimersByTimeAsync(60_000);
+    expect(h.lastStatus()?.status).toBe('ended');
+    expect(h.sockets).toHaveLength(1);
+  });
+});
 
 beforeEach(() => {
   jest.useFakeTimers();

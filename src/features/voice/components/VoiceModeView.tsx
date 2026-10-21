@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useColorScheme, View, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
@@ -11,7 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { toolDoneLabel, toolLoadingLabel } from '@/features/ai';
+import { getAggregatedToolResults, openAiResult, ToolResultsBox, toolDoneLabel, toolLoadingLabel } from '@/features/ai';
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
 import { ensureAiDataConsent } from '@/shared/privacy';
@@ -107,6 +107,8 @@ export default function VoiceModeView() {
   const status = useVoiceStore((s) => s.status);
   const transcripts = useVoiceStore((s) => s.transcripts);
   const activeTool = useVoiceStore((s) => s.activeTool);
+  const toolResults = useVoiceStore((s) => s.toolResults);
+  const resultGroups = useMemo(() => getAggregatedToolResults(toolResults, t), [toolResults, t]);
   const isMuted = useVoiceStore((s) => s.isMuted);
   const scrollRef = useRef<ScrollView>(null);
   const rootRef = useRef<View>(null);
@@ -245,7 +247,7 @@ export default function VoiceModeView() {
           style={styles.transcripts}
           contentContainerStyle={[styles.transcriptContent, transcripts.length === 0 && styles.transcriptEmpty]}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
-          {transcripts.length === 0 && hint ? (
+          {transcripts.length === 0 && resultGroups.length === 0 && hint ? (
             <Text style={[styles.hint, { color: colors.textSecondary, fontSize: scaledSize(26, fontScale), lineHeight: scaledSize(34, fontScale) }]}>
               {hint}
             </Text>
@@ -284,6 +286,7 @@ export default function VoiceModeView() {
               </Text>
             );
           })}
+          {resultGroups.length > 0 ? <ToolResultsBox groups={resultGroups} isDark={isDark} onOpenItem={openAiResult} /> : null}
         </ScrollView>
       </Animated.View>
 

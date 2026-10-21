@@ -4,6 +4,7 @@
 // 3. `now`：到轉向點時念「向左轉…」。
 // 步驟要等使用者真的越過轉向點才推進（見 `legMode.selectNextStepIndex`），所以不會在轉彎前念下一步。
 // `maneuver` 為 CONTINUE／STRAIGHT 的步驟不是轉向點，只在 `now` 念一次（不念「X 公尺後，繼續直行」）。
+// 後端不切長直線，一條路只有一步；步行時由 `selectProgressReminder` 在剩餘距離跨過每個 500 公尺整數點時念「繼續直行 N」。
 
 import type { NavInstruction } from '@/features/route/domain';
 
@@ -25,7 +26,7 @@ export function announceThresholdsFor(legType: NavLegType | null | undefined): A
   return isVehicleLegType(legType) ? VEHICLE_ANNOUNCE : WALK_ANNOUNCE;
 }
 
-/** 後端明確標示為沿路直行（含長直線切段的進度點）。缺欄位或 null 一律回 false，維持舊行為。 */
+/** 後端明確標示為沿路直行。缺欄位或 null 一律回 false，維持舊行為。 */
 export function isStraightManeuver(step: Pick<NavInstruction, 'maneuver'>): boolean {
   return step.maneuver === 'CONTINUE' || step.maneuver === 'STRAIGHT';
 }
@@ -52,6 +53,28 @@ export function selectManeuverStage(
     return 'prepare';
   }
   return null;
+}
+
+/** 步行長直線的進度提醒間隔：剩餘距離每跨過一個整數倍念一次。 */
+export const WALK_REMINDER_INTERVAL_M = 500;
+/** 這一步開始後至少走這麼遠才提醒，避免緊接在 advance 後重複報距離。 */
+const REMINDER_MIN_WALKED_M = 150;
+
+/**
+ * 步行長直線該念的進度點（公尺）；不用念回傳 null。
+ * @param spokenMarks 這一步已念過的進度點。
+ * @param startDistanceM 這一步成為目前步驟時的距離。
+ */
+export function selectProgressReminder(
+  distanceM: number,
+  legType: NavLegType | null | undefined,
+  spokenMarks: ReadonlySet<number>,
+  startDistanceM: number | null,
+): number | null {
+  if (legType !== 'WALK' || startDistanceM == null || distanceM <= WALK_ANNOUNCE.prepareM) return null;
+  const mark = Math.ceil(distanceM / WALK_REMINDER_INTERVAL_M) * WALK_REMINDER_INTERVAL_M;
+  if (spokenMarks.has(mark) || startDistanceM - mark < REMINDER_MIN_WALKED_M) return null;
+  return mark;
 }
 
 /** 播報用的距離：10 公尺為單位（GPS 沒有更細的精度），1 公里以上取到 0.1 公里。 */

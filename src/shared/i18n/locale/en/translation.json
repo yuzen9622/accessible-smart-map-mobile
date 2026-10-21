@@ -308,6 +308,7 @@
   "arrived": "Arrived",
   "arrivedDesc": "You have reached your destination",
   "navSpeechAhead": "In {{distance}}, {{instruction}}",
+  "navSpeechContinue": "Continue straight for {{distance}}",
   "navSpeechMeters": "{{value}} meters",
   "navSpeechKilometers": "{{value}} kilometers",
   "preparingNav": "Preparing navigation…",

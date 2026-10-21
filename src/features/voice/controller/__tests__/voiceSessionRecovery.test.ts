@@ -159,7 +159,7 @@ describe('voice session recovery through the production controller', () => {
   it('valid result immediately dismisses chat while audio is still speaking', async () => {
     await speaking(); toolCall(); toolResult(routePlanFixture());
     expect(state()).toMatchObject({ status: 'model-speaking', visible: true, sentEnd: false, dismissed: true, navigated: true });
-    expect(mockNavigate).toHaveBeenCalledWith('/routes');
+    expect(mockNavigate).toHaveBeenCalledWith('/plan');
     expect(shouldShowVoicePill(useVoiceStore.getState().status.status, false, 'panel')).toBe(true);
   });
   it('ordinary failed non-route tool does not close voice', async () => {

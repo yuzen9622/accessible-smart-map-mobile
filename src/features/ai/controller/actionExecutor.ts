@@ -65,7 +65,7 @@ export function closeChat(): void {
 
 export function openRoutePanel(): void {
   closeChat();
-  sheetNavigation.whenVisible(() => router.navigate('/routes'));
+  sheetNavigation.whenVisible(() => router.navigate('/plan'));
 }
 
 export function executeAction(action: UIAction): ActionResult {

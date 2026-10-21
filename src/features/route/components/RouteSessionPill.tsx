@@ -7,7 +7,7 @@ import { useThemeColors } from '@/shared/theme';
 import { GlassCard, Icon } from '@/shared/ui';
 
 import { endRouteSession, fitSelectedRoute } from '../controller/routeSessionPort';
-import { hasRouteSession, routeResumeTarget, sheetModeFromPath, shouldShowRoutePill } from '../domain/routeSession';
+import { hasRouteSession, sheetModeFromPath, shouldShowRoutePill } from '../domain/routeSession';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import { routeTones } from './palette';
 
@@ -22,7 +22,7 @@ export interface RouteSessionPillProps {
 
 /**
  * 「回到路線」常駐 pill（Web `RouteSessionPill.tsx`）：守住「路線幾何在地圖上 ⟺ 有出口」不變量。
- * 點本體回到規劃結果（或表單）並框回路線；✕ 是結束路線的唯一 UI 入口之一（`endRouteSession`）。
+ * 點本體回到規劃路線（有結果就列在同一頁）並框回路線；✕ 是結束路線的唯一 UI 入口之一（`endRouteSession`）。
  */
 export default function RouteSessionPill({ isNavigating, chatOpen = false }: RouteSessionPillProps) {
   const { t } = useAppTranslation();
@@ -46,8 +46,7 @@ export default function RouteSessionPill({ isNavigating, chatOpen = false }: Rou
   const minutes = selectRoute ? Math.round(selectRoute.route.totalMinutes) : null;
 
   const resume = () => {
-    const target = routeResumeTarget(computeRoutes);
-    router.navigate(target === 'route' ? '/routes' : '/plan');
+    router.navigate('/plan');
     fitSelectedRoute();
   };
 

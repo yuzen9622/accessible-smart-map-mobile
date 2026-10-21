@@ -80,7 +80,7 @@ export function useSosTracker(rawToken: string | undefined) {
       return;
     }
     const result = await computeRoute({ destination: { lat: session.lat, lng: session.lng }, travelMode: 'drive' });
-    if (result.ok) sheetNavigation.whenVisible(() => router.navigate('/routes'));
+    if (result.ok) sheetNavigation.whenVisible(() => router.navigate('/plan'));
     else if (result.failure !== 'superseded') Alert.alert(t('nativeRouteErrorFailed'));
   };
 

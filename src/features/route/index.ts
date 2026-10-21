@@ -33,7 +33,6 @@ export * from './domain';
 
 // UI（Phase 2）：面板、地圖圖層、pill。跨 feature 的依賴（開始導航、公車 leg）由 app 路由組裝注入。
 export { default as RoutePlanScreen } from './screens/RoutePlanScreen';
-export { default as RouteListScreen, type RouteListScreenProps } from './screens/RouteListScreen';
 export { default as RouteDetailScreen, type BusLegRenderArgs, type RouteDetailScreenProps } from './screens/RouteDetailScreen';
 export { default as RouteLayer } from './components/RouteLayer';
 export { default as RouteFacilityLayer } from './components/RouteFacilityLayer';

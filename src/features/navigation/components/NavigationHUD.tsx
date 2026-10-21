@@ -118,7 +118,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
         {instructionError ? (
           <View style={[styles.banner, { paddingTop: insets.top + 8 }]}>
             <Text accessibilityLiveRegion="assertive" style={styles.bannerInstruction}>{t(instructionError === 'expired' ? 'nativeRouteTokenExpired' : 'nativeInstructionsUnavailable')}</Text>
-            <Pressable accessibilityRole="button" onPress={() => { endNavigation(); router.navigate('/plan'); }} style={styles.arrivedButton}>
+            <Pressable accessibilityRole="button" onPress={() => { endNavigation(); router.dismissTo('/plan'); }} style={styles.arrivedButton}>
               <Text style={styles.arrivedButtonText}>{t('nativePlanAgain')}</Text>
             </Pressable>
           </View>

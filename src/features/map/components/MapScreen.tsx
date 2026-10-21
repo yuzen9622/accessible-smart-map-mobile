@@ -44,7 +44,7 @@ import MapControls from './MapControls';
 
 /** 導航跟隨時讓給 `NavigationHUD` 頂部橫幅的垂直留白（不含 safe-area top），讓定位點落在橫幅下方，
  * 前方路況留白變多，而不是卡在螢幕中段（使用者回饋 2026-10-11，見下方 padding 註解）。 */
-const NAV_FOLLOW_TOP_PADDING = 190;
+const NAV_FOLLOW_TOP_PADDING = 100;
 
 /** 首頁「停車」圖層開啟時才依位置查附近無障礙停車（`NearbyScreen` 也會各自載入）。 */
 function ParkingLoader() {

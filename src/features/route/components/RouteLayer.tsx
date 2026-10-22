@@ -12,7 +12,14 @@ import { useRouteSessionStore } from '../store/routeSessionStore';
  * 只有目的地、還沒算出路線時也畫目的地 pin（對齊 `hasRouteSession` 的定義：它也需要 pill 當出口）。
  */
 export default function RouteLayer() {
-  const route = useRouteSessionStore((s) => s.selectRoute?.route ?? null);
+  const selected = useRouteSessionStore((s) => s.selectRoute?.route ?? null);
+  const preview = useRouteSessionStore((s) => s.legGeometryPreview);
+  // 查看別班公車時，那段 leg 改畫那班的線形（只在這張圖層上替換，不寫回路線）
+  const previewLeg = preview && selected?.routeId === preview.routeId ? selected.legs[preview.legIndex] : undefined;
+  const route =
+    selected && preview && previewLeg?.type === 'BUS'
+      ? { ...selected, legs: selected.legs.map((leg, index) => (index === preview.legIndex ? { ...previewLeg, polyline: preview.polyline } : leg)) }
+      : selected;
   const waypoints = useRouteSessionStore((s) => s.routeWaypoints);
   const destination = useRouteSessionStore((s) => s.destination);
 

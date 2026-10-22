@@ -1,9 +1,9 @@
 import { getAppLanguage, type AppLanguage } from '@/shared/i18n';
-import type { BusLeg } from '@/features/route';
+import type { BusDepartureCandidate, BusLeg } from '@/features/route';
 import { createPoller, type VisibilitySource } from '@/shared/polling';
 
 import { fetchRouteDetailCached, peekRouteDetail } from '../api/busRouteDetailCache';
-import type { RouteDetailDirection } from '../types/transit';
+import type { RouteDetailDirection, RouteDetailPayload } from '../types/transit';
 import { fetchLegSnapshot, fetchRideArrival, tdxRouteName, type LegSnapshot } from './liveBusTracker';
 
 /**
@@ -78,22 +78,32 @@ export type BusLegEtaStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface LegEtaSnapshot {
   directions: RouteDetailDirection[] | null;
+  /** 最近一次 `bus-arrivals` 刷新的候選班次；undefined＝還沒刷新或後端沒給，呼叫端退回規劃時的清單。 */
+  candidates?: BusDepartureCandidate[];
   status: BusLegEtaStatus;
 }
 
-function legQuery(leg: BusLeg | null) {
-  if (!leg?.planContext) return null;
+function readySnapshot(payload: RouteDetailPayload): LegEtaSnapshot {
+  return { directions: payload.directions, candidates: payload.departureCandidates, status: 'ready' };
+}
+
+/**
+ * `publicFeed`：不帶規劃路線身分，問公開的 route-detail（查看別班候選公車時用——那班不在規劃裡，
+ * `bus-arrivals` 只會回規劃選定那班的站序）。
+ */
+function legQuery(leg: BusLeg | null, publicFeed = false) {
+  if (!leg || (!leg.planContext && !publicFeed)) return null;
   const city = leg.tdxCity ?? leg.cityCode ?? '';
   // TDX 以子路線索引站序：99 與 99延 是不同清單。規劃器說了它選哪個，就問那個。
   const routeName = tdxRouteName(leg);
-  return routeName && city ? { routeName, city, subRouteUid: leg.subRouteUid, planContext: leg.planContext } : null;
+  return routeName && city ? { routeName, city, subRouteUid: leg.subRouteUid, planContext: publicFeed ? undefined : leg.planContext } : null;
 }
 
 /** 已預熱的快取；hook 用它當初始狀態，展開後第一個 render 就是真資料而不是載入中。 */
-export function peekLegEtas(leg: BusLeg | null, lang: AppLanguage = getAppLanguage()): LegEtaSnapshot {
-  const q = legQuery(leg);
+export function peekLegEtas(leg: BusLeg | null, lang: AppLanguage = getAppLanguage(), publicFeed = false): LegEtaSnapshot {
+  const q = legQuery(leg, publicFeed);
   const warm = q ? peekRouteDetail(q.routeName, q.city, q.subRouteUid, q.planContext, lang) : null;
-  return warm ? { directions: warm, status: 'ready' } : { directions: null, status: 'idle' };
+  return warm ? readySnapshot(warm) : { directions: null, status: 'idle' };
 }
 
 /**
@@ -109,8 +119,9 @@ export function watchLegStopEtas(
   onUpdate: (snapshot: LegEtaSnapshot) => void,
   visibility: VisibilitySource,
   lang: AppLanguage = getAppLanguage(),
+  publicFeed = false,
 ): () => void {
-  const q = legQuery(leg);
+  const q = legQuery(leg, publicFeed);
   if (!q) {
     onUpdate({ directions: null, status: 'idle' });
     return () => {};
@@ -119,7 +130,7 @@ export function watchLegStopEtas(
   let cancelled = false;
   // 已有暖快取就不要蓋一個載入中上去。
   const last = peekRouteDetail(q.routeName, q.city, q.subRouteUid, q.planContext, lang);
-  onUpdate(last ? { directions: last, status: 'ready' } : { directions: null, status: 'loading' });
+  onUpdate(last ? readySnapshot(last) : { directions: null, status: 'loading' });
 
   const fetchEtas = async (force: boolean, signal?: AbortSignal) => {
     const fetched = await fetchRouteDetailCached(q.routeName, q.city, { force, subRouteUid: q.subRouteUid, planContext: q.planContext, lang });
@@ -127,7 +138,7 @@ export function watchLegStopEtas(
     if (cancelled || signal?.aborted) return;
 
     // 失敗時清掉查詢結果，由介面使用規劃快照的站序與原定時刻。
-    onUpdate(fetched ? { directions: fetched, status: 'ready' } : { directions: null, status: 'error' });
+    onUpdate(fetched ? readySnapshot(fetched) : { directions: null, status: 'error' });
   };
 
   if (!poll) {

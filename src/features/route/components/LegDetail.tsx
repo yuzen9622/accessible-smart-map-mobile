@@ -4,7 +4,7 @@ import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { filterIncidentsAlongRoute, formatIncidentEnd, isIncidentClosed } from '../domain/geo';
@@ -12,6 +12,7 @@ import {
   A11Y_FEATURE_LABEL_KEY,
   driveLegMinutes,
   gradeSlope,
+  localizedDuration,
   gradeUnconfirmedCrossings,
   gradeWidth,
   shouldAppendExitNumber,
@@ -25,7 +26,7 @@ import { nonEmptyName, presentRouteLegNames, walkStreetNames } from '../domain/r
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import type { DriveLeg, MatchedAlert, MetroAlert, RouteLeg, TrafficLevel, WalkLeg, WalkRestPoint } from '../types/route';
 import Disclosure from './Disclosure';
-import { ROUTE_SURFACE_COLOR, ROUTE_WARN_SURFACE, routeStyles, routeTones, type RouteTones } from './palette';
+import { ROUTE_WARN_SURFACE, routeStyles, routeTones, type RouteTones } from './palette';
 import { LEG_ICON } from './RouteCard';
 
 export interface LegDetailProps {
@@ -272,8 +273,51 @@ function DriveDetail({
   );
 }
 
+/** 步行段的點狀軌道：一串圓點由外層裁切，內容多高就露出多長（RN 的 dotted 邊框單邊在 iOS 不可靠）。 */
+const DOTS = Array.from({ length: 400 }, (_, index) => index);
+
+function TimelineRail({ leg, color }: { leg: RouteLeg; color: string }) {
+  const semantic = useSemanticColors();
+  const walk = leg.type === 'WALK';
+  return (
+    <View style={styles.rail} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+      <View style={[styles.legIcon, walk ? { backgroundColor: semantic.neutral.bg } : { backgroundColor: color }]}>
+        <Icon name={LEG_ICON[leg.type]} size={16} color={walk ? semantic.neutral.fg : '#FFFFFF'} />
+      </View>
+      {walk ? (
+        // 絕對定位：點串本身很長，若參與排版會把整段撐高；只填滿內容決定的高度
+        <View style={styles.dotsTrack}>
+          <View style={styles.dots}>
+            {DOTS.map((dot) => (
+              <View key={dot} style={[styles.railDot, { backgroundColor: semantic.neutral.fg }]} />
+            ))}
+          </View>
+        </View>
+      ) : (
+        <View style={[styles.line, { backgroundColor: color }]} />
+      )}
+    </View>
+  );
+}
+
+function legMinutes(leg: RouteLeg): number | null {
+  switch (leg.type) {
+    case 'WALK':
+      return leg.minutesEst;
+    case 'DRIVE':
+    case 'MOTORCYCLE':
+      return driveLegMinutes(leg);
+    case 'BUS':
+      return leg.rideMinutes ?? null;
+    default:
+      return leg.rideMinutes;
+  }
+}
+
 /**
- * 單段 leg 的明細（Web `LegDetail.tsx`）：步行（距離、出口、無障礙摘要、步驟）、公車（bus feature 注入）、
+ * 單段 leg 的明細（Web `LegDetail.tsx`），排成路線時間軸的一節（Google Maps 的大眾運輸詳情）：
+ * 左側軌道（運具圖示＋依運具上色的線，步行是點狀線），右側標題、時長與內容——
+ * 步行（距離、出口、無障礙摘要、步驟）、公車（bus feature 注入，含可搭乘的班次）、
  * 捷運／高鐵／台鐵（起訖站、站數、時刻、設施亮點、營運公告）、開車（路況、沿線事件、步驟）。
  * 所有文字都是可讀的列表內容，這個畫面就是 SDD §10「路線文字步驟」的替代路徑。
  */
@@ -283,56 +327,69 @@ export default function LegDetail({ leg: originalLeg, busStops, engine, isFirst 
   const { t } = useAppTranslation();
   const translate = t as Translate;
   const leg = presentRouteLegNames(originalLeg, getAppLanguage());
+  const minutes = legMinutes(leg);
 
   return (
-    <View style={[routeStyles.card, { backgroundColor: ROUTE_SURFACE_COLOR }]}>
-      <View style={routeStyles.row}>
-        <View style={[styles.legIcon, { backgroundColor: getLegColor(leg) }]}>
-          <Icon name={LEG_ICON[leg.type]} size={16} color="#FFFFFF" />
+    <View style={styles.segment}>
+      <TimelineRail leg={leg} color={getLegColor(leg)} />
+      <View style={styles.body}>
+        <View style={styles.titleRow}>
+          <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]} maxFontSizeMultiplier={MAX_FONT_SCALE.heading}>
+            {leg.type === 'BUS' ? t('railBus') : legTitle(leg, translate)}
+          </Text>
+          {minutes !== null && leg.type !== 'WALK' ? (
+            <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{localizedDuration(minutes, translate)}</Text>
+          ) : null}
         </View>
-        <Text accessibilityRole="header" style={[routeStyles.sectionTitle, routeStyles.flex, { color: colors.text }]}>
-          {legTitle(leg, translate)}
-        </Text>
+        {leg.type === 'WALK' && originalLeg.type === 'WALK' ? (
+          <WalkDetail leg={leg} engine={engine} t={translate} tones={tones} streetNames={walkStreetNames(originalLeg, getAppLanguage())} />
+        ) : null}
+        {leg.type === 'BUS' ? (
+          <>
+            {busStops ?? (
+              <Text style={[routeStyles.bodyText, { color: colors.text }]}>{`${nonEmptyName(leg.fromDisplayName, leg.departureStop)} → ${nonEmptyName(leg.toDisplayName, leg.arrivalStop)}`}</Text>
+            )}
+            <Alerts alerts={leg.alerts} tones={tones} />
+          </>
+        ) : null}
+        {leg.type === 'METRO' || leg.type === 'THSR' || leg.type === 'TRA' ? (
+          <>
+            <Text style={[routeStyles.bodyText, { color: colors.text }]}>
+              {leg.departureTime && leg.arrivalTime
+                ? `${nonEmptyName(leg.fromDisplayName, leg.departureStation)} ${leg.departureTime} → ${nonEmptyName(leg.toDisplayName, leg.arrivalStation)} ${leg.arrivalTime}`
+                : `${nonEmptyName(leg.fromDisplayName, leg.departureStation)} → ${nonEmptyName(leg.toDisplayName, leg.arrivalStation)}`}
+            </Text>
+            <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>
+              {[leg.type === 'METRO' ? t('stopsUnit', { count: leg.stopsCount }) : null, t('approxTime', { time: formatDuration(leg.rideMinutes) })]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
+            {leg.facilityHighlights.map((highlight) => (
+              <View key={highlight} style={routeStyles.row}>
+                <Icon name="accessibility" size={14} color={tones.ok} />
+                <Text style={[routeStyles.metaText, routeStyles.flex, { color: colors.text }]}>{highlight}</Text>
+              </View>
+            ))}
+            <Alerts alerts={leg.alerts} tones={tones} />
+          </>
+        ) : null}
+        {leg.type === 'DRIVE' || leg.type === 'MOTORCYCLE' ? <DriveDetail leg={leg} t={translate} tones={tones} isFirst={isFirst} isLast={isLast} /> : null}
       </View>
-      {leg.type === 'WALK' && originalLeg.type === 'WALK' ? (
-        <WalkDetail leg={leg} engine={engine} t={translate} tones={tones} streetNames={walkStreetNames(originalLeg, getAppLanguage())} />
-      ) : null}
-      {leg.type === 'BUS' ? (
-        <>
-          {busStops ?? (
-            <Text style={[routeStyles.bodyText, { color: colors.text }]}>{`${nonEmptyName(leg.fromDisplayName, leg.departureStop)} → ${nonEmptyName(leg.toDisplayName, leg.arrivalStop)}`}</Text>
-          )}
-          <Alerts alerts={leg.alerts} tones={tones} />
-        </>
-      ) : null}
-      {leg.type === 'METRO' || leg.type === 'THSR' || leg.type === 'TRA' ? (
-        <>
-          <Text style={[routeStyles.bodyText, { color: colors.text }]}>
-            {leg.departureTime && leg.arrivalTime
-              ? `${nonEmptyName(leg.fromDisplayName, leg.departureStation)} ${leg.departureTime} → ${nonEmptyName(leg.toDisplayName, leg.arrivalStation)} ${leg.arrivalTime}`
-              : `${nonEmptyName(leg.fromDisplayName, leg.departureStation)} → ${nonEmptyName(leg.toDisplayName, leg.arrivalStation)}`}
-          </Text>
-          <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>
-            {[leg.type === 'METRO' ? t('stopsUnit', { count: leg.stopsCount }) : null, t('approxTime', { time: formatDuration(leg.rideMinutes) })]
-              .filter(Boolean)
-              .join(' · ')}
-          </Text>
-          {leg.facilityHighlights.map((highlight) => (
-            <View key={highlight} style={routeStyles.row}>
-              <Icon name="accessibility" size={14} color={tones.ok} />
-              <Text style={[routeStyles.metaText, routeStyles.flex, { color: colors.text }]}>{highlight}</Text>
-            </View>
-          ))}
-          <Alerts alerts={leg.alerts} tones={tones} />
-        </>
-      ) : null}
-      {leg.type === 'DRIVE' || leg.type === 'MOTORCYCLE' ? <DriveDetail leg={leg} t={translate} tones={tones} isFirst={isFirst} isLast={isLast} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  legIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  segment: { flexDirection: 'row', gap: 12 },
+  rail: { width: 32, alignItems: 'center' },
+  legIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  line: { flex: 1, width: 5, borderRadius: 3, marginVertical: 4 },
+  dotsTrack: { flex: 1, alignSelf: 'stretch' },
+  dots: { position: 'absolute', top: 6, bottom: 4, left: 0, right: 0, overflow: 'hidden', alignItems: 'center' },
+  railDot: { marginBottom: 5, width: 5, height: 5, borderRadius: 2.5 },
+  body: { flex: 1, gap: 8, paddingTop: 5, paddingBottom: 24 },
+  titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
+  title: { fontSize: TYPE.body + 1, fontWeight: '700', flexShrink: 1 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   metrics: { gap: 6 },
   metricLabel: { minWidth: 40 },

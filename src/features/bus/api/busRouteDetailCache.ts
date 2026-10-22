@@ -3,7 +3,7 @@ import type { BusPlanContext } from "@/features/route";
 // 移植自 Web `src/lib/transit/busRouteDetailCache.ts`（commit 5eadc71），邏輯逐行保留。
 // 放在 api 層：它是 `getBusRouteDetail` 的去重快取，不含 UI 或 store。
 
-import type { RouteDetailDirection } from '../types/transit';
+import type { RouteDetailPayload } from '../types/transit';
 import { getBusRouteDetail } from './transit';
 
 /**
@@ -23,9 +23,9 @@ const TTL_MS = 15_000;
 
 interface Entry {
   at: number;
-  promise: Promise<RouteDetailDirection[] | null>;
+  promise: Promise<RouteDetailPayload | null>;
   /** Set once the promise resolves, so `peekRouteDetail` can read it. */
-  value?: RouteDetailDirection[] | null;
+  value?: RouteDetailPayload | null;
   settled: boolean;
 }
 
@@ -36,14 +36,14 @@ export function routeDetailKey(routeName: string, city: string, subRouteUid?: st
   return JSON.stringify([lang, city, routeName, subRouteUid ?? null, planContext?.routeToken ?? null, planContext?.legIndex ?? null]);
 }
 
-/** The cached directions when a fresh entry exists, else null. Never fetches. */
+/** The cached payload when a fresh entry exists, else null. Never fetches. */
 export function peekRouteDetail(
   routeName: string,
   city: string,
   subRouteUid?: string,
   planContext?: BusPlanContext,
   lang: AppLanguage = getAppLanguage(),
-): RouteDetailDirection[] | null {
+): RouteDetailPayload | null {
   const entry = cache.get(routeDetailKey(routeName, city, subRouteUid, planContext, lang));
   if (!entry?.settled) return null;
   if (Date.now() - entry.at > TTL_MS) return null;
@@ -66,7 +66,7 @@ export function fetchRouteDetailCached(
   routeName: string,
   city: string,
   opts?: { force?: boolean; subRouteUid?: string; planContext?: BusPlanContext; lang?: AppLanguage },
-): Promise<RouteDetailDirection[] | null> {
+): Promise<RouteDetailPayload | null> {
   const lang = opts?.lang ?? getAppLanguage();
   const key = routeDetailKey(routeName, city, opts?.subRouteUid, opts?.planContext, lang);
   const existing = cache.get(key);
@@ -98,10 +98,11 @@ export function fetchRouteDetailCached(
         fail();
         return null;
       }
-      entry.value = directions;
+      const payload: RouteDetailPayload = { directions, departureCandidates: res.data?.departureCandidates };
+      entry.value = payload;
       entry.settled = true;
       entry.at = Date.now();
-      return directions;
+      return payload;
     } catch {
       fail();
       return null;

@@ -2,6 +2,7 @@
 // `WalkStepsList.tsx` 的 useStepText（commit 5eadc71），邏輯逐行保留。
 // Web 把這些寫在元件檔旁；本 repo 放 domain 讓 jest 在 node 下測，翻譯函式由呼叫端注入。
 
+import { busRouteNames, candidateDeparture, plannedCandidate, type CandidateDeparture } from './departureCandidates';
 import { plausibleSlopePercent } from './routeDisplay';
 import { nonEmptyName } from './routeNames';
 import type {
@@ -281,6 +282,8 @@ export interface LegChainSegment {
   type: RouteLeg['type'];
   /** 運具上要印的短標籤：公車路線號、捷運線名、火車車次；步行與開車沒有。 */
   label?: string;
+  /** 公車：同一組上下車站也能搭的其他路線（候選班次去重，不含規劃的那條）。 */
+  alternatives?: string[];
 }
 
 /**
@@ -292,9 +295,11 @@ export function legChainSegments(legs: readonly RouteLeg[]): LegChainSegment[] {
   for (const leg of legs) {
     if (leg.type === 'WALK' && out.at(-1)?.type === 'WALK') continue;
     switch (leg.type) {
-      case 'BUS':
-        out.push({ type: leg.type, label: nonEmptyName(leg.routeDisplayName, leg.routeName) });
+      case 'BUS': {
+        const alternatives = busRouteNames(leg).filter((name) => name !== leg.routeName);
+        out.push({ type: leg.type, label: nonEmptyName(leg.routeDisplayName, leg.routeName), ...(alternatives.length ? { alternatives } : {}) });
         break;
+      }
       case 'METRO':
         out.push({ type: leg.type, label: nonEmptyName(leg.routeDisplayName, shortMetroLabel(leg.lineName, leg.lineId, leg.railSystem)) });
         break;
@@ -353,4 +358,50 @@ export function routeFacts(route: AccessibleRoute): RouteFacts {
     if (slope !== null && (maxSlope === null || slope > maxSlope)) maxSlope = slope;
   }
   return { stairs: stairsKnown ? stairs : null, maxSlopePercent: maxSlope, elevators };
+}
+
+export interface FirstBoarding {
+  /** 第一段大眾運輸的上車站（已依語系投影的顯示名）。 */
+  stop: string;
+  departure: CandidateDeparture;
+}
+
+/**
+ * 路線卡上「幾分後於 X 上車」那一行（Google Maps 的下一班）。公車以導航採用的候選班次倒數（即時）或
+ * 發車時刻（時刻表），那班已開走就是 unknown（卡片不顯示這行）；沒有候選時退回 leg 的預定時刻。軌道運輸用預定時刻。沒有大眾運輸段回 null。
+ * `legs` 要傳 `presentRouteNames` 投影後的 leg，站名才會跟著語系。
+ */
+export function firstBoarding(legs: readonly RouteLeg[], now: number): FirstBoarding | null {
+  for (const leg of legs) {
+    switch (leg.type) {
+      case 'BUS': {
+        const stop = nonEmptyName(leg.fromDisplayName, leg.departureStop);
+        const planned = plannedCandidate(leg);
+        if (planned) {
+          // 卡片上的候選是算路當下的快照、不會刷新：上車時刻已過一分鐘以上就不再宣稱「即將抵達」
+          const boardAt = Date.parse(planned.boardingTime ?? '');
+          const passed = Number.isFinite(boardAt) && boardAt < now - 60_000;
+          return { stop, departure: passed ? { kind: 'unknown' } : candidateDeparture(planned, now) };
+        }
+        return { stop, departure: leg.departureTime ? { kind: 'scheduled', clock: leg.departureTime } : { kind: 'unknown' } };
+      }
+      case 'METRO':
+      case 'THSR':
+      case 'TRA': {
+        const stop = nonEmptyName(leg.fromDisplayName, leg.departureStation);
+        return { stop, departure: leg.departureTime ? { kind: 'scheduled', clock: leg.departureTime } : { kind: 'unknown' } };
+      }
+      default:
+        continue;
+    }
+  }
+  return null;
+}
+
+/** 依語系的時長文字（「17 分鐘」「1 小時 5 分」）；`formatDuration` 是不分語系的縮寫。 */
+export function localizedDuration(minutes: number, t: Translate): string {
+  const total = Math.round(minutes);
+  return total >= 60
+    ? t('nativeRouteHoursMinutes', { hours: Math.floor(total / 60), minutes: total % 60 })
+    : t('nativeRouteMinutes', { count: total });
 }

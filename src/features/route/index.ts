@@ -16,6 +16,7 @@ export {
   fitSelectedRoute,
   replaceSelectedRoute,
   selectRouteAt,
+  previewLegGeometry,
   type ComputeRouteResult,
 } from './controller/routeSessionPort';
 export {
@@ -24,7 +25,7 @@ export {
   useRouteSession,
   type RouteSessionView,
 } from './hooks/useRouteSession';
-export type { SelectedRoute } from './store/routeSessionStore';
+export type { LegGeometryPreview, SelectedRoute } from './store/routeSessionStore';
 
 export { getRouteInstructions, rerouteAccessibleRoute } from './api/route';
 

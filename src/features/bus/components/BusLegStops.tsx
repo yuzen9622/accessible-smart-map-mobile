@@ -1,10 +1,23 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { useMemo } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
-import { getLegColor, presentRouteNames, type AccessibleRoute, type BusLeg } from '@/features/route/domain';
+import {
+  candidateDeparture,
+  followCandidate,
+  formatRouteClock,
+  getLegColor,
+  minutesUntil,
+  presentRouteNames,
+  resolveViewedCandidate,
+  type AccessibleRoute,
+  type BusDepartureCandidate,
+  type BusLeg,
+  type LngLatTuple,
+} from '@/features/route/domain';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { useThemeColors } from '@/shared/theme';
+import { useNow } from '@/shared/time';
 import { Icon } from '@/shared/ui';
 
 import {
@@ -14,12 +27,14 @@ import {
   resolveCurrentStopSeq,
   resolveEtaLabel,
   resolveLegStops,
+  resolveCandidateRide,
   resolveLiveEta,
   resolveWaitText,
   type BusLegStopRow,
 } from '../domain';
 import { useBusLegStopEtas } from '../hooks/useBusLegStopEtas';
 import { busLegKey, useBusStore } from '../store/busStore';
+import BusDepartureChooser from './BusDepartureChooser';
 import { busName, etaLabelText, etaTonePill } from './busText';
 import EtaPill from './EtaPill';
 import { BUS_BORDER_COLOR, BUS_ON_ACCENT_COLOR, pillToneStyle } from './palette';
@@ -29,14 +44,23 @@ export interface BusLegStopsProps {
   routeIndex: number;
   legIndex: number;
   leg: BusLeg;
+  /**
+   * 查看別班時，地圖改畫那班在上下車站之間的線形（null＝還原成規劃的那班）。由 app 路由組裝注入
+   * route feature 的 `previewLegGeometry`：bus 不寫 route 的狀態。
+   */
+  onPreviewGeometry?: (polyline: LngLatTuple[] | null) => void;
 }
 
 /**
- * 路線詳情裡的公車 leg（對齊 Web `LegDetail` 的 BUS 分支＋`BusLegStops`／`TransitStops`，commit 5eadc71）：
- * 路線徽章、等候徽章、上車／下車列與可展開的中途站。展開才把這段 leg 設成 `activeBusLeg`
- * （啟動即時車輛與逐站 ETA 輪詢）；收合時只有這段仍是 active 才清掉，避免蓋掉別段的展開。
+ * 路線詳情裡的公車 leg（對齊 Web `LegDetail` 的 BUS 分支＋`BusLegDetails`／`BusLegStops`）：
+ * 可搭乘的班次（候選公車）、上車／下車列與可展開的中途站。展開才把這段 leg 設成 `activeBusLeg`
+ * （啟動即時車輛）；收合時只有這段仍是 active 才清掉，避免蓋掉別段的展開。
+ *
+ * 查看別班只是本元件的區域狀態，不寫回規劃的 leg 或 store（導航仍搭規劃的那班）；點回帶導航圖示的那張就回到規劃班次。查看中的班次跨刷新跟著
+ * 同一台車走（`followCandidate`）；它的上下車時刻取代規劃時刻，中途站序屬於規劃的路線所以收起。
+ * 候選清單隨 `bus-arrivals` 每 20 秒刷新（這個畫面的重點就是即時時刻），倒數則每 30 秒依上車時刻重算。
  */
-export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg }: BusLegStopsProps) {
+export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg, onPreviewGeometry }: BusLegStopsProps) {
   const { t } = useAppTranslation();
   const lang = getAppLanguage();
   const projected = presentRouteNames(route, lang).legs[legIndex];
@@ -47,28 +71,71 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg }
   const key = busLegKey(route, routeIndex, legIndex, leg);
   const expanded = useBusStore((s) => s.activeBusLeg?.key === key);
   const liveBuses = useBusStore((s) => s.liveBusPositions);
-  const { directions, status } = useBusLegStopEtas(leg, true, expanded);
+  const { directions, status, candidates: refreshed } = useBusLegStopEtas(leg, true, true);
+  const now = useNow(30_000);
+  const [view, setView] = useState<{ key: string; candidate: BusDepartureCandidate } | null>(null);
+  const candidates = refreshed ?? rawLeg.departureCandidates ?? [];
+  const followed = view?.key === key ? followCandidate(candidates, view.candidate) : undefined;
+  const viewed = resolveViewedCandidate(candidates, followed?.candidateId);
+  const viewingPlanned = !viewed || viewed.selected;
+
+  // 查看別班：那班不在規劃裡，向公開 route-detail 要它自己的站序與線形，依候選班次的上下車站 ID 切出這一段
+  const other = viewed && !viewed.selected ? viewed : null;
+  const otherLeg: BusLeg | null = other
+    ? {
+        ...rawLeg,
+        routeName: other.routeName,
+        subRouteName: other.subRouteName,
+        subRouteUid: other.subRouteUid,
+        direction: other.direction,
+        planContext: undefined,
+        scheduledTrip: undefined,
+        intermediateStops: undefined,
+      }
+    : null;
+  const otherEtas = useBusLegStopEtas(otherLeg, Boolean(otherLeg), true, true);
+  const otherRide = other ? resolveCandidateRide(otherEtas.directions, other) : null;
+  const otherPending = Boolean(other) && !otherRide && (otherEtas.status === 'idle' || otherEtas.status === 'loading');
+  const [otherOpen, setOtherOpen] = useState(false);
+
+  const previewPolyline = otherRide?.polyline ?? null;
+  const pushPreview = useEffectEvent((polyline: LngLatTuple[] | null) => onPreviewGeometry?.(polyline));
+  useEffect(() => {
+    if (!previewPolyline) return;
+    pushPreview(previewPolyline);
+    return () => pushPreview(null);
+  }, [previewPolyline]);
 
   const targetBus = liveBuses.find((b) => b.isTarget) ?? null;
   const legColor = getLegColor(leg);
 
+  // 即時站序（bus-arrivals）一到就切出這趟的中途站，不必等展開：後端的 `intermediateStops` 可能缺漏，
+  // 只靠它的話有些路段連「經過 N 個站點」都看不到。展開只決定要不要列出來與追蹤車輛。
+  // bus-arrivals 刷新時後端可能改選另一條可行的路線（例如原本的 21 已開走、改搭 651），回傳的站序也換成那條；
+  // 用目前 `selected` 的候選班次的子路線去切站序，不然會對不上規劃時的 subRouteUid 而整段消失。
+  const ride = candidates.find((c) => c.selected);
   let rows: BusLegStopRow[] | undefined;
-  let hasRouteDetail = false;
-  if (expanded) {
-    const sliced = resolveLegStops(directions ?? undefined, leg);
-    hasRouteDetail = Boolean(sliced && sliced.length > 0);
-    rows =
-      sliced && sliced.length > 0
-        ? buildStopRows(sliced, resolveCurrentStopSeq(sliced, targetBus))
-        : fallbackStopRows(displayLeg, { pending: status === 'idle' || status === 'loading' });
-    rows = presentStopRowNames(rows, displayLeg);
+  const sliced = resolveLegStops(directions ?? undefined, ride ? { ...leg, subRouteUid: ride.subRouteUid } : leg);
+  const hasRouteDetail = Boolean(sliced && sliced.length > 0);
+  if (other) {
+    rows = otherRide ? buildStopRows(otherRide.stops, null) : undefined;
+  } else if (sliced && sliced.length > 0) {
+    rows = presentStopRowNames(buildStopRows(sliced, resolveCurrentStopSeq(sliced, expanded ? targetBus : null)), displayLeg);
+  } else if (expanded) {
+    rows = presentStopRowNames(fallbackStopRows(displayLeg, { pending: status === 'idle' || status === 'loading' }), displayLeg);
   }
   const intermediateRows = rows && rows.length > 2 ? rows.slice(1, -1) : undefined;
   const currentStopName = rows?.find((r) => r.state === 'current');
   const currentStopLabel = busName(currentStopName?.displayName, currentStopName?.name);
-  const stopCount = intermediateRows?.length ?? leg.intermediateStops?.length ?? 0;
+  const stopCount = intermediateRows?.length ?? (other ? 0 : (leg.intermediateStops?.length ?? 0));
+  const stopsOpen = other ? otherOpen : expanded;
 
   const toggle = () => {
+    // 別班的站序只在這裡展開，不啟動地圖上規劃那班的即時追蹤
+    if (other) {
+      setOtherOpen((open) => !open);
+      return;
+    }
     const store = useBusStore.getState();
     if (expanded) {
       if (store.activeBusLeg?.key === key) store.setActiveBusLeg(null);
@@ -78,37 +145,68 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg }
   };
 
   const waitText = resolveWaitText(leg.waitInfo);
-  const liveEta = expanded ? resolveLiveEta(rows?.[0]?.estimateMinutes) : null;
+  const liveEta = resolveLiveEta(rows?.[0]?.estimateMinutes);
 
-  const renderEndpoint = (label: string, name: string, plannedTime: string | undefined, live: typeof liveEta) => {
-    const liveText = live ? t(live.key, live.params) : null;
-    const planned = plannedTime ? t('busPlannedAt', { time: plannedTime }) : null;
+  // 有候選班次時，上下車時刻一律跟著「查看中」的那班（預設就是規劃的那班）。
+  const viewedDeparture = viewed ? candidateDeparture(viewed, now) : null;
+  const viewedBoardEta =
+    viewedDeparture?.kind === 'live'
+      ? viewedDeparture.minutes <= 1
+        ? { text: t('nativeBusDepartureArriving'), tone: 'arriving' as const }
+        : { text: t('nativeBusDepartureMinutes', { count: viewedDeparture.minutes }), tone: 'ok' as const }
+      : null;
+  // 下車也以即時優先：那班的下車時刻是即時推算時顯示倒數，時刻表班次才顯示時刻
+  const alightMinutes = viewed?.alightingTimeSource === 'realtime' ? minutesUntil(viewed.alightingTime, now) : null;
+  const viewedAlightEta = alightMinutes === null ? null : { text: t('nativeBusDepartureMinutes', { count: alightMinutes }), tone: 'ok' as const };
+  const boardClock = viewed ? formatRouteClock(viewed.boardingTime) ?? undefined : leg.departureTime;
+  const alightClock = viewed ? formatRouteClock(viewed.alightingTime) ?? undefined : leg.arrivalTime;
+
+  const renderEndpoint = (label: string, name: string, time: string | undefined, live: { text: string; tone: 'arriving' | 'ok' | 'normal' | 'muted' } | null) => {
+    // 只顯示一種時間：有即時資訊就只放即時徽章，沒有才顯示時刻（「預定」只用在規劃的班次）
+    const timeText = live ? live.text : time && viewingPlanned ? t('busPlannedAt', { time }) : time;
     return (
-      <View
-        accessible
-        accessibilityLabel={[label, name, liveText ?? planned].filter(Boolean).join(' ')}
-        style={styles.endpoint}>
+      <View accessible accessibilityLabel={[label, name, timeText].filter(Boolean).join(' ')} style={styles.endpoint}>
         <Text style={[styles.endpointLabel, { color: colors.textSecondary }]}>{label}</Text>
-        <Text style={[styles.endpointName, { color: colors.text }]}>{name}</Text>
-        {live && liveText ? (
-          <EtaPill text={liveText} tone={live.tone} />
-        ) : planned ? (
-          <Text style={[styles.planned, { color: colors.textSecondary }]}>{planned}</Text>
+        <Text style={[styles.endpointName, { color: colors.text }]} numberOfLines={2}>
+          {name}
+        </Text>
+        {live ? (
+          <EtaPill text={live.text} tone={live.tone} />
+        ) : time ? (
+          <Text style={[styles.planned, { color: colors.textSecondary }]}>{time}</Text>
         ) : null}
       </View>
     );
   };
+  const routeLiveEta = liveEta ? { text: t(liveEta.key, liveEta.params), tone: liveEta.tone } : null;
+  const alightLive = resolveLiveEta(rows?.at(-1)?.estimateMinutes);
 
   return (
     <View style={styles.root}>
-      <View style={styles.badgeRow}>
-        <View style={[styles.routeBadge, { backgroundColor: legColor }]}>
-          <Text style={styles.routeBadgeText}>{busName(displayLeg.routeDisplayName, leg.routeName)}</Text>
+      {candidates.length > 0 ? (
+        <BusDepartureChooser
+          candidates={candidates}
+          viewed={viewed}
+          legColor={legColor}
+          now={now}
+          onView={(candidate) => {
+            setView({ key, candidate });
+            if (candidate.selected) return;
+            // 地圖上的即時車輛是規劃那班的：查看別班時收起，免得地圖與時刻各說各話
+            const store = useBusStore.getState();
+            if (store.activeBusLeg?.key === key) store.setActiveBusLeg(null);
+          }}
+        />
+      ) : (
+        <View style={styles.badgeRow}>
+          <View style={[styles.routeBadge, { backgroundColor: legColor }]}>
+            <Text style={styles.routeBadgeText}>{busName(displayLeg.routeDisplayName, leg.routeName)}</Text>
+          </View>
+          {waitText ? <Text style={[styles.wait, { color: colors.textSecondary }]}>{t(waitText.key, waitText.params)}</Text> : null}
         </View>
-        {waitText ? <Text style={[styles.wait, { color: colors.textSecondary }]}>{t(waitText.key, waitText.params)}</Text> : null}
-      </View>
+      )}
 
-      {expanded && targetBus?.plateNumb ? (
+      {viewingPlanned && expanded && targetBus?.plateNumb ? (
         <View
           accessible
           accessibilityLiveRegion="polite"
@@ -125,23 +223,32 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg }
         </View>
       ) : null}
 
-      {renderEndpoint(t('board'), busName(rows?.[0]?.displayName, busName(displayLeg.fromDisplayName, leg.departureStop)), leg.departureTime, liveEta)}
+      {renderEndpoint(
+        t('board'),
+        busName(rows?.[0]?.displayName, rows?.[0]?.name ?? busName(displayLeg.fromDisplayName, leg.departureStop)),
+        boardClock,
+        viewed ? viewedBoardEta : routeLiveEta,
+      )}
 
-      {stopCount > 0 ? (
+      {other && !otherRide ? (
+        <Text style={[styles.note, { color: colors.textSecondary }]}>
+          {otherPending ? t('nativeBusViewedStopsLoading') : t('nativeBusViewedStopsUnavailable')}
+        </Text>
+      ) : stopCount > 0 ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('passStops', { count: stopCount })}
-          accessibilityState={{ expanded }}
+          accessibilityState={{ expanded: stopsOpen }}
           onPress={toggle}
           style={styles.toggle}>
-          <Icon name={expanded ? 'chevronUp' : 'chevronDown'} size={14} color={colors.textSecondary} />
+          <Icon name={stopsOpen ? 'chevronUp' : 'chevronDown'} size={14} color={colors.textSecondary} />
           <Text style={[styles.toggleText, { color: colors.textSecondary }]}>{t('passStops', { count: stopCount })}</Text>
         </Pressable>
       ) : null}
 
-      {expanded ? (
+      {stopsOpen && (other ? Boolean(otherRide) : true) ? (
         <View style={[styles.stops, { borderColor: BUS_BORDER_COLOR }]}>
-          {status === 'error' && !hasRouteDetail ? (
+          {!other && status === 'error' && !hasRouteDetail ? (
             <Text style={[styles.note, { color: colors.textSecondary }]}>{t('busEtaError')}</Text>
           ) : null}
           {intermediateRows?.map((row) => (
@@ -150,7 +257,7 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg }
               row={row}
               legColor={legColor}
               isDark={isDark}
-              plate={targetBus?.plateNumb}
+              plate={other ? undefined : targetBus?.plateNumb}
             />
           )) ??
             displayLeg.intermediateStops?.map((stop) => (
@@ -162,9 +269,15 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg }
         </View>
       ) : null}
 
-      {renderEndpoint(t('alight'), busName(rows?.at(-1)?.displayName, busName(displayLeg.toDisplayName, leg.arrivalStop)), leg.arrivalTime, expanded ? resolveLiveEta(rows?.at(-1)?.estimateMinutes) : null)}
+      {renderEndpoint(
+        t('alight'),
+        busName(rows?.at(-1)?.displayName, rows?.at(-1)?.name ?? busName(displayLeg.toDisplayName, leg.arrivalStop)),
+        alightClock,
+        // 有候選班次時下車只放那班的抵達時刻：站序裡下車站的即時到站是「最近一班車」，不一定是這一台
+        viewed ? viewedAlightEta : alightLive ? { text: t(alightLive.key, alightLive.params), tone: alightLive.tone } : null,
+      )}
 
-      {leg.nearestBus ? (
+      {viewingPlanned && leg.nearestBus ? (
         <Text style={[styles.nearest, { color: pillToneStyle('ok', isDark).color }]}>
           {leg.nearestBus.stopsAway != null
             ? t('nearestBusStopsAway', { count: leg.nearestBus.stopsAway })
@@ -208,7 +321,7 @@ function StopRow({ row, legColor, isDark, plate }: { row: BusLegStopRow; legColo
 }
 
 const styles = StyleSheet.create({
-  root: { gap: 6 },
+  root: { gap: 8 },
   badgeRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   routeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   routeBadgeText: { color: BUS_ON_ACCENT_COLOR, fontSize: 13, fontWeight: '700' },
@@ -217,10 +330,10 @@ const styles = StyleSheet.create({
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' },
   liveText: { fontSize: 12 },
   plate: { fontSize: 12, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  endpoint: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, minHeight: 32 },
+  endpoint: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 32 },
   endpointLabel: { fontSize: 13 },
-  endpointName: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
-  planned: { fontSize: 13, marginLeft: 'auto' },
+  endpointName: { fontSize: 15, fontWeight: '600', flex: 1 },
+  planned: { fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 8, alignSelf: 'flex-start' },
   toggleText: { fontSize: 13 },
   stops: { gap: 8, marginLeft: 12, paddingLeft: 12, borderLeftWidth: StyleSheet.hairlineWidth },

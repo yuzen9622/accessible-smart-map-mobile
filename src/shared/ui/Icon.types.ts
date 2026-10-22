@@ -82,6 +82,7 @@ export type IconName =
   | 'brain'
   | 'audioLines'
   | 'wifiOff'
+  | 'live'
   | 'eye'
   | 'personStanding'
   | 'baby'

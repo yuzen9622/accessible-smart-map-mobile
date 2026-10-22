@@ -51,6 +51,9 @@ export {
   getConfidenceLabelKey,
   getRouteAlertsCount,
   routeSummary,
+  firstBoarding,
+  localizedDuration,
+  type FirstBoarding,
   shouldAppendExitNumber,
   walkStepText,
   type Translate,
@@ -76,5 +79,17 @@ export {
   hasGatedTravelModes,
   isTravelModeAllowed,
 } from './travelModes';
+
+export {
+  busRouteNames,
+  candidateDeparture,
+  followCandidate,
+  formatRouteClock,
+  minutesUntil,
+  plannedCandidate,
+  resolveViewedCandidate,
+  routeDayOffset,
+  type CandidateDeparture,
+} from './departureCandidates';
 
 export { nonEmptyName, recordRouteNameLanguage, presentRouteNames, presentRouteLegNames, walkStreetNames } from './routeNames';

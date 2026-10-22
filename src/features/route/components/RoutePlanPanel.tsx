@@ -2,7 +2,7 @@ import { Text, TextInput } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useCloseScreen } from '@/shared/navigation';
-import { TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
 import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
 
 import { ROUTE_DESTINATION_COLOR, ROUTE_ORIGIN_COLOR } from '../domain/routeLayerData';
@@ -10,6 +10,7 @@ import type { PlanOption, RoutePlanModel } from '../hooks/useRoutePlanViewModel'
 import type { TravelMode } from '../types/route';
 
 import RouteCard from './RouteCard';
+import RouteSkeleton from './RouteSkeleton';
 import {
   ROUTE_ACCENT_COLOR,
   ROUTE_BORDER_COLOR,
@@ -32,10 +33,11 @@ export interface RoutePlanPanelProps {
 }
 
 /**
- * 路線規劃面板（`(sheet)/plan`），iOS／Android 共用（設計方向 1a「原生精修」）：
- * 標題列（路線＋關閉）→ 起訖點卡片（可交換）→ 無障礙模式分段控制 → 交通方式 → 路線卡。
- * 無障礙模式是這個 App 的核心條件，而且會停用不適用的交通方式，所以永遠排在結果之前。
- * 選中的路線卡內含理由（階梯、坡度、電梯）與「開始導航」；條件齊全時自動算路，失敗才出現重試按鈕。
+ * 路線規劃面板（`(sheet)/plan`），iOS／Android 共用，版面參考 Google Maps／Apple 地圖的路線規劃：
+ * 標題列（路線＋關閉）→ 起訖點卡片（可交換）→ 無障礙模式分段控制 → 交通方式分頁 → 建議路線（標題列帶重新規劃）
+ * → 沿途設施篩選。無障礙模式是這個 App 的核心條件，而且會停用不適用的交通方式，所以永遠排在結果之前；
+ * 設施篩選只影響地圖圖示，排在結果之後，不擋住路線。
+ * 選中的路線卡內含理由（階梯、坡度、電梯）與「開始導航」；條件齊全時自動算路，算路中顯示骨架卡，失敗才出現重試按鈕。
  * 分段控制用 RN 實作（`SegmentedControl`）：`@expo/ui` Host 的 matchContents 會讓 100% 寬度塌成 0。
  * 根節點是單一 ScrollView（formSheet 對多個 sibling 會警告並重疊，見 place 面板註解）。
  */
@@ -44,7 +46,36 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
   const closeScreen = useCloseScreen();
   const isDark = useColorScheme() === 'dark';
   const tones = routeTones(isDark);
-  const surface = useSemanticColors().surface;
+  const semantic = useSemanticColors();
+  const surface = semantic.surface;
+
+  /** 交通方式：等寬分頁（圖示在上、文字在下），選中用主色淡底；停用的分頁仍可被讀到並說明原因（gatedHint）。 */
+  const renderModeTab = (option: PlanOption<TravelMode>) => {
+    const tint = option.selected ? semantic.accent : colors.textSecondary;
+    return (
+      <Pressable
+        key={option.value}
+        accessibilityRole="tab"
+        accessibilityLabel={option.accessibilityLabel}
+        accessibilityState={{ selected: option.selected, disabled: option.disabled }}
+        disabled={option.disabled}
+        onPress={option.onSelect}
+        style={({ pressed }) => [
+          styles.modeTab,
+          option.selected && { backgroundColor: semantic.accentSoft },
+          option.disabled && routeStyles.disabled,
+          pressed && !option.selected && styles.pressed,
+        ]}>
+        <Icon name={TRAVEL_MODE_ICON[option.value]} size={20} color={tint} />
+        <Text
+          style={[styles.modeTabText, { color: option.selected ? semantic.accent : colors.text }, option.selected && styles.modeTabTextSelected]}
+          numberOfLines={1}
+          maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
+          {option.label}
+        </Text>
+      </Pressable>
+    );
+  };
 
   const renderOption = <T extends string>(option: PlanOption<T>, icon?: IconName) => (
     <Pressable
@@ -220,10 +251,9 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
       <SegmentedControl label={model.labels.a11yMode} options={model.routeModes} onSelect={model.onSelectRouteMode} />
 
       <View style={routeStyles.section}>
-        <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
-          {model.labels.travelMode}
-        </Text>
-        <View style={routeStyles.chipsRow}>{model.travelModes.map((option) => renderOption(option, TRAVEL_MODE_ICON[option.value]))}</View>
+        <View accessibilityRole="tablist" accessibilityLabel={model.labels.travelMode} style={[styles.modeTabs, { backgroundColor: surface }]}>
+          {model.travelModes.map(renderModeTab)}
+        </View>
         {model.gatedHint ? (
           <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{model.gatedHint}</Text>
         ) : null}
@@ -237,14 +267,23 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
       ) : null}
 
       {model.results ? (
-        <View style={routeStyles.section}>
-          <Pressable accessibilityRole="button" onPress={model.onStart} style={routeStyles.primaryButton}>
-            <Text style={routeStyles.primaryButtonText}>{model.labels.replan}</Text>
-          </Pressable>
-          <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
-            {model.labels.facilityFilterTitle}
-          </Text>
-          <View style={routeStyles.chipsRow}>{model.facilityFilters.map((option) => renderOption(option))}</View>
+        <View style={styles.results}>
+          <View style={styles.resultsHeader}>
+            <Text accessibilityRole="header" style={[styles.resultsTitle, { color: colors.text }]} maxFontSizeMultiplier={MAX_FONT_SCALE.heading}>
+              {model.labels.routeOptions}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={model.labels.replan}
+              onPress={model.onStart}
+              hitSlop={6}
+              style={({ pressed }) => [styles.refreshButton, { backgroundColor: surface }, pressed && styles.pressed]}>
+              <Icon name="refresh" size={16} color={semantic.accent} />
+              <Text style={[styles.refreshText, { color: semantic.accent }]} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
+                {model.labels.replan}
+              </Text>
+            </Pressable>
+          </View>
           {model.results.routes.map((route, index) => (
             <RouteCard
               key={route.routeId || String(index)}
@@ -255,12 +294,17 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
               onStartNavigation={onStartNavigation}
             />
           ))}
+          <View style={styles.filters}>
+            <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
+              {model.labels.facilityFilterTitle}
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterStrip}>
+              {model.facilityFilters.map((option) => renderOption(option))}
+            </ScrollView>
+          </View>
         </View>
       ) : model.loading ? (
-        <View accessible accessibilityLabel={model.labels.loading} style={styles.loadingRow}>
-          <ActivityIndicator color={colors.textSecondary} />
-          <Text style={[routeStyles.bodyText, { color: colors.textSecondary }]}>{model.labels.loading}</Text>
-        </View>
+        <RouteSkeleton label={model.labels.loading} />
       ) : (
         // 不用 `model.canStart`（那是自動算路用的內部閘門，還要求已有定位／目的地）：缺定位或目的地時
         // 按鈕仍要可以按——`model.onStart` 自己會補上對應的錯誤訊息（見 `useRoutePlanViewModel.start`），
@@ -293,6 +337,17 @@ const styles = StyleSheet.create({
   dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 3, marginHorizontal: 1 },
   dotFilled: { borderWidth: 0 },
   searchInput: { fontSize: 16, minHeight: 44, paddingVertical: 10 },
-  loadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 56 },
+  pressed: { opacity: 0.7 },
+  modeTabs: { flexDirection: 'row', borderRadius: RADIUS.card, padding: 4, gap: 4 },
+  modeTab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: 56, borderRadius: RADIUS.small + 2, paddingHorizontal: 4 },
+  modeTabText: { fontSize: TYPE.subhead, fontWeight: '500' },
+  modeTabTextSelected: { fontWeight: '700' },
+  results: { gap: 10 },
+  resultsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 4 },
+  resultsTitle: { fontSize: TYPE.headline, fontWeight: '700', flexShrink: 1 },
+  refreshButton: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, borderRadius: RADIUS.pill, paddingHorizontal: 12 },
+  refreshText: { fontSize: TYPE.subhead + 1, fontWeight: '600' },
+  filters: { gap: 8, marginTop: 6 },
+  filterStrip: { gap: 8, paddingRight: 16 },
   errorCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,59,48,0.12)' },
 });

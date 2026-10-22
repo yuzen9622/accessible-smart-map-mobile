@@ -47,6 +47,35 @@ describe('transit api', () => {
     );
   });
 
+  it('parses refreshed departure candidates from planned bus-arrivals and drops malformed ones', async () => {
+    const valid = {
+      candidateId: 'TXG300|0|trip|1792661940000',
+      routeName: '300',
+      subRouteUid: 'TXG300',
+      direction: 0,
+      departureStopId: 'TXG13530',
+      arrivalStopId: 'TXG12251',
+      tripId: 'trip',
+      estimatedWaitMinutes: 16,
+      boardingTime: '2026-10-22T17:39:00.000+08:00',
+      alightingTime: '2026-10-22T17:42:00.000+08:00',
+      boardingTimeSource: 'schedule',
+      alightingTimeSource: 'schedule',
+      vehicleAccessibility: 'low_floor',
+      hasLiftOrRamp: null,
+      selected: true,
+    };
+    mockFetchRequest.mockResolvedValueOnce(
+      envelope({ directions: [], departureCandidates: [valid, { ...valid, boardingTimeSource: 'guess' }, { ...valid, direction: 2 }, { ...valid, estimatedWaitMinutes: -3 }, { ...valid, estimatedWaitMinutes: 'soon' }] }),
+    );
+    const res = await getBusRouteDetail('300', 'Taichung', undefined, undefined, { routeToken: 'tok', legIndex: 3 });
+    expect(mockFetchRequest.mock.calls[0][0]).toBe('https://api.test/api/v1/a11y/accessible-route/bus-arrivals?routeToken=tok&legIndex=3');
+    expect(res.data?.departureCandidates).toEqual([{ ...valid, subRouteName: undefined, plateNumb: undefined }]);
+
+    mockFetchRequest.mockResolvedValueOnce(envelope({ directions: [] }));
+    expect((await getBusRouteDetail('300', 'Taichung')).data?.departureCandidates).toBeUndefined();
+  });
+
   it('keeps a valid route polyline and drops unusable ones', async () => {
     const stop = { seq: 0, name: 'A', lat: 1, lng: 2, estimateMinutes: null, statusLabel: '' };
     mockFetchRequest.mockResolvedValue(

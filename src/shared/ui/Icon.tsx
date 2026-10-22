@@ -82,6 +82,7 @@ import Trees from 'lucide-react-native/icons/trees';
 import Brain from 'lucide-react-native/icons/brain';
 import AudioLines from 'lucide-react-native/icons/audio-lines';
 import WifiOff from 'lucide-react-native/icons/wifi-off';
+import Rss from 'lucide-react-native/icons/rss';
 import Eye from 'lucide-react-native/icons/eye';
 import PersonStanding from 'lucide-react-native/icons/person-standing';
 import Baby from 'lucide-react-native/icons/baby';
@@ -185,6 +186,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   brain: Brain,
   audioLines: AudioLines,
   wifiOff: WifiOff,
+  live: Rss,
   eye: Eye,
   personStanding: PersonStanding,
   baby: Baby,

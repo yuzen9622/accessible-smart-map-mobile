@@ -62,8 +62,8 @@ async function resolveSelection(leg: BusLeg, lang: AppLanguage): Promise<{ selec
   if (!leg.planContext) return null;
   // route-detail 已被站序預熱，通常是讀快取。
   const city = leg.tdxCity ?? leg.cityCode ?? '';
-  const directions = city ? await fetchRouteDetailCached(tdxRouteName(leg), city, { subRouteUid: leg.subRouteUid, planContext: leg.planContext, lang }) : null;
-  const ride = resolveLegRide(directions ?? undefined, leg);
+  const detail = city ? await fetchRouteDetailCached(tdxRouteName(leg), city, { subRouteUid: leg.subRouteUid, planContext: leg.planContext, lang }) : null;
+  const ride = resolveLegRide(detail?.directions, leg);
   if (!ride) return null;
   // 站序資料沒有帶支線 ID 時，退回規劃器訂的那一支：回傳紀錄若自稱別的支線就能被排除。
   return {

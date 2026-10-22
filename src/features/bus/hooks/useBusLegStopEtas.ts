@@ -13,14 +13,15 @@ const IDLE: LegEtaSnapshot = { directions: null, status: 'idle' };
  * 選了路線就 enable 預熱共用快取，展開 leg 才開始 20 秒輪詢。回傳兩個方向，由呼叫端以
  * `resolveLegStops` 挑出這趟車（`leg.direction` 不可信）。
  *
+ * `publicFeed` 問公開 route-detail（查看別班候選公車；那班不在規劃裡）。
  * 只在「路線名稱＋城市」或啟用狀態變化時重啟；同一段 leg 物件重建不重啟（Web 用 legRef 做同一件事）。
  */
-export function useBusLegStopEtas(leg: BusLeg | null, enabled: boolean, poll: boolean): LegEtaSnapshot {
+export function useBusLegStopEtas(leg: BusLeg | null, enabled: boolean, poll: boolean, publicFeed = false): LegEtaSnapshot {
   useAppTranslation();
   const lang = getAppLanguage();
-  const key = leg ? JSON.stringify([lang, leg.tdxCity ?? leg.cityCode, leg.subRouteName ?? leg.routeName, leg.subRouteUid, leg.planContext?.routeToken, leg.planContext?.legIndex]) : '';
+  const key = leg ? JSON.stringify([lang, leg.tdxCity ?? leg.cityCode, leg.subRouteName ?? leg.routeName, leg.subRouteUid, leg.planContext?.routeToken, leg.planContext?.legIndex, publicFeed]) : '';
   // snapshot 連同它屬於哪條路線一起存：換 leg 的第一個 render 不能回傳上一條路線的站序。
-  const [state, setState] = useState<{ key: string; snapshot: LegEtaSnapshot }>(() => ({ key, snapshot: peekLegEtas(leg, lang) }));
+  const [state, setState] = useState<{ key: string; snapshot: LegEtaSnapshot }>(() => ({ key, snapshot: peekLegEtas(leg, lang, publicFeed) }));
   const legRef = useRef(leg);
 
   useEffect(() => {
@@ -30,9 +31,9 @@ export function useBusLegStopEtas(leg: BusLeg | null, enabled: boolean, poll: bo
   useEffect(() => {
     const current = legRef.current;
     if (!enabled || !current || !key) return;
-    return watchLegStopEtas(current, poll, (snapshot) => setState({ key, snapshot }), appStateVisibility, lang);
-  }, [enabled, poll, key, lang]);
+    return watchLegStopEtas(current, poll, (snapshot) => setState({ key, snapshot }), appStateVisibility, lang, publicFeed);
+  }, [enabled, poll, key, lang, publicFeed]);
 
   if (!enabled || !key) return IDLE;
-  return state.key === key ? state.snapshot : peekLegEtas(leg, lang);
+  return state.key === key ? state.snapshot : peekLegEtas(leg, lang, publicFeed);
 }

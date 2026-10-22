@@ -22,6 +22,7 @@ export {
   type StopRowKind,
   type StopRowState,
 } from './busLegStops';
+export { resolveCandidateRide, sliceRoutePolyline, type CandidateRide } from './candidateRide';
 export {
   BUS_TWEEN_DURATION_MS,
   buildBusTweens,

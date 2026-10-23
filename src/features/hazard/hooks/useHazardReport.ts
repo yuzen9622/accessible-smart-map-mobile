@@ -19,6 +19,7 @@ import { HAZARD_SEVERITIES, HAZARD_TYPES, type HazardReport, type HazardSeverity
 import { refreshNearbyHazards } from '../controller/hazardLayerController';
 import { hazardResubmitPreset } from '../domain/review';
 import { invalidateMyReports } from './useMyReports';
+import { haptic } from '@/shared/haptics';
 
 export interface HazardReportParams {
   /** 從地點詳情「回報此處」帶入的地點（快照：之後的 GPS 更新不會蓋掉使用者選的地點，對齊 Web `pendingReportContext`）。 */
@@ -124,6 +125,7 @@ export function useHazardReport(params: HazardReportParams) {
         ...(trimmed ? { description: trimmed.slice(0, 500) } : {}),
         photo: { uri: photo.uri, name: photo.name, type: photo.type },
       });
+      haptic.success();
       AccessibilityInfo.announceForAccessibility(t('reportSuccess'));
       void refreshNearbyHazards(true);
       invalidateMyReports();
@@ -137,6 +139,7 @@ export function useHazardReport(params: HazardReportParams) {
       }
     } catch (error) {
       logger.warn('[hazard] submit failed', error);
+      haptic.error();
       const reportId = uncertainReportId(error);
       if (reportId) {
         // 寫入結果不確定：改查詢這個編號，避免使用者立刻重送一筆重複回報

@@ -19,6 +19,7 @@ import {
   routeTones,
 } from './palette';
 import PressableScale from '@/shared/ui/PressableScale';
+import { haptic } from '@/shared/haptics';
 
 const TRAVEL_MODE_ICON: Record<TravelMode, IconName> = {
   transit: 'bus',
@@ -60,7 +61,10 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
         accessibilityLabel={option.accessibilityLabel}
         accessibilityState={{ selected: option.selected, disabled: option.disabled }}
         disabled={option.disabled}
-        onPress={option.onSelect}
+        onPress={() => {
+          haptic.select();
+          option.onSelect();
+        }}
         style={[
           styles.modeTab,
           option.selected && { backgroundColor: semantic.accentSoft },
@@ -84,7 +88,10 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
       accessibilityLabel={option.accessibilityLabel}
       accessibilityState={{ selected: option.selected, disabled: option.disabled }}
       disabled={option.disabled}
-      onPress={option.onSelect}
+      onPress={() => {
+        haptic.select();
+        option.onSelect();
+      }}
       style={[
         routeStyles.chip,
         { borderColor: ROUTE_BORDER_COLOR },

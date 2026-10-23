@@ -7,6 +7,7 @@ import { logger } from '@/shared/logger';
 
 import { useNavStore } from '../store/navStore';
 import { startNavigation, stopNavigation } from './navigationLifecycle';
+import { haptic } from '@/shared/haptics';
 
 /**
  * 「開始導航」的完整流程（Web `RouteContent.handleStartNav` + `NavigationController` 掛載）：
@@ -17,6 +18,7 @@ import { startNavigation, stopNavigation } from './navigationLifecycle';
  */
 export function beginNavigation(texts: BackgroundLocationTexts): void {
   if (!startNavigation()) return;
+  haptic.commit();
   // Web 預設不播報（瀏覽器要使用者手勢才能發聲）；原生沒有這個限制，導航一開始就播報，
   // 使用者可在 HUD 關掉（差異記在 port-ledger）。
   useNavStore.getState().setVoiceEnabled(true);

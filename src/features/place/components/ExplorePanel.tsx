@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     boxShadow: ELEVATION.raised,
   },
-  quickTileIcon: { width: 40, height: 40, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  quickTileIcon: { width: 40, height: 40, borderRadius: SHAPE.control, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   quickTileText: { fontSize: TYPE.footnote, fontWeight: '700', textAlign: 'center' },
   facilityGrid: { flexDirection: 'row', gap: SPACE.sm },
   facilityTile: {

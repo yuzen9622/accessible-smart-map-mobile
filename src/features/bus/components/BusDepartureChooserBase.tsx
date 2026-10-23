@@ -82,7 +82,7 @@ export default function BusDepartureChooserBase({ candidates, viewed, legColor, 
               }}
               style={[
                 styles.tile,
-                { backgroundColor: checked ? semantic.accentSoft : semantic.surface, borderColor: checked ? legColor : 'transparent' },
+                { backgroundColor: checked ? semantic.accentSoft : semantic.surface, borderColor: checked ? semantic.accent : 'transparent' },
               ]}>
               <View style={styles.tileHeader}>
                 <View style={[styles.routeBadge, { backgroundColor: legColor }]}>

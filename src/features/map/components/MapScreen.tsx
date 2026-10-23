@@ -1,7 +1,7 @@
 import { Camera, Layer, Map, NativeUserLocation } from '@maplibre/maplibre-react-native';
 import { router, useIsFocused, usePathname } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Keyboard, StyleSheet, View, useColorScheme } from 'react-native';
+import { Animated, Keyboard, StyleSheet, View, useColorScheme, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTranslation } from '@/shared/i18n';
@@ -42,6 +42,7 @@ import MapLayersBar from './MapLayersBar';
 import ParkingLayer from './ParkingLayer';
 import MapControls from './MapControls';
 import { MOTION, CAMERA_EASE_MS } from '@/shared/theme/motion';
+import { MIN_TOUCH, SOS_BUTTON } from '@/shared/theme';
 
 /** 導航跟隨時讓給 `NavigationHUD` 頂部橫幅的垂直留白（不含 safe-area top），讓定位點落在橫幅下方，
  * 前方路況留白變多，而不是卡在螢幕中段（使用者回饋 2026-10-11，見下方 padding 註解）。 */
@@ -71,6 +72,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
   const theme: MapTheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const { t } = useAppTranslation();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const [reloadKey, setReloadKey] = useState(0);
   const basemap = useBasemapStyle(theme, reloadKey);
   const is3d = useMapUiStore((state) => state.is3d);
@@ -80,6 +82,10 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
   const position = useUserLocationStore((state) => state.position);
   const follow = useMapUiStore((state) => state.follow);
   const sheetInset = useMapUiStore((state) => state.sheetInset);
+  // 篩選列從底部、SOS 從頂部定位；sheet 拉高時兩者會交疊，篩選列右側就讓出 SOS 的寬度（列本身可橫向捲動）。
+  const sosBottom = insets.top + SOS_BUTTON.top + SOS_BUTTON.size;
+  const facilityBarTop = windowHeight - (sheetInset + 12) - MIN_TOUCH;
+  const facilityBarRight = facilityBarTop < sosBottom + SOS_BUTTON.gap ? 16 + SOS_BUTTON.size + SOS_BUTTON.gap : 16;
   const showParking = useFacilityStore((state) => state.showParking);
   const selectedCategories = useFacilityStore((state) => state.selected);
   const toggleCategory = useFacilityStore((state) => state.toggleCategory);
@@ -266,7 +272,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
       {navigationMode ? null : (
         <Animated.View
           pointerEvents="box-none"
-          style={[styles.facilityBar, { bottom: sheetInset + 12, opacity: controlsOpacity }]}>
+          style={[styles.facilityBar, { bottom: sheetInset + 12, right: facilityBarRight, opacity: controlsOpacity }]}>
           <MapLayersBar
             facilityToggles={[
               ...PINNED_FACILITY_CATEGORIES.map((category) => ({
@@ -304,5 +310,5 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
   controls: { position: 'absolute', right: 16 },
-  facilityBar: { position: 'absolute', left: 16, right: 16 },
+  facilityBar: { position: 'absolute', left: 16 },
 });

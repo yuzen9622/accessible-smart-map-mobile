@@ -15,6 +15,7 @@ import { SosButton, SosTrackerLayer } from '@/features/sos';
 import { VoiceFloatingIndicator } from '@/features/voice';
 import { useAppTranslation } from '@/shared/i18n';
 import { OfflineBanner } from '@/shared/ui';
+import { SOS_BUTTON } from '@/shared/theme';
 
 /**
  * 地圖主畫面的組裝點（SDD §4.4）：map 不能反向 import route／navigation／bus（會形成 require cycle），
@@ -80,7 +81,7 @@ export default function Index() {
           </View>
           {/* SOS 在導航中也要按得到（行動不便者最可能在路上需要求助）：導航時移到 HUD 下方。
               跟上方「定位／圖層」按鈕欄拉開更大間距，降低誤觸（方案 A，測試人員回饋 2026-10-11）。 */}
-          <View pointerEvents="box-none" style={[styles.sos, { top: isNavigating ? hudBannerHeight + 106 : insets.top + 220 }]}>
+          <View pointerEvents="box-none" style={[styles.sos, { top: isNavigating ? hudBannerHeight + 106 : insets.top + SOS_BUTTON.top }]}>
             <SosButton />
           </View>
         </>

@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { DANGER_FILL, WHITE, TYPE, SHAPE, ELEVATION } from '@/shared/theme';
+import { DANGER_FILL, WHITE, TYPE, SHAPE, ELEVATION, SOS_BUTTON } from '@/shared/theme';
 
 import { selectSosInProgress, useSosStore } from '../store/sosStore';
 import PressableScale from '@/shared/ui/PressableScale';
@@ -33,8 +33,8 @@ export default function SosButton() {
 
 const styles = StyleSheet.create({
   button: {
-    width: 64,
-    height: 64,
+    width: SOS_BUTTON.size,
+    height: SOS_BUTTON.size,
     borderRadius: SHAPE.pill, borderCurve: 'continuous',
     backgroundColor: DANGER_FILL,
     alignItems: 'center',

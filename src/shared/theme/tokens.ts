@@ -177,3 +177,6 @@ export const ICON_SIZE = {
   tile: 28,
   hero: 36,
 } as const;
+
+/** SOS 浮動按鈕的尺寸與（非導航時）距安全區頂端的位置；其他浮動元件要據此避讓。 */
+export const SOS_BUTTON = { size: 64, top: 220, gap: 8 } as const;

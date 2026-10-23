@@ -12,7 +12,6 @@ import type { RouteMode, TravelMode } from '../types/route';
 import RouteCard from './RouteCard';
 import RouteSkeleton from './RouteSkeleton';
 import {
-  ROUTE_ACCENT_COLOR,
   ROUTE_BORDER_COLOR,
   ROUTE_ON_ACCENT_COLOR,
   routeStyles,
@@ -105,11 +104,11 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
       style={[
         routeStyles.chip,
         { borderColor: ROUTE_BORDER_COLOR },
-        option.selected && { backgroundColor: ROUTE_ACCENT_COLOR, borderColor: ROUTE_ACCENT_COLOR },
+        option.selected && { backgroundColor: semantic.accentSoft, borderColor: semantic.accent, borderWidth: 2 },
         option.disabled && routeStyles.disabled,
       ]}>
-      {icon ? <Icon name={icon} size={ICON_SIZE.body} color={option.selected ? ROUTE_ON_ACCENT_COLOR : colors.text} /> : null}
-      <Text style={[routeStyles.chipText, { color: option.selected ? ROUTE_ON_ACCENT_COLOR : colors.text }]}>{option.label}</Text>
+      {icon ? <Icon name={icon} size={ICON_SIZE.body} color={option.selected ? semantic.accent : colors.text} /> : null}
+      <Text style={[routeStyles.chipText, { color: option.selected ? semantic.accent : colors.text }]}>{option.label}</Text>
     </PressableScale>
   );
 

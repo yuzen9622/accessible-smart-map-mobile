@@ -51,3 +51,5 @@ export type { KeyboardAvoidingHostProps } from './KeyboardAvoidingHost.types';
 export { useKeyboardInset } from './useKeyboardInset';
 
 export { default as MoreActionsButton } from './actions/MoreActionsButton';
+
+export { Numeral } from './typography/Numeral';

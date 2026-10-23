@@ -1,4 +1,4 @@
-import * as Haptics from 'expo-haptics';
+import { haptic } from '@/shared/haptics';
 import { AccessibilityInfo } from 'react-native';
 
 import { useAuthStore } from '@/features/auth';
@@ -69,7 +69,7 @@ function applySnapshot(snapshot: SosSnapshot): void {
   // 處理狀態變更以文字播報（SDD §10 狀態播報）
   if (lastHandling !== null && lastHandling !== snapshot.handlingStatus) {
     announce(i18n.t(HANDLING_LABEL_KEY[snapshot.handlingStatus]));
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    haptic.warning();
   }
   lastHandling = snapshot.handlingStatus;
   if (snapshot.status === 'resolved' && useSosStore.getState().phase === 'active') {
@@ -244,7 +244,7 @@ export function beginSosCountdown(): void {
   stopCountdown();
   useSosStore.setState({ ...INITIAL_SOS_STATE, phase: 'countdown', countdownRemainingMs: SOS_COUNTDOWN_MS });
   startAddressTracking();
-  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  haptic.emphasis();
   announce(i18n.t('sosCountdownTitle'));
   const startedAt = Date.now();
   let lastSecond = Math.ceil(SOS_COUNTDOWN_MS / 1000);
@@ -254,7 +254,7 @@ export function beginSosCountdown(): void {
     const second = Math.ceil(left / 1000);
     if (second !== lastSecond && left > 0) {
       lastSecond = second;
-      void Haptics.impactAsync(second <= 2 ? Haptics.ImpactFeedbackStyle.Heavy : Haptics.ImpactFeedbackStyle.Light);
+      haptic.sos(second);
     }
     if (left <= 0) {
       stopCountdown();
@@ -340,7 +340,7 @@ async function startSosSession(): Promise<StartSosResult> {
       void cleanup();
       return { ok: false, reason: 'failed' };
     }
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    haptic.error();
     enterActive(created.sessionId, created.shareToken);
     announce(i18n.t('sosActiveTitle'));
     // 第一次發起 SOS 時才請求推播權限（ROADMAP 3.4），之後家人接手等狀態可在背景收到

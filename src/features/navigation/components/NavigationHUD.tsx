@@ -107,10 +107,14 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
     <>
       {/* 導航中橫幅是實心主色，狀態列一律淺色字 */}
       <StatusBar style="light" />
-      <View pointerEvents="box-none" style={styles.top}>
-        <View
-          pointerEvents="box-none"
-          onLayout={onBannerHeightChange ? (event) => onBannerHeightChange(event.nativeEvent.layout.height) : undefined}>
+      <View
+        pointerEvents="box-none"
+        style={styles.top}
+        // 量整個區塊（橫幅＋下方重新規劃／警示卡／回到導航）的高度，不是只量橫幅本體——
+        // 重算列或警示卡展開時區塊會變高，呼叫端的語音膠囊要跟著往下移，不然會疊在警示卡上
+        // （使用者回饋 2026-10-23：語音功能＋導航時左上角重疊）。
+        onLayout={onBannerHeightChange ? (event) => onBannerHeightChange(event.nativeEvent.layout.height) : undefined}>
+        <View pointerEvents="box-none">
         {instructionError ? (
           <View style={[styles.banner, { paddingTop: insets.top + 8 }]}>
             <Text accessibilityLiveRegion="assertive" style={styles.bannerInstruction}>{t(instructionError === 'expired' ? 'nativeRouteTokenExpired' : 'nativeInstructionsUnavailable')}</Text>

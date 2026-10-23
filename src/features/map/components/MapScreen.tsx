@@ -26,7 +26,6 @@ import {
   isLatLng,
   resolveInitialCamera,
 } from '../domain/initialCamera';
-import { PINNED_FACILITY_CATEGORIES } from '../domain/facilities';
 import { useBasemapStyle } from '../hooks/useBasemapStyle';
 import { useFacilitiesLoader } from '../hooks/useFacilitiesLoader';
 import { useLocationTracking } from '../hooks/useLocationTracking';
@@ -38,7 +37,6 @@ import { useMapUiStore } from '../store/mapUiStore';
 import { useUserLocationStore } from '../store/userLocationStore';
 import FacilityLayer from './FacilityLayer';
 import FacilityPills from './FacilityPills';
-import MapLayersBar from './MapLayersBar';
 import ParkingLayer from './ParkingLayer';
 import MapControls from './MapControls';
 
@@ -64,9 +62,23 @@ export interface MapScreenProps {
    * 會讓 sheet 疊在 modal 之上、擋住其按鈕；改回 true 後地圖重新 focus 時才帶出。
    */
   homeSheetEnabled?: boolean;
+  /**
+   * false 時不畫「使用者目前位置附近」常駐設施圖層（`FacilityLayer`）：有路線 session 時 app 路由會
+   * 透過 `layers` 插入 route feature 自己的 `RouteFacilityLayer`（沿路線 100 公尺內的設施，獨立一個
+   * clustered source）；兩個圖層各自 cluster、互不知道對方，同一個設施點會在路線起訖點附近各畫一次，
+   * 疊成好幾顆圖示擠在一起而不是合併成一顆數字徽章（使用者回饋 2026-10-23：規劃路線的設施顯示太醜了
+   * 好多馬桶）。有路線時交給 `RouteFacilityLayer` 顯示，常駐圖層讓出。
+   */
+  facilityLayerEnabled?: boolean;
 }
 
-export default function MapScreen({ layers, overlays, navigationMode = false, homeSheetEnabled = true }: MapScreenProps) {
+export default function MapScreen({
+  layers,
+  overlays,
+  navigationMode = false,
+  homeSheetEnabled = true,
+  facilityLayerEnabled = true,
+}: MapScreenProps) {
   const theme: MapTheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const { t } = useAppTranslation();
   const insets = useSafeAreaInsets();
@@ -80,9 +92,6 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
   const follow = useMapUiStore((state) => state.follow);
   const sheetInset = useMapUiStore((state) => state.sheetInset);
   const showParking = useFacilityStore((state) => state.showParking);
-  const selectedCategories = useFacilityStore((state) => state.selected);
-  const toggleCategory = useFacilityStore((state) => state.toggleCategory);
-  const toggleParking = useFacilityStore((state) => state.toggleParking);
   // 初始相機只在第一次 render 決定（之後由 mapCamera 控制）
   const [initialCamera] = useState(() =>
     resolveInitialCamera(readJson(appStorage, LAST_USER_LOCATION_KEY, isLatLng, null)),
@@ -228,7 +237,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
           filter={['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false]}
           paint={buildingExtrusionPaint(theme, is3d)}
         />
-        <FacilityLayer />
+        {facilityLayerEnabled ? <FacilityLayer /> : null}
         {navigationMode ? null : <FacilityPills />}
         {showParking || pathname === '/nearby' ? <ParkingLayer /> : null}
         {layers}
@@ -260,48 +269,12 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
         />
       </Animated.View>
       )}
-      {/* 設施篩選常駐貼在 sheet 上緣（使用者回饋：右邊「圖層」按鈕/彈出卡片不需要了，改成像搜尋框
-          上方那排一樣直接看得到、點得到，不用先點開）。 */}
-      {navigationMode ? null : (
-        <Animated.View
-          pointerEvents="box-none"
-          style={[styles.facilityBar, { bottom: sheetInset + 12, opacity: controlsOpacity }]}>
-          <MapLayersBar
-            facilityToggles={[
-              ...PINNED_FACILITY_CATEGORIES.map((category) => ({
-                key: category as string,
-                label: t(LAYER_LABEL_KEY[category]),
-                iconName: category,
-                systemImage: LAYER_SYSTEM_IMAGE[category],
-                selected: selectedCategories.includes(category),
-                onToggle: () => toggleCategory(category),
-              })),
-              {
-                key: 'parking',
-                label: t('railParking'),
-                iconName: 'parking',
-                systemImage: 'parkingsign.square.fill',
-                selected: showParking,
-                onToggle: toggleParking,
-              },
-            ]}
-          />
-        </Animated.View>
-      )}
     </View>
   );
 }
-
-const LAYER_LABEL_KEY = { elevator: 'elevator', toilet: 'toilet', ramp: 'a11yFeatureRamp' } as const;
-const LAYER_SYSTEM_IMAGE = {
-  elevator: 'arrow.up.arrow.down.square.fill',
-  toilet: 'toilet.fill',
-  ramp: 'figure.roll',
-} as const;
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   map: { flex: 1 },
   controls: { position: 'absolute', right: 16 },
-  facilityBar: { position: 'absolute', left: 16, right: 16 },
 });

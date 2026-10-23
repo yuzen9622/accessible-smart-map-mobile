@@ -1,6 +1,6 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Stack, router } from 'expo-router';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useThemeColors } from '@/shared/theme';
@@ -8,7 +8,7 @@ import { EmptyState, Icon } from '@/shared/ui';
 
 import RouteCard from '../components/RouteCard';
 import RouteSafetyNotice from '../components/RouteSafetyNotice';
-import { routeStyles } from '../components/palette';
+import { routeStyles, routeTones } from '../components/palette';
 import { selectRouteAt } from '../controller/routeSessionPort';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 
@@ -26,6 +26,7 @@ export interface RouteListScreenProps {
 export default function RouteListScreen({ onStartNavigation }: RouteListScreenProps) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
+  const tones = routeTones(useColorScheme() === 'dark');
   const routes = useRouteSessionStore((s) => s.computeRoutes);
   const selected = useRouteSessionStore((s) => s.selectRoute);
   const preferences = useRouteSessionStore((s) => s.effectivePreferences);
@@ -41,9 +42,15 @@ export default function RouteListScreen({ onStartNavigation }: RouteListScreenPr
           style={{ backgroundColor: colors.background }}
           contentContainerStyle={routeStyles.content}
           contentInsetAdjustmentBehavior="automatic">
-          <Pressable accessibilityRole="button" onPress={() => router.navigate('/plan')} style={routeStyles.primaryButton}>
-            <Text style={routeStyles.primaryButtonText}>{t('nativePlanAgain')}</Text>
-          </Pressable>
+          {/* 整條寬的「重新規劃」按鈕換成精簡按鈕＋路線數量（使用者回饋 2026-10-23，參考設計圖二）：
+              重新規劃不是這頁最主要的動作，佔一整排太搶戲。 */}
+          <View style={styles.headerRow}>
+            <Text style={[styles.routeCount, { color: colors.text }]}>{t('routeResultsCount', { count: routes.length })}</Text>
+            <Pressable accessibilityRole="button" onPress={() => router.navigate('/plan')} style={styles.replanButton}>
+              <Icon name="refresh" size={14} color={tones.accent} />
+              <Text style={[styles.replanButtonText, { color: tones.accent }]}>{t('nativePlanAgain')}</Text>
+            </Pressable>
+          </View>
           {preferences ? <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>
             {t('nativeEffectiveRoute', { mode: t(`nativeRouteMode_${preferences.mode}`), travel: t(`nativeTravel_${preferences.travelMode}`), transit: t(`nativeTransit_${preferences.transitPreference}`) })}
             {preferences.departureTime ? ` · ${new Date(preferences.departureTime).toLocaleString()}` : ''}
@@ -79,3 +86,10 @@ export default function RouteListScreen({ onStartNavigation }: RouteListScreenPr
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  routeCount: { fontSize: 15, fontWeight: '600' },
+  replanButton: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 32, paddingHorizontal: 4 },
+  replanButtonText: { fontSize: 14, fontWeight: '600' },
+});

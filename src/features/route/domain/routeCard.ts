@@ -309,6 +309,57 @@ export function legChainSegments(legs: readonly RouteLeg[]): LegChainSegment[] {
   return out;
 }
 
+export interface LegTimelineSegment {
+  type: RouteLeg['type'];
+  /** 運具上要印的短標籤：公車路線號、捷運線名、火車車次；步行與開車沒有。 */
+  label?: string;
+  durationMinutes: number;
+  /** 只有步行段才有距離（給「步行 350 m」這種附註）。 */
+  distanceM?: number;
+}
+
+/**
+ * 路線卡的時間軸（規劃結果列表「每段花多久」的排版用）：跟 {@link legChainSegments} 一樣合併連續步行，
+ * 但多帶每段的時間（與步行的距離），不是只有圖示／路線號（使用者回饋 2026-10-23：規劃結果希望能看到
+ * 每段花多久，不是只有終點總覽）。
+ */
+export function legTimelineSegments(legs: readonly RouteLeg[]): LegTimelineSegment[] {
+  const out: LegTimelineSegment[] = [];
+  for (const leg of legs) {
+    if (leg.type === 'WALK') {
+      const last = out.at(-1);
+      if (last?.type === 'WALK') {
+        last.durationMinutes += Math.round(leg.minutesEst);
+        last.distanceM = (last.distanceM ?? 0) + leg.distanceM;
+        continue;
+      }
+      out.push({ type: 'WALK', durationMinutes: Math.round(leg.minutesEst), distanceM: leg.distanceM });
+      continue;
+    }
+    switch (leg.type) {
+      case 'BUS':
+        out.push({ type: leg.type, label: nonEmptyName(leg.routeDisplayName, leg.routeName), durationMinutes: Math.round(leg.rideMinutes ?? 0) });
+        break;
+      case 'METRO':
+        out.push({
+          type: leg.type,
+          label: nonEmptyName(leg.routeDisplayName, shortMetroLabel(leg.lineName, leg.lineId, leg.railSystem)),
+          durationMinutes: Math.round(leg.rideMinutes),
+        });
+        break;
+      case 'THSR':
+      case 'TRA':
+        out.push({ type: leg.type, label: leg.trainNo, durationMinutes: Math.round(leg.rideMinutes) });
+        break;
+      case 'DRIVE':
+      case 'MOTORCYCLE':
+        out.push({ type: leg.type, durationMinutes: Math.round(driveLegMinutes(leg)) });
+        break;
+    }
+  }
+  return out;
+}
+
 export interface RouteFacts {
   /** 階梯處數；後端沒有提供階梯資訊（沒有 a11ySegments 也沒有步驟）時為 null，不能當成 0。 */
   stairs: number | null;

@@ -84,6 +84,9 @@ export interface RoutePlanModel {
   /** 輸入框取得焦點：sheet 展開到全高，鍵盤才不會蓋住輸入框與建議清單。 */
   onInputFocus: () => void;
   onUseMyLocation: () => void;
+  /** 起點改回「目前位置」；跟終點一樣有清除按鈕（使用者回饋 2026-10-23，參考設計圖二：以前只有
+   * 終點能清除，起點只能進編輯模式點「使用我的位置」，兩邊操作不一致）。 */
+  onClearOrigin: () => void;
   onClearDestination: () => void;
   onSwap: () => void;
   onStart: () => void;
@@ -351,6 +354,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       useRouteSessionStore.getState().setOrigin(null);
       closeEditor();
     },
+    onClearOrigin: () => useRouteSessionStore.getState().setOrigin(null),
     onClearDestination: () => useRouteSessionStore.getState().setDestination(null),
     onSwap: () => useRouteSessionStore.getState().swapEndpoints(),
     onStart: () => void start(),

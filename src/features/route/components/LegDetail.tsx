@@ -20,13 +20,12 @@ import {
   type A11yGrade,
   type Translate,
 } from '../domain/routeCard';
-import { A11Y_FEATURE_COLOR, formatDuration, getLegColor, pointLabel } from '../domain/routeDisplay';
+import { A11Y_FEATURE_COLOR, LEG_ICON, formatDuration, getLegColor, pointLabel } from '../domain/routeDisplay';
 import { nonEmptyName, presentRouteLegNames, walkStreetNames } from '../domain/routeNames';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import type { DriveLeg, MatchedAlert, MetroAlert, RouteLeg, TrafficLevel, WalkLeg, WalkRestPoint } from '../types/route';
 import Disclosure from './Disclosure';
 import { ROUTE_SURFACE_COLOR, ROUTE_WARN_SURFACE, routeStyles, routeTones, type RouteTones } from './palette';
-import { LEG_ICON } from './RouteCard';
 
 export interface LegDetailProps {
   leg: RouteLeg;

@@ -3,11 +3,11 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, V
 
 import { useCloseScreen } from '@/shared/navigation';
 import { TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
-import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
+import { Icon, type IconName } from '@/shared/ui';
 
 import { ROUTE_DESTINATION_COLOR, ROUTE_ORIGIN_COLOR } from '../domain/routeLayerData';
 import type { PlanOption, RoutePlanModel } from '../hooks/useRoutePlanViewModel';
-import type { TravelMode } from '../types/route';
+import type { RouteMode, TravelMode } from '../types/route';
 
 import RouteCard from './RouteCard';
 import {
@@ -23,6 +23,15 @@ const TRAVEL_MODE_ICON: Record<TravelMode, IconName> = {
   drive: 'car',
   motorcycle: 'bike',
   walk: 'footprints',
+};
+
+// 跟 onboarding 第 2 步的情況圖示同一套對照（`OnboardingPanel.tsx` 的 `SITUATION_ICON`）：
+// wheelchair→accessibility、vision→eye、slow/walker→personStanding，一般用 user。
+const ROUTE_MODE_ICON: Record<RouteMode, IconName> = {
+  normal: 'user',
+  wheelchair: 'accessibility',
+  elderly: 'personStanding',
+  visual_impaired: 'eye',
 };
 
 export interface RoutePlanPanelProps {
@@ -168,7 +177,17 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
                 </Text>
               </Pressable>
             )}
-            {model.editing === 'origin' ? renderEditorTrailing() : null}
+            {model.editing === 'origin' ? (
+              renderEditorTrailing()
+            ) : !model.originIsMyLocation ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={model.labels.clear}
+                onPress={model.onClearOrigin}
+                hitSlop={14}>
+                <Icon name="close" size={16} color={colors.textSecondary} />
+              </Pressable>
+            ) : null}
           </View>
           <View style={[styles.divider, { backgroundColor: ROUTE_BORDER_COLOR }]} />
           <View style={styles.endpointRow}>
@@ -217,7 +236,16 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
 
       {model.editing ? renderEditor() : null}
 
-      <SegmentedControl label={model.labels.a11yMode} options={model.routeModes} onSelect={model.onSelectRouteMode} />
+      {/* 跟「交通方式」同一種有圖示的膠囊列，不用 iOS 原生分段控制那種無圖示的灰色軌道
+          （使用者回饋 2026-10-23，參考設計圖二：圖示讓「一般／輪椅／長者／視障」一眼分得出來）。 */}
+      <View style={routeStyles.section}>
+        <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
+          {model.labels.a11yMode}
+        </Text>
+        <View accessibilityRole="radiogroup" style={routeStyles.chipsRow}>
+          {model.routeModes.map((option) => renderOption(option, ROUTE_MODE_ICON[option.value]))}
+        </View>
+      </View>
 
       <View style={routeStyles.section}>
         <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
@@ -227,6 +255,15 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
         {model.gatedHint ? (
           <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{model.gatedHint}</Text>
         ) : null}
+      </View>
+
+      {/* 沿途顯示設施：以前只在已經有結果、按「重新規劃」時才看得到；改成規劃表單就常駐顯示
+          （使用者回饋 2026-10-23，參考設計圖二：規劃前就能先選好要看哪些設施，不用等結果出來）。 */}
+      <View style={routeStyles.section}>
+        <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
+          {model.labels.facilityFilterTitle}
+        </Text>
+        <View style={routeStyles.chipsRow}>{model.facilityFilters.map((option) => renderOption(option))}</View>
       </View>
 
       {model.error ? (
@@ -241,10 +278,6 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
           <Pressable accessibilityRole="button" onPress={model.onStart} style={routeStyles.primaryButton}>
             <Text style={routeStyles.primaryButtonText}>{model.labels.replan}</Text>
           </Pressable>
-          <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
-            {model.labels.facilityFilterTitle}
-          </Text>
-          <View style={routeStyles.chipsRow}>{model.facilityFilters.map((option) => renderOption(option))}</View>
           {model.results.routes.map((route, index) => (
             <RouteCard
               key={route.routeId || String(index)}

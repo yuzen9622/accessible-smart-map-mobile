@@ -3,6 +3,7 @@
 // `formatDistance` 在 `shared/geo`（Phase 1 移植、Phase 2 提到共用層），這裡不重複。
 
 import { MODE } from '@/shared/theme/palettes';
+import type { IconName } from '@/shared/ui/Icon.types';
 
 import type { A11yFeature, A11yLabel, DriveTrafficSegment, RouteLeg, TrafficLevel } from '../types/route';
 
@@ -128,6 +129,19 @@ export const LEG_LABEL_FILL: Record<RouteLeg['type'], string> = {
   TRA: MODE.tra.text,
   DRIVE: MODE.car.text,
   MOTORCYCLE: MODE.scooter.text,
+};
+
+/** 運具圖示；搬到 domain 而不是放元件檔，是因為 `RouteCard` 跟 `RouteLegTimeline` 互相用得到對方
+ * 的其他東西，兩邊都從元件檔匯入會形成 require cycle（Metro 的實際警告：RouteCard → RouteLegTimeline
+ * → RouteCard）。 */
+export const LEG_ICON: Record<RouteLeg['type'], IconName> = {
+  WALK: 'footprints',
+  BUS: 'bus',
+  METRO: 'tramFront',
+  THSR: 'trainFrontTunnel',
+  TRA: 'trainFront',
+  DRIVE: 'car',
+  MOTORCYCLE: 'bike',
 };
 
 export function formatDuration(minutes: number): string {

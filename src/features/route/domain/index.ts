@@ -26,6 +26,7 @@ export {
   getA11yLabelColor,
   getA11yLabelText,
   getLegColor,
+  LEG_ICON,
   LEG_LABEL_FILL,
   plausibleSlopePercent,
   pointLabel,

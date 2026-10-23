@@ -6,21 +6,22 @@ import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { RADIUS, TYPE, useThemeColors } from '@/shared/theme';
-import { Icon, type IconName } from '@/shared/ui';
+import { Icon } from '@/shared/ui';
 
 import {
   effectiveAccessibilityScore,
   getConfidenceLabelKey,
   getRouteAlertsCount,
   legChainSegments,
+  legTimelineSegments,
   routeFacts,
   routeSummary,
   type Translate,
 } from '../domain/routeCard';
-import { LEG_LABEL_FILL, scoreToStars } from '../domain/routeDisplay';
+import { LEG_ICON, LEG_LABEL_FILL, scoreToStars } from '../domain/routeDisplay';
 import { presentRouteNames } from '../domain/routeNames';
 import { orderRouteHighlights } from '../domain/routeMessages';
-import type { AccessibleRoute, RouteLeg } from '../types/route';
+import type { AccessibleRoute } from '../types/route';
 import {
   ROUTE_ACCENT_COLOR,
   ROUTE_BORDER_COLOR,
@@ -31,16 +32,7 @@ import {
   routeStyles,
   routeTones,
 } from './palette';
-
-export const LEG_ICON: Record<RouteLeg['type'], IconName> = {
-  WALK: 'footprints',
-  BUS: 'bus',
-  METRO: 'tramFront',
-  THSR: 'trainFrontTunnel',
-  TRA: 'trainFront',
-  DRIVE: 'car',
-  MOTORCYCLE: 'bike',
-};
+import RouteLegTimeline from './RouteLegTimeline';
 
 export interface RouteCardProps {
   route: AccessibleRoute;
@@ -89,6 +81,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
   const starText = stars === null ? null : t(`starLabel${stars}`);
   const confidenceKey = getConfidenceLabelKey(route.dataConfidence);
   const chain = legChainSegments(presentation.legs);
+  const timeline = legTimelineSegments(presentation.legs);
   // 先依原始 index 配對，再排序整組；未知／舊字串不推定為成功。
   const ordered = orderRouteHighlights(route.accessibilityHighlights, route.accessibilityHighlightDetails);
   const highlights = ordered.slice(0, MAX_HIGHLIGHTS);
@@ -101,8 +94,6 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
     route.transferCount > 0 ? t('transferCount', { count: route.transferCount }) : null,
     confidenceKey ? `${t('dataConfidence')}：${t(confidenceKey)}` : null,
   ].filter(Boolean);
-  const lineBadge = chain.find((segment) => segment.label);
-
   const a11ySummary = [
     route.routeName,
     duration,
@@ -157,6 +148,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
             {facts.length > 0 ? (
               <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{facts.join(' · ')}</Text>
             ) : null}
+            <RouteLegTimeline segments={timeline} />
             <View style={routeStyles.chipsRow}>
               {starText && stars !== null ? (
                 <View style={[routeStyles.badge, { backgroundColor: ROUTE_SURFACE_COLOR }]}>
@@ -180,24 +172,22 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
             </View>
           </>
         ) : (
-          <View style={styles.titleRow}>
-            <View style={routeStyles.flex}>
-              <Text style={[styles.durationSmall, { color: colors.text }]} maxFontSizeMultiplier={1.6}>
-                {duration}
-              </Text>
-              <Text style={[routeStyles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
-                {[summary || null, facts[0] ?? null, starText].filter(Boolean).join(' · ')}
-              </Text>
-            </View>
-            {lineBadge?.label ? (
-              <View style={[styles.legPill, { backgroundColor: LEG_LABEL_FILL[lineBadge.type] }]}>
-                <Icon name={LEG_ICON[lineBadge.type]} size={13} color="#FFFFFF" />
-                <Text style={styles.legPillText} numberOfLines={1} maxFontSizeMultiplier={1.6}>
-                  {lineBadge.label}
+          <>
+            <View style={styles.titleRow}>
+              <View style={routeStyles.flex}>
+                <Text style={[styles.durationSmall, { color: colors.text }]} maxFontSizeMultiplier={1.6}>
+                  {duration}
+                </Text>
+                <Text style={[routeStyles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {[summary || null, facts[0] ?? null, starText].filter(Boolean).join(' · ')}
                 </Text>
               </View>
-            ) : null}
-          </View>
+              {/* 路線號已經在下面的時間軸裡，這裡只留 chevron 提示點了會看明細（原本在此重複顯示
+                  一次路線號膠囊，使用者回饋 2026-10-23：規劃結果希望跟選中的卡片一樣看得到時間軸）。 */}
+              <Icon name="chevronRight" size={18} color={colors.textSecondary} />
+            </View>
+            <RouteLegTimeline segments={timeline} />
+          </>
         )}
       </Pressable>
 
@@ -249,25 +239,28 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
           ) : null}
           {!canNavigateRoute(route) ? <Text accessibilityLiveRegion="polite" style={{ color: tones.warn }}>{t('nativeRouteTokenUnavailable')}</Text> : null}
           {route.legs.some((leg) => !leg.polyline?.length) ? <Text style={{ color: colors.textSecondary }}>{t('nativeRouteGeometryMissing')}</Text> : null}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('startNav')}
-            disabled={!canNavigateRoute(route)}
-            accessibilityState={{ disabled: !canNavigateRoute(route) }}
-            onPress={onStartNavigation}
-            style={routeStyles.primaryButton}>
-            <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
-            <Text style={routeStyles.primaryButtonText}>{t('startNav')}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('nativeRouteDetails')}
-            onPress={onOpenDetail}
-            style={[routeStyles.listRow, styles.detailRow, { borderColor: ROUTE_BORDER_COLOR }]}>
-            <Icon name="list" size={16} color={tones.accent} />
-            <Text style={[routeStyles.bodyText, routeStyles.flex, { color: tones.accent }]}>{t('nativeRouteDetails')}</Text>
-            <Icon name="chevronRight" size={16} color={colors.textSecondary} />
-          </Pressable>
+          {/* 「路線詳情」跟「開始導航」並排兩顆等寬按鈕，不是一顆主按鈕＋下面一整排連結
+              （使用者回饋 2026-10-23，參考設計圖二：兩個動作同樣重要，不要分主次）。 */}
+          <View style={styles.actionsRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('nativeRouteDetails')}
+              onPress={onOpenDetail}
+              style={[styles.detailButton, { borderColor: ROUTE_BORDER_COLOR }]}>
+              <Icon name="list" size={16} color={tones.accent} />
+              <Text style={[routeStyles.bodyText, { color: tones.accent }]}>{t('nativeRouteDetails')}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('startNav')}
+              disabled={!canNavigateRoute(route)}
+              accessibilityState={{ disabled: !canNavigateRoute(route) }}
+              onPress={onStartNavigation}
+              style={[routeStyles.primaryButton, styles.actionsRowButton]}>
+              <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
+              <Text style={routeStyles.primaryButtonText}>{t('startNav')}</Text>
+            </Pressable>
+          </View>
         </View>
       ) : null}
     </View>
@@ -290,5 +283,16 @@ const styles = StyleSheet.create({
   highlights: { gap: 6 },
   highlightRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   warningCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: RADIUS.small, padding: 10 },
-  detailRow: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: 0 },
+  actionsRow: { flexDirection: 'row', gap: 8 },
+  actionsRowButton: { flex: 1 },
+  detailButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 50,
+    borderRadius: RADIUS.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
 });

@@ -178,15 +178,26 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             {model.planRouteLabel}
           </Text>
         </PressableScale>
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={model.saveLabel}
-          accessibilityState={{ selected: model.saved }}
-          onPress={model.onToggleSave}
-          style={[styles.circleButton, { backgroundColor: circleSurface }]}>
-          <Icon name={model.saved ? 'bookmarkFilled' : 'bookmark'} size={ICON_SIZE.control} color={accentText} />
-        </PressableScale>
-        <ShareButton url={model.shareUrl} title={model.title} label={model.shareLabel} onShare={model.onShare} />
+        <View style={styles.actionColumn}>
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={model.saveLabel}
+            accessibilityState={{ selected: model.saved }}
+            onPress={model.onToggleSave}
+            style={[styles.circleButton, { backgroundColor: circleSurface }]}>
+            <Icon name={model.saved ? 'bookmarkFilled' : 'bookmark'} size={ICON_SIZE.control} color={accentText} />
+          </PressableScale>
+          <Text importantForAccessibility="no" maxFontSizeMultiplier={MAX_FONT_SCALE.label} numberOfLines={1} style={[styles.actionLabel, { color: colors.textSecondary }]}>
+            {model.saveLabel}
+          </Text>
+        </View>
+        <View style={styles.actionColumn}>
+          <ShareButton url={model.shareUrl} title={model.title} label={model.shareLabel} onShare={model.onShare} />
+          <Text importantForAccessibility="no" maxFontSizeMultiplier={MAX_FONT_SCALE.label} numberOfLines={1} style={[styles.actionLabel, { color: colors.textSecondary }]}>
+            {model.shareLabel}
+          </Text>
+        </View>
+        <View style={styles.actionColumn}>
         <MoreActionsButton
           label={model.moreLabel}
           cancelLabel={model.cancelLabel}
@@ -198,6 +209,10 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             ...model.links,
           ]}
         />
+          <Text importantForAccessibility="no" maxFontSizeMultiplier={MAX_FONT_SCALE.label} numberOfLines={1} style={[styles.actionLabel, { color: colors.textSecondary }]}>
+            {model.moreLabel}
+          </Text>
+        </View>
       </View>
 
       {model.categories ? (
@@ -483,7 +498,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   badgeText: { fontSize: TYPE.caption, fontWeight: '600' },
-  actionsRow: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: -8 },
+  actionsRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginTop: -8 },
+  actionColumn: { alignItems: 'center', gap: 4, minWidth: 56 },
+  actionLabel: { fontSize: TYPE.caption, fontWeight: '600', textAlign: 'center' },
   actionsRowLarge: { flexWrap: 'wrap' },
   primaryButton: {
     flex: 1,

@@ -1,17 +1,22 @@
 import { router } from 'expo-router';
+import type { SFSymbol } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { Alert, Keyboard, Linking, useWindowDimensions } from 'react-native';
+import { Alert, Keyboard, Linking } from 'react-native';
 
 import {
   FACILITY_COLORS,
+  PINNED_FACILITY_CATEGORIES,
+  PINNED_FACILITY_LABEL_KEY,
+  PINNED_FACILITY_SYSTEM_IMAGE,
   SHEET_DETENTS,
   mapCamera,
-  sheetBottomInset,
   sheetController,
   sheetNavigation,
-  useMapUiStore,
+  useFacilityStore,
   useNearbySummary,
   useUserLocationStore,
+  type MapLayersBarNeedsPill,
+  type MapLayersBarToggle,
 } from '@/features/map';
 import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { ROUTE_MODE_LABEL_KEY, useOnboardingStore } from '@/features/onboarding';
@@ -80,6 +85,9 @@ export interface ExploreShortcut {
   /** 圖示底色：依收藏分類區分（同上，使用者回饋 2026-10-11）。 */
   color: string;
   onPress: () => void;
+  /** 長按彈出「編輯」（進地點詳情改分類）／「刪除」（移出收藏）選單（使用者回饋 2026-10-23：
+   * 常去地點長按應該要能編輯、刪除，不用先點進去才找得到）。 */
+  onLongPress: () => void;
 }
 
 /** 一句話附近摘要：「步行 5 分鐘內：3 部電梯、2 間無障礙廁所」 */
@@ -152,10 +160,15 @@ export interface ExploreViewModel {
   resultRows: ExploreRow[];
   onOpenNearby: () => void;
   onOpenSaved: () => void;
-  /** sheet 展開（half/full）時才顯示品牌列；peek 只露搜尋框（SDD §4.5）。 */
-  showBrand: boolean;
-  /** 大標「去哪裡？」與右側的行動需求 pill（點了到設定的需求頁） */
-  header: { title: string; needs: { label: string; accessibilityLabel: string; onPress: () => void } };
+  /** 設施篩選膠囊列（電梯／坡道／廁所／停車）＋最後一顆「行動需求」膠囊；搜尋框正上方常駐顯示
+   * （使用者回饋 2026-10-23：原本分成「地圖上緣浮動列」跟「sheet 內搜尋框」兩層疊在一起，
+   * 窄螢幕擠成一團被截斷；改成同一張卡片裡搜尋框正上方一排，不再是獨立浮動元件）。 */
+  facilityToggles: MapLayersBarToggle[];
+  needsPill: MapLayersBarNeedsPill;
+  /** 搜尋框正下方常駐的「規劃路線」按鈕（使用者回饋 2026-10-24：之前以為跟地點詳情頁重複拿掉了，
+   * 但使用者還是想要首頁有一個不用先選地點就能進路線規劃的入口）；不帶目的地直接進 `/plan`，
+   * 在那邊的起訖點欄位自己選。 */
+  planRoute: { label: string; onPress: () => void };
   /** 收藏地點（依下方 shortcutFilters 勾選的分類篩選，全部收藏可橫向滑動瀏覽）；
    * 旁邊的「新增」是常去地點區塊標題右側的小按鈕，不再混在圓鈕那排裡 */
   shortcuts: ExploreShortcut[];
@@ -207,12 +220,13 @@ export function useExploreViewModel(): ExploreViewModel {
   const userLocation = useUserLocationStore((state) => state.position);
   const searchHistory = useSavedPlacesStore((state) => state.searchHistory);
   const savedPlaces = useSavedPlacesStore((state) => state.savedPlaces);
-  const { height } = useWindowDimensions();
-  // 唯讀：`sheetBottomInset` 把 detent index clamp 到 ≤ 1，所以只有 peek 會等於 index 0 的值
-  const sheetInset = useMapUiStore((state) => state.sheetInset);
   const nearbySummary = useNearbySummary();
   const savedPlaceCategories = useSavedPlacesStore((state) => state.savedPlaceCategories);
   const customCategories = useSavedPlacesStore((state) => state.customCategories);
+  const showParking = useFacilityStore((state) => state.showParking);
+  const selectedFacilityCategories = useFacilityStore((state) => state.selected);
+  const toggleFacilityCategory = useFacilityStore((state) => state.toggleCategory);
+  const toggleParking = useFacilityStore((state) => state.toggleParking);
   const routeMode = useOnboardingStore((state) => state.profile.routeMode);
   const addSearchHistory = useSavedPlacesStore((state) => state.addSearchHistory);
   const removeSearchHistory = useSavedPlacesStore((state) => state.removeSearchHistory);
@@ -361,15 +375,29 @@ export function useExploreViewModel(): ExploreViewModel {
   const shortcuts: ExploreShortcut[] = visibleSavedPlaces.map((entry) => {
     const key = placeKey(entry);
     const resolvedCategory = resolvedCategoryOf(entry);
+    const title = placeDisplayName(entry);
     return {
       key,
-      title: placeDisplayName(entry),
+      title,
       meta: userLocation ? formatDistance(haversineMeters(userLocation, entry.position)) : null,
       iconName: isBuiltInSavedPlaceCategory(resolvedCategory) ? SAVED_CATEGORY_ICON[resolvedCategory] : 'bookmark',
       color: isBuiltInSavedPlaceCategory(resolvedCategory)
         ? SAVED_CATEGORY_COLOR[resolvedCategory]
         : customCategoryColor(resolvedCategory),
       onPress: () => handlePickSaved(entry),
+      onLongPress: () => {
+        Alert.alert(title, undefined, [
+          // 「編輯」沿用跟點一下同一條路徑（進地點詳情，那裡本來就有完整的分類 chip 可以改）；
+          // 不另外做一個長按專用的編輯介面。
+          { text: t('edit'), onPress: () => handlePickSaved(entry) },
+          {
+            text: t('nativeHomeShortcutDelete'),
+            style: 'destructive',
+            onPress: () => useSavedPlacesStore.getState().removeSavedPlace(entry),
+          },
+          { text: t('cancel'), style: 'cancel' },
+        ]);
+      },
     };
   });
 
@@ -392,6 +420,31 @@ export function useExploreViewModel(): ExploreViewModel {
       }
     : null;
   const routeModeLabel = t(ROUTE_MODE_LABEL_KEY[routeMode]);
+  const facilityToggles: MapLayersBarToggle[] = [
+    ...PINNED_FACILITY_CATEGORIES.map((category) => ({
+      key: category as string,
+      label: t(PINNED_FACILITY_LABEL_KEY[category]),
+      iconName: category,
+      // domain 的 `PINNED_FACILITY_SYSTEM_IMAGE` 只能存純字串（不得依賴 expo-symbols），這裡轉成
+      // `MapLayersBarToggle` 要的 `SFSymbol` 型別。
+      systemImage: PINNED_FACILITY_SYSTEM_IMAGE[category] as SFSymbol,
+      selected: selectedFacilityCategories.includes(category),
+      onToggle: () => toggleFacilityCategory(category),
+    })),
+    {
+      key: 'parking',
+      label: t('railParking'),
+      iconName: 'parking',
+      systemImage: 'parkingsign.square.fill' as SFSymbol,
+      selected: showParking,
+      onToggle: toggleParking,
+    },
+  ];
+  const needsPill: MapLayersBarNeedsPill = {
+    label: routeModeLabel,
+    accessibilityLabel: t('nativeHomeNeedsA11y', { mode: routeModeLabel }),
+    onPress: () => router.navigate('/settings/needs'),
+  };
 
   return {
     query,
@@ -426,21 +479,15 @@ export function useExploreViewModel(): ExploreViewModel {
     resultRows,
     onOpenNearby: openNearby,
     onOpenSaved: openSaved,
-    showBrand: sheetInset > sheetBottomInset(0, height),
-    header: {
-      title: t('nativeWhereTo'),
-      needs: {
-        label: routeModeLabel,
-        accessibilityLabel: t('nativeHomeNeedsA11y', { mode: routeModeLabel }),
-        onPress: () => router.navigate('/settings/needs'),
-      },
-    },
+    facilityToggles,
+    needsPill,
+    planRoute: { label: t('planRoute'), onPress: () => router.navigate('/plan') },
     shortcuts,
     shortcutFilters,
     addShortcut: { label: t('nativeHomeAddShortcut'), accessibilityLabel: t('nativeHomeAddShortcutA11y'), onPress: openSaved },
     nearbySummary: summary,
     // 順序與顯示／隱藏依設定頁「首頁快捷方式」的 enabledQuickActions（參考網頁版，使用者回饋 2026-10-11）；
-    // 規劃路線沒有在候選清單裡——地點詳情頁本來就有「規劃路線」主按鈕，這裡不必重複放。
+    // 規劃路線不在這個候選清單裡，改成搜尋框正下方常駐的 planRoute 按鈕（見上方欄位註解）。
     quickActions: enabledQuickActions
       .map((key): ExploreQuickAction | null => {
         switch (key) {

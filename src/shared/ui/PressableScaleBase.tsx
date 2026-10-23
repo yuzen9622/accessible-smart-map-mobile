@@ -33,7 +33,10 @@ export default function PressableScaleBase({
   });
   const overlayStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
 
-  const resolvedStyle = typeof style === 'function' ? style({ pressed, hovered: false }) : style;
+  // `expo` 的 react-native-web 型別宣告會幫 `PressableStateCallbackType` 多合併一個必填的
+  // `hovered` 欄位，但實際安裝的 react-native 型別本身沒有這個欄位——用 `as` 讓兩種型別組合
+  // 都能通過（型別斷言不做多餘屬性檢查），不要只傳 `{ pressed }`（不同環境下哪個型別生效不一定）。
+  const resolvedStyle = typeof style === 'function' ? style({ pressed, hovered: false } as PressableStateCallbackType) : style;
   const radius = StyleSheet.flatten(resolvedStyle)?.borderRadius;
   const overlay =
     feedback === 'highlight' ? (

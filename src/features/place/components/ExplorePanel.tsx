@@ -1,7 +1,7 @@
 import { Text, TextInput } from '@/shared/ui/typography/Text';
-import { ActivityIndicator, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
-import { useFontScale } from '@/shared/preferences';
+import { MapLayersBar } from '@/features/map';
 import { ACCENT_FILL, SPACE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
@@ -17,20 +17,20 @@ import PressableScale from '@/shared/ui/PressableScale';
  * - 根節點只能有單一捲動容器：舊版 `View`（搜尋框）+ `FlatList` 兩個 sibling 在
  *   iOS 原生 formSheet 內被 `RNScreens` 警告「expects at most 2 subviews」並造成
  *   版面重疊，所以所有區塊都是這個 `ScrollView` 的子孫，不包外層 `View`、不加 sibling。
- * - 版型（2026-10-11 調整，使用者回饋）：拿掉「去哪裡？」大標，搜尋框往上移，只留右側行動需求 pill；
- *   搜尋框下面是「快速服務」3 欄格狀（AI 助理／公車到站／回報障礙，拿掉規劃路線——地點詳情頁本來就有
- *   主按鈕）→ 附近設施摘要 → 常去地點（標題旁一顆小「新增」，不再混在圓鈕那排裡）。「最近搜尋」從首頁
+ * - 版型（2026-10-11 調整，使用者回饋）：拿掉「去哪裡？」大標，搜尋框往上移到最前面；
+ *   搜尋框正下方是常駐的「規劃路線」按鈕（不帶目的地直接進 `/plan`；使用者回饋 2026-10-24：
+ *   曾經拿掉過，但首頁還是要有一個不用先選地點就能進路線規劃的入口）→「快速服務」3 欄格狀
+ *   （AI 助理／公車到站／回報障礙）→ 附近設施摘要 → 常去地點（標題旁一顆小「新增」，不再混在圓鈕那排裡）。「最近搜尋」從首頁
  *   移除，改成搜尋框取得焦點、還沒打字時才出現（`mode === 'history'`），每筆可直接刪除。
- *   地圖圖層篩選（電梯／坡道／廁所／停車場）拿掉首頁浮動按鈕，只留在搜尋/附近清單流程與
- *   設定頁「地圖預設顯示」（測試人員回饋：篩選入口重複；2026-10-11）。
+ *   地圖圖層篩選（電梯／坡道／廁所／停車場）曾經拿掉首頁浮動按鈕、改成貼在地圖上緣（跟這個 sheet
+ *   各自獨立定位的浮動元件），結果兩層疊在一起時窄螢幕會擠成一團被截斷（使用者回饋 2026-10-23
+ *   截圖：圖示文字疊字、搜尋框被壓扁）。改成 `MapLayersBar`（含最後一顆「行動需求」膠囊）直接是這個
+ *   面板最上面一列，跟搜尋框在同一張卡片裡，不再是獨立浮動元件、沒有疊圖風險。
  */
 export default function ExplorePanel({ model }: ExplorePanelProps) {
   const colors = useThemeColors();
   const tones = useSemanticColors();
   const accentText = tones.accent;
-  const appScale = useFontScale();
-  const { fontScale: systemScale } = useWindowDimensions();
-  const largeText = appScale * systemScale > 1.3;
 
   const renderHistoryRow = (row: ExploreRow) => (
     <View key={row.key} style={[styles.historyRow, { borderColor: PLACE_BORDER_COLOR }]}>
@@ -60,23 +60,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
       automaticallyAdjustKeyboardInsets
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag">
-      {model.showBrand ? (
-        <View style={styles.needsRow}>
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={model.header.needs.accessibilityLabel}
-            onPress={model.header.needs.onPress}
-            hitSlop={4}
-            style={[styles.needsPill, largeText && styles.needsPillStack, { backgroundColor: tones.accentSoft }]}>
-            <Icon name="accessibility" size={ICON_SIZE.body} color={accentText} />
-            <Text style={[styles.needsText, { color: accentText }]} numberOfLines={largeText ? undefined : 1}>
-              {model.header.needs.label}
-            </Text>
-            <Icon name="chevronDown" size={ICON_SIZE.caption} color={accentText} />
-          </PressableScale>
-        </View>
-      ) : null}
-
+      <MapLayersBar facilityToggles={model.facilityToggles} needsPill={model.needsPill} />
       <View style={[styles.searchBar, { backgroundColor: colors.backgroundElement }]}>
         <Icon name="search" color={colors.textSecondary} />
         <TextInput
@@ -129,6 +113,18 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
           </PressableScale>
         )}
       </View>
+
+      {model.mode === 'idle' ? (
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={model.planRoute.label}
+          onPress={model.planRoute.onPress}
+          style={[styles.planRouteButton, { backgroundColor: tones.accent }]}>
+          <Icon name="navigation" size={ICON_SIZE.body} color={WHITE} />
+          <Text style={[styles.planRouteText, { color: WHITE }]}>{model.planRoute.label}</Text>
+          <Icon name="chevronRight" size={ICON_SIZE.body} color={WHITE} />
+        </PressableScale>
+      ) : null}
 
       {model.mode === 'history' ? (
         // 搜尋框取得焦點、還沒打字：最近搜尋 + 分類捷徑（像 Google 地圖的「在附近找」／「更多搜尋類別」）
@@ -287,6 +283,13 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                     accessibilityRole="button"
                     accessibilityLabel={shortcut.meta ? `${shortcut.title}，${shortcut.meta}` : shortcut.title}
                     onPress={shortcut.onPress}
+                    onLongPress={shortcut.onLongPress}
+                    // VoiceOver 手勢上長按可以穿透觸發 onLongPress，但不好發現；另外掛一個轉輪自訂動作
+                    // 達到一樣的效果（使用者回饋 2026-10-23：常去地點長按要能編輯／刪除）。
+                    accessibilityActions={[{ name: 'longpress', label: model.labels.moreActions }]}
+                    onAccessibilityAction={(event) => {
+                      if (event.nativeEvent.actionName === 'longpress') shortcut.onLongPress();
+                    }}
                     style={styles.shortcut}>
                     <View style={[styles.shortcutIcon, { backgroundColor: shortcut.color }]}>
                       <Icon name={shortcut.iconName} size={ICON_SIZE.map} color={WHITE} />
@@ -378,18 +381,6 @@ const styles = StyleSheet.create({
   voiceButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.sm, paddingBottom: 32, gap: 18 },
   flex: { flex: 1 },
-  needsRow: { flexDirection: 'row', justifyContent: 'flex-end' },
-  needsPillStack: { maxWidth: '100%' },
-  needsPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minHeight: 36,
-    maxWidth: 220,
-    paddingHorizontal: 12,
-    borderRadius: SHAPE.pill, borderCurve: 'continuous',
-  },
-  needsText: { fontSize: TYPE.subhead, fontWeight: '600', flexShrink: 1 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
   addShortcutButton: { minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center' },
   shortcutFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.sm, marginBottom: SPACE.sm },
@@ -469,6 +460,15 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   searchInput: { flex: 1, fontSize: TYPE.callout, paddingVertical: 10 },
+  planRouteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.sm,
+    minHeight: 52,
+    paddingHorizontal: SPACE.lg,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
+  },
+  planRouteText: { flex: 1, fontSize: TYPE.body, fontWeight: '700' },
   section: { gap: 8 },
   sectionTitle: { fontSize: TYPE.body, fontWeight: '700' },
   historyRow: {

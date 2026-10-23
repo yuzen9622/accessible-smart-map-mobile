@@ -1,5 +1,5 @@
 import type { BusLeg, RouteLeg, WalkLeg } from '../../types/route';
-import { firstBoarding, legChainSegments, localizedDuration, shortMetroLabel } from '../routeCard';
+import { firstBoarding, legChainSegments, legTimelineSegments, localizedDuration, shortMetroLabel } from '../routeCard';
 
 const walk: WalkLeg = { type: 'WALK', from: '', to: '', distanceM: 0, minutesEst: 0, polyline: [], a11yFacilities: [] };
 const bus: BusLeg = {
@@ -27,6 +27,37 @@ describe('legChainSegments', () => {
 
   it('handles an empty route', () => {
     expect(legChainSegments([])).toEqual([]);
+  });
+});
+
+describe('legTimelineSegments', () => {
+  const walkA: WalkLeg = { ...walk, distanceM: 350, minutesEst: 4.2 };
+  const walkB: WalkLeg = { ...walk, distanceM: 150, minutesEst: 1.6 };
+  const rideBus: BusLeg = { ...bus, routeName: '651副', rideMinutes: 5.8 };
+
+  it('sums distance and duration across merged consecutive walks', () => {
+    const legs: RouteLeg[] = [{ ...walk, distanceM: 100, minutesEst: 1 }, { ...walk, distanceM: 250, minutesEst: 3 }, rideBus, walkB];
+    expect(legTimelineSegments(legs)).toEqual([
+      { type: 'WALK', durationMinutes: 4, distanceM: 350 },
+      { type: 'BUS', label: '651副', durationMinutes: 6 },
+      { type: 'WALK', durationMinutes: 2, distanceM: 150 },
+    ]);
+  });
+
+  it('rounds each leg duration and keeps the transit label', () => {
+    expect(legTimelineSegments([walkA, rideBus, walkB])).toEqual([
+      { type: 'WALK', durationMinutes: 4, distanceM: 350 },
+      { type: 'BUS', label: '651副', durationMinutes: 6 },
+      { type: 'WALK', durationMinutes: 2, distanceM: 150 },
+    ]);
+  });
+
+  it('treats a missing bus rideMinutes as 0', () => {
+    expect(legTimelineSegments([{ ...bus, rideMinutes: undefined }])).toEqual([{ type: 'BUS', label: '28', durationMinutes: 0 }]);
+  });
+
+  it('handles an empty route', () => {
+    expect(legTimelineSegments([])).toEqual([]);
   });
 });
 

@@ -7,7 +7,7 @@ import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { useNow } from '@/shared/time';
-import { Icon, type IconName } from '@/shared/ui';
+import { Icon } from '@/shared/ui';
 
 import { formatRouteClock, routeDayOffset } from '../domain/departureCandidates';
 import {
@@ -16,16 +16,17 @@ import {
   getConfidenceLabelKey,
   getRouteAlertsCount,
   legChainSegments,
+  legTimelineSegments,
   localizedDuration,
   routeFacts,
   routeSummary,
   type FirstBoarding,
   type Translate,
 } from '../domain/routeCard';
-import { LEG_LABEL_FILL, scoreToStars } from '../domain/routeDisplay';
+import { LEG_ICON, LEG_LABEL_FILL, scoreToStars } from '../domain/routeDisplay';
 import { presentRouteNames } from '../domain/routeNames';
 import { orderRouteHighlights } from '../domain/routeMessages';
-import type { AccessibleRoute, RouteLeg } from '../types/route';
+import type { AccessibleRoute } from '../types/route';
 import {
   ROUTE_ON_ACCENT_COLOR,
   ROUTE_DANGER_SURFACE,
@@ -33,18 +34,9 @@ import {
   routeStyles,
   routeTones,
 } from './palette';
+import RouteLegTimeline from './RouteLegTimeline';
 import PressableScale from '@/shared/ui/PressableScale';
 import { Numeral } from '@/shared/ui/typography/Numeral';
-
-export const LEG_ICON: Record<RouteLeg['type'], IconName> = {
-  WALK: 'footprints',
-  BUS: 'bus',
-  METRO: 'tramFront',
-  THSR: 'trainFrontTunnel',
-  TRA: 'trainFront',
-  DRIVE: 'car',
-  MOTORCYCLE: 'bike',
-};
 
 export interface RouteCardProps {
   route: AccessibleRoute;
@@ -100,6 +92,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
   const starText = stars === null ? null : t(`starLabel${stars}`);
   const confidenceKey = getConfidenceLabelKey(route.dataConfidence);
   const chain = legChainSegments(presentation.legs);
+  const timeline = legTimelineSegments(presentation.legs);
   const alternatives = [...new Set(chain.flatMap((segment) => segment.alternatives ?? []))];
   // 先依原始 index 配對，再排序整組；未知／舊字串不推定為成功。
   const ordered = orderRouteHighlights(route.accessibilityHighlights, route.accessibilityHighlightDetails);
@@ -203,6 +196,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
                 {t('nativeBusAlsoRoutes', { routes: alternatives.join('、') })}
               </Text>
             ) : null}
+            <RouteLegTimeline segments={timeline} />
             <View style={routeStyles.chipsRow}>
               {starText && stars !== null ? (
                 <View style={[routeStyles.badge, { backgroundColor: colors.background }]}>
@@ -226,12 +220,22 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
             </View>
           </>
         ) : (
-          <View style={styles.compactMeta}>
-            {starText && stars !== null ? <Icon name="star" size={ICON_SIZE.caption} color={tones[STAR_TONE[stars] ?? 'warn']} /> : null}
-            <Text style={[routeStyles.metaText, routeStyles.flex, { color: colors.textSecondary }]} numberOfLines={1}>
-              {[starText, facts[0] ?? null, alerts > 0 ? t('routeTransitAlertsBadge', { count: alerts }) : null].filter(Boolean).join(' · ')}
-            </Text>
-          </View>
+          <>
+            <View style={styles.titleRow}>
+              <View style={routeStyles.flex}>
+                <Text style={[styles.durationSmall, { color: colors.text }]} maxFontSizeMultiplier={1.6}>
+                  {duration}
+                </Text>
+                <Text style={[routeStyles.metaText, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {[summary || null, facts[0] ?? null, starText].filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+              {/* 路線號已經在下面的時間軸裡，這裡只留 chevron 提示點了會看明細（原本在此重複顯示
+                  一次路線號膠囊，使用者回饋 2026-10-23：規劃結果希望跟選中的卡片一樣看得到時間軸）。 */}
+              <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
+            </View>
+            <RouteLegTimeline segments={timeline} />
+          </>
         )}
       </PressableScale>
 
@@ -331,6 +335,7 @@ const styles = StyleSheet.create({
   summary: { gap: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 8 },
   duration: { fontSize: TYPE.title1, fontWeight: '700' },
+  durationSmall: { fontSize: TYPE.title3, fontWeight: '700' },
   journey: { fontSize: TYPE.subhead, fontWeight: '600' },
   legChain: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', rowGap: 6 },
   legChainItem: { flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 4 },

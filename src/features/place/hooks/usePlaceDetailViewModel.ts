@@ -122,6 +122,8 @@ export interface PlaceDetailModel {
   /** 「3 / 4 已確認」；清單為空時為 null */
   checklistConfirmedLabel: string | null;
   reportLabel: string;
+  /** 無障礙資訊卡底下單一的「我知道，補充資訊」按鈕文字（取代以前每一項各自一個「我知道」連結）。 */
+  checklistSupplementLabel: string;
   /** 回報這個地點的現場狀況（障礙、施工、資料錯誤）：開危險通報並帶入地點座標 */
   placeReport: { title: string; subtitle: string; accessibilityLabel: string; onPress: () => void };
   /** 「⋯」選單（回到此地點、複製連結） */
@@ -374,6 +376,7 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     checklistConfirmedLabel:
       checklist.length > 0 ? t('nativePlaceA11yConfirmed', { confirmed: confirmedCount, total: checklist.length }) : null,
     reportLabel: t('nativePlaceIKnow'),
+    checklistSupplementLabel: t('nativePlaceA11ySupplement'),
     placeReport: {
       title: t('nativePlaceReportTitle'),
       subtitle: t('nativePlaceReportSubtitle'),

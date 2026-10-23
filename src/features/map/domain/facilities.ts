@@ -1,9 +1,31 @@
 // 移植自 Web src/types/route.ts:18-52（A11yFacility）與 A11yFacilitiesWrapper.tsx:17-44（facilityToMarker）。
 import type { Feature, FeatureCollection, Point } from 'geojson';
 
+import type { IconName } from '@/shared/ui/Icon.types';
+
 /** 地圖上有 pin 的設施類別（parking／other 不畫，停車另有圖層） */
 export const PINNED_FACILITY_CATEGORIES = ['elevator', 'ramp', 'toilet'] as const;
 export type PinnedFacilityCategory = (typeof PINNED_FACILITY_CATEGORIES)[number];
+
+/** `MapLayersBar` 設施篩選膠囊的翻譯 key／圖示；原本是 `MapScreen` 內部常數，搬來這裡讓其他呼叫端
+ * （例如 `ExplorePanel`）組同一排膠囊時不用各自重抄一份對照表。 */
+export const PINNED_FACILITY_LABEL_KEY: Record<PinnedFacilityCategory, string> = {
+  elevator: 'elevator',
+  toilet: 'toilet',
+  ramp: 'a11yFeatureRamp',
+};
+// 型別是 expo-symbols 的 `SFSymbol`，但 domain 不得依賴 expo（SDD §4.1 規則 2）；呼叫端（UI 層）組
+// `MapLayersBarToggle` 時自己轉型，這裡只保留純字串資料。
+export const PINNED_FACILITY_SYSTEM_IMAGE: Record<PinnedFacilityCategory, string> = {
+  elevator: 'arrow.up.arrow.down.square.fill',
+  toilet: 'toilet.fill',
+  ramp: 'figure.roll',
+};
+export const PINNED_FACILITY_ICON: Record<PinnedFacilityCategory, IconName> = {
+  elevator: 'elevator',
+  toilet: 'toilet',
+  ramp: 'ramp',
+};
 
 export type FacilitySource = 'metro' | 'osm' | 'campus' | 'bathroom' | 'parking';
 

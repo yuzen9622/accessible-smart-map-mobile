@@ -48,6 +48,14 @@ describe('formatTaiwanAddress', () => {
     expect(formatTaiwanAddress('101, 基河路, 士林夜市, 士林區, 臺北市')).toBe('臺北市士林區基河路101號');
   });
 
+  it('drops a Taichung-style 「N期」 rezoning-area nickname', () => {
+    expect(formatTaiwanAddress('101, 惠來路二段, 惠來里, 西屯區, 臺中七期, 臺中市, 407558, 臺灣')).toBe('臺中市西屯區惠來路二段101號');
+  });
+
+  it('drops the same 「N期」 nickname in Google-style addresses', () => {
+    expect(formatTaiwanAddress('臺中市西屯區臺中七期惠民路')).toBe('臺中市西屯區惠民路');
+  });
+
   it('returns the original when no city or road can be recognised', () => {
     expect(formatTaiwanAddress('信義商圈, 西村里')).toBe('信義商圈, 西村里');
   });

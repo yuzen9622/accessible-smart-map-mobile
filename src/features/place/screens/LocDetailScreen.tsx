@@ -51,9 +51,8 @@ export default function LocDetailScreen() {
 
   return (
     <>
-      <Stack.Screen
-        options={{ title: entry?.kind === 'place' ? entry.place.name : t('placeInfoLabel'), headerLeft: () => <HeaderCloseButton /> }}
-      />
+      {/* 導覽列標題固定用通用標籤，不重複內文已經有的大標地名（使用者回饋 2026-10-23，參考設計圖二）。 */}
+      <Stack.Screen options={{ title: t('placeInfoLabel'), headerLeft: () => <HeaderCloseButton /> }} />
       {!validCoords ? (
         <ErrorState title={t('nativePlaceLoadError')} systemImage="exclamationmark.triangle" />
       ) : !entry || loading ? (

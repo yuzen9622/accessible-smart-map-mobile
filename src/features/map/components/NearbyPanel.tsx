@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, FACILITY, SHAPE } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, FACILITY, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
 
 import { FACILITY_COLORS } from '../domain/facilityStyle';
@@ -62,7 +62,7 @@ export default function NearbyPanel({ model, onRequestLocation, labels }: Nearby
             accessibilityRole="button"
             onPress={onRequestLocation}
             style={styles.locateButton}>
-            <Icon name="crosshair" size={18} color={ON_ACCENT_FILL} />
+            <Icon name="crosshair" size={ICON_SIZE.body} color={ON_ACCENT_FILL} />
             <Text style={styles.locateText}>{labels.locate}</Text>
           </PressableScale>
         </View>
@@ -81,7 +81,7 @@ export default function NearbyPanel({ model, onRequestLocation, labels }: Nearby
                 style={[styles.row,
                   index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: semantic.separator }]}>
                 <View style={[styles.iconCircle, { backgroundColor: icon.color }]}>
-                  <Icon name={icon.name} size={18} color={ON_ACCENT_FILL} />
+                  <Icon name={icon.name} size={ICON_SIZE.body} color={ON_ACCENT_FILL} />
                 </View>
                 <View style={styles.rowTexts}>
                   <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
@@ -102,7 +102,7 @@ export default function NearbyPanel({ model, onRequestLocation, labels }: Nearby
 
       {model.sourcesNote ? (
         <View style={styles.footer}>
-          <Icon name="info" size={14} color={colors.textSecondary} />
+          <Icon name="info" size={ICON_SIZE.caption} color={colors.textSecondary} />
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>{model.sourcesNote}</Text>
         </View>
       ) : null}

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { GlassCard, Icon } from '@/shared/ui';
 
 import { dismissVoiceSession, endVoiceSession } from '../controller/voiceController';
@@ -58,7 +58,7 @@ export default function VoiceFloatingIndicator() {
             barWidth={3}
             gap={2}
           />
-          {isMuted ? <Icon name="volumeOff" size={16} color={colors.text} /> : null}
+          {isMuted ? <Icon name="volumeOff" size={ICON_SIZE.body} color={colors.text} /> : null}
           <Text numberOfLines={1} style={[styles.label, { color: colors.text, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
             {label}
           </Text>
@@ -69,7 +69,7 @@ export default function VoiceFloatingIndicator() {
           onPress={terminal ? dismissVoiceSession : endVoiceSession}
           hitSlop={8}
           style={[styles.close, { backgroundColor: tones.neutral.bg }]}>
-          <Icon name="close" size={14} color={colors.text} />
+          <Icon name="close" size={ICON_SIZE.caption} color={colors.text} />
         </PressableScale>
       </View>
     </GlassCard>

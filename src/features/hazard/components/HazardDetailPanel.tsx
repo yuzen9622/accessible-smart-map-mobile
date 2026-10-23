@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { MAX_FONT_SCALE, SPACE, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { MAX_FONT_SCALE, SPACE, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Button, ErrorState, Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
@@ -53,7 +53,7 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
       contentInsetAdjustmentBehavior="automatic">
         <View style={styles.header}>
           <View style={[styles.iconTile, { backgroundColor: severityTone.bg }]}>
-            <Icon name={report.hazardType === 'construction' ? 'construction' : report.hazardType === 'data_error' ? 'mapPin' : 'alert'} size={24} color={severityTone.fg} />
+            <Icon name={report.hazardType === 'construction' ? 'construction' : report.hazardType === 'data_error' ? 'mapPin' : 'alert'} size={ICON_SIZE.map} color={severityTone.fg} />
           </View>
           <View style={styles.heading}>
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
@@ -74,7 +74,7 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
             <PublicReportPhoto url={report.publicPhotoUrl} onRefresh={model.retry} />
           ) : (
             <View style={[styles.noPhoto, { backgroundColor: semantic.surface }]}>
-              <Icon name="image" size={22} color={colors.textSecondary} />
+              <Icon name="image" size={ICON_SIZE.control} color={colors.textSecondary} />
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.body, { color: colors.textSecondary }]}>{t(reportHasPhoto(report) ? 'hazardPublicPhotoUnavailable' : 'hazardDetailNoPhoto')}</Text>
             </View>
           )}
@@ -87,7 +87,7 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
           </Text>
           {model.createdText ? (
             <View style={styles.date}>
-              <Icon name="clock" size={14} color={colors.textSecondary} />
+              <Icon name="clock" size={ICON_SIZE.caption} color={colors.textSecondary} />
               <Text selectable maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.caption, styles.flex, { color: colors.textSecondary }]}>
                 {t('hazardDetailReportedAt', { date: model.createdText })}
               </Text>
@@ -99,7 +99,7 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
           <StatusPill label={t(presentation.label)} tone={presentation.tone} />
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.body, { color: colors.textSecondary }]}>{model.reviewText}</Text>
           <View style={[styles.community, { borderTopColor: semantic.separator }]}>
-            <Icon name="users" size={16} color={colors.textSecondary} />
+            <Icon name="users" size={ICON_SIZE.body} color={colors.textSecondary} />
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.caption, styles.flex, { color: colors.textSecondary }]}>
               {t('hazardDetailCommunity', { confirm: report.confirmCount ?? 0, deny: report.denyCount ?? 0 })}
             </Text>
@@ -109,7 +109,7 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
         <View style={[styles.footer, { borderTopColor: semantic.separator }]}>
           {model.voted ? (
             <View style={styles.voted}>
-              <Icon name="circleCheck" size={20} color={semantic.ok.fg} />
+              <Icon name="circleCheck" size={ICON_SIZE.control} color={semantic.ok.fg} />
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.body, { color: colors.text }]}>{t('hazardVoted')}</Text>
             </View>
           ) : (

@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors, ACCENT_FILL, semanticColors, WHITE, TYPE, SHAPE } from '@/shared/theme';
+import { useThemeColors, ACCENT_FILL, semanticColors, WHITE, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { endNavigation } from '../controller/navigationSession';
@@ -53,7 +53,7 @@ export default function NavigationStepsScreen() {
         ) : null}
         {arrived || !isNavigating ? (
           <View style={styles.arrived}>
-            <Icon name="circleCheck" size={28} color={semanticColors(false).ok.fg} />
+            <Icon name="circleCheck" size={ICON_SIZE.tile} color={semanticColors(false).ok.fg} />
             <Text style={[styles.text, { color: colors.text }]}>{arrived ? t('arrived') : t('preparingNav')}</Text>
             {isNavigating ? (
               <PressableScale accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.end}>
@@ -84,7 +84,7 @@ export default function NavigationStepsScreen() {
                 active && styles.active,
                 passed && !previewing && styles.passed]}>
               <Text style={[styles.index, { color: active ? ACCENT : colors.textSecondary }]}>{index + 1}</Text>
-              <Icon name={stepIcon(step)} size={20} color={active ? ACCENT : colors.text} />
+              <Icon name={stepIcon(step)} size={ICON_SIZE.control} color={active ? ACCENT : colors.text} />
               <View style={styles.flex}>
                 <Text style={[styles.text, { color: colors.text }]}>{step.text}</Text>
                 {detail ? <Text style={[styles.meta, { color: colors.textSecondary }]}>{detail}</Text> : null}

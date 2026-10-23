@@ -4,7 +4,7 @@ import { AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { MIN_TOUCH, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MIN_TOUCH, TYPE, scaledSize, useSemanticColors, useThemeColors, ICON_SIZE } from '@/shared/theme';
 
 import GlassCard from './GlassCard';
 import Icon from './Icon';
@@ -35,7 +35,7 @@ export default function OfflineBanner({ message }: OfflineBannerProps) {
   return (
     <GlassCard style={styles.card}>
       <View accessible accessibilityRole="alert" accessibilityLabel={`${t('nativeOfflineTitle')}，${detail}`} style={styles.row}>
-        <Icon name="wifiOff" size={20} color={tones.warn.fg} />
+        <Icon name="wifiOff" size={ICON_SIZE.control} color={tones.warn.fg} />
         <View style={styles.text}>
           <Text style={[styles.title, { color: colors.text, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
             {t('nativeOfflineTitle')}

@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-import { useSemanticColors, SHAPE } from '@/shared/theme';
+import { useSemanticColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { ShareButtonProps } from './ShareButton.types';
@@ -15,7 +15,7 @@ export default function ShareButton({ label, onShare }: ShareButtonProps) {
       accessibilityLabel={label}
       onPress={onShare}
       style={[styles.circle, { backgroundColor: tones.accentSoft }]}>
-      <Icon name="share" size={20} color={tones.accent} />
+      <Icon name="share" size={ICON_SIZE.control} color={tones.accent} />
     </PressableScale>
   );
 }

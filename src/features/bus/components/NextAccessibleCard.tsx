@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { StyleSheet, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, SHAPE } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import PressableScale from '@/shared/ui/PressableScale';
 
@@ -40,7 +40,7 @@ export default function NextAccessibleCard(props: NextAccessibleCardProps) {
       onPress={props.onPress}
       style={styles.card}>
       <View style={styles.eyebrowRow}>
-        <Icon name="accessibility" size={16} color={ON_ACCENT_FILL} />
+        <Icon name="accessibility" size={ICON_SIZE.body} color={ON_ACCENT_FILL} />
         <Text style={styles.eyebrow}>{props.eyebrow}</Text>
       </View>
       <View style={styles.main}>

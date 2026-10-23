@@ -11,6 +11,7 @@ import Animated, {
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { AMBIENT_MS } from '@/shared/theme/motion';
 
 /**
  * 地點詳情載入中的骨架：版型對齊 `PlaceDetailView`（標題、副標、動作列、無障礙卡、附近設施），
@@ -29,7 +30,7 @@ export default function PlaceDetailSkeleton({ label }: { label?: string }) {
       opacity.value = 1;
       return;
     }
-    opacity.value = withRepeat(withTiming(0.6, { duration: 800 }), -1, true);
+    opacity.value = withRepeat(withTiming(0.6, { duration: AMBIENT_MS / 2 }), -1, true);
     return () => cancelAnimation(opacity);
   }, [opacity, reduceMotion]);
 

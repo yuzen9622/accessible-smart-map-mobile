@@ -2,7 +2,7 @@ import { Platform, StyleSheet } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useCloseScreen } from '@/shared/navigation';
-import { useSemanticColors } from '@/shared/theme';
+import { useSemanticColors, ICON_SIZE } from '@/shared/theme';
 
 import Icon from './Icon';
 import PressableScale from '@/shared/ui/PressableScale';
@@ -23,7 +23,7 @@ export default function HeaderCloseButton({ onPress }: { onPress?: () => void })
       hitSlop={8}
       onPress={onPress ?? closeScreen}
       style={styles.button}>
-      <Icon name="close" size={22} color={color} />
+      <Icon name="close" size={ICON_SIZE.control} color={color} />
     </PressableScale>
   );
 }

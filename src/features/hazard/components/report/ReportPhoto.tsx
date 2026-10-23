@@ -5,7 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { useAuthStore } from '@/features/auth';
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, TYPE, useThemeColors, SHAPE } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { logger } from '@/shared/logger';
@@ -92,7 +92,7 @@ function PhotoSession({ reportId, variant }: ReportPhotoProps) {
         ) : null}
         {state !== 'loaded' ? (
           <View style={compactFailure ? styles.unavailablePlaceholder : styles.placeholder} accessible accessibilityRole="text" accessibilityLabel={t(failed ? 'hazardPhotoUnavailable' : 'hazardPhotoLoading')}>
-            {failed ? <Icon name="image" size={variant === 'detail' ? 28 : 22} color={colors.textSecondary} /> : <ActivityIndicator />}
+            {failed ? <Icon name="image" size={variant === 'detail' ? ICON_SIZE.tile : ICON_SIZE.control} color={colors.textSecondary} /> : <ActivityIndicator />}
             {variant === 'detail' ? (
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.placeholderText, { color: colors.textSecondary }]}>
                 {t(failed ? 'hazardPhotoUnavailable' : 'hazardPhotoLoading')}

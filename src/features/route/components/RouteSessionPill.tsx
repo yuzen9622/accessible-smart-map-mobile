@@ -3,7 +3,7 @@ import { router, usePathname } from 'expo-router';
 import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors, TYPE, SHAPE } from '@/shared/theme';
+import { useThemeColors, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { GlassCard, Icon } from '@/shared/ui';
 
 import { endRouteSession, fitSelectedRoute } from '../controller/routeSessionPort';
@@ -58,7 +58,7 @@ export default function RouteSessionPill({ isNavigating, chatOpen = false }: Rou
         accessibilityLabel={`${t('routeSessionPillResume')}，${label}${minutes !== null ? `，${t('minutesLeft', { count: minutes })}` : ''}`}
         onPress={resume}
         style={styles.body}>
-        <Icon name="navigation" size={16} color={tones.accent} />
+        <Icon name="navigation" size={ICON_SIZE.body} color={tones.accent} />
         {/* 浮在地圖上的膠囊：字級上限 1.3 倍。最大字級時目的地被擠成「前…」、分鐘數佔滿整顆膠囊（截圖實測） */}
         <Text style={[styles.label, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={PILL_MAX_FONT_SCALE}>
           {label}
@@ -71,7 +71,7 @@ export default function RouteSessionPill({ isNavigating, chatOpen = false }: Rou
       </PressableScale>
       <View style={[styles.separator, { backgroundColor: colors.textSecondary }]} />
       <PressableScale accessibilityRole="button" accessibilityLabel={t('routeSessionPillEnd')} onPress={endRouteSession} style={styles.close}>
-        <Icon name="close" size={16} color={colors.textSecondary} />
+        <Icon name="close" size={ICON_SIZE.body} color={colors.textSecondary} />
       </PressableScale>
     </GlassCard>
   );

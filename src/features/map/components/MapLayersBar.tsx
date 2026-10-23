@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { ScrollView, StyleSheet } from 'react-native';
 
-import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE, ELEVATION } from '@/shared/theme';
+import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { MapLayersBarProps } from './MapLayersBar.types';
@@ -35,7 +35,7 @@ export default function MapLayersBar({ facilityToggles }: MapLayersBarProps) {
             styles.button,
             { backgroundColor: item.selected ? tones.accentSoft : colors.background },
           ]}>
-          <Icon name={item.iconName} size={18} color={item.selected ? tones.accent : colors.textSecondary} />
+          <Icon name={item.iconName} size={ICON_SIZE.body} color={item.selected ? tones.accent : colors.textSecondary} />
           <Text style={[styles.label, { color: item.selected ? tones.accent : colors.text }]} numberOfLines={1}>
             {item.label}
           </Text>

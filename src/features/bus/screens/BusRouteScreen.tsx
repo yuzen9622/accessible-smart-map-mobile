@@ -6,7 +6,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 
 import { mapCamera, useMapUiStore } from '@/features/map';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
-import { TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
 
 import { busName, badgePillTone, badgeText } from '../components/busText';
@@ -364,7 +364,7 @@ export default function BusRouteScreen() {
             ) : null}
           </View>
           <View style={styles.eyebrow}>
-            <Icon name="bus" size={14} color={colors.textSecondary} />
+            <Icon name="bus" size={ICON_SIZE.caption} color={colors.textSecondary} />
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
           </View>
         </View>
@@ -401,7 +401,7 @@ export default function BusRouteScreen() {
                     accessibilityRole="button"
                     onPress={() => setExpandedFor(selectedKey)}
                     style={styles.earlier}>
-                    <Icon name="chevronUp" size={16} color={semantic.accent} />
+                    <Icon name="chevronUp" size={ICON_SIZE.body} color={semantic.accent} />
                     <Text style={[styles.earlierText, { color: semantic.accent }]}>
                       {t('nativeBusShowEarlierStops', { count: collapsedCount })}
                     </Text>
@@ -438,7 +438,7 @@ export default function BusRouteScreen() {
                             accessibilityRole="button"
                             onPress={() => setAlight(isAlight ? null : { key: selectedKey, seq: stop.seq })}
                             style={[styles.alightButton, { borderColor: semantic.accent }]}>
-                            <Icon name="flag" size={14} color={semantic.accent} />
+                            <Icon name="flag" size={ICON_SIZE.caption} color={semantic.accent} />
                             <Text style={[styles.alightText, { color: semantic.accent }]}>
                               {isAlight ? t('nativeBusClearAlight') : t('nativeBusSetAlight')}
                             </Text>

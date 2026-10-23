@@ -4,7 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { DANGER_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, DANGER_DEEP, WHITE, SHAPE } from '@/shared/theme';
+import { DANGER_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, DANGER_DEEP, WHITE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { SosFlowModel } from '../hooks/useSosFlow';
@@ -51,7 +51,7 @@ function BigButton({ label, onPress, icon, tone = 'light', hint, disabled = fals
       style={[styles.bigButton,
         { backgroundColor: background, borderColor: tone === 'outline' ? colors.textSecondary : background },
         disabled && styles.disabled]}>
-      {icon ? <Icon name={icon} size={24} color={foreground} /> : null}
+      {icon ? <Icon name={icon} size={ICON_SIZE.map} color={foreground} /> : null}
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.bigButtonText, { color: foreground, fontSize: scaledSize(TYPE.body, scale) }]}>
         {label}
       </Text>
@@ -120,7 +120,7 @@ function HeroIcon({ name }: { name: IconName }) {
   const tones = useSemanticColors();
   return (
     <View style={[styles.heroIcon, { backgroundColor: tones.danger.bg }]}>
-      <Icon name={name} size={36} color={tones.danger.fg} strokeWidth={1.8} />
+      <Icon name={name} size={ICON_SIZE.hero} color={tones.danger.fg} />
     </View>
   );
 }

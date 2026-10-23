@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, WHITE, TYPE, SHAPE, ELEVATION } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, WHITE, TYPE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
 import { AnimatedNumberText, GlassCard, Icon } from '@/shared/ui';
 
 import { localRerouteCoordinator } from '../controller/localRerouteCoordinator';
@@ -138,7 +138,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
         ) : arrived ? (
           <View style={[styles.banner, styles.bannerRow]}>
             <View accessible accessibilityLiveRegion="assertive" style={[styles.bannerRow, styles.flex]}>
-              <Icon name="circleCheck" size={36} color={ON_ACCENT_FILL} />
+              <Icon name="circleCheck" size={ICON_SIZE.hero} color={ON_ACCENT_FILL} />
               <View style={styles.flex}>
                 <Text fixedSize numberOfLines={1} style={styles.bannerTitle}>{t('arrived')}</Text>
                 <Text fixedSize numberOfLines={1} style={styles.bannerMeta}>{t('arrivedDesc')}</Text>
@@ -160,7 +160,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                   disabled={!canPrev}
                   onPress={() => selectStep(currentStepIndex - 1)}
                   style={[styles.previewButton, !canPrev && styles.previewButtonDisabled]}>
-                  <Icon name="chevronLeft" size={22} color={ON_ACCENT_FILL} strokeWidth={2.6} />
+                  <Icon name="chevronLeft" size={ICON_SIZE.control} color={ON_ACCENT_FILL} />
                 </PressableScale>
                 <View
                   accessible
@@ -185,12 +185,12 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                   disabled={!canNext}
                   onPress={() => selectStep(currentStepIndex + 1)}
                   style={[styles.previewButton, !canNext && styles.previewButtonDisabled]}>
-                  <Icon name="chevronRight" size={22} color={ON_ACCENT_FILL} strokeWidth={2.6} />
+                  <Icon name="chevronRight" size={ICON_SIZE.control} color={ON_ACCENT_FILL} />
                 </PressableScale>
               </View>
             ) : null}
             <View style={styles.bannerRow}>
-              <Icon name={stepIcon(step)} size={40} color={ON_ACCENT_FILL} strokeWidth={2.4} />
+              <Icon name={stepIcon(step)} size={ICON_SIZE.hero} color={ON_ACCENT_FILL} />
               <View style={styles.flex}>
                 {transitHead ? (
                   <AnimatedNumberText text={transitHead} value={transitValue} fontSize={28} fontWeight="heavy" fixedSize color={ON_ACCENT_FILL} />
@@ -215,13 +215,13 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                   accessibilityLabel={[t('then'), next.text, nextDetail].filter(Boolean).join('，')}
                   style={styles.then}>
                   <Text fixedSize style={styles.thenLabel}>{t('then')}</Text>
-                  <Icon name={stepIcon(next)} size={22} color={ON_ACCENT_FILL} strokeWidth={2.4} />
+                  <Icon name={stepIcon(next)} size={ICON_SIZE.control} color={ON_ACCENT_FILL} />
                 </View>
               ) : null}
             </View>
             {metaText ? (
               <View style={styles.metaRow}>
-                {metaIcon ? <Icon name={metaIcon} size={14} color={THEN_TEXT} /> : null}
+                {metaIcon ? <Icon name={metaIcon} size={ICON_SIZE.caption} color={THEN_TEXT} /> : null}
                 <Text fixedSize numberOfLines={1} style={[styles.bannerMeta, styles.flex]}>{metaText}</Text>
               </View>
             ) : null}
@@ -244,7 +244,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                 disabled={rerouteStatus === 'pending'}
                 onPress={reroute}
                 style={[styles.smallButton, { borderColor: tones.warn }]}>
-                <Icon name="refresh" size={14} color={tones.warn} />
+                <Icon name="refresh" size={ICON_SIZE.caption} color={tones.warn} />
                 <Text style={[styles.chipText, { color: tones.warn }]}>{rerouteStatus === 'error' ? t('retry') : t('recalculate')}</Text>
               </PressableScale>
             ) : null}
@@ -292,7 +292,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                         accessibilityLabel={t('close')}
                         onPress={() => useNavStore.getState().dismissAdvisory(advisory.advisoryId)}
                         style={styles.iconButton}>
-                        <Icon name="close" size={16} color={colors.textSecondary} />
+                        <Icon name="close" size={ICON_SIZE.body} color={colors.textSecondary} />
                       </PressableScale>
                     ) : null}
                   </View>
@@ -308,7 +308,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
               accessibilityLabel={t('resumeFollow')}
               onPress={() => useNavStore.getState().setFollowPaused(false)}
               style={styles.resumeBody}>
-              <Icon name="navigation" size={16} color={ACCENT} />
+              <Icon name="navigation" size={ICON_SIZE.body} color={ACCENT} />
               <Text style={[styles.chipText, { color: ACCENT }]}>{t('resumeFollow')}</Text>
             </PressableScale>
           </GlassCard>

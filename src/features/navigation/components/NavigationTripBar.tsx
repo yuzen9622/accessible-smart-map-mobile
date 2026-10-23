@@ -5,7 +5,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { useRouteSession } from '@/features/route';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { DANGER_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, TYPE, SHAPE } from '@/shared/theme';
+import { DANGER_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { AnimatedNumberText, Icon } from '@/shared/ui';
 
 import { endNavigation } from '../controller/navigationSession';
@@ -117,7 +117,7 @@ export default function NavigationTripBar() {
         accessibilityState={{ selected: audioActive }}
         onPress={toggleAudio}
         style={[styles.roundButton, { backgroundColor: neutral.bg }]}>
-        <Icon name={audioActive ? 'volumeOn' : 'volumeOff'} size={22} color={colors.text} />
+        <Icon name={audioActive ? 'volumeOn' : 'volumeOff'} size={ICON_SIZE.control} color={colors.text} />
       </PressableScale>
       <PressableScale
         accessibilityRole="button"

@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import Icon from '../Icon';
 
 import type { MoreActionsButtonProps } from './MoreActionsButton.types';
-import { SHAPE } from '@/shared/theme';
+import { SHAPE, ICON_SIZE } from '@/shared/theme';
 
 /** 點一下即在「⋯」旁展開 SwiftUI Menu，保留 Lucide 圖示與觸控範圍。 */
 export default function MoreActionsButton({ label, actions, backgroundColor, color }: MoreActionsButtonProps) {
@@ -17,7 +17,7 @@ export default function MoreActionsButton({ label, actions, backgroundColor, col
         label={
           <RNHostView matchContents>
             <View style={[styles.button, { backgroundColor }]}>
-              <Icon name="ellipsis" size={20} color={color} />
+              <Icon name="ellipsis" size={ICON_SIZE.control} color={color} />
             </View>
           </RNHostView>
         }>

@@ -2,7 +2,7 @@ import { GeoJSONSource, Layer, ViewAnnotation } from '@maplibre/maplibre-react-n
 import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 import { StyleSheet, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, DANGER_FILL, MAP, WHITE, SHAPE, ELEVATION } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, DANGER_FILL, MAP, WHITE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { useBusPanelStore, type PanelBus, type PanelStop } from '../store/busPanelStore';
@@ -42,8 +42,8 @@ function BusMarker({ bus }: { bus: PanelBus }) {
       <View
         importantForAccessibility="no-hide-descendants"
         style={[styles.bus, bus.accessible ? styles.busAccessible : styles.busPlain]}>
-        <Icon name="bus" size={16} color={bus.accessible ? ON_ACCENT_FILL : PLAIN_BUS_ICON} />
-        {bus.accessible ? <Icon name="accessibility" size={14} color={ON_ACCENT_FILL} /> : null}
+        <Icon name="bus" size={ICON_SIZE.body} color={bus.accessible ? ON_ACCENT_FILL : PLAIN_BUS_ICON} />
+        {bus.accessible ? <Icon name="accessibility" size={ICON_SIZE.caption} color={ON_ACCENT_FILL} /> : null}
       </View>
     </ViewAnnotation>
   );

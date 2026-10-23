@@ -3,7 +3,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { Alert, FlatList, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors, WHITE, DANGER_FILL, TYPE, SHAPE } from '@/shared/theme';
+import { useThemeColors, WHITE, DANGER_FILL, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { EmptyState, Icon } from '@/shared/ui';
 
 import CategoryNameModal from './CategoryNameModal';
@@ -72,7 +72,7 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
           accessibilityLabel={categoryManagement.addLabel}
           onPress={() => setModalState({ mode: 'create' })}
           style={[styles.filterChip, styles.addChip, { borderColor: PLACE_BORDER_COLOR }]}>
-          <Icon name="plus" size={14} color={colors.textSecondary} />
+          <Icon name="plus" size={ICON_SIZE.caption} color={colors.textSecondary} />
           <Text style={{ color: colors.textSecondary, fontSize: TYPE.caption, fontWeight: '600' }}>{categoryManagement.addLabel}</Text>
         </PressableScale>
       </View>

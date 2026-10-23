@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Modal, StyleSheet, View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import Icon from '../Icon';
 
 import type { MoreActionsButtonProps } from './MoreActionsButton.types';
@@ -28,7 +28,7 @@ export default function MoreActionsModal({ label, cancelLabel, actions, backgrou
         accessibilityLabel={label}
         onPress={() => setOpen(true)}
         style={[styles.button, { backgroundColor }]}>
-        <Icon name="ellipsis" size={20} color={color} />
+        <Icon name="ellipsis" size={ICON_SIZE.control} color={color} />
       </PressableScale>
       <Modal visible={open} transparent animationType="fade" onRequestClose={close} statusBarTranslucent>
         <Pressable accessibilityRole="button" accessibilityLabel={cancelLabel} onPress={close} style={styles.backdrop} />

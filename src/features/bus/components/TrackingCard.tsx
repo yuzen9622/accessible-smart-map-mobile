@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { StyleSheet, useColorScheme, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { pillToneStyle, type PillTone } from './palette';
@@ -87,7 +87,7 @@ export default function TrackingCard(props: TrackingCardProps) {
                 {i > 0 ? <View style={[styles.line, { backgroundColor: ACCENT_FILL }]} /> : null}
                 {node.kind === 'bus' ? (
                   <View style={[styles.busNode, { backgroundColor: busFill }]}>
-                    <Icon name="bus" size={14} color={ON_ACCENT_FILL} />
+                    <Icon name="bus" size={ICON_SIZE.caption} color={ON_ACCENT_FILL} />
                   </View>
                 ) : node.kind === 'mine' ? (
                   <View style={[styles.mineNode, { borderColor: ACCENT_FILL, backgroundColor: colors.background }]}>
@@ -122,7 +122,7 @@ export default function TrackingCard(props: TrackingCardProps) {
         style={[styles.reminder,
           props.reminderActive ? { backgroundColor: colors.background, borderColor: ACCENT_FILL, borderWidth: 1.5 } : { backgroundColor: ACCENT_FILL },
           props.reminderDisabled && styles.disabled]}>
-        <Icon name={props.reminderActive ? 'circleCheck' : 'timer'} size={18} color={props.reminderActive ? semantic.accent : ON_ACCENT_FILL} />
+        <Icon name={props.reminderActive ? 'circleCheck' : 'timer'} size={ICON_SIZE.body} color={props.reminderActive ? semantic.accent : ON_ACCENT_FILL} />
         <Text style={[styles.reminderText, { color: props.reminderActive ? semantic.accent : ON_ACCENT_FILL }]}>
           {props.reminderLabel}
         </Text>

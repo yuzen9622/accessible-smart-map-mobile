@@ -167,3 +167,13 @@ export const ELEVATION = {
   floating: '0 4px 12px rgba(0,0,0,0.16)',
   raised: '0 1px 3px rgba(0,0,0,0.10)',
 } as const;
+
+/** 圖示尺寸只有這幾階，對齊旁邊文字：caption／body／按鈕／地圖控制／功能磚；hero 只給空狀態與導航轉向大圖示。 */
+export const ICON_SIZE = {
+  caption: 14,
+  body: 17,
+  control: 20,
+  map: 24,
+  tile: 28,
+  hero: 36,
+} as const;

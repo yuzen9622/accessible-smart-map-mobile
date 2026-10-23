@@ -217,11 +217,11 @@ function visualStroke(size: number): number {
   return 1.75;
 }
 
-export default function Icon({ name, size = 18, color, strokeWidth }: IconProps) {
+export default function Icon({ name, size = 18, color }: IconProps) {
   const Glyph = ICONS[name];
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none">
-      <Glyph size={size} color={color} strokeWidth={strokeWidth ?? visualStroke(size)} />
+      <Glyph size={size} color={color} strokeWidth={visualStroke(size)} />
     </View>
   );
 }

@@ -2,7 +2,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { BUTTON_HEIGHT, DANGER_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { BUTTON_HEIGHT, DANGER_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { SosTrackerPanelProps, SosTrackerProgressStep } from './SosTrackerPanel.types';
@@ -42,7 +42,7 @@ function ActionButton({ label, icon, onPress, tone, hint, big }: ActionButtonPro
       onPress={onPress}
       style={[styles.action,
         { backgroundColor: background, minHeight: big ? BIG_TARGET : BUTTON_HEIGHT }]}>
-      <Icon name={icon} size={big ? 24 : 20} color={foreground} />
+      <Icon name={icon} size={big ? ICON_SIZE.map : ICON_SIZE.control} color={foreground} />
       <Text
         maxFontSizeMultiplier={MAX_FONT_SCALE.label}
         style={[styles.actionText, { color: foreground, fontSize: scaledSize(big ? TYPE.title3 : TYPE.body, scale) }]}>
@@ -74,7 +74,7 @@ function ProgressStep({ step, index, total, last }: { step: SosTrackerProgressSt
               backgroundColor: step.state === 'todo' ? 'transparent' : dotColor,
             },
           ]}>
-          {step.state === 'done' ? <Icon name="check" size={14} strokeWidth={3} color={ON_ACCENT_FILL} /> : null}
+          {step.state === 'done' ? <Icon name="check" size={ICON_SIZE.caption} color={ON_ACCENT_FILL} /> : null}
         </View>
         {last ? null : (
           <View style={[styles.stepLine, { backgroundColor: step.state === 'done' ? semantic.ok.fg : semantic.separator }]} />
@@ -97,7 +97,7 @@ function StatusIllustration({ icon, tone }: { icon: IconName; tone: 'ok' | 'neut
   const semantic = useSemanticColors();
   return (
     <View style={[styles.illustration, { backgroundColor: semantic[tone].bg }]}>
-      <Icon name={icon} size={36} color={semantic[tone].fg} />
+      <Icon name={icon} size={ICON_SIZE.hero} color={semantic[tone].fg} />
     </View>
   );
 }
@@ -119,7 +119,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
       {active ? (
         <View style={styles.hero}>
           <View style={[styles.liveChip, { backgroundColor: DANGER_FILL }]}>
-            <Icon name="siren" size={16} color={ON_ACCENT_FILL} />
+            <Icon name="siren" size={ICON_SIZE.body} color={ON_ACCENT_FILL} />
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.liveChipText, { fontSize: scaledSize(TYPE.footnote, scale) }]}>
               {t('nativeSosTrackerActive')}
             </Text>
@@ -136,7 +136,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
         </View>
       ) : (
         <View style={styles.headerRow}>
-          <Icon name="siren" size={22} color={semantic.danger.fg} />
+          <Icon name="siren" size={ICON_SIZE.control} color={semantic.danger.fg} />
           <Text
             accessibilityRole="header"
             maxFontSizeMultiplier={MAX_FONT_SCALE.heading}
@@ -179,7 +179,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
         <>
           <View style={[styles.card, { backgroundColor: semantic.surface }]} accessible>
             <View style={styles.cardLabelRow}>
-              <Icon name="mapPin" size={16} color={semantic.danger.fg} />
+              <Icon name="mapPin" size={ICON_SIZE.body} color={semantic.danger.fg} />
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
                 {t('sosTrackingRequesterLabel')}
               </Text>
@@ -188,7 +188,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
               {model.addressText}
             </Text>
             <View style={styles.cardLabelRow}>
-              <Icon name="clock" size={14} color={model.stale ? semantic.warn.fg : colors.textSecondary} />
+              <Icon name="clock" size={ICON_SIZE.caption} color={model.stale ? semantic.warn.fg : colors.textSecondary} />
               <Text
                 accessibilityLiveRegion="polite"
                 maxFontSizeMultiplier={MAX_FONT_SCALE.label}
@@ -198,7 +198,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
             </View>
             {model.stale ? (
               <View style={[styles.staleBanner, { backgroundColor: semantic.warn.bg }]}>
-                <Icon name="alert" size={16} color={semantic.warn.fg} />
+                <Icon name="alert" size={ICON_SIZE.body} color={semantic.warn.fg} />
                 <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.flexText, { color: semantic.warn.fg, fontSize: scaledSize(TYPE.footnote, scale) }]}>
                   {t('nativeSosTrackerStale')}
                 </Text>
@@ -244,7 +244,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
               onPress={model.replyOnLine}
               style={[styles.lineRow, { backgroundColor: semantic.surface }]}>
               <View style={[styles.lineBadge, { backgroundColor: semantic.ok.bg }]}>
-                <Icon name="messageSquare" size={20} color={semantic.ok.fg} />
+                <Icon name="messageSquare" size={ICON_SIZE.control} color={semantic.ok.fg} />
               </View>
               <View style={styles.flexText}>
                 <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.sectionTitle, { color: colors.text, fontSize: scaledSize(TYPE.body, scale) }]}>
@@ -254,7 +254,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
                   {t('nativeSosTrackerReplyOnLineHint')}
                 </Text>
               </View>
-              <Icon name="externalLink" size={18} color={colors.textSecondary} />
+              <Icon name="externalLink" size={ICON_SIZE.body} color={colors.textSecondary} />
             </PressableScale>
           ) : null}
 

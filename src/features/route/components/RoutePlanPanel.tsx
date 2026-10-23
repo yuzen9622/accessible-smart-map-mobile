@@ -2,7 +2,7 @@ import { Text, TextInput } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useCloseScreen } from '@/shared/navigation';
-import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
 
 import { ROUTE_DESTINATION_COLOR, ROUTE_ORIGIN_COLOR } from '../domain/routeLayerData';
@@ -66,7 +66,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
           option.selected && { backgroundColor: semantic.accentSoft },
           option.disabled && routeStyles.disabled,
         ]}>
-        <Icon name={TRAVEL_MODE_ICON[option.value]} size={20} color={tint} />
+        <Icon name={TRAVEL_MODE_ICON[option.value]} size={ICON_SIZE.control} color={tint} />
         <Text
           style={[styles.modeTabText, { color: option.selected ? semantic.accent : colors.text }, option.selected && styles.modeTabTextSelected]}
           numberOfLines={1}
@@ -91,7 +91,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
         option.selected && { backgroundColor: ROUTE_ACCENT_COLOR, borderColor: ROUTE_ACCENT_COLOR },
         option.disabled && routeStyles.disabled,
       ]}>
-      {icon ? <Icon name={icon} size={16} color={option.selected ? ROUTE_ON_ACCENT_COLOR : colors.text} /> : null}
+      {icon ? <Icon name={icon} size={ICON_SIZE.body} color={option.selected ? ROUTE_ON_ACCENT_COLOR : colors.text} /> : null}
       <Text style={[routeStyles.chipText, { color: option.selected ? ROUTE_ON_ACCENT_COLOR : colors.text }]}>{option.label}</Text>
     </PressableScale>
   );
@@ -117,7 +117,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
       <ActivityIndicator size="small" color={colors.textSecondary} />
     ) : (
       <PressableScale accessibilityRole="button" accessibilityLabel={model.labels.cancel} onPress={model.onCancelEdit} hitSlop={14}>
-        <Icon name="close" size={16} color={colors.textSecondary} />
+        <Icon name="close" size={ICON_SIZE.body} color={colors.textSecondary} />
       </PressableScale>
     );
 
@@ -129,7 +129,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
           accessibilityLabel={model.labels.useMyLocation}
           onPress={model.onUseMyLocation}
           style={[routeStyles.listRow, { borderColor: ROUTE_BORDER_COLOR }]}>
-          <Icon name="navigation" size={16} color={ROUTE_ORIGIN_COLOR} />
+          <Icon name="navigation" size={ICON_SIZE.body} color={ROUTE_ORIGIN_COLOR} />
           <Text style={[routeStyles.bodyText, routeStyles.flex, { color: colors.text }]}>{model.labels.useMyLocation}</Text>
         </PressableScale>
       ) : null}
@@ -140,7 +140,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
           accessibilityLabel={item.subtitle ? `${item.title}，${item.subtitle}` : item.title}
           onPress={item.onPress}
           style={[routeStyles.listRow, { borderColor: ROUTE_BORDER_COLOR }]}>
-          <Icon name="mapPin" size={16} color={colors.textSecondary} />
+          <Icon name="mapPin" size={ICON_SIZE.body} color={colors.textSecondary} />
           <View style={routeStyles.flex}>
             <Text style={[routeStyles.bodyText, { color: colors.text }]} numberOfLines={2}>
               {item.title}
@@ -174,7 +174,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
           hitSlop={8}
           onPress={closeScreen}
           style={[styles.closeButton, { backgroundColor: surface }]}>
-          <Icon name="close" size={16} color={colors.textSecondary} />
+          <Icon name="close" size={ICON_SIZE.body} color={colors.textSecondary} />
         </PressableScale>
       </View>
 
@@ -182,7 +182,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
         <View style={routeStyles.flex}>
           <View style={styles.endpointRow}>
             {model.originIsMyLocation && model.editing !== 'origin' ? (
-              <Icon name="navigation" size={16} color={ROUTE_ORIGIN_COLOR} />
+              <Icon name="navigation" size={ICON_SIZE.body} color={ROUTE_ORIGIN_COLOR} />
             ) : (
               <View style={[styles.dot, { borderColor: ROUTE_ORIGIN_COLOR }]} />
             )}
@@ -231,7 +231,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
                 accessibilityLabel={model.labels.clear}
                 onPress={model.onClearDestination}
                 hitSlop={14}>
-                <Icon name="close" size={16} color={colors.textSecondary} />
+                <Icon name="close" size={ICON_SIZE.body} color={colors.textSecondary} />
               </PressableScale>
             ) : null}
           </View>
@@ -261,7 +261,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
 
       {model.error ? (
         <View accessibilityLiveRegion="polite" style={[routeStyles.card, styles.errorCard]}>
-          <Icon name="alert" size={16} color={tones.danger} />
+          <Icon name="alert" size={ICON_SIZE.body} color={tones.danger} />
           <Text style={[routeStyles.bodyText, routeStyles.flex, { color: tones.danger }]}>{model.error}</Text>
         </View>
       ) : null}
@@ -278,7 +278,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
               onPress={model.onStart}
               hitSlop={6}
               style={[styles.refreshButton, { backgroundColor: surface }]}>
-              <Icon name="refresh" size={16} color={semantic.accent} />
+              <Icon name="refresh" size={ICON_SIZE.body} color={semantic.accent} />
               <Text style={[styles.refreshText, { color: semantic.accent }]} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
                 {model.labels.replan}
               </Text>

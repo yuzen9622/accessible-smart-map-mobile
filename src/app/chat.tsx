@@ -4,7 +4,7 @@ import { Platform, StyleSheet } from 'react-native';
 import { ChatScreen, clearChat, useChatStore } from '@/features/ai';
 import { VoiceMicButton, VoiceModeView, isVoiceSessionActive, useVoiceStore } from '@/features/voice';
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, ICON_SIZE } from '@/shared/theme';
 import { HeaderCloseButton, Icon } from '@/shared/ui';
 import PressableScale from '@/shared/ui/PressableScale';
 
@@ -21,7 +21,7 @@ function ClearButton() {
       onPress={clearChat}
       hitSlop={8}
       style={[styles.button, empty && styles.dim]}>
-      <Icon name="trash" size={20} color={colors.text} />
+      <Icon name="trash" size={ICON_SIZE.control} color={colors.text} />
     </PressableScale>
   );
 }

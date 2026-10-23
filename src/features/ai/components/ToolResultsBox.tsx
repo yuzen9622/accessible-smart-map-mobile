@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { ToolCardIcon, ToolResultGroup, ToolResultItem } from '../domain/toolResultCards';
@@ -69,7 +69,7 @@ export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxPro
         <Text style={[styles.count, { color: colors.textSecondary, fontSize: scaledSize(TYPE.caption, fontScale) }]}>
           {t('nativeAiCardCount', { count: total })}
         </Text>
-        <Icon name={expanded ? 'chevronUp' : 'chevronDown'} size={16} color={colors.textSecondary} />
+        <Icon name={expanded ? 'chevronUp' : 'chevronDown'} size={ICON_SIZE.body} color={colors.textSecondary} />
       </PressableScale>
 
       {expanded ? (
@@ -86,7 +86,7 @@ export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxPro
                     onPress={() => setTab(index)}
                     hitSlop={TAB_HIT_SLOP}
                     style={[styles.tab, { backgroundColor: selected ? tones.accentSoft : 'transparent', borderColor: tones.separator }]}>
-                    <Icon name={ICON[group.icon]} size={14} color={selected ? tones.accent : colors.textSecondary} />
+                    <Icon name={ICON[group.icon]} size={ICON_SIZE.caption} color={selected ? tones.accent : colors.textSecondary} />
                     <Text
                       numberOfLines={1}
                       style={[styles.tabText, { color: selected ? tones.accent : colors.textSecondary, fontSize: scaledSize(TYPE.caption, fontScale) }]}>

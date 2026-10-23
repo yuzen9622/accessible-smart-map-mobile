@@ -15,7 +15,7 @@ import { getAggregatedToolResults, openAiResult, ToolResultsBox, toolDoneLabel, 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
 import { ensureAiDataConsent } from '@/shared/privacy';
-import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, TYPE, scaledSize, useSemanticColors, useThemeColors, VOICE_ORB_EDGE, semanticColors, SHAPE } from '@/shared/theme';
+import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, TYPE, scaledSize, useSemanticColors, useThemeColors, VOICE_ORB_EDGE, semanticColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import { dismissVoiceSession, endVoiceSession, startVoiceSession, retryRouteContextSync, resumeVoicePlayback, toggleVoiceMute } from '../controller/voiceController';
@@ -25,6 +25,7 @@ import { voiceLevelFor } from '../store/voiceLevels';
 import { useVoiceStore, type VoiceLaunchOrigin } from '../store/voiceStore';
 import VoiceWaveform from './VoiceWaveform';
 import PressableScale from '@/shared/ui/PressableScale';
+import { MOTION } from '@/shared/theme/motion';
 
 /** 音波中央與兩側的顏色：一律藍色系，深色模式改用亮藍、兩側往背景收。 */
 const WAVE_COLORS = {
@@ -78,7 +79,7 @@ function ControlButton({
       onPress={onPress}
       style={styles.control}>
       <View style={[styles.controlCircle, { backgroundColor: background }]}>
-        <Icon name={icon} size={28} color={foreground} />
+        <Icon name={icon} size={ICON_SIZE.tile} color={foreground} />
       </View>
       <Text numberOfLines={1} style={[styles.controlLabel, { color: colors.text, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
         {label}
@@ -142,8 +143,8 @@ export default function VoiceModeView() {
 
   useEffect(() => {
     if (origin) return; // 等量到音波位置再開始（measureWave）
-    backdrop.set(withTiming(1, { duration: 180 }));
-    content.set(withTiming(1, { duration: reduceMotion ? 0 : 260 }));
+    backdrop.set(withTiming(1, { duration: MOTION.small.duration }));
+    content.set(withTiming(1, { duration: reduceMotion ? 0 : MOTION.medium.duration }));
     reveal.set(reduceMotion ? 1 : withTiming(1, { duration: 520, easing: Easing.out(Easing.quad) }));
   }, [backdrop, content, origin, reduceMotion, reveal]);
 
@@ -156,9 +157,9 @@ export default function VoiceModeView() {
   useEffect(() => {
     if (!morph || !origin) return;
     const ease = Easing.out(Easing.cubic);
-    backdrop.set(withTiming(1, { duration: 240 }));
+    backdrop.set(withTiming(1, { duration: MOTION.medium.duration }));
     flight.set(withTiming(1, { duration: 360, easing: ease }));
-    flatten.set(withDelay(300, withTiming(1, { duration: 280, easing: Easing.in(Easing.quad) })));
+    flatten.set(withDelay(300, withTiming(1, { duration: MOTION.move.duration, easing: ease })));
     reveal.set(withDelay(320, withTiming(1, { duration: 560, easing: Easing.out(Easing.quad) })));
     content.set(withDelay(200, withTiming(1, { duration: 420, easing: ease })));
   }, [backdrop, content, flatten, flight, morph, origin, reveal]);
@@ -228,7 +229,7 @@ export default function VoiceModeView() {
             <View accessibilityLiveRegion="polite" style={styles.tool}>
               <Icon
                 name={activeTool.type === 'call' ? 'loader' : activeTool.ok === false ? 'alert' : 'check'}
-                size={14}
+                size={ICON_SIZE.caption}
                 color={activeTool.type === 'call' ? colors.textSecondary : activeTool.ok === false ? tones.warn.fg : tones.ok.fg}
               />
               <Text style={[styles.toolText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
@@ -359,7 +360,7 @@ export default function VoiceModeView() {
           pointerEvents="none"
           style={[styles.morph, { width: morph.size, height: morph.size, borderRadius: morph.size / 2 }, morphStyle]}>
           <Animated.View style={morphIconStyle}>
-            <Icon name="audioLines" size={morph.size * 0.5} color={ON_ACCENT_FILL} strokeWidth={2.4} />
+            <Icon name="audioLines" size={morph.size * 0.5} color={ON_ACCENT_FILL} />
           </Animated.View>
         </Animated.View>
       ) : null}

@@ -5,7 +5,7 @@ import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { useNow } from '@/shared/time';
 import { Icon, type IconName } from '@/shared/ui';
 
@@ -158,16 +158,16 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
           <View style={styles.legChain} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
             {chain.map((segment, index) => (
               <View key={`${segment.type}-${index}`} style={styles.legChainItem}>
-                {index > 0 ? <Icon name="chevronRight" size={14} color={colors.textSecondary} /> : null}
+                {index > 0 ? <Icon name="chevronRight" size={ICON_SIZE.caption} color={colors.textSecondary} /> : null}
                 {segment.label ? (
                   <View style={[styles.legPill, { backgroundColor: LEG_LABEL_FILL[segment.type] }]}>
-                    <Icon name={LEG_ICON[segment.type]} size={13} color={WHITE} />
+                    <Icon name={LEG_ICON[segment.type]} size={ICON_SIZE.caption} color={WHITE} />
                     <Text style={styles.legPillText} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
                       {segment.label}
                     </Text>
                   </View>
                 ) : (
-                  <Icon name={LEG_ICON[segment.type]} size={18} color={colors.textSecondary} />
+                  <Icon name={LEG_ICON[segment.type]} size={ICON_SIZE.body} color={colors.textSecondary} />
                 )}
                 {segment.alternatives?.length ? (
                   <View style={[styles.altBadge, { borderColor: semantic.separator }]}>
@@ -183,7 +183,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
 
         {boardingText ? (
           <View style={styles.boardingRow}>
-            <Icon name={boardingText.live ? 'live' : 'clock'} size={14} color={boardingText.live ? semantic.ok.fg : colors.textSecondary} />
+            <Icon name={boardingText.live ? 'live' : 'clock'} size={ICON_SIZE.caption} color={boardingText.live ? semantic.ok.fg : colors.textSecondary} />
             <Text
               style={[styles.boardingText, { color: boardingText.live ? semantic.ok.fg : colors.textSecondary }]}
               numberOfLines={selected ? 2 : 1}>
@@ -205,7 +205,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
             <View style={routeStyles.chipsRow}>
               {starText && stars !== null ? (
                 <View style={[routeStyles.badge, { backgroundColor: colors.background }]}>
-                  <Icon name="star" size={12} color={tones[STAR_TONE[stars] ?? 'warn']} />
+                  <Icon name="star" size={ICON_SIZE.caption} color={tones[STAR_TONE[stars] ?? 'warn']} />
                   <Text style={[routeStyles.badgeText, { color: tones[STAR_TONE[stars] ?? 'warn'] }]}>{starText}</Text>
                 </View>
               ) : null}
@@ -218,7 +218,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
               ) : null}
               {alerts > 0 ? (
                 <View style={[routeStyles.badge, { backgroundColor: ROUTE_WARN_SURFACE }]}>
-                  <Icon name="alert" size={12} color={tones.warn} />
+                  <Icon name="alert" size={ICON_SIZE.caption} color={tones.warn} />
                   <Text style={[routeStyles.badgeText, { color: tones.warn }]}>{t('routeTransitAlertsBadge', { count: alerts })}</Text>
                 </View>
               ) : null}
@@ -226,7 +226,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
           </>
         ) : (
           <View style={styles.compactMeta}>
-            {starText && stars !== null ? <Icon name="star" size={12} color={tones[STAR_TONE[stars] ?? 'warn']} /> : null}
+            {starText && stars !== null ? <Icon name="star" size={ICON_SIZE.caption} color={tones[STAR_TONE[stars] ?? 'warn']} /> : null}
             <Text style={[routeStyles.metaText, routeStyles.flex, { color: colors.textSecondary }]} numberOfLines={1}>
               {[starText, facts[0] ?? null, alerts > 0 ? t('routeTransitAlertsBadge', { count: alerts }) : null].filter(Boolean).join(' · ')}
             </Text>
@@ -244,7 +244,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
                 const positive = highlight.tone === 'positive';
                 return (
                   <View key={highlight.index} style={styles.highlightRow}>
-                    <Icon name={caution ? 'alert' : positive ? 'check' : 'info'} size={14} color={caution ? tones.warn : positive ? tones.ok : colors.textSecondary} />
+                    <Icon name={caution ? 'alert' : positive ? 'check' : 'info'} size={ICON_SIZE.caption} color={caution ? tones.warn : positive ? tones.ok : colors.textSecondary} />
                     <Text style={[routeStyles.metaText, routeStyles.flex, { color: colors.text }]}>{highlight.text}</Text>
                   </View>
                 );
@@ -258,7 +258,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
           ) : null}
           {route.warnings?.length ? (
             <View style={[styles.warningCard, { backgroundColor: route.degraded === true ? ROUTE_DANGER_SURFACE : ROUTE_WARN_SURFACE }]}>
-              <Icon name="alert" size={16} color={route.degraded === true ? tones.danger : tones.warn} />
+              <Icon name="alert" size={ICON_SIZE.body} color={route.degraded === true ? tones.danger : tones.warn} />
               <View style={routeStyles.flex}>
                 {route.warnings.map((warning, index) => (
                   <Text key={index} style={[routeStyles.metaText, { color: colors.text }]}>
@@ -270,7 +270,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
           ) : null}
           {hazardLines.length ? (
             <View style={[styles.warningCard, { backgroundColor: hazardBlocking ? ROUTE_DANGER_SURFACE : ROUTE_WARN_SURFACE }]}>
-              <Icon name="alert" size={16} color={hazardBlocking ? tones.danger : tones.warn} />
+              <Icon name="alert" size={ICON_SIZE.body} color={hazardBlocking ? tones.danger : tones.warn} />
               <View style={routeStyles.flex}>
                 {hazardLines.map((line) => (
                   <Text key={line} style={[routeStyles.metaText, { color: colors.text }]}>
@@ -300,7 +300,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
               accessibilityLabel={t('nativeRouteDetails')}
               onPress={onOpenDetail}
               style={[styles.secondaryAction, { backgroundColor: semantic.accentSoft }]}>
-              <Icon name="list" size={18} color={semantic.accent} />
+              <Icon name="list" size={ICON_SIZE.body} color={semantic.accent} />
               <Text style={[styles.secondaryActionText, { color: semantic.accent }]} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
                 {t('nativeRouteDetailsShort')}
               </Text>

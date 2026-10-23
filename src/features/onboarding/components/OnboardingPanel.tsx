@@ -3,12 +3,13 @@ import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFontScale } from '@/shared/preferences';
-import { ACCENT_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { ACCENT_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { FontSizeOption } from '../hooks/useOnboardingFlow';
 import type { OnboardingPanelProps } from './OnboardingPanel.types';
 import PressableScale from '@/shared/ui/PressableScale';
+import { MOTION } from '@/shared/theme/motion';
 
 /** onboarding 第 2 步六個情況對應的圖示；純裝飾，意義由卡片文字提供。 */
 const SITUATION_ICON: Record<string, IconName> = {
@@ -37,7 +38,7 @@ export default function OnboardingPanel({ model, backLabel, skipLabel }: Onboard
   const scale = useFontScale();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
-  const entering = reduceMotion ? undefined : FadeIn.duration(220);
+  const entering = reduceMotion ? undefined : FadeIn.duration(MOTION.medium.duration);
 
   const title: Record<typeof model.stepId, string> = {
     intro: model.intro.title,
@@ -71,7 +72,7 @@ export default function OnboardingPanel({ model, backLabel, skipLabel }: Onboard
             accessibilityLabel={backLabel}
             hitSlop={8}
             style={styles.headerSideButton}>
-            <Icon name="chevronLeft" size={22} color={colors.text} />
+            <Icon name="chevronLeft" size={ICON_SIZE.control} color={colors.text} />
           </PressableScale>
         ) : (
           <View style={styles.headerSideButton} />
@@ -109,7 +110,7 @@ export default function OnboardingPanel({ model, backLabel, skipLabel }: Onboard
       <Animated.View key={model.stepId} style={styles.flex} entering={entering}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={[styles.hero, { backgroundColor: tones.accentSoft }]}>
-            <Icon name={heroIcon[model.stepId]} size={36} color={tones.accent} strokeWidth={1.8} />
+            <Icon name={heroIcon[model.stepId]} size={ICON_SIZE.hero} color={tones.accent} />
           </View>
           <Text
             accessibilityRole="header"
@@ -179,7 +180,7 @@ function FontSizeStep({ model }: { model: OnboardingPanelProps['model']['fontSiz
       {/* 即時預覽：真實情境（地點卡）而不是抽象的「這是中字級」，選完馬上知道效果。 */}
       <View style={[styles.previewCard, { backgroundColor: colors.backgroundElement }]}>
         <View style={styles.previewPin}>
-          <Icon name="mapPin" size={18} color={tones.danger.fg} />
+          <Icon name="mapPin" size={ICON_SIZE.body} color={tones.danger.fg} />
         </View>
         <View style={styles.flex}>
           <Text
@@ -229,7 +230,7 @@ function NeedsStep({ model }: { model: OnboardingPanelProps['model']['needs'] })
                 borderColor: option.selected ? tones.accent : 'transparent',
               },
             ]}>
-            <Icon name={SITUATION_ICON[option.id] ?? 'accessibility'} size={22} color={option.selected ? tones.accent : colors.textSecondary} />
+            <Icon name={SITUATION_ICON[option.id] ?? 'accessibility'} size={ICON_SIZE.control} color={option.selected ? tones.accent : colors.textSecondary} />
             <Text
               maxFontSizeMultiplier={MAX_FONT_SCALE.label}
               style={{ color: colors.text, fontWeight: '700', fontSize: scaledSize(TYPE.subhead, scale), marginTop: SPACE.sm }}>
@@ -261,7 +262,7 @@ function LocationStep({ model }: { model: OnboardingPanelProps['model']['locatio
     <View style={styles.locationBlock}>
       {model.benefits.map((benefit) => (
         <View key={benefit} style={styles.benefitRow}>
-          <Icon name="check" size={16} color={tones.ok.fg} strokeWidth={2.5} />
+          <Icon name="check" size={ICON_SIZE.body} color={tones.ok.fg} />
           <Text
             maxFontSizeMultiplier={MAX_FONT_SCALE.body}
             style={{ color: colors.text, fontSize: scaledSize(TYPE.body, scale), flex: 1 }}>
@@ -313,12 +314,12 @@ function DoneStep({ model }: { model: OnboardingPanelProps['model']['done'] }) {
           accessibilityLabel={row.label}
           style={[styles.doneRow, { backgroundColor: colors.backgroundElement }]}>
           <View style={[styles.doneRowIcon, { backgroundColor: tones.accentSoft }]}>
-            <Icon name={row.icon} size={18} color={tones.accent} />
+            <Icon name={row.icon} size={ICON_SIZE.body} color={tones.accent} />
           </View>
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.text, fontWeight: '600', fontSize: scaledSize(TYPE.body, scale), flex: 1 }}>
             {row.label}
           </Text>
-          <Icon name="chevronRight" size={18} color={colors.textSecondary} />
+          <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
         </PressableScale>
       ))}
     </View>

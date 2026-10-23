@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import type { ReactNode } from 'react';
 import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import PressableScale from '@/shared/ui/PressableScale';
 
@@ -51,7 +51,7 @@ export default function StopAxisRow(props: StopAxisRowProps) {
           <View style={[styles.lineBottom, { backgroundColor: props.last ? 'transparent' : lineColor }]} />
           {props.bus !== null ? (
             <View style={[styles.busNode, { backgroundColor: busFill, borderColor: colors.background }]}>
-              <Icon name="bus" size={14} color={ON_ACCENT_FILL} />
+              <Icon name="bus" size={ICON_SIZE.caption} color={ON_ACCENT_FILL} />
             </View>
           ) : props.mine ? (
             <View style={[styles.mineNode, { borderColor: lineColor, backgroundColor: colors.background }]}>

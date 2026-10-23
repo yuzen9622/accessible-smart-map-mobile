@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { useThemeColors, TYPE } from '@/shared/theme';
+import { useThemeColors, TYPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import PressableScale from '@/shared/ui/PressableScale';
 
@@ -28,7 +28,7 @@ export default function Disclosure({ label, color, children }: DisclosureProps) 
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen((v) => !v)}
         style={styles.header}>
-        <Icon name={open ? 'chevronUp' : 'chevronDown'} size={14} color={tint} />
+        <Icon name={open ? 'chevronUp' : 'chevronDown'} size={ICON_SIZE.caption} color={tint} />
         <Text style={[styles.label, { color: tint }]}>{label}</Text>
       </PressableScale>
       {open ? <View style={styles.body}>{children}</View> : null}

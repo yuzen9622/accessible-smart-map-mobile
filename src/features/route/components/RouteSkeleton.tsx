@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 import { useSemanticColors, SHAPE } from '@/shared/theme';
+import { AMBIENT_MS } from '@/shared/theme/motion';
 
 const CARDS = [0, 1, 2];
 
@@ -21,7 +22,7 @@ export default function RouteSkeleton({ label }: { label: string }) {
       pulse.value = 1;
       return;
     }
-    pulse.value = withRepeat(withTiming(0.45, { duration: 800 }), -1, true);
+    pulse.value = withRepeat(withTiming(0.45, { duration: AMBIENT_MS / 2 }), -1, true);
   }, [pulse, reduceMotion]);
 
   const animated = useAnimatedStyle(() => ({ opacity: pulse.value }));

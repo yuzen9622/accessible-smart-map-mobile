@@ -7,7 +7,7 @@ import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import { useFontScale } from '@/shared/preferences';
 import { ensureAiDataConsent } from '@/shared/privacy';
-import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { explainRoute, type RouteExplanation } from '../api/explainApi';
@@ -66,7 +66,7 @@ export default function RouteExplanationCard({ route }: RouteExplanationCardProp
   return (
     <View style={[styles.card, { backgroundColor: tones.accentSoft }]}>
       <View style={styles.header}>
-        <Icon name="sparkles" size={18} color={tones.accent} />
+        <Icon name="sparkles" size={ICON_SIZE.body} color={tones.accent} />
         <Text accessibilityRole="header" style={[styles.title, { color: colors.text, fontSize: scaledSize(TYPE.body, fontScale) }]}>
           {t('aiExplanation')}
         </Text>
@@ -112,7 +112,7 @@ export default function RouteExplanationCard({ route }: RouteExplanationCardProp
           </Text>
           {visible.explanation.accessibilityHighlights.map((highlight) => (
             <View key={highlight} style={styles.line}>
-              <Icon name="accessibility" size={16} color={tones.ok.fg} />
+              <Icon name="accessibility" size={ICON_SIZE.body} color={tones.ok.fg} />
               <Text style={[styles.lineText, { color: colors.text, fontSize: body }]}>{highlight}</Text>
             </View>
           ))}
@@ -121,7 +121,7 @@ export default function RouteExplanationCard({ route }: RouteExplanationCardProp
               <Text style={[styles.subheading, { color: tones.warn.fg, fontSize: body }]}>{t('warnings')}</Text>
               {visible.explanation.warnings.map((warning) => (
                 <View key={warning} style={styles.line}>
-                  <Icon name="alert" size={16} color={tones.warn.fg} />
+                  <Icon name="alert" size={ICON_SIZE.body} color={tones.warn.fg} />
                   <Text style={[styles.lineText, { color: colors.text, fontSize: body }]}>{warning}</Text>
                 </View>
               ))}

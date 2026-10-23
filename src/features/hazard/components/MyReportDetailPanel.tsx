@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { ErrorState, Icon, type IconName } from '@/shared/ui';
 
 import { hazardExpired } from '../domain/review';
@@ -100,7 +100,7 @@ function ReadyDetail({ model }: { model: ReadyModel }) {
       <View style={[styles.locationCard, { borderColor: semantic.separator }]}>
         <View style={styles.locationBody}>
           <View style={[styles.iconTile, { backgroundColor: semantic.surface }]}>
-            <Icon name="mapPin" size={20} color={colors.text} />
+            <Icon name="mapPin" size={ICON_SIZE.control} color={colors.text} />
           </View>
           <View style={styles.flex}>
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[reportStyles.body, styles.strong, { color: colors.text }]}>
@@ -119,7 +119,7 @@ function ReadyDetail({ model }: { model: ReadyModel }) {
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[reportStyles.body, styles.strong, { color: semantic.accent }]}>
             {t('myReportsMap')}
           </Text>
-          <Icon name="arrowUpRight" size={18} color={semantic.accent} />
+          <Icon name="arrowUpRight" size={ICON_SIZE.body} color={semantic.accent} />
         </PressableScale>
       </View>
 
@@ -149,7 +149,7 @@ function Stat({ icon, value, label }: { icon: IconName; value: number; label: st
   const colors = useThemeColors();
   return (
     <View accessible accessibilityLabel={`${label}：${value}`} style={[styles.stat, { backgroundColor: colors.backgroundElement }]}>
-      <Icon name={icon} size={16} color={colors.textSecondary} />
+      <Icon name={icon} size={ICON_SIZE.body} color={colors.textSecondary} />
       <View style={styles.flex}>
         <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.statValue, { color: colors.text }]}>
           {value}

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useFontScale } from '@/shared/preferences';
-import { ACCENT_FILL, MIN_TOUCH, ON_ACCENT_FILL, TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { ACCENT_FILL, MIN_TOUCH, ON_ACCENT_FILL, TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import PressableScale from '@/shared/ui/PressableScale';
 
@@ -60,7 +60,7 @@ export default function ChatComposer({
               accessibilityRole="button"
               onPress={() => onSend(suggestion)}
               style={[styles.chip, { backgroundColor: tones.accentSoft }]}>
-              <Icon name="sparkles" size={14} color={tones.accent} />
+              <Icon name="sparkles" size={ICON_SIZE.caption} color={tones.accent} />
               <Text style={[styles.chipText, { color: tones.accent, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>{suggestion}</Text>
             </PressableScale>
           ))}
@@ -88,7 +88,7 @@ export default function ChatComposer({
             onPress={onStop}
             hitSlop={6}
             style={[styles.action, { backgroundColor: colors.text }]}>
-            <Icon name="stop" size={14} color={colors.background} strokeWidth={3} />
+            <Icon name="stop" size={ICON_SIZE.caption} color={colors.background} />
           </PressableScale>
         ) : (
           <PressableScale
@@ -100,7 +100,7 @@ export default function ChatComposer({
             hitSlop={6}
             style={[styles.action,
               { backgroundColor: canSend ? ACCENT_FILL : tones.neutral.bg }]}>
-            <Icon name="arrowUp" size={18} color={canSend ? ON_ACCENT_FILL : colors.textSecondary} strokeWidth={2.5} />
+            <Icon name="arrowUp" size={ICON_SIZE.body} color={canSend ? ON_ACCENT_FILL : colors.textSecondary} />
           </PressableScale>
         )}
       </View>

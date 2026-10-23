@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { FacilityDetailRow } from '../hooks/useFacilityDetail';
@@ -47,7 +47,7 @@ export default function FacilityDetailPanel({ model }: FacilityDetailPanelProps)
           accessibilityLabel={model.showOnMapLabel}
           onPress={model.onShowOnMap}
           style={[styles.circleButton, { backgroundColor: semantic.accentSoft }]}>
-          <Icon name="mapPin" size={20} color={semantic.accent} />
+          <Icon name="mapPin" size={ICON_SIZE.control} color={semantic.accent} />
         </PressableScale>
       </View>
 
@@ -58,7 +58,7 @@ export default function FacilityDetailPanel({ model }: FacilityDetailPanelProps)
             accessible
             accessibilityLabel={`${row.label}：${row.value}`}
             style={[styles.row, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: semantic.separator }]}>
-            <Icon name={row.icon} size={18} color={colors.textSecondary} />
+            <Icon name={row.icon} size={ICON_SIZE.body} color={colors.textSecondary} />
             <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>{row.label}</Text>
             <Text style={[styles.rowValue, { color: toneColor(row.tone) }, row.tone && styles.rowValueStrong]}>
               {row.value}
@@ -74,7 +74,7 @@ export default function FacilityDetailPanel({ model }: FacilityDetailPanelProps)
           accessibilityLabel={model.reportAccessibilityLabel}
           onPress={model.onReport}
           style={[styles.reportButton, { backgroundColor: semantic.warn.bg }]}>
-          <Icon name="alert" size={16} color={semantic.warn.fg} />
+          <Icon name="alert" size={ICON_SIZE.body} color={semantic.warn.fg} />
           <Text style={[styles.reportText, { color: semantic.warn.fg }]}>{model.reportLabel}</Text>
         </PressableScale>
       </View>

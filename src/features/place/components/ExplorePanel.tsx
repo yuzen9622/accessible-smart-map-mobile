@@ -2,7 +2,7 @@ import { Text, TextInput } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { useFontScale } from '@/shared/preferences';
-import { ACCENT_FILL, SPACE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE, ELEVATION } from '@/shared/theme';
+import { ACCENT_FILL, SPACE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { ExplorePanelProps, ExploreRow } from './ExplorePanel.types';
@@ -35,7 +35,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
   const renderHistoryRow = (row: ExploreRow) => (
     <View key={row.key} style={[styles.historyRow, { borderColor: PLACE_BORDER_COLOR }]}>
       <PressableScale feedback="highlight" accessibilityRole="button" accessibilityLabel={row.title} onPress={row.onPress} style={styles.historyRowPress}>
-        <Icon name="clock" size={16} color={colors.textSecondary} />
+        <Icon name="clock" size={ICON_SIZE.body} color={colors.textSecondary} />
         <Text style={[styles.listRowText, { color: colors.text }]} numberOfLines={1}>
           {row.title}
         </Text>
@@ -47,7 +47,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
           onPress={row.onDelete}
           hitSlop={8}
           style={styles.historyDelete}>
-          <Icon name="close" size={16} color={colors.textSecondary} />
+          <Icon name="close" size={ICON_SIZE.body} color={colors.textSecondary} />
         </PressableScale>
       ) : null}
     </View>
@@ -68,11 +68,11 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             onPress={model.header.needs.onPress}
             hitSlop={4}
             style={[styles.needsPill, largeText && styles.needsPillStack, { backgroundColor: tones.accentSoft }]}>
-            <Icon name="accessibility" size={17} color={accentText} />
+            <Icon name="accessibility" size={ICON_SIZE.body} color={accentText} />
             <Text style={[styles.needsText, { color: accentText }]} numberOfLines={largeText ? undefined : 1}>
               {model.header.needs.label}
             </Text>
-            <Icon name="chevronDown" size={14} color={accentText} />
+            <Icon name="chevronDown" size={ICON_SIZE.caption} color={accentText} />
           </PressableScale>
         </View>
       ) : null}
@@ -101,7 +101,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
           style={styles.voiceButton}>
           <Icon
             name="audioLines"
-            size={18}
+            size={ICON_SIZE.body}
             color={model.voiceInput.status === 'listening' ? tones.accent : colors.textSecondary}
           />
         </PressableScale>
@@ -124,7 +124,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             {model.account.initial ? (
               <Text style={styles.avatarText}>{model.account.initial}</Text>
             ) : (
-              <Icon name="user" size={22} color={colors.textSecondary} />
+              <Icon name="user" size={ICON_SIZE.control} color={colors.textSecondary} />
             )}
           </PressableScale>
         )}
@@ -143,7 +143,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
               </>
             ) : (
               <View style={styles.empty}>
-                <Icon name="clock" size={28} color={colors.textSecondary} />
+                <Icon name="clock" size={ICON_SIZE.tile} color={colors.textSecondary} />
                 <Text accessibilityRole="text" style={[styles.emptyText, { color: colors.textSecondary }]}>
                   {model.labels.recentSearches}
                 </Text>
@@ -163,7 +163,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                   accessibilityLabel={item.label}
                   onPress={item.onPress}
                   style={[styles.facilityTile, { backgroundColor: colors.backgroundElement }]}>
-                  <Icon name={item.iconName} size={22} color={accentText} />
+                  <Icon name={item.iconName} size={ICON_SIZE.control} color={accentText} />
                   <Text style={[styles.facilityTileText, { color: colors.text }]} numberOfLines={1}>
                     {item.label}
                   </Text>
@@ -183,9 +183,9 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                 accessibilityLabel={item.label}
                 onPress={item.onPress}
                 style={[styles.categoryRow, { borderColor: PLACE_BORDER_COLOR }]}>
-                <Icon name={item.iconName} size={20} color={colors.textSecondary} />
+                <Icon name={item.iconName} size={ICON_SIZE.control} color={colors.textSecondary} />
                 <Text style={[styles.categoryRowText, { color: colors.text }]}>{item.label}</Text>
-                <Icon name="chevronRight" size={16} color={colors.textSecondary} />
+                <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
               </PressableScale>
             ))}
           </View>
@@ -205,7 +205,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                   onPress={action.onPress}
                   style={[styles.quickTile, { backgroundColor: colors.backgroundElement }]}>
                   <View style={[styles.quickTileIcon, { backgroundColor: action.color }]}>
-                    <Icon name={action.iconName} size={20} color={WHITE} />
+                    <Icon name={action.iconName} size={ICON_SIZE.control} color={WHITE} />
                   </View>
                   <Text style={[styles.quickTileText, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
                     {action.label}
@@ -231,15 +231,15 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                         { backgroundColor: dot.color, borderColor: colors.backgroundElement },
                         index > 0 && styles.summaryDotOverlap,
                       ]}>
-                      <Icon name={dot.iconName} size={15} color={WHITE} />
+                      <Icon name={dot.iconName} size={ICON_SIZE.caption} color={WHITE} />
                     </View>
                   ))}
                 </View>
               ) : (
-                <Icon name="accessibility" size={22} color={colors.textSecondary} />
+                <Icon name="accessibility" size={ICON_SIZE.control} color={colors.textSecondary} />
               )}
               <Text style={[styles.summaryText, { color: colors.text }]}>{model.nearbySummary.text}</Text>
-              <Icon name="chevronRight" size={16} color={colors.textSecondary} />
+              <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
             </PressableScale>
           ) : null}
 
@@ -255,7 +255,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                 onPress={model.addShortcut.onPress}
                 hitSlop={8}
                 style={styles.addShortcutButton}>
-                <Icon name="plus" size={18} color={accentText} />
+                <Icon name="plus" size={ICON_SIZE.body} color={accentText} />
               </PressableScale>
             </View>
             {model.shortcutFilters.length > 1 ? (
@@ -289,7 +289,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                     onPress={shortcut.onPress}
                     style={styles.shortcut}>
                     <View style={[styles.shortcutIcon, { backgroundColor: shortcut.color }]}>
-                      <Icon name={shortcut.iconName} size={24} color={WHITE} />
+                      <Icon name={shortcut.iconName} size={ICON_SIZE.map} color={WHITE} />
                     </View>
                     <Text style={[styles.shortcutTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
                       {shortcut.title}
@@ -321,7 +321,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
               disabled={row.disabled}
               onPress={row.onPress}
               style={[styles.resultRow, { borderColor: PLACE_BORDER_COLOR }, row.disabled && !row.resolving && styles.disabled]}>
-              <Icon name="mapPin" size={16} color={colors.textSecondary} />
+              <Icon name="mapPin" size={ICON_SIZE.body} color={colors.textSecondary} />
               <View style={styles.flex}>
                 <Text style={[styles.resultTitle, { color: colors.text }]} numberOfLines={2}>
                   {row.title}
@@ -337,7 +337,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
           ))}
           {model.error ? (
             <View style={styles.empty} accessibilityRole="alert" accessible accessibilityLabel={model.labels.networkError}>
-              <Icon name="alert" size={28} color={colors.textSecondary} />
+              <Icon name="alert" size={ICON_SIZE.tile} color={colors.textSecondary} />
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{model.labels.networkError}</Text>
               <PressableScale
                 accessibilityRole="button"
@@ -358,7 +358,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             </View>
           ) : model.resultRows.length === 0 && !model.loading ? (
             <View style={styles.empty}>
-              <Icon name="search" size={28} color={colors.textSecondary} />
+              <Icon name="search" size={ICON_SIZE.tile} color={colors.textSecondary} />
               <Text accessibilityRole="text" style={[styles.emptyText, { color: colors.textSecondary }]}>
                 {model.labels.noResults}
               </Text>

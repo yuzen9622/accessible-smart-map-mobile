@@ -16,7 +16,7 @@ import {
   type LngLatTuple,
 } from '@/features/route/domain';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { useThemeColors, LIVE_DOT, TYPE, SHAPE } from '@/shared/theme';
+import { useThemeColors, LIVE_DOT, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { useNow } from '@/shared/time';
 import { Icon } from '@/shared/ui';
 
@@ -242,7 +242,7 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg, 
           accessibilityState={{ expanded: stopsOpen }}
           onPress={toggle}
           style={styles.toggle}>
-          <Icon name={stopsOpen ? 'chevronUp' : 'chevronDown'} size={14} color={colors.textSecondary} />
+          <Icon name={stopsOpen ? 'chevronUp' : 'chevronDown'} size={ICON_SIZE.caption} color={colors.textSecondary} />
           <Text style={[styles.toggleText, { color: colors.textSecondary }]}>{t('passStops', { count: stopCount })}</Text>
         </PressableScale>
       ) : null}

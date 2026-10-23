@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { candidateDeparture, formatRouteClock } from '@/features/route/domain';
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { BusDepartureChooserProps } from './BusDepartureChooser.types';
@@ -90,7 +90,7 @@ export default function BusDepartureChooserBase({ candidates, viewed, legColor, 
                   </Text>
                 </View>
                 {candidate.selected ? (
-                  <Icon name="navigation" size={13} color={semantic.accent} />
+                  <Icon name="navigation" size={ICON_SIZE.caption} color={semantic.accent} />
                 ) : null}
               </View>
               <Text
@@ -106,11 +106,11 @@ export default function BusDepartureChooserBase({ candidates, viewed, legColor, 
                     : '--:--'}
               </Text>
               <View style={styles.meta}>
-                {live ? <Icon name="live" size={11} color={tone} /> : null}
+                {live ? <Icon name="live" size={ICON_SIZE.caption} color={tone} /> : null}
                 <Text style={[styles.metaText, { color: tone }]} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
                   {live ? t('nativeBusDepartureLive') : departure.kind === 'scheduled' ? t('nativeBusDepartureScheduled') : t('nativeBusDepartureUnknown')}
                 </Text>
-                {lowFloor ? <Icon name="accessibility" size={12} color={semantic.ok.fg} /> : null}
+                {lowFloor ? <Icon name="accessibility" size={ICON_SIZE.caption} color={semantic.ok.fg} /> : null}
               </View>
             </PressableScale>
           );

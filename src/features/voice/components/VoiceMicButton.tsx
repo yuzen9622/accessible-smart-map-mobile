@@ -5,7 +5,7 @@ import { Alert, Keyboard, StyleSheet, View } from 'react-native';
 import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { useAppTranslation } from '@/shared/i18n';
 import { ensureAiDataConsent } from '@/shared/privacy';
-import { ACCENT_FILL, ON_ACCENT_FILL } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { startVoiceSession } from '../controller/voiceController';
@@ -64,7 +64,7 @@ export default function VoiceMicButton() {
       onPress={() => void onPress()}
       hitSlop={6}
       style={styles.button}>
-      <Icon name="audioLines" size={18} color={ON_ACCENT_FILL} strokeWidth={2.4} />
+      <Icon name="audioLines" size={ICON_SIZE.body} color={ON_ACCENT_FILL} />
     </PressableScale>
   );
 }

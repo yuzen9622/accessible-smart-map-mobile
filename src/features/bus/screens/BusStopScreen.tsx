@@ -7,7 +7,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, useColorSche
 import { mapCamera, useUserLocationStore } from '@/features/map';
 import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
 
 import { etaDisplay } from '../components/etaDisplay';
@@ -162,7 +162,7 @@ export default function BusStopScreen() {
           </Text>
           {accessible ? (
             <View style={styles.accessTag}>
-              <Icon name="accessibility" size={13} color={semantic.accent} />
+              <Icon name="accessibility" size={ICON_SIZE.caption} color={semantic.accent} />
               <Text style={[styles.accessText, { color: semantic.accent }]}>{accessText(a)}</Text>
             </View>
           ) : null}
@@ -191,7 +191,7 @@ export default function BusStopScreen() {
       <RouteBadge name={routeName} />
       <View style={styles.rowTexts} />
       {note ? <Text style={[styles.rowStatus, { color: colors.textSecondary }]}>{note}</Text> : null}
-      <Icon name="chevronRight" size={16} color={colors.textSecondary} />
+      <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
     </PressableScale>
   );
 
@@ -225,7 +225,7 @@ export default function BusStopScreen() {
           renderFeatured(featured)
         ) : (
           <View style={[styles.noteCard, { backgroundColor: semantic.surface }]}>
-            <Icon name="accessibility" size={18} color={colors.textSecondary} />
+            <Icon name="accessibility" size={ICON_SIZE.body} color={colors.textSecondary} />
             <Text accessibilityLiveRegion="polite" style={[styles.noteText, { color: colors.textSecondary }]}>
               {t('nativeBusNoAccessibleSoon')}
             </Text>
@@ -259,7 +259,7 @@ export default function BusStopScreen() {
         )}
 
         <View style={styles.footer}>
-          <Icon name="refresh" size={13} color={colors.textSecondary} />
+          <Icon name="refresh" size={ICON_SIZE.caption} color={colors.textSecondary} />
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>{t('nativeBusRefreshNote')}</Text>
         </View>
       </>

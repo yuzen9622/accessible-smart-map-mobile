@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { SPACE, useThemeColors, TYPE, SHAPE, ELEVATION } from '@/shared/theme';
+import { SPACE, useThemeColors, TYPE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
@@ -35,13 +35,13 @@ export default function EnvironmentChip() {
       style={[styles.chip, { backgroundColor: colors.background }]}>
       {weather.status === 'ok' && weather.temperature !== null ? (
         <View style={styles.segment}>
-          <Icon name="thermometer" size={15} color={colors.textSecondary} />
+          <Icon name="thermometer" size={ICON_SIZE.caption} color={colors.textSecondary} />
           <Text style={[styles.text, { color: colors.text }]}>{Math.round(weather.temperature)}°</Text>
         </View>
       ) : null}
       {airQuality.status === 'ok' && airQuality.quality ? (
         <View style={styles.segment}>
-          <Icon name="wind" size={15} color={qualityColor ?? colors.textSecondary} />
+          <Icon name="wind" size={ICON_SIZE.caption} color={qualityColor ?? colors.textSecondary} />
           <Text style={[styles.text, { color: qualityColor ?? colors.text }]} numberOfLines={1}>
             {airQuality.quality}
           </Text>

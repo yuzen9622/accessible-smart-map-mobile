@@ -6,7 +6,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { EmptyState, Icon } from '@/shared/ui';
 
 import LegDetail from '../components/LegDetail';
@@ -45,7 +45,7 @@ function TimelineNode({ kind, name, time, label }: { kind: 'start' | 'end'; name
         {start ? (
           <View style={[styles.nodeDot, { borderColor: ROUTE_ORIGIN_COLOR, backgroundColor: colors.background }]} />
         ) : (
-          <Icon name="mapPin" size={22} color={ROUTE_DESTINATION_COLOR} />
+          <Icon name="mapPin" size={ICON_SIZE.control} color={ROUTE_DESTINATION_COLOR} />
         )}
       </View>
       <View style={styles.nodeTexts}>
@@ -164,7 +164,7 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
           <View style={[styles.notes, { borderTopColor: semantic.separator }]}>
             {notes.map((note, noteIndex) => (
               <View key={noteIndex} style={styles.noteRow}>
-                <Icon name={note.warning ? 'alert' : 'info'} size={14} color={note.warning ? semantic.warn.fg : colors.textSecondary} />
+                <Icon name={note.warning ? 'alert' : 'info'} size={ICON_SIZE.caption} color={note.warning ? semantic.warn.fg : colors.textSecondary} />
                 <Text style={[routeStyles.metaText, routeStyles.flex, { color: note.warning ? colors.text : colors.textSecondary }]}>{note.text}</Text>
               </View>
             ))}

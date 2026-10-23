@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { useState, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { ACCENT_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, type ToneColors, SHAPE } from '@/shared/theme';
+import { ACCENT_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, type ToneColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { ReportTone } from '../../domain/review';
@@ -50,7 +50,7 @@ export function SectionTitle({ children, icon }: { children: string; icon?: Icon
   const colors = useThemeColors();
   return (
     <View style={styles.sectionTitle}>
-      {icon ? <Icon name={icon} size={16} color={colors.textSecondary} /> : null}
+      {icon ? <Icon name={icon} size={ICON_SIZE.body} color={colors.textSecondary} /> : null}
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} accessibilityRole="header" style={[styles.sectionTitleText, { color: colors.text }]}>
         {children}
       </Text>
@@ -84,7 +84,7 @@ export function ActionButton({
       style={[styles.button,
         variant === 'plain' && styles.plainButton,
         { backgroundColor: background }, disabled && styles.dim]}>
-      {icon ? <Icon name={icon} size={18} color={foreground} /> : null}
+      {icon ? <Icon name={icon} size={ICON_SIZE.body} color={foreground} /> : null}
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.buttonText, { color: foreground }]}>
         {label}
       </Text>
@@ -105,11 +105,11 @@ export function Disclosure({ title, icon, children }: { title: string; icon: Ico
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen((v) => !v)}
         style={styles.disclosureHeader}>
-        <Icon name={icon} size={16} color={colors.textSecondary} />
+        <Icon name={icon} size={ICON_SIZE.body} color={colors.textSecondary} />
         <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.disclosureTitle, { color: colors.text }]}>
           {title}
         </Text>
-        <Icon name={open ? 'chevronUp' : 'chevronDown'} size={16} color={colors.textSecondary} />
+        <Icon name={open ? 'chevronUp' : 'chevronDown'} size={ICON_SIZE.body} color={colors.textSecondary} />
       </PressableScale>
       {open ? <View style={[styles.disclosureBody, { borderTopColor: semantic.separator }]}>{children}</View> : null}
     </View>

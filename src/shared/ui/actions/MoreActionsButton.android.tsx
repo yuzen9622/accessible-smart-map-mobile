@@ -6,7 +6,7 @@ import { StyleSheet } from 'react-native';
 import Icon from '../Icon';
 
 import type { MoreActionsButtonProps } from './MoreActionsButton.types';
-import { SHAPE } from '@/shared/theme';
+import { SHAPE, ICON_SIZE } from '@/shared/theme';
 import PressableScale from '@/shared/ui/PressableScale';
 
 /** Android 使用錨定在「⋯」按鈕的原生下拉選單。 */
@@ -24,7 +24,7 @@ export default function MoreActionsButton({ label, actions, backgroundColor, col
               accessibilityState={{ expanded }}
               onPress={() => setExpanded(true)}
               style={[styles.button, { backgroundColor }]}>
-              <Icon name="ellipsis" size={20} color={color} />
+              <Icon name="ellipsis" size={ICON_SIZE.control} color={color} />
             </PressableScale>
           </RNHostView>
         </DropdownMenu.Trigger>

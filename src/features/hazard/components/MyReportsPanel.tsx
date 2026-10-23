@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { MyReportRow } from '../hooks/useMyReports';
@@ -60,7 +60,7 @@ export default function MyReportsPanel({ model }: MyReportsPanelProps) {
             accessibilityLabel={t('myReportsNew')}
             onPress={model.newReport}
             style={styles.addButton}>
-            <Icon name="plus" size={22} color={ON_ACCENT_FILL} />
+            <Icon name="plus" size={ICON_SIZE.control} color={ON_ACCENT_FILL} />
           </PressableScale>
         </View>
       }
@@ -88,7 +88,7 @@ export default function MyReportsPanel({ model }: MyReportsPanelProps) {
           {model.hasMore && !model.loadingMore ? <ActionButton label={t('myReportsMore')} variant="secondary" onPress={model.loadMore} /> : null}
           {model.rows.length > 0 && !model.hasMore ? (
             <View style={styles.footerNote}>
-              <Icon name="clock" size={14} color={colors.textSecondary} />
+              <Icon name="clock" size={ICON_SIZE.caption} color={colors.textSecondary} />
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.caption, { color: colors.textSecondary }]}>
                 {t('reportListFooter')}
               </Text>
@@ -126,7 +126,7 @@ function ReportCard({ row }: { row: MyReportRow }) {
           <ReportPhoto reportId={row.id} variant="thumbnail" />
         ) : (
           <View style={[styles.photoPlaceholder, { backgroundColor: semantic.surface }]}>
-            <Icon name="construction" size={26} color={colors.textSecondary} />
+            <Icon name="construction" size={ICON_SIZE.map} color={colors.textSecondary} />
           </View>
         )}
         <View style={styles.flex}>
@@ -145,7 +145,7 @@ function ReportCard({ row }: { row: MyReportRow }) {
             {row.description}
           </Text>
         </View>
-        <Icon name="chevronRight" size={18} color={colors.textSecondary} />
+        <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
       </View>
       {row.reason ? (
         <View style={[styles.reason, { backgroundColor: semantic.surface }]}>
@@ -168,7 +168,7 @@ function EmptyReports({ onNew }: { onNew: () => void }) {
   return (
     <View style={[styles.empty, { borderColor: semantic.separator }]}>
       <View style={[styles.emptyIcon, { backgroundColor: semantic.surface }]}>
-        <Icon name="list" size={30} color={colors.textSecondary} />
+        <Icon name="list" size={ICON_SIZE.tile} color={colors.textSecondary} />
       </View>
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[reportStyles.body, styles.strong, styles.centerText, { color: colors.text }]}>
         {t('myReportsEmpty')}

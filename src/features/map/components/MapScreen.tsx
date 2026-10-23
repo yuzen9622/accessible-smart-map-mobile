@@ -41,6 +41,7 @@ import FacilityPills from './FacilityPills';
 import MapLayersBar from './MapLayersBar';
 import ParkingLayer from './ParkingLayer';
 import MapControls from './MapControls';
+import { MOTION, CAMERA_EASE_MS } from '@/shared/theme/motion';
 
 /** 導航跟隨時讓給 `NavigationHUD` 頂部橫幅的垂直留白（不含 safe-area top），讓定位點落在橫幅下方，
  * 前方路況留白變多，而不是卡在螢幕中段（使用者回饋 2026-10-11，見下方 padding 註解）。 */
@@ -94,7 +95,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
   // 讓地圖在操作當下盡量乾淨；放開後淡回。SOS、路線膠囊等安全／狀態相關資訊不淡出。
   const [controlsOpacity] = useState(() => new Animated.Value(1));
   const fadeControls = (toValue: number) => {
-    Animated.timing(controlsOpacity, { toValue, duration: 160, useNativeDriver: true }).start();
+    Animated.timing(controlsOpacity, { toValue, duration: MOTION.small.duration, useNativeDriver: true }).start();
   };
   useLocationTracking();
   useFacilitiesLoader();
@@ -208,7 +209,7 @@ export default function MapScreen({ layers, overlays, navigationMode = false, ho
                 // （使用者回饋 2026-10-11）。導航時把 top 讓出 HUD 橫幅高度，定位點才會往下挪、
                 // 前方路況留白變多；非導航時仍是 0，不影響一般瀏覽地圖。
                 padding: { top: navigationMode ? insets.top + NAV_FOLLOW_TOP_PADDING : 0, left: 0, right: 0, bottom: sheetInset },
-                duration: 800,
+                duration: CAMERA_EASE_MS,
               }
             : {})}
           onTrackUserLocationChange={(event) => {

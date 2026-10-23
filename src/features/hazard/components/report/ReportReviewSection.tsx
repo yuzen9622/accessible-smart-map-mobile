@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import {
@@ -55,7 +55,7 @@ export default function ReportReviewSection({ report, reportId, notice, now, mer
         accessibilityLabel={[t(presentation.label), statusText, reason].filter(Boolean).join('，')}
         style={[reportStyles.card, { backgroundColor: tone.bg }]}>
         <View style={styles.statusHeader}>
-          <Icon name={TONE_ICON[presentation.tone]} size={20} color={tone.fg} />
+          <Icon name={TONE_ICON[presentation.tone]} size={ICON_SIZE.control} color={tone.fg} />
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} style={[styles.statusTitle, { color: tone.fg }]}>
             {t(presentation.label)}
           </Text>

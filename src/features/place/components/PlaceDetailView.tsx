@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, useColorScheme, useWindowDimensions, View } from 'react-native';
 
 import { FACILITY_COLORS } from '@/features/map';
-import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, semanticColors, useSemanticColors, useThemeColors, WHITE, SHAPE } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, semanticColors, useSemanticColors, useThemeColors, WHITE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import CategoryNameModal from './CategoryNameModal';
@@ -154,7 +154,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                   accessible
                   accessibilityLabel={badge.label}
                   style={[styles.badge, { backgroundColor: tone ? tone.surface : PLACE_SURFACE_COLOR }]}>
-                  {badge.iconName ? <Icon name={badge.iconName} size={scaled(13)} color={color} /> : null}
+                  {badge.iconName ? <Icon name={badge.iconName} size={scaled(ICON_SIZE.caption)} color={color} /> : null}
                   <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.badgeText, { color }]}>{badge.label}</Text>
                 </View>
               );
@@ -181,7 +181,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
           accessibilityState={{ selected: model.saved }}
           onPress={model.onToggleSave}
           style={[styles.circleButton, { backgroundColor: circleSurface }]}>
-          <Icon name={model.saved ? 'bookmarkFilled' : 'bookmark'} size={20} color={accentText} />
+          <Icon name={model.saved ? 'bookmarkFilled' : 'bookmark'} size={ICON_SIZE.control} color={accentText} />
         </PressableScale>
         <ShareButton url={model.shareUrl} title={model.title} label={model.shareLabel} onShare={model.onShare} />
         <MoreActionsButton
@@ -210,7 +210,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                 { backgroundColor: colors.backgroundElement },
                 cat.isSelected && { backgroundColor: PLACE_ACCENT_COLOR },
               ]}>
-              {cat.isSelected ? <Icon name="check" size={scaled(14)} color={PLACE_ON_ACCENT_COLOR} /> : null}
+              {cat.isSelected ? <Icon name="check" size={scaled(ICON_SIZE.caption)} color={PLACE_ON_ACCENT_COLOR} /> : null}
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.categoryChipText, { color: cat.isSelected ? PLACE_ON_ACCENT_COLOR : colors.text }]}>
                 {cat.label}
               </Text>
@@ -221,7 +221,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             accessibilityLabel={model.addCategoryLabel}
             onPress={() => setAddingCategory(true)}
             style={[styles.categoryChip, { backgroundColor: colors.backgroundElement }]}>
-            <Icon name="plus" size={scaled(14)} color={colors.textSecondary} />
+            <Icon name="plus" size={scaled(ICON_SIZE.caption)} color={colors.textSecondary} />
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.categoryChipText, { color: colors.textSecondary }]}>
               {model.addCategoryLabel}
             </Text>
@@ -272,7 +272,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                     <View style={[styles.checklistIcon, { width: scaled(44), height: scaled(44), backgroundColor: tone.surface }]}>
                       <Icon
                         name={item.tone === 'unknown' ? 'help' : CHECKLIST_ICON[item.key] ?? tone.icon}
-                        size={scaled(22)}
+                        size={scaled(ICON_SIZE.control)}
                         color={tone.color}
                       />
                     </View>
@@ -308,7 +308,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
         onPress={model.placeReport.onPress}
         style={[groupStyle, styles.reportRow]}>
         <View style={[styles.reportIcon, { width: scaled(36), height: scaled(36), backgroundColor: PLACE_WARN_SURFACE }]}>
-          <Icon name="alert" size={scaled(18)} color={toneColors.warn} />
+          <Icon name="alert" size={scaled(ICON_SIZE.body)} color={toneColors.warn} />
         </View>
         <View style={styles.flex}>
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.reportTitle, { color: colors.text }]}>
@@ -318,7 +318,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             {model.placeReport.subtitle}
           </Text>
         </View>
-        <Icon name="chevronRight" size={scaled(16)} color={colors.textSecondary} />
+        <Icon name="chevronRight" size={scaled(ICON_SIZE.body)} color={colors.textSecondary} />
       </PressableScale>
 
       <View style={styles.section}>
@@ -332,7 +332,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                 accessibilityLabel={[row.name, row.typeLabel, row.address, row.distanceText].filter(Boolean).join('，')}
                 style={styles.nearbyRow}>
                 <View style={[styles.nearbyIcon, { width: scaled(30), height: scaled(30), backgroundColor: nearbyKindStyle(row.kind).color }]}>
-                  <Icon name={nearbyKindStyle(row.kind).icon} size={scaled(16)} color={WHITE} />
+                  <Icon name={nearbyKindStyle(row.kind).icon} size={scaled(ICON_SIZE.body)} color={WHITE} />
                 </View>
                 {/* 分隔線從文字起點開始（iOS inset grouped 列表的慣例），不切過圖示 */}
                 <View style={[styles.nearbyText, index > 0 && rowDivider]}>
@@ -357,7 +357,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
           </View>
         ) : (
           <View style={[groupStyle, styles.emptyCard]}>
-            <Icon name="accessibility" size={scaled(20)} color={colors.textSecondary} />
+            <Icon name="accessibility" size={scaled(ICON_SIZE.control)} color={colors.textSecondary} />
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.bodyText, styles.emptyText, { color: colors.textSecondary }]}>{model.nearbyEmptyLabel}</Text>
           </View>
         )}
@@ -450,7 +450,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             </View>
           ) : model.reviews.errorLabel ? null : (
             <View style={[groupStyle, styles.emptyCard]}>
-              <Icon name="messageSquare" size={scaled(20)} color={colors.textSecondary} />
+              <Icon name="messageSquare" size={scaled(ICON_SIZE.control)} color={colors.textSecondary} />
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.bodyText, styles.emptyText, { color: colors.textSecondary }]}>{model.reviews.emptyLabel}</Text>
             </View>
           )}

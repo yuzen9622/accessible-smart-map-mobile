@@ -4,7 +4,7 @@ import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { filterIncidentsAlongRoute, formatIncidentEnd, isIncidentClosed } from '../domain/geo';
@@ -75,7 +75,7 @@ function Alerts({ alerts, tones }: { alerts: readonly (MatchedAlert | MetroAlert
     <View style={styles.alerts}>
       {alerts.map((alert) => (
         <View key={alert.alertId} style={[routeStyles.card, styles.alertCard, { backgroundColor: ROUTE_WARN_SURFACE }]}>
-          <Icon name="alert" size={14} color={tones.warn} />
+          <Icon name="alert" size={ICON_SIZE.caption} color={tones.warn} />
           <View style={routeStyles.flex}>
             <Text style={[routeStyles.bodyText, { color: tones.warn }]}>{alert.title}</Text>
             {alert.description ? (
@@ -157,7 +157,7 @@ function WalkDetail({ leg, engine, t, tones, streetNames }: { leg: WalkLeg; engi
       ) : null}
       {leg.restPoints?.length ? (
         <View accessible accessibilityLabel={restPointsText(leg.restPoints, t)} style={routeStyles.row}>
-          <Icon name="check" size={14} color={tones.ok} />
+          <Icon name="check" size={ICON_SIZE.caption} color={tones.ok} />
           <Text style={[routeStyles.metaText, routeStyles.flex, { color: colors.text }]}>{restPointsText(leg.restPoints, t)}</Text>
         </View>
       ) : null}
@@ -175,7 +175,7 @@ function WalkDetail({ leg, engine, t, tones, streetNames }: { leg: WalkLeg; engi
                 accessible
                 accessibilityLabel={[text, warnings, formatDistance(step.distanceM)].filter(Boolean).join('，')}
                 style={styles.step}>
-                {warnings ? <Icon name="alert" size={14} color={color} /> : null}
+                {warnings ? <Icon name="alert" size={ICON_SIZE.caption} color={color} /> : null}
                 <Text style={[routeStyles.bodyText, routeStyles.flex, { color }]}>
                   {warnings ? `${text}（${warnings}）` : text}
                 </Text>
@@ -239,7 +239,7 @@ function DriveDetail({
         <Disclosure label={t(allRoadwork ? 'roadworkAlongRoute' : 'incidentsAlongRoute', { count: incidents.length })} color={tones.warn}>
           {incidents.map((incident) => (
             <View key={incident.incidentId} style={[routeStyles.card, styles.alertCard, { backgroundColor: ROUTE_WARN_SURFACE }]}>
-              <Icon name={isIncidentClosed(incident) ? 'alert' : 'construction'} size={14} color={tones.warn} />
+              <Icon name={isIncidentClosed(incident) ? 'alert' : 'construction'} size={ICON_SIZE.caption} color={tones.warn} />
               <View style={routeStyles.flex}>
                 <Text style={[routeStyles.bodyText, { color: colors.text }]}>
                   {isIncidentClosed(incident) ? `${incident.title}（${t('incidentClosure')}）` : incident.title}
@@ -282,7 +282,7 @@ function TimelineRail({ leg, color }: { leg: RouteLeg; color: string }) {
   return (
     <View style={styles.rail} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
       <View style={[styles.legIcon, walk ? { backgroundColor: semantic.neutral.bg } : { backgroundColor: color }]}>
-        <Icon name={LEG_ICON[leg.type]} size={16} color={walk ? semantic.neutral.fg : WHITE} />
+        <Icon name={LEG_ICON[leg.type]} size={ICON_SIZE.body} color={walk ? semantic.neutral.fg : WHITE} />
       </View>
       {walk ? (
         // 絕對定位：點串本身很長，若參與排版會把整段撐高；只填滿內容決定的高度
@@ -366,7 +366,7 @@ export default function LegDetail({ leg: originalLeg, busStops, engine, isFirst 
             </Text>
             {leg.facilityHighlights.map((highlight) => (
               <View key={highlight} style={routeStyles.row}>
-                <Icon name="accessibility" size={14} color={tones.ok} />
+                <Icon name="accessibility" size={ICON_SIZE.caption} color={tones.ok} />
                 <Text style={[routeStyles.metaText, routeStyles.flex, { color: colors.text }]}>{highlight}</Text>
               </View>
             ))}

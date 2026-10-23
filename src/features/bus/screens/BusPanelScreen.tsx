@@ -7,7 +7,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SHEET_DETENTS, sheetController, useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { SPACE, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
+import { SPACE, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
 
 import RouteBadge from '../components/RouteBadge';
@@ -94,7 +94,7 @@ export default function BusPanelScreen() {
                 onPress={() => openStop(stop)}
                 style={[styles.row, separator(index)]}>
                 <View style={[styles.iconCircle, { backgroundColor: semantic.accentSoft }]}>
-                  <Icon name="bus" size={18} color={semantic.accent} />
+                  <Icon name="bus" size={ICON_SIZE.body} color={semantic.accent} />
                 </View>
                 <View style={styles.rowTexts}>
                   <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
@@ -112,7 +112,7 @@ export default function BusPanelScreen() {
                   ) : null}
                 </View>
                 {distance ? <Text style={[styles.distance, { color: colors.textSecondary }]}>{distance}</Text> : null}
-                <Icon name="chevronRight" size={16} color={colors.textSecondary} />
+                <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
               </PressableScale>
             );
           })}
@@ -152,7 +152,7 @@ export default function BusPanelScreen() {
                   </Text>
                 ) : null}
               </View>
-              <Icon name="chevronRight" size={16} color={colors.textSecondary} />
+              <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
             </PressableScale>
           ))}
         </View>

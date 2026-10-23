@@ -14,6 +14,7 @@ const RULES: { name: string; pattern: RegExp; hint: string; allow?: string[] }[]
     hint: '改用 PressableScale（全螢幕背景遮罩除外）',
     allow: ['features/place/components/CategoryNameModal.tsx', 'shared/ui/actions/MoreActionsModal.tsx', 'shared/ui/PressableScaleBase.tsx'],
   },
+  { name: 'Icon 尺寸字面值', pattern: /<Icon\s[^>]*size=\{(\d|scaled\(\d)/, hint: '改用 ICON_SIZE.*' },
   { name: '字重 500／800', pattern: /fontWeight: '(500|800)'/, hint: '字重只有 400／600／700' },
 ];
 

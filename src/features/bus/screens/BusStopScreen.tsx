@@ -28,6 +28,7 @@ import {
 import { useStopArrivals } from '../hooks/useStopArrivals';
 import { useBusPanelStore } from '../store/busPanelStore';
 import PressableScale from '@/shared/ui/PressableScale';
+import { Numeral } from '@/shared/ui/typography/Numeral';
 
 const STOP_ZOOM = 17;
 const STOP_ID = 'focused-stop';
@@ -169,7 +170,7 @@ export default function BusStopScreen() {
         </View>
         {eta.minutes !== null ? (
           <Text style={{ color: tone.color }}>
-            <Text style={styles.rowEta}>{eta.minutes}</Text>
+            <Numeral style={styles.rowEta}>{eta.minutes}</Numeral>
             <Text style={styles.rowEtaUnit}> {t('nativeBusMinuteUnit')}</Text>
           </Text>
         ) : (
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: TYPE.body, fontWeight: '600' },
   accessTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   accessText: { fontSize: TYPE.caption, fontWeight: '600' },
-  rowEta: { fontSize: TYPE.title1, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  rowEta: { fontSize: TYPE.title1, fontWeight: '700' },
   rowEtaUnit: { fontSize: TYPE.footnote, fontWeight: '600' },
   rowStatus: { fontSize: TYPE.footnote, fontWeight: '600', maxWidth: 110, textAlign: 'right' },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' },

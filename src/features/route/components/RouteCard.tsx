@@ -34,6 +34,7 @@ import {
   routeTones,
 } from './palette';
 import PressableScale from '@/shared/ui/PressableScale';
+import { Numeral } from '@/shared/ui/typography/Numeral';
 
 export const LEG_ICON: Record<RouteLeg['type'], IconName> = {
   WALK: 'footprints',
@@ -147,9 +148,9 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
             {duration}
           </Text>
           {journey ? (
-            <Text style={[styles.journey, { color: colors.textSecondary }]} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
+            <Numeral style={[styles.journey, { color: colors.textSecondary }]} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
               {journey}
-            </Text>
+            </Numeral>
           ) : null}
         </View>
 
@@ -330,7 +331,7 @@ const styles = StyleSheet.create({
   summary: { gap: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 8 },
   duration: { fontSize: TYPE.title1, fontWeight: '700' },
-  journey: { fontSize: TYPE.subhead, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  journey: { fontSize: TYPE.subhead, fontWeight: '600' },
   legChain: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', rowGap: 6 },
   legChainItem: { flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 4 },
   // minHeight 而非固定高度：字級放大時膠囊跟著長高，不截字

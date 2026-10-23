@@ -18,6 +18,7 @@ import { stepIcon } from '../domain/navStepIcon';
 import { transitDetail, transitHeadline, transitInstruction, type Translate } from '../domain/transitCopy';
 import { useNavStore } from '../store/navStore';
 import PressableScale from '@/shared/ui/PressableScale';
+import { Numeral } from '@/shared/ui/typography/Numeral';
 
 const ACCENT = ACCENT_FILL;
 /** 卡片內次要文字（「接著」、補充資訊）：比主指示淡一階的白；0.9 疊在 ACCENT_FILL 上 ≈ 4.9:1（0.72 只有 3.7:1，不到 AA）。 */
@@ -175,7 +176,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                   style={styles.previewLabel}>
                   <Text fixedSize numberOfLines={1} style={styles.previewTitle}>
                     {t('routePreviewMode')}
-                    <Text fixedSize style={styles.previewMeta}>{`  ${t('stepOf', { current: currentStepIndex + 1, total: instructions.length })}`}</Text>
+                    <Numeral fixedSize style={styles.previewMeta}>{`  ${t('stepOf', { current: currentStepIndex + 1, total: instructions.length })}`}</Numeral>
                   </Text>
                 </View>
                 <PressableScale
@@ -358,7 +359,7 @@ const styles = StyleSheet.create({
   previewButtonDisabled: { opacity: 0.4 },
   previewLabel: { flex: 1, alignItems: 'center' },
   previewTitle: { color: ON_ACCENT_FILL, fontSize: TYPE.subhead, fontWeight: '700' },
-  previewMeta: { color: THEN_TEXT, fontSize: TYPE.footnote, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  previewMeta: { color: THEN_TEXT, fontSize: TYPE.footnote, fontWeight: '600' },
   card: { padding: 14, gap: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   flex: { flex: 1 },

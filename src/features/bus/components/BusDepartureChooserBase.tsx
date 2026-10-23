@@ -9,6 +9,7 @@ import { Icon } from '@/shared/ui';
 import type { BusDepartureChooserProps } from './BusDepartureChooser.types';
 import { BUS_ON_ACCENT_COLOR } from './palette';
 import PressableScale from '@/shared/ui/PressableScale';
+import { Numeral } from '@/shared/ui/typography/Numeral';
 
 export type BusDepartureChooserVariant = 'ios' | 'material';
 
@@ -93,7 +94,7 @@ export default function BusDepartureChooserBase({ candidates, viewed, legColor, 
                   <Icon name="navigation" size={ICON_SIZE.caption} color={semantic.accent} />
                 ) : null}
               </View>
-              <Text
+              <Numeral
                 style={[styles.time, { color: arriving ? semantic.ok.fg : colors.text }]}
                 numberOfLines={1}
                 maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
@@ -104,7 +105,7 @@ export default function BusDepartureChooserBase({ candidates, viewed, legColor, 
                   : departure.kind === 'scheduled'
                     ? departure.clock
                     : '--:--'}
-              </Text>
+              </Numeral>
               <View style={styles.meta}>
                 {live ? <Icon name="live" size={ICON_SIZE.caption} color={tone} /> : null}
                 <Text style={[styles.metaText, { color: tone }]} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
@@ -128,7 +129,7 @@ const styles = StyleSheet.create({
   tileHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   routeBadge: { borderRadius: SHAPE.badge, borderCurve: 'continuous', paddingHorizontal: 7, paddingVertical: 2, maxWidth: 200 },
   routeBadgeText: { color: BUS_ON_ACCENT_COLOR, fontSize: TYPE.footnote, fontWeight: '700' },
-  time: { fontSize: TYPE.title3, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  time: { fontSize: TYPE.title3, fontWeight: '700' },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: TYPE.caption, fontWeight: '600' },
 });

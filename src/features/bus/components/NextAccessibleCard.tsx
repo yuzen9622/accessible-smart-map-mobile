@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import PressableScale from '@/shared/ui/PressableScale';
+import { Numeral } from '@/shared/ui/typography/Numeral';
 
 /** 分段條最多畫幾格：車子離你越近，亮的格數越多。 */
 const SEGMENTS = 4;
@@ -45,16 +46,16 @@ export default function NextAccessibleCard(props: NextAccessibleCardProps) {
       </View>
       <View style={styles.main}>
         <View style={styles.routeCol}>
-          <Text style={styles.route} numberOfLines={2}>
+          <Numeral style={styles.route} numberOfLines={2}>
             {props.routeName}
-          </Text>
+          </Numeral>
           <Text style={styles.detail} numberOfLines={2}>
             {props.detail}
           </Text>
         </View>
         {props.minutes !== null ? (
           <Text style={styles.eta}>
-            <Text style={styles.etaNumber}>{props.minutes}</Text>
+            <Numeral style={styles.etaNumber}>{props.minutes}</Numeral>
             <Text style={styles.etaUnit}> {props.minuteUnit}</Text>
           </Text>
         ) : (
@@ -86,10 +87,10 @@ const styles = StyleSheet.create({
   eyebrow: { color: ON_ACCENT_FILL, fontSize: TYPE.footnote, fontWeight: '600' },
   main: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
   routeCol: { flex: 1, gap: 2 },
-  route: { color: ON_ACCENT_FILL, fontSize: TYPE.largeTitle, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  route: { color: ON_ACCENT_FILL, fontSize: TYPE.largeTitle, fontWeight: '700' },
   detail: { color: ON_ACCENT_FILL, fontSize: TYPE.subhead },
   eta: { color: ON_ACCENT_FILL },
-  etaNumber: { fontSize: TYPE.numeralL, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  etaNumber: { fontSize: TYPE.numeralL, fontWeight: '700' },
   etaUnit: { fontSize: TYPE.title3, fontWeight: '600' },
   etaText: { color: ON_ACCENT_FILL, fontSize: TYPE.title1, fontWeight: '700' },
   progress: { gap: 6, marginTop: 4 },

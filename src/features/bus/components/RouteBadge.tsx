@@ -1,7 +1,7 @@
-import { Text } from '@/shared/ui/typography/Text';
 import { StyleSheet, View } from 'react-native';
 
 import { TYPE, useSemanticColors, WHITE, SHAPE } from '@/shared/theme';
+import { Numeral } from '@/shared/ui/typography/Numeral';
 
 interface RouteBadgeProps {
   name: string;
@@ -18,9 +18,9 @@ export default function RouteBadge({ name, onAccent, small }: RouteBadgeProps) {
     <View
       importantForAccessibility="no-hide-descendants"
       style={[styles.badge, small && styles.badgeSmall, { backgroundColor: onAccent ? 'rgba(255,255,255,0.2)' : semantic.accentSoft }]}>
-      <Text style={[styles.text, small && styles.textSmall, { color: onAccent ? WHITE : semantic.accent }]} numberOfLines={1}>
+      <Numeral style={[styles.text, small && styles.textSmall, { color: onAccent ? WHITE : semantic.accent }]} numberOfLines={1}>
         {name}
-      </Text>
+      </Numeral>
     </View>
   );
 }
@@ -28,6 +28,6 @@ export default function RouteBadge({ name, onAccent, small }: RouteBadgeProps) {
 const styles = StyleSheet.create({
   badge: { minWidth: 56, minHeight: 32, paddingHorizontal: 10, borderRadius: SHAPE.control, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   badgeSmall: { minWidth: 0, minHeight: 22, paddingHorizontal: 7, borderRadius: SHAPE.badge, borderCurve: 'continuous' },
-  text: { fontSize: TYPE.body, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  text: { fontSize: TYPE.body, fontWeight: '700' },
   textSmall: { fontSize: TYPE.caption },
 });

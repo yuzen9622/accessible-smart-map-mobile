@@ -6,6 +6,7 @@ import { Icon } from '@/shared/ui';
 
 import { pillToneStyle, type PillTone } from './palette';
 import PressableScale from '@/shared/ui/PressableScale';
+import { Numeral } from '@/shared/ui/typography/Numeral';
 
 /** 進度條最多畫幾個站點；更多時中間以省略號表示。 */
 const MAX_NODES = 6;
@@ -71,7 +72,7 @@ export default function TrackingCard(props: TrackingCardProps) {
         </Text>
         {props.minutes !== null ? (
           <Text style={{ color: tone.color }}>
-            <Text style={styles.etaNumber}>{props.minutes}</Text>
+            <Numeral style={styles.etaNumber}>{props.minutes}</Numeral>
             <Text style={styles.etaUnit}> {props.minuteUnit}</Text>
           </Text>
         ) : (
@@ -140,7 +141,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 16, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   title: { flex: 1, fontSize: TYPE.body, fontWeight: '600' },
-  etaNumber: { fontSize: TYPE.numeralS, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  etaNumber: { fontSize: TYPE.numeralS, fontWeight: '700' },
   etaUnit: { fontSize: TYPE.body, fontWeight: '600' },
   etaText: { fontSize: TYPE.title3, fontWeight: '700' },
   track: { gap: 6 },

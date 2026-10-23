@@ -19,6 +19,7 @@ import { ROUTE_DESTINATION_COLOR, ROUTE_ORIGIN_COLOR } from '../domain/routeLaye
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import type { AccessibleRoute, BusLeg } from '../types/route';
 import PressableScale from '@/shared/ui/PressableScale';
+import { Numeral } from '@/shared/ui/typography/Numeral';
 
 export interface BusLegRenderArgs {
   route: AccessibleRoute;
@@ -57,9 +58,9 @@ function TimelineNode({ kind, name, time, label }: { kind: 'start' | 'end'; name
         </Text>
       </View>
       {time ? (
-        <Text style={[styles.nodeTime, { color: colors.text }]} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
+        <Numeral style={[styles.nodeTime, { color: colors.text }]} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
           {time}
-        </Text>
+        </Numeral>
       ) : null}
     </View>
   );
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
   nodeTexts: { flex: 1, gap: 1 },
   nodeLabel: { fontSize: TYPE.caption, fontWeight: '600' },
   nodeName: { fontSize: TYPE.body, fontWeight: '600' },
-  nodeTime: { fontSize: TYPE.subhead, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  nodeTime: { fontSize: TYPE.subhead, fontWeight: '600' },
   notes: { gap: 8, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth },
   noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
 });

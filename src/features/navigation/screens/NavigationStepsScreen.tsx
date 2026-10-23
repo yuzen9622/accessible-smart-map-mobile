@@ -12,6 +12,7 @@ import { stepIcon } from '../domain/navStepIcon';
 import NavigationTripBar from '../components/NavigationTripBar';
 import { useNavStore } from '../store/navStore';
 import PressableScale from '@/shared/ui/PressableScale';
+import ArrivalCheck from '../components/ArrivalCheck';
 
 const ACCENT = ACCENT_FILL;
 
@@ -53,7 +54,7 @@ export default function NavigationStepsScreen() {
         ) : null}
         {arrived || !isNavigating ? (
           <View style={styles.arrived}>
-            <Icon name="circleCheck" size={ICON_SIZE.tile} color={semanticColors(false).ok.fg} />
+            <ArrivalCheck size={ICON_SIZE.tile} color={semanticColors(false).ok.fg} />
             <Text style={[styles.text, { color: colors.text }]}>{arrived ? t('arrived') : t('preparingNav')}</Text>
             {isNavigating ? (
               <PressableScale accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.end}>

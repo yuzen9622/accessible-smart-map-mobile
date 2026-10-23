@@ -19,6 +19,7 @@ import { transitDetail, transitHeadline, transitInstruction, type Translate } fr
 import { useNavStore } from '../store/navStore';
 import PressableScale from '@/shared/ui/PressableScale';
 import { Numeral } from '@/shared/ui/typography/Numeral';
+import ArrivalCheck from './ArrivalCheck';
 
 const ACCENT = ACCENT_FILL;
 /** 卡片內次要文字（「接著」、補充資訊）：比主指示淡一階的白；0.9 疊在 ACCENT_FILL 上 ≈ 4.9:1（0.72 只有 3.7:1，不到 AA）。 */
@@ -139,7 +140,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
         ) : arrived ? (
           <View style={[styles.banner, styles.bannerRow]}>
             <View accessible accessibilityLiveRegion="assertive" style={[styles.bannerRow, styles.flex]}>
-              <Icon name="circleCheck" size={ICON_SIZE.hero} color={ON_ACCENT_FILL} />
+              <ArrivalCheck size={ICON_SIZE.hero} color={ON_ACCENT_FILL} />
               <View style={styles.flex}>
                 <Text fixedSize numberOfLines={1} style={styles.bannerTitle}>{t('arrived')}</Text>
                 <Text fixedSize numberOfLines={1} style={styles.bannerMeta}>{t('arrivedDesc')}</Text>

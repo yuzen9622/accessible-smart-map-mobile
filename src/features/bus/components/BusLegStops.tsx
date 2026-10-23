@@ -16,7 +16,7 @@ import {
   type LngLatTuple,
 } from '@/features/route/domain';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { useThemeColors, LIVE_DOT, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
+import { useThemeColors, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { useNow } from '@/shared/time';
 import { Icon } from '@/shared/ui';
 
@@ -39,6 +39,7 @@ import { busName, etaLabelText, etaTonePill } from './busText';
 import EtaPill from './EtaPill';
 import { BUS_BORDER_COLOR, BUS_ON_ACCENT_COLOR, pillToneStyle } from './palette';
 import PressableScale from '@/shared/ui/PressableScale';
+import LiveDot from '@/shared/ui/LiveDot';
 
 export interface BusLegStopsProps {
   route: AccessibleRoute;
@@ -215,7 +216,7 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg, 
             .filter(Boolean)
             .join(' ')}
           style={styles.live}>
-          <View style={styles.liveDot} />
+          <LiveDot />
           <Text style={[styles.liveText, { color: colors.textSecondary }]}>{t('busLiveTracking')}</Text>
           <Text style={[styles.plate, { color: colors.text }]}>{targetBus.plateNumb}</Text>
           {currentStopLabel ? (
@@ -328,7 +329,6 @@ const styles = StyleSheet.create({
   routeBadgeText: { color: BUS_ON_ACCENT_COLOR, fontSize: TYPE.footnote, fontWeight: '700' },
   wait: { fontSize: TYPE.footnote },
   live: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  liveDot: { width: 8, height: 8, borderRadius: SHAPE.pill, borderCurve: 'continuous', backgroundColor: LIVE_DOT },
   liveText: { fontSize: TYPE.caption },
   plate: { fontSize: TYPE.caption, fontWeight: '600', fontVariant: ['tabular-nums'] },
   endpoint: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 32 },

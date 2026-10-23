@@ -54,6 +54,8 @@ jest.mock('react-native-reanimated', () => {
     LayoutAnimationConfig: ({ children }: { children: React.ReactNode }) => children,
     Easing: { bezier: () => ({}) },
     withTiming: (v: any) => v,
+    withRepeat: (v: any) => v,
+    cancelAnimation: () => undefined,
   };
 });
 

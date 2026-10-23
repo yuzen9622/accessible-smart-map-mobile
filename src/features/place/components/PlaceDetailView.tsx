@@ -13,6 +13,7 @@ import type { PlaceDetailBadge, PlaceDetailNearbyRow, PlaceDetailViewProps } fro
 import {
   PLACE_ACCENT_COLOR,
   PLACE_ACCENT_COLOR_DARK,
+  PLACE_BORDER_COLOR,
   PLACE_NO_COLOR,
   PLACE_NO_COLOR_DARK,
   PLACE_NO_SURFACE,
@@ -142,9 +143,11 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             {model.subtitle}
           </Text>
         ) : null}
-        {model.badges.length > 0 ? (
+        {/* 類別（「公車站」）已經在上面的 subtitle 裡，這裡只留狀態類徽章（例：無障礙資訊未確認），
+            不重複印一次類別（使用者回饋 2026-10-23，參考設計圖二）。 */}
+        {model.badges.some((badge) => badge.key !== 'type') ? (
           <View style={[styles.chipsRow, styles.headerBadges]}>
-            {model.badges.map((badge) => {
+            {model.badges.filter((badge) => badge.key !== 'type').map((badge) => {
               const tone = badge.tone === 'neutral' ? null : badgeTone(badge.tone, toneColors);
               const color = tone ? tone.color : colors.textSecondary;
               return (
@@ -257,45 +260,47 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
               ) : null
             }
           />
-          {/* 四項設施壓成一列圖示；未確認直接給「我知道 ›」回報出口 */}
-          <View style={[groupStyle, styles.checklistRow, largeText && styles.checklistGrid]}>
+          {/* 固定 2×2 卡片、一律用該項目對應的具體圖示（輪椅／電梯／坡道／廁所），不是未確認就整個換成
+              「?」——圖示本身告訴你在問哪一項，確不確認改由底色與下面的狀態文字傳達（使用者回饋
+              2026-10-23，參考設計圖二）。每一項的「我知道」以前各自一個連結，但其實都指去同一個寫
+              評論入口（見 `usePlaceDetailViewModel` 的 `onReport`），改收成卡片下方單一按鈕，狀態文字
+              純顯示用，不用再逐項點。 */}
+          <View style={[groupStyle, styles.checklistRow, styles.checklistGrid]}>
             {model.checklist.map((item) => {
               const tone = checklistTone(item.tone, toneColors);
-              const report = item.onReport;
               return (
-                <View key={item.key} style={[styles.checklistItem, largeText && styles.checklistItemGrid]}>
+                <View key={item.key} style={[styles.checklistItem, styles.checklistItemGrid]}>
                   <View
                     accessible
                     accessibilityLabel={`${item.label}：${item.statusLabel}`}
                     style={styles.checklistBody}>
                     <View style={[styles.checklistIcon, { width: scaled(44), height: scaled(44), backgroundColor: tone.surface }]}>
-                      <Icon
-                        name={item.tone === 'unknown' ? 'help' : CHECKLIST_ICON[item.key] ?? tone.icon}
-                        size={scaled(22)}
-                        color={tone.color}
-                      />
+                      <Icon name={CHECKLIST_ICON[item.key] ?? tone.icon} size={scaled(22)} color={tone.color} />
                     </View>
                     <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.checklistLabel, { color: colors.text }]} numberOfLines={2}>
                       {item.label}
                     </Text>
                   </View>
-                  {report ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`${item.label}，${model.reportLabel}`}
-                      onPress={report}
-                      hitSlop={REPORT_HIT_SLOP}>
-                      <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.checklistStatus, { color: accentText }]}>{`${model.reportLabel} ›`}</Text>
-                    </Pressable>
-                  ) : (
-                    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.checklistStatus, { color: tone.color }]} importantForAccessibility="no">
-                      {item.statusLabel}
-                    </Text>
-                  )}
+                  <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.checklistStatus, { color: tone.color }]} importantForAccessibility="no">
+                    {item.statusLabel}
+                  </Text>
                 </View>
               );
             })}
           </View>
+          {model.checklist.some((item) => item.onReport) ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={model.checklistSupplementLabel}
+              onPress={model.checklist.find((item) => item.onReport)?.onReport}
+              hitSlop={REPORT_HIT_SLOP}
+              style={({ pressed }) => [styles.supplementButton, { borderColor: PLACE_BORDER_COLOR }, pressed && styles.pressed]}>
+              <Icon name="plus" size={scaled(16)} color={accentText} />
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.supplementButtonText, { color: accentText }]}>
+                {model.checklistSupplementLabel}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 
@@ -531,9 +536,20 @@ const styles = StyleSheet.create({
   nearbyIcon: { width: 30, height: 30, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
   checklistRow: { flexDirection: 'row', gap: 4, paddingVertical: 16, paddingHorizontal: 8 },
   checklistItem: { flex: 1, minWidth: 0, alignItems: 'center', gap: 4 },
-  // 大字級：四欄改 2×2，「我知道 ›」才不會被擠成兩行
+  // 固定 2×2（原本只有大字級才換成 2×2，四欄擠在一起字級一大就被截斷；改成預設就 2×2，卡片夠寬
+  // 放得下圖示＋兩行標籤＋狀態文字，參考設計圖二）。
   checklistGrid: { flexWrap: 'wrap', columnGap: 0, rowGap: 20 },
   checklistItemGrid: { flex: 0, flexBasis: '50%', paddingHorizontal: 4 },
+  supplementButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: MIN_TOUCH,
+    borderRadius: RADIUS.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  supplementButtonText: { fontSize: TYPE.callout, fontWeight: '600' },
   checklistBody: { alignItems: 'center', gap: 6 },
   checklistIcon: { width: 44, height: 44, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
   checklistLabel: { fontSize: TYPE.subhead, textAlign: 'center' },

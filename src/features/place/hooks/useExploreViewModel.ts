@@ -165,6 +165,10 @@ export interface ExploreViewModel {
    * 窄螢幕擠成一團被截斷；改成同一張卡片裡搜尋框正上方一排，不再是獨立浮動元件）。 */
   facilityToggles: MapLayersBarToggle[];
   needsPill: MapLayersBarNeedsPill;
+  /** 搜尋框正下方常駐的「規劃路線」按鈕（使用者回饋 2026-10-24：之前以為跟地點詳情頁重複拿掉了，
+   * 但使用者還是想要首頁有一個不用先選地點就能進路線規劃的入口）；不帶目的地直接進 `/plan`，
+   * 在那邊的起訖點欄位自己選。 */
+  planRoute: { label: string; onPress: () => void };
   /** 收藏地點（依下方 shortcutFilters 勾選的分類篩選，全部收藏可橫向滑動瀏覽）；
    * 旁邊的「新增」是常去地點區塊標題右側的小按鈕，不再混在圓鈕那排裡 */
   shortcuts: ExploreShortcut[];
@@ -477,12 +481,13 @@ export function useExploreViewModel(): ExploreViewModel {
     onOpenSaved: openSaved,
     facilityToggles,
     needsPill,
+    planRoute: { label: t('planRoute'), onPress: () => router.navigate('/plan') },
     shortcuts,
     shortcutFilters,
     addShortcut: { label: t('nativeHomeAddShortcut'), accessibilityLabel: t('nativeHomeAddShortcutA11y'), onPress: openSaved },
     nearbySummary: summary,
     // 順序與顯示／隱藏依設定頁「首頁快捷方式」的 enabledQuickActions（參考網頁版，使用者回饋 2026-10-11）；
-    // 規劃路線沒有在候選清單裡——地點詳情頁本來就有「規劃路線」主按鈕，這裡不必重複放。
+    // 規劃路線不在這個候選清單裡，改成搜尋框正下方常駐的 planRoute 按鈕（見上方欄位註解）。
     quickActions: enabledQuickActions
       .map((key): ExploreQuickAction | null => {
         switch (key) {

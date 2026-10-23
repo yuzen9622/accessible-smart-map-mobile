@@ -11,6 +11,7 @@ const model: ExploreViewModel = {
   categoryShortcuts: { sectionTitle: 'Find nearby', nearbyFacilities: [], moreTitle: 'More categories', moreCategories: [] },
   facilityToggles: [],
   needsPill: { label: 'General', accessibilityLabel: 'Accessibility needs: General', onPress: noop },
+  planRoute: { label: 'Plan route', onPress: noop },
   shortcuts: [], shortcutFilters: [], addShortcut: { label: 'Add', accessibilityLabel: 'Add a frequent place', onPress: noop }, nearbySummary: null,
   quickActions: [
     { key: 'assistant', label: 'Assistant', iconName: 'sparkles', color: '#7048E8', onPress: jest.fn() },
@@ -35,7 +36,7 @@ it('never renders the removed "Where to?" title', async () => {
   expect(view.queryByText('Where to?')).toBeNull();
 });
 
-it('idle mode shows quick services (no plan-route tile), nearby summary, and a shortcuts section with its own add button', async () => {
+it('idle mode shows quick services, a plan-route button, nearby summary, and a shortcuts section with its own add button', async () => {
   const home: ExploreViewModel = {
     ...model,
     shortcuts: [{ key: 'home', title: 'Home', meta: null, iconName: 'bookmark', color: '#495057', onPress: noop, onLongPress: noop }],
@@ -45,7 +46,7 @@ it('idle mode shows quick services (no plan-route tile), nearby summary, and a s
   expect(view.getByText('Quick services')).toBeTruthy();
   expect(view.getByRole('button', { name: 'Assistant' })).toBeTruthy();
   expect(view.getByRole('button', { name: 'Bus' })).toBeTruthy();
-  expect(view.queryByRole('button', { name: 'Plan route' })).toBeNull();
+  expect(view.getByRole('button', { name: 'Plan route' })).toBeTruthy();
   expect(view.getByText('Nearby facilities')).toBeTruthy();
   expect(view.getByText('Saved')).toBeTruthy();
   expect(view.getByText('Home')).toBeTruthy();

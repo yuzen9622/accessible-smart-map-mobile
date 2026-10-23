@@ -3,6 +3,8 @@
  * 狀態色（ok／warn／danger）屬於 `tokens.ts` 的語意層，不在這裡。
  * `line` 用於地圖線與底板，`text` 是對白底 ≥ 4.5:1 的文字色。
  */
+import { ACCENT_FILL } from './tokens';
+
 export interface DomainColor {
   line: string;
   text: string;
@@ -44,7 +46,6 @@ export type FeatureKey = keyof typeof FEATURE;
 export const WHITE = '#FFFFFF';
 export const BLACK = '#000000';
 /** 地圖浮動元件與卡片的陰影色。 */
-export const SHADOW_COLOR = BLACK;
 
 /** 無障礙評等（excellent → critical）。 */
 export const A11Y_SCORE = {
@@ -132,5 +133,5 @@ export const VOICE_ORB_EDGE = { light: '#A8CFF5', dark: '#1F4A7A' } as const;
 
 export const SEGMENT_THUMB_DARK = '#636366';
 
-/** 啟動畫面底色。與 App icon 同為 `#3C70FC`；是否改成主色 `#0065C8` 是品牌決定。 */
-export const SPLASH_BG = '#3C70FC';
+/** 啟動畫面底色：與 App icon、`app.json` 的 splash 同為主色。 */
+export const SPLASH_BG = ACCENT_FILL;

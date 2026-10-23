@@ -2,6 +2,8 @@
 // Web 把這些和型別放在同一檔；本 repo 型別放 `types/`、邏輯放 `domain/`，所以拆出來。
 // `formatDistance` 在 `shared/geo`（Phase 1 移植、Phase 2 提到共用層），這裡不重複。
 
+import { MODE } from '@/shared/theme/palettes';
+
 import type { A11yFeature, A11yLabel, DriveTrafficSegment, RouteLeg, TrafficLevel } from '../types/route';
 
 export function getA11yLabelColor(label: A11yLabel): string {
@@ -101,13 +103,13 @@ export function visibleTrafficSegments(
 }
 
 const LEG_COLORS: Record<RouteLeg['type'], string> = {
-  WALK: '#3b82f6',
-  BUS: '#22c55e',
-  METRO: '#FF6B35',
-  THSR: '#f97316',
-  TRA: '#003366',
-  DRIVE: '#475569',
-  MOTORCYCLE: '#dc2626',
+  WALK: MODE.walk.line,
+  BUS: MODE.bus.line,
+  METRO: MODE.metro.line,
+  THSR: MODE.hsr.line,
+  TRA: MODE.tra.line,
+  DRIVE: MODE.car.line,
+  MOTORCYCLE: MODE.scooter.line,
 };
 
 export function getLegColor(leg: RouteLeg): string {
@@ -116,16 +118,16 @@ export function getLegColor(leg: RouteLeg): string {
 
 /**
  * 運具膠囊（路線卡「🚌 28」）的底色：上面要放 13pt 白字，必須 ≥ 4.5:1。`LEG_COLORS` 是畫在地圖上的線條色，
- * 公車綠 #22c55e 配白字只有 2.28:1、捷運橘 2.84:1，所以膠囊另用同色相的加深版（測試守住對比）。
+ * 地圖線色（`MODE.*.line`）配白字對比不足，所以膠囊改用同色相的 `MODE.*.text`（測試守住對比）。
  */
 export const LEG_LABEL_FILL: Record<RouteLeg['type'], string> = {
-  WALK: '#1D4ED8',
-  BUS: '#15803D',
-  METRO: '#C2410C',
-  THSR: '#C2410C',
-  TRA: '#003366',
-  DRIVE: '#475569',
-  MOTORCYCLE: '#B91C1C',
+  WALK: MODE.walk.text,
+  BUS: MODE.bus.text,
+  METRO: MODE.metro.text,
+  THSR: MODE.hsr.text,
+  TRA: MODE.tra.text,
+  DRIVE: MODE.car.text,
+  MOTORCYCLE: MODE.scooter.text,
 };
 
 export function formatDuration(minutes: number): string {

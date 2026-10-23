@@ -47,6 +47,12 @@ module.exports = defineConfig([
               message: 'domain 不得依賴自己 feature 的 store／controller／api／UI（SDD §4.1：依賴只往下）。',
             },
             {
+              // `palettes` 是純資料（色票常數），domain 可以用；theme 的其他模組有 hook／React 依賴。
+              regex: '^@/shared/theme(?:$|/(?!palettes$))',
+              message: 'domain 只能用純的共用層（例如 `@/shared/geo`、`@/shared/theme/palettes`）。',
+              allowTypeImports: true,
+            },
+            {
               group: [
                 '@/shared/api',
                 '@/shared/api/*',
@@ -60,8 +66,6 @@ module.exports = defineConfig([
                 '@/shared/polling/*',
                 '@/shared/storage',
                 '@/shared/storage/*',
-                '@/shared/theme',
-                '@/shared/theme/*',
                 '@/shared/ui',
                 '@/shared/ui/*',
               ],

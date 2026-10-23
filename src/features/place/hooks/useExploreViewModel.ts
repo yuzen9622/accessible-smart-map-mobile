@@ -19,6 +19,7 @@ import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import { usePreferencesStore, type QuickActionKey } from '@/shared/preferences';
+import { FEATURE } from '@/shared/theme';
 import { useDictation, type DictationStatus } from '@/shared/speech';
 import type { IconName } from '@/shared/ui';
 
@@ -110,10 +111,10 @@ const SAVED_CATEGORY_COLOR: Record<BuiltInSavedPlaceCategory, string> = {
 
 /** 快速服務每格各自一色，不再全部套用同一個 accent 藍（使用者回饋 2026-10-11：太單調）。 */
 const QUICK_ACTION_COLOR: Record<QuickActionKey, string> = {
-  assistant: '#7048E8',
-  bus: '#0F9960',
-  hazard: '#E8590C',
-  train: '#1864AB',
+  assistant: FEATURE.ai.line,
+  bus: FEATURE.bus.line,
+  hazard: FEATURE.report.line,
+  train: FEATURE.rail.line,
 };
 
 export interface ExploreViewModel {

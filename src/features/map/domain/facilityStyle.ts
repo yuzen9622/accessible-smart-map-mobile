@@ -1,3 +1,5 @@
+import { FACILITY } from '@/shared/theme/palettes';
+
 import type { PinnedFacilityCategory } from './facilities';
 
 /**
@@ -5,9 +7,9 @@ import type { PinnedFacilityCategory } from './facilities';
  * 白色外框讓點在建物與道路上仍清楚。
  */
 export const FACILITY_COLORS: Record<PinnedFacilityCategory, string> = {
-  elevator: '#1B7F3B',
-  ramp: '#C45A00',
-  toilet: '#6A1B9A',
+  elevator: FACILITY.elevator.line,
+  ramp: FACILITY.ramp.line,
+  toilet: FACILITY.toilet.line,
 };
 
-export const FACILITY_CLUSTER_COLOR = '#1565C0';
+export const FACILITY_CLUSTER_COLOR = FACILITY.cluster.line;

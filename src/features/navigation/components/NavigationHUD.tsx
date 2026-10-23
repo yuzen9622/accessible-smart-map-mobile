@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useUserLocationStore } from '@/features/map';
@@ -17,6 +17,7 @@ import { findLegHandoffIndex, isVehicleLegType, resolveActiveLegType } from '../
 import { stepIcon } from '../domain/navStepIcon';
 import { transitDetail, transitHeadline, transitInstruction, type Translate } from '../domain/transitCopy';
 import { useNavStore } from '../store/navStore';
+import PressableScale from '@/shared/ui/PressableScale';
 
 const ACCENT = ACCENT_FILL;
 /** 卡片內次要文字（「接著」、補充資訊）：比主指示淡一階的白；0.9 疊在 ACCENT_FILL 上 ≈ 4.9:1（0.72 只有 3.7:1，不到 AA）。 */
@@ -130,9 +131,9 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
             <Text fixedSize accessibilityLiveRegion="assertive" numberOfLines={2} style={[styles.bannerMessage, styles.flex]}>
               {t(instructionError === 'expired' ? 'nativeRouteTokenExpired' : 'nativeInstructionsUnavailable')}
             </Text>
-            <Pressable accessibilityRole="button" onPress={() => { endNavigation(); router.dismissTo('/plan'); }} style={styles.bannerButton}>
+            <PressableScale accessibilityRole="button" onPress={() => { endNavigation(); router.dismissTo('/plan'); }} style={styles.bannerButton}>
               <Text fixedSize style={styles.bannerButtonText}>{t('nativePlanAgain')}</Text>
-            </Pressable>
+            </PressableScale>
           </View>
         ) : arrived ? (
           <View style={[styles.banner, styles.bannerRow]}>
@@ -143,16 +144,16 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                 <Text fixedSize numberOfLines={1} style={styles.bannerMeta}>{t('arrivedDesc')}</Text>
               </View>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.bannerButton}>
+            <PressableScale accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.bannerButton}>
               <Text fixedSize style={styles.bannerButtonText}>{t('endNav')}</Text>
-            </Pressable>
+            </PressableScale>
           </View>
         ) : (
           <View style={styles.banner}>
             {/* 預覽列放最上方：上面沒有會變高的內容，連按上一步／下一步時按鈕不會隨指示文字長短跳位 */}
             {previewing ? (
               <View style={styles.previewRow}>
-                <Pressable
+                <PressableScale
                   accessibilityRole="button"
                   accessibilityLabel={t('prevStep')}
                   accessibilityState={{ disabled: !canPrev }}
@@ -160,7 +161,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                   onPress={() => selectStep(currentStepIndex - 1)}
                   style={[styles.previewButton, !canPrev && styles.previewButtonDisabled]}>
                   <Icon name="chevronLeft" size={22} color={ON_ACCENT_FILL} strokeWidth={2.6} />
-                </Pressable>
+                </PressableScale>
                 <View
                   accessible
                   accessibilityRole="adjustable"
@@ -177,7 +178,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                     <Text fixedSize style={styles.previewMeta}>{`  ${t('stepOf', { current: currentStepIndex + 1, total: instructions.length })}`}</Text>
                   </Text>
                 </View>
-                <Pressable
+                <PressableScale
                   accessibilityRole="button"
                   accessibilityLabel={t('nextStep')}
                   accessibilityState={{ disabled: !canNext }}
@@ -185,7 +186,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                   onPress={() => selectStep(currentStepIndex + 1)}
                   style={[styles.previewButton, !canNext && styles.previewButtonDisabled]}>
                   <Icon name="chevronRight" size={22} color={ON_ACCENT_FILL} strokeWidth={2.6} />
-                </Pressable>
+                </PressableScale>
               </View>
             ) : null}
             <View style={styles.bannerRow}>
@@ -236,7 +237,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
               <Text style={[styles.meta, styles.flex, { color: tones.warn }]}>{stripText}</Text>
             </View>
             {canReroute ? (
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={rerouteStatus === 'error' ? t('retry') : t('recalculate')}
                 accessibilityState={{ disabled: rerouteStatus === 'pending', busy: rerouteStatus === 'pending' }}
@@ -245,7 +246,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                 style={[styles.smallButton, { borderColor: tones.warn }]}>
                 <Icon name="refresh" size={14} color={tones.warn} />
                 <Text style={[styles.chipText, { color: tones.warn }]}>{rerouteStatus === 'error' ? t('retry') : t('recalculate')}</Text>
-              </Pressable>
+              </PressableScale>
             ) : null}
           </GlassCard>
         ) : null}
@@ -265,7 +266,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                   <View style={styles.chips}>
                     {advisory.action === 'reroute_suggested' && navigationSource === 'local' ? (
                       <>
-                        <Pressable
+                        <PressableScale
                           accessibilityRole="button"
                           onPress={() => {
                             const position = useUserLocationStore.getState().position ?? undefined;
@@ -273,26 +274,26 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                           }}
                           style={[styles.smallButton, { borderColor: color }]}>
                           <Text style={[styles.chipText, { color }]}>{t('viewAlternative')}</Text>
-                        </Pressable>
-                        <Pressable
+                        </PressableScale>
+                        <PressableScale
                           accessibilityRole="button"
                           onPress={() => useNavStore.getState().dismissAdvisory(advisory.advisoryId)}
                           style={[styles.smallButton, { borderColor: colors.textSecondary }]}>
                           <Text style={[styles.chipText, { color: colors.textSecondary }]}>{t('keepRoute')}</Text>
-                        </Pressable>
+                        </PressableScale>
                       </>
                     ) : null}
                     {advisory.action === 'reroute_applied' ? (
                       <Text style={[styles.meta, { color: colors.textSecondary }]}>{t('rerouteApplied')}</Text>
                     ) : null}
                     {advisory.action === 'none' ? (
-                      <Pressable
+                      <PressableScale
                         accessibilityRole="button"
                         accessibilityLabel={t('close')}
                         onPress={() => useNavStore.getState().dismissAdvisory(advisory.advisoryId)}
                         style={styles.iconButton}>
                         <Icon name="close" size={16} color={colors.textSecondary} />
-                      </Pressable>
+                      </PressableScale>
                     ) : null}
                   </View>
                 </GlassCard>
@@ -302,14 +303,14 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
 
         {followPaused && !arrived ? (
           <GlassCard style={styles.resume} interactive>
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={t('resumeFollow')}
               onPress={() => useNavStore.getState().setFollowPaused(false)}
               style={styles.resumeBody}>
               <Icon name="navigation" size={16} color={ACCENT} />
               <Text style={[styles.chipText, { color: ACCENT }]}>{t('resumeFollow')}</Text>
-            </Pressable>
+            </PressableScale>
           </GlassCard>
         ) : null}
         </View>

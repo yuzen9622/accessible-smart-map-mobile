@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { canNavigateRoute } from '../controller/routeSessionPort';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
@@ -18,6 +18,7 @@ import { scoreToStars } from '../domain/routeDisplay';
 import { ROUTE_DESTINATION_COLOR, ROUTE_ORIGIN_COLOR } from '../domain/routeLayerData';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import type { AccessibleRoute, BusLeg } from '../types/route';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface BusLegRenderArgs {
   route: AccessibleRoute;
@@ -129,16 +130,16 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
             <Text style={[styles.facts, { color: colors.textSecondary }]}>{facts.join(' · ')}</Text>
           ) : null}
         </View>
-        <Pressable
+        <PressableScale
           disabled={!canNavigate}
           accessibilityState={{ disabled: !canNavigate }}
           accessibilityRole="button"
           accessibilityLabel={t('startNav')}
           onPress={onStartNavigation}
-          style={({ pressed }) => [routeStyles.primaryButton, !canNavigate && routeStyles.disabled, pressed && styles.pressed]}>
+          style={[routeStyles.primaryButton, !canNavigate && routeStyles.disabled]}>
           <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
           <Text style={routeStyles.primaryButtonText}>{t('startNav')}</Text>
-        </Pressable>
+        </PressableScale>
         {!canNavigate ? <Text style={{ color: colors.textSecondary }}>{t('nativeRouteTokenUnavailable')}</Text> : null}
         <RouteSafetyNotice />
         {renderExplanation ? renderExplanation(route) : null}
@@ -181,7 +182,6 @@ const styles = StyleSheet.create({
   summary: { gap: 4 },
   duration: { fontSize: TYPE.title1 + 4, fontWeight: '700' },
   facts: { fontSize: TYPE.subhead, fontVariant: ['tabular-nums'] },
-  pressed: { opacity: 0.7 },
   timeline: { marginTop: 4 },
   node: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingBottom: 12 },
   nodeRail: { width: 32, alignItems: 'center' },

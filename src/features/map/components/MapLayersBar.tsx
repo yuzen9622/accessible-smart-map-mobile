@@ -1,10 +1,11 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE, ELEVATION } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { MapLayersBarProps } from './MapLayersBar.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 常駐貼在首頁 sheet 上緣的設施篩選列（取代方案 A 的「圖層」按鈕＋彈出選單，使用者回饋：
@@ -24,7 +25,7 @@ export default function MapLayersBar({ facilityToggles }: MapLayersBarProps) {
       contentContainerStyle={styles.content}
       accessibilityRole="none">
       {facilityToggles.map((item) => (
-        <Pressable
+        <PressableScale
           key={item.key}
           accessibilityRole="button"
           accessibilityState={{ selected: item.selected }}
@@ -38,7 +39,7 @@ export default function MapLayersBar({ facilityToggles }: MapLayersBarProps) {
           <Text style={[styles.label, { color: item.selected ? tones.accent : colors.text }]} numberOfLines={1}>
             {item.label}
           </Text>
-        </Pressable>
+        </PressableScale>
       ))}
     </ScrollView>
   );

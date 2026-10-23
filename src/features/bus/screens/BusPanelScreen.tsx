@@ -2,7 +2,7 @@ import { busName } from '../components/busText';
 import { Text, TextInput } from '@/shared/ui/typography/Text';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { SHEET_DETENTS, sheetController, useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';
@@ -15,6 +15,7 @@ import { groupByCity, type BusSearchResult, type BusStopSearchResult } from '../
 import { useBusSearch, type BusSearchError, type BusSearchMode } from '../hooks/useBusSearch';
 import { useNearbyBusStops } from '../hooks/useNearbyBusStops';
 import { useBusPanelStore, type PanelStop } from '../store/busPanelStore';
+import PressableScale from '@/shared/ui/PressableScale';
 
 function toPanelStops(stops: BusStopSearchResult[]): PanelStop[] {
   return stops.map((s) => ({ id: s.stopUid || s.stopName, name: busName(s.stopDisplayName, s.stopName), lat: s.coordinates[1], lng: s.coordinates[0] }));
@@ -81,7 +82,7 @@ export default function BusPanelScreen() {
             const preview = stop.routes.slice(0, STOP_ROUTE_PREVIEW);
             const more = stop.routes.length - preview.length;
             return (
-              <Pressable
+              <PressableScale feedback="highlight"
                 key={`${stop.stopUid}-${stop.stopName}-${stop.coordinates.join(',')}`}
                 accessibilityRole="button"
                 accessibilityLabel={t('nativeBusStopRowLabel', {
@@ -91,7 +92,7 @@ export default function BusPanelScreen() {
                   count: stop.routes.length,
                 })}
                 onPress={() => openStop(stop)}
-                style={({ pressed }) => [styles.row, separator(index), pressed && styles.pressed]}>
+                style={[styles.row, separator(index)]}>
                 <View style={[styles.iconCircle, { backgroundColor: semantic.accentSoft }]}>
                   <Icon name="bus" size={18} color={semantic.accent} />
                 </View>
@@ -112,7 +113,7 @@ export default function BusPanelScreen() {
                 </View>
                 {distance ? <Text style={[styles.distance, { color: colors.textSecondary }]}>{distance}</Text> : null}
                 <Icon name="chevronRight" size={16} color={colors.textSecondary} />
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
@@ -127,7 +128,7 @@ export default function BusPanelScreen() {
         </Text>
         <View>
           {group.items.map((route, index) => (
-            <Pressable
+            <PressableScale feedback="highlight"
               key={`${route.city}-${route.routeName}-${route.departure}-${route.destination}`}
               accessibilityRole="button"
               accessibilityLabel={t('nativeBusRouteRowLabel', {
@@ -142,7 +143,7 @@ export default function BusPanelScreen() {
                   params: { routeName: route.routeName, city: route.city, departure: route.departure, destination: route.destination },
                 })
               }
-              style={({ pressed }) => [styles.row, separator(index), pressed && styles.pressed]}>
+              style={[styles.row, separator(index)]}>
               <RouteBadge name={busName(route.routeDisplayName, route.routeName)} />
               <View style={styles.rowTexts}>
                 {busName(route.departureDisplayName, route.departure) || busName(route.destinationDisplayName, route.destination) ? (
@@ -152,7 +153,7 @@ export default function BusPanelScreen() {
                 ) : null}
               </View>
               <Icon name="chevronRight" size={16} color={colors.textSecondary} />
-            </Pressable>
+            </PressableScale>
           ))}
         </View>
       </View>
@@ -256,7 +257,6 @@ const styles = StyleSheet.create({
   group: { gap: 4 },
   groupTitle: { fontSize: TYPE.footnote, fontWeight: '600' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 },
-  pressed: { opacity: 0.6 },
   iconCircle: { width: 34, height: 34, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   rowTexts: { flex: 1, gap: 6 },
   rowTitle: { fontSize: TYPE.body, fontWeight: '600' },

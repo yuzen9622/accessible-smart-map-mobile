@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import { canNavigateRoute } from '../controller/routeSessionPort';
-import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
@@ -33,6 +33,7 @@ import {
   routeStyles,
   routeTones,
 } from './palette';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export const LEG_ICON: Record<RouteLeg['type'], IconName> = {
   WALK: 'footprints',
@@ -134,13 +135,13 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
         styles.card,
         { backgroundColor: semantic.surface, borderColor: selected ? semantic.accent : 'transparent' },
       ]}>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={a11ySummary}
         accessibilityHint={selected ? undefined : t('nativeRouteSelectHint')}
         accessibilityState={{ selected }}
         onPress={onSelect}
-        style={({ pressed }) => [styles.summary, pressed && !selected && styles.pressed]}>
+        style={styles.summary}>
         <View style={styles.titleRow}>
           <Text style={[styles.duration, { color: colors.text }]} maxFontSizeMultiplier={MAX_FONT_SCALE.heading}>
             {duration}
@@ -231,7 +232,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
             </Text>
           </View>
         )}
-      </Pressable>
+      </PressableScale>
 
       {selected ? (
         <View style={styles.expanded}>
@@ -282,28 +283,28 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
           {!canNavigate ? <Text accessibilityLiveRegion="polite" style={{ color: tones.warn }}>{t('nativeRouteTokenUnavailable')}</Text> : null}
           {route.legs.some((leg) => !leg.polyline?.length) ? <Text style={{ color: colors.textSecondary }}>{t('nativeRouteGeometryMissing')}</Text> : null}
           <View style={styles.actions}>
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={t('startNav')}
               disabled={!canNavigate}
               accessibilityState={{ disabled: !canNavigate }}
               onPress={onStartNavigation}
-              style={({ pressed }) => [routeStyles.primaryButton, styles.primaryAction, !canNavigate && routeStyles.disabled, pressed && styles.pressed]}>
+              style={[routeStyles.primaryButton, styles.primaryAction, !canNavigate && routeStyles.disabled]}>
               <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
               <Text style={routeStyles.primaryButtonText} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
                 {t('startNav')}
               </Text>
-            </Pressable>
-            <Pressable
+            </PressableScale>
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={t('nativeRouteDetails')}
               onPress={onOpenDetail}
-              style={({ pressed }) => [styles.secondaryAction, { backgroundColor: semantic.accentSoft }, pressed && styles.pressed]}>
+              style={[styles.secondaryAction, { backgroundColor: semantic.accentSoft }]}>
               <Icon name="list" size={18} color={semantic.accent} />
               <Text style={[styles.secondaryActionText, { color: semantic.accent }]} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
                 {t('nativeRouteDetailsShort')}
               </Text>
-            </Pressable>
+            </PressableScale>
           </View>
         </View>
       ) : null}
@@ -327,7 +328,6 @@ const styles = StyleSheet.create({
   // 選中與未選中同樣 2pt 外框（未選中是透明），切換時卡片不會跳動
   card: { borderWidth: 2, borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 14, gap: 10 },
   summary: { gap: 8 },
-  pressed: { opacity: 0.7 },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 8 },
   duration: { fontSize: TYPE.title1, fontWeight: '700' },
   journey: { fontSize: TYPE.subhead, fontWeight: '600', fontVariant: ['tabular-nums'] },

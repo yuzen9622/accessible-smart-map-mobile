@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Text } from '@/shared/ui/typography/Text';
-import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useThemeColors, WHITE, DANGER_FILL, TYPE, SHAPE } from '@/shared/theme';
@@ -9,6 +9,7 @@ import { EmptyState, Icon } from '@/shared/ui';
 import CategoryNameModal from './CategoryNameModal';
 import type { SavedPlaceRow, SavedPlacesPanelProps } from './SavedPlacesPanel.types';
 import { PLACE_ACCENT_COLOR, PLACE_BORDER_COLOR } from './palette';
+import PressableScale from '@/shared/ui/PressableScale';
 
 type ModalState = { mode: 'create' } | { mode: 'rename'; target: string } | null;
 
@@ -50,7 +51,7 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
       <Text style={[styles.count, { color: colors.textSecondary }]}>{model.countLabel}</Text>
       <View style={styles.filterRow}>
         {model.filters.map((filter) => (
-          <Pressable
+          <PressableScale
             key={filter.value}
             accessibilityRole="button"
             accessibilityState={{ selected: filter.isSelected }}
@@ -64,16 +65,16 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
             <Text style={{ color: filter.isSelected ? WHITE : colors.text, fontSize: TYPE.caption, fontWeight: '600' }}>
               {filter.label}
             </Text>
-          </Pressable>
+          </PressableScale>
         ))}
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={categoryManagement.addLabel}
           onPress={() => setModalState({ mode: 'create' })}
           style={[styles.filterChip, styles.addChip, { borderColor: PLACE_BORDER_COLOR }]}>
           <Icon name="plus" size={14} color={colors.textSecondary} />
           <Text style={{ color: colors.textSecondary, fontSize: TYPE.caption, fontWeight: '600' }}>{categoryManagement.addLabel}</Text>
-        </Pressable>
+        </PressableScale>
       </View>
     </View>
   );
@@ -88,7 +89,7 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
         ListHeaderComponent={header}
         renderItem={({ item }) => (
           <View style={[styles.row, { borderColor: PLACE_BORDER_COLOR }]}>
-            <Pressable
+            <PressableScale feedback="highlight"
               accessibilityRole="button"
               accessibilityLabel={item.categoryLabel ? `${item.title}，${item.categoryLabel}` : item.title}
               onPress={item.onPress}
@@ -97,14 +98,14 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
                 {item.title}
               </Text>
               {item.categoryLabel ? <Text style={{ color: colors.textSecondary, fontSize: TYPE.caption }}>{item.categoryLabel}</Text> : null}
-            </Pressable>
-            <Pressable
+            </PressableScale>
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={item.removeAccessibilityLabel}
               onPress={item.onRemove}
               style={styles.removeButton}>
               <Text style={{ color: DANGER_FILL }}>{model.unsaveLabel}</Text>
-            </Pressable>
+            </PressableScale>
           </View>
         )}
       />

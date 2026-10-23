@@ -2,7 +2,7 @@ import { busName } from '../components/busText';
 import { Text } from '@/shared/ui/typography/Text';
 import { Stack, useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { mapCamera, useUserLocationStore } from '@/features/map';
 import { formatDistance, haversineMeters } from '@/shared/geo';
@@ -27,6 +27,7 @@ import {
 } from '../domain';
 import { useStopArrivals } from '../hooks/useStopArrivals';
 import { useBusPanelStore } from '../store/busPanelStore';
+import PressableScale from '@/shared/ui/PressableScale';
 
 const STOP_ZOOM = 17;
 const STOP_ID = 'focused-stop';
@@ -148,12 +149,12 @@ export default function BusStopScreen() {
     const etaSpoken = eta.minutes !== null ? t('nativeBusEtaMinutes', { count: eta.minutes }) : eta.text;
     const label = t('nativeBusBoardRowLabel', { route: busName(a.routeDisplayName, a.routeName), headsign: headsignText(a), eta: etaSpoken });
     return (
-      <Pressable
+      <PressableScale feedback="highlight"
         key={arrivalKey(a)}
         accessibilityRole="button"
         accessibilityLabel={accessible ? `${label}，${accessText(a)}` : label}
         onPress={() => openRoute(a)}
-        style={({ pressed }) => [styles.row, separator(index), pressed && styles.pressed]}>
+        style={[styles.row, separator(index)]}>
         <RouteBadge name={busName(a.routeDisplayName, a.routeName)} />
         <View style={styles.rowTexts}>
           <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
@@ -176,22 +177,22 @@ export default function BusStopScreen() {
             {eta.text}
           </Text>
         )}
-      </Pressable>
+      </PressableScale>
     );
   };
 
   const renderNameRow = (routeName: string, index: number, note: string | null) => (
-    <Pressable
+    <PressableScale feedback="highlight"
       key={`name:${routeName}`}
       accessibilityRole="button"
       accessibilityLabel={note ? `${routeName}，${note}` : t('nativeBusStopRouteRowLabel', { route: routeName, stop: stopName })}
       onPress={() => openRouteByName(routeName)}
-      style={({ pressed }) => [styles.row, separator(index), pressed && styles.pressed]}>
+      style={[styles.row, separator(index)]}>
       <RouteBadge name={routeName} />
       <View style={styles.rowTexts} />
       {note ? <Text style={[styles.rowStatus, { color: colors.textSecondary }]}>{note}</Text> : null}
       <Icon name="chevronRight" size={16} color={colors.textSecondary} />
-    </Pressable>
+    </PressableScale>
   );
 
   const renderBoard = () => {
@@ -300,7 +301,6 @@ const styles = StyleSheet.create({
   noteCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: SHAPE.card, borderCurve: 'continuous' },
   noteText: { flex: 1, fontSize: TYPE.subhead },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 },
-  pressed: { opacity: 0.6 },
   rowTexts: { flex: 1, gap: 2 },
   rowTitle: { fontSize: TYPE.body, fontWeight: '600' },
   accessTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },

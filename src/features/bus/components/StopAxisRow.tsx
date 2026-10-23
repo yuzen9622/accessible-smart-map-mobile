@@ -1,9 +1,10 @@
 import { Text } from '@/shared/ui/typography/Text';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
 import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface StopAxisRowProps {
   name: string;
@@ -39,12 +40,12 @@ export default function StopAxisRow(props: StopAxisRowProps) {
     <View
       onLayout={props.onLayout}
       style={[styles.wrap, (props.mine || props.selected) && { backgroundColor: semantic.accentSoft }]}>
-      <Pressable
+      <PressableScale feedback="highlight"
         accessibilityRole="button"
         accessibilityLabel={props.accessibilityLabel}
         accessibilityState={{ selected: props.selected }}
         onPress={props.onPress}
-        style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+        style={styles.row}>
         <View style={styles.axis} importantForAccessibility="no-hide-descendants">
           <View style={[styles.lineTop, { backgroundColor: props.first ? 'transparent' : lineColor }]} />
           <View style={[styles.lineBottom, { backgroundColor: props.last ? 'transparent' : lineColor }]} />
@@ -74,7 +75,7 @@ export default function StopAxisRow(props: StopAxisRowProps) {
           {props.note ? <Text style={[styles.note, { color: semantic.accent }]}>{props.note}</Text> : null}
         </View>
         {props.trailing}
-      </Pressable>
+      </PressableScale>
       {props.footer ? (
         <View style={styles.footer}>
           {/* 軸線延伸穿過列下方的動作區，不然選中列的地方軸會斷掉 */}
@@ -91,7 +92,6 @@ const AXIS_WIDTH = 32;
 const styles = StyleSheet.create({
   wrap: { borderRadius: SHAPE.control, borderCurve: 'continuous' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingRight: 10 },
-  pressed: { opacity: 0.6 },
   axis: { width: AXIS_WIDTH, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
   lineTop: { position: 'absolute', top: 0, bottom: '50%', width: 3 },
   lineBottom: { position: 'absolute', top: '50%', bottom: 0, width: 3 },

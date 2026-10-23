@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
@@ -6,6 +6,7 @@ import { BUTTON_HEIGHT, DANGER_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, 
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { SosTrackerPanelProps, SosTrackerProgressStep } from './SosTrackerPanel.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 家人端即時求助追蹤（iOS／Android 共用 RN 實作，地圖 sheet 內）。
@@ -34,23 +35,20 @@ function ActionButton({ label, icon, onPress, tone, hint, big }: ActionButtonPro
   const background = tone === 'danger' ? DANGER_FILL : tone === 'dangerSoft' ? semantic.danger.bg : semantic.surface;
   const foreground = tone === 'danger' ? ON_ACCENT_FILL : tone === 'dangerSoft' ? semantic.danger.fg : colors.text;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.action,
-        { backgroundColor: background, minHeight: big ? BIG_TARGET : BUTTON_HEIGHT },
-        pressed && styles.pressed,
-      ]}>
+      style={[styles.action,
+        { backgroundColor: background, minHeight: big ? BIG_TARGET : BUTTON_HEIGHT }]}>
       <Icon name={icon} size={big ? 24 : 20} color={foreground} />
       <Text
         maxFontSizeMultiplier={MAX_FONT_SCALE.label}
         style={[styles.actionText, { color: foreground, fontSize: scaledSize(big ? TYPE.title3 : TYPE.body, scale) }]}>
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -239,12 +237,12 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
           ) : null}
 
           {model.replyOnLine ? (
-            <Pressable
+            <PressableScale feedback="highlight"
               accessibilityRole="button"
               accessibilityLabel={t('nativeSosTrackerReplyOnLine')}
               accessibilityHint={t('nativeSosTrackerReplyOnLineHint')}
               onPress={model.replyOnLine}
-              style={({ pressed }) => [styles.lineRow, { backgroundColor: semantic.surface }, pressed && styles.pressed]}>
+              style={[styles.lineRow, { backgroundColor: semantic.surface }]}>
               <View style={[styles.lineBadge, { backgroundColor: semantic.ok.bg }]}>
                 <Icon name="messageSquare" size={20} color={semantic.ok.fg} />
               </View>
@@ -257,7 +255,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
                 </Text>
               </View>
               <Icon name="externalLink" size={18} color={colors.textSecondary} />
-            </Pressable>
+            </PressableScale>
           ) : null}
 
           <View style={styles.callsBlock}>
@@ -325,5 +323,4 @@ const styles = StyleSheet.create({
   callsBlock: { gap: SPACE.sm },
   callsRow: { flexDirection: 'row', gap: SPACE.md },
   flexText: { flex: 1 },
-  pressed: { opacity: 0.7 },
 });

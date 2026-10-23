@@ -1,19 +1,9 @@
 import type { ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-  type KeyboardTypeOptions,
-  type TextInputProps,
-} from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TextInput, View, type KeyboardTypeOptions, type TextInputProps } from 'react-native';
 
 import { ACCENT_FILL, DANGER_FILL, scaledSize, useSemanticColors, useThemeColors, WHITE, SHAPE, TYPE } from '@/shared/theme';
 import { useFontScale } from '@/shared/preferences';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * Android／fallback 的設定式表單基元（iOS 用 SwiftUI `Form`）。
@@ -147,15 +137,15 @@ export function FormRow({ label, value, onPress, destructive, disabled, icon }: 
     );
   }
   return (
-    <Pressable
+    <PressableScale feedback="highlight"
       accessibilityRole="button"
       accessibilityLabel={value ? `${label}，${value}` : label}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, (pressed || disabled) && styles.pressed]}>
+      style={[styles.row, disabled && styles.dim]}>
       {content}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -217,7 +207,7 @@ export function FormSegmented<T extends string>({
       {choices.map((choice) => {
         const selected = choice.value === value;
         return (
-          <Pressable
+          <PressableScale
             key={choice.value}
             accessibilityRole="radio"
             accessibilityLabel={choice.label}
@@ -227,7 +217,7 @@ export function FormSegmented<T extends string>({
             <Text style={{ color: selected ? WHITE : colors.text, fontSize: scaledSize(TYPE.subhead, scale), fontWeight: selected ? '600' : '400' }}>
               {choice.label}
             </Text>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>
@@ -252,15 +242,15 @@ export function FormButton({
   const background = variant === 'primary' ? ACCENT : variant === 'destructive' ? FORM_DESTRUCTIVE : colors.backgroundElement;
   const foreground = variant === 'secondary' ? colors.text : WHITE;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
       disabled={disabled || loading}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, { backgroundColor: background }, (pressed || disabled) && styles.pressed]}>
+      style={[styles.button, { backgroundColor: background }, disabled && styles.dim]}>
       {loading ? <ActivityIndicator color={foreground} /> : <Text style={{ color: foreground, fontSize: scaledSize(TYPE.callout, scale), fontWeight: '600' }}>{label}</Text>}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -276,8 +266,8 @@ const styles = StyleSheet.create({
   row: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   rowLabel: { flex: 1 },
   rowValue: { flexShrink: 1, textAlign: 'right' },
-  pressed: { opacity: 0.5 },
   segmented: { flexDirection: 'row', gap: 6, paddingVertical: 8, flexWrap: 'wrap' },
   segment: { minHeight: 44, flexGrow: 1, borderRadius: SHAPE.control, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
   button: { minHeight: 50, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', marginVertical: 6, paddingHorizontal: 16 },
+  dim: { opacity: 0.5 },
 });

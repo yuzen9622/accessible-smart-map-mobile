@@ -1,6 +1,6 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Stack } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
@@ -11,6 +11,7 @@ import { endNavigation } from '../controller/navigationSession';
 import { stepIcon } from '../domain/navStepIcon';
 import NavigationTripBar from '../components/NavigationTripBar';
 import { useNavStore } from '../store/navStore';
+import PressableScale from '@/shared/ui/PressableScale';
 
 const ACCENT = ACCENT_FILL;
 
@@ -55,9 +56,9 @@ export default function NavigationStepsScreen() {
             <Icon name="circleCheck" size={28} color={semanticColors(false).ok.fg} />
             <Text style={[styles.text, { color: colors.text }]}>{arrived ? t('arrived') : t('preparingNav')}</Text>
             {isNavigating ? (
-              <Pressable accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.end}>
+              <PressableScale accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.end}>
                 <Text style={styles.endText}>{t('endNav')}</Text>
-              </Pressable>
+              </PressableScale>
             ) : null}
           </View>
         ) : null}
@@ -69,7 +70,7 @@ export default function NavigationStepsScreen() {
           const passed = index < currentStepIndex;
           const detail = [step.streetName, step.distanceM != null ? formatDistance(step.distanceM) : null].filter(Boolean).join(' · ');
           return (
-            <Pressable
+            <PressableScale feedback="highlight"
               key={`${index}-${step.text}`}
               accessible
               accessibilityRole={previewing ? 'button' : undefined}
@@ -78,20 +79,17 @@ export default function NavigationStepsScreen() {
               accessibilityState={{ selected: active }}
               disabled={!previewing}
               onPress={() => useNavStore.getState().selectPreviewStep(index)}
-              style={({ pressed }) => [
-                styles.row,
+              style={[styles.row,
                 { borderColor: 'rgba(120,120,128,0.3)' },
                 active && styles.active,
-                passed && !previewing && styles.passed,
-                pressed && styles.pressed,
-              ]}>
+                passed && !previewing && styles.passed]}>
               <Text style={[styles.index, { color: active ? ACCENT : colors.textSecondary }]}>{index + 1}</Text>
               <Icon name={stepIcon(step)} size={20} color={active ? ACCENT : colors.text} />
               <View style={styles.flex}>
                 <Text style={[styles.text, { color: colors.text }]}>{step.text}</Text>
                 {detail ? <Text style={[styles.meta, { color: colors.textSecondary }]}>{detail}</Text> : null}
               </View>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </ScrollView>
@@ -108,7 +106,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingVertical: 8, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderRadius: SHAPE.control, borderCurve: 'continuous' },
   active: { backgroundColor: 'rgba(0,101,200,0.12)' },
   passed: { opacity: 0.5 },
-  pressed: { backgroundColor: 'rgba(120,120,128,0.16)' },
   index: { width: 22, textAlign: 'right', fontSize: TYPE.footnote, fontWeight: '600', fontVariant: ['tabular-nums'] },
   text: { fontSize: TYPE.subhead, fontWeight: '600' },
   meta: { fontSize: TYPE.caption },

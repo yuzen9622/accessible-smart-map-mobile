@@ -1,7 +1,7 @@
 import { ContentActions } from '@/features/content-safety';
 import { Text } from '@/shared/ui/typography/Text';
 import { useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, useColorScheme, useWindowDimensions, View } from 'react-native';
 
 import { FACILITY_COLORS } from '@/features/map';
 import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, semanticColors, useSemanticColors, useThemeColors, WHITE, SHAPE } from '@/shared/theme';
@@ -26,6 +26,7 @@ import {
   PLACE_WARN_SURFACE,
 } from './palette';
 import ShareButton from './ShareButton';
+import PressableScale from '@/shared/ui/PressableScale';
 
 interface ToneColors {
   ok: string;
@@ -164,24 +165,24 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
 
       {/* 主按鈕是「路線」，次要動作收成同高 50pt 的圓鈕；回到此地點／複製連結／外部地圖收進「⋯」 */}
       <View style={[styles.actionsRow, largeText && styles.actionsRowLarge]}>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.planRouteLabel}
           onPress={model.onPlanRoute}
-          style={({ pressed }) => [styles.primaryButton, largeText && styles.primaryButtonLarge, pressed && styles.pressed]}>
+          style={[styles.primaryButton, largeText && styles.primaryButtonLarge]}>
           <Icon name="navigation" color={PLACE_ON_ACCENT_COLOR} />
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={styles.primaryButtonText}>
             {model.planRouteLabel}
           </Text>
-        </Pressable>
-        <Pressable
+        </PressableScale>
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.saveLabel}
           accessibilityState={{ selected: model.saved }}
           onPress={model.onToggleSave}
-          style={({ pressed }) => [styles.circleButton, { backgroundColor: circleSurface }, pressed && styles.pressed]}>
+          style={[styles.circleButton, { backgroundColor: circleSurface }]}>
           <Icon name={model.saved ? 'bookmarkFilled' : 'bookmark'} size={20} color={accentText} />
-        </Pressable>
+        </PressableScale>
         <ShareButton url={model.shareUrl} title={model.title} label={model.shareLabel} onShare={model.onShare} />
         <MoreActionsButton
           label={model.moreLabel}
@@ -199,7 +200,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
       {model.categories ? (
         <View style={styles.chipsRow}>
           {model.categories.map((cat) => (
-            <Pressable
+            <PressableScale
               key={cat.value}
               accessibilityRole="button"
               accessibilityState={{ selected: cat.isSelected }}
@@ -213,9 +214,9 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.categoryChipText, { color: cat.isSelected ? PLACE_ON_ACCENT_COLOR : colors.text }]}>
                 {cat.label}
               </Text>
-            </Pressable>
+            </PressableScale>
           ))}
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={model.addCategoryLabel}
             onPress={() => setAddingCategory(true)}
@@ -224,7 +225,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.categoryChipText, { color: colors.textSecondary }]}>
               {model.addCategoryLabel}
             </Text>
-          </Pressable>
+          </PressableScale>
         </View>
       ) : null}
       {model.categories ? (
@@ -280,13 +281,13 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                     </Text>
                   </View>
                   {report ? (
-                    <Pressable
+                    <PressableScale
                       accessibilityRole="button"
                       accessibilityLabel={`${item.label}，${model.reportLabel}`}
                       onPress={report}
                       hitSlop={REPORT_HIT_SLOP}>
                       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.checklistStatus, { color: accentText }]}>{`${model.reportLabel} ›`}</Text>
-                    </Pressable>
+                    </PressableScale>
                   ) : (
                     <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.checklistStatus, { color: tone.color }]} importantForAccessibility="no">
                       {item.statusLabel}
@@ -300,12 +301,12 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
       ) : null}
 
       {/* 每個地點都能回報現場狀況（障礙物、施工、資料錯誤）；放在無障礙資訊之後，看完現況再決定要不要回報 */}
-      <Pressable
+      <PressableScale feedback="highlight"
         accessibilityRole="button"
         accessibilityLabel={model.placeReport.accessibilityLabel}
         accessibilityHint={model.placeReport.subtitle}
         onPress={model.placeReport.onPress}
-        style={({ pressed }) => [groupStyle, styles.reportRow, pressed && styles.pressed]}>
+        style={[groupStyle, styles.reportRow]}>
         <View style={[styles.reportIcon, { width: scaled(36), height: scaled(36), backgroundColor: PLACE_WARN_SURFACE }]}>
           <Icon name="alert" size={scaled(18)} color={toneColors.warn} />
         </View>
@@ -318,7 +319,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
           </Text>
         </View>
         <Icon name="chevronRight" size={scaled(16)} color={colors.textSecondary} />
-      </Pressable>
+      </PressableScale>
 
       <View style={styles.section}>
         <SectionHeader title={model.nearbyTitle} color={colors.text} stacked={largeText} />
@@ -369,13 +370,13 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             color={colors.text}
             stacked={largeText}
             accessory={
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={model.reviews.write.label}
                 onPress={model.reviews.write.onPress}
-                style={({ pressed }) => [styles.headerAction, !largeText && styles.headerActionInline, pressed && styles.pressed]}>
+                style={[styles.headerAction, !largeText && styles.headerActionInline]}>
                 <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.sectionAction, { color: accentText }]}>{model.reviews.write.label}</Text>
-              </Pressable>
+              </PressableScale>
             }
           />
           {model.reviews.write.hint ? (
@@ -390,9 +391,9 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
           {model.reviews.errorLabel ? (
             <View style={groupStyle}>
               <Text accessibilityLiveRegion="polite" style={[styles.bodyText, { color: colors.textSecondary }]}>{model.reviews.errorLabel}</Text>
-              <Pressable accessibilityRole="button" onPress={model.reviews.onRetry} style={styles.loadMoreButton}>
+              <PressableScale accessibilityRole="button" onPress={model.reviews.onRetry} style={styles.loadMoreButton}>
                 <Text style={[styles.loadMoreText, { color: accentText }]}>{model.reviews.retryLabel}</Text>
-              </Pressable>
+              </PressableScale>
             </View>
           ) : null}
           {model.reviews.loading ? (
@@ -417,34 +418,34 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                   {review.onEdit || review.onDelete ? (
                     <View style={styles.reviewActions}>
                       {review.onEdit ? (
-                        <Pressable
+                        <PressableScale
                           accessibilityRole="button"
                           accessibilityLabel={reviewEditLabel}
                           onPress={review.onEdit}
-                          style={({ pressed }) => [styles.reviewActionButton, pressed && styles.pressed]}>
+                          style={styles.reviewActionButton}>
                           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.sectionAction, { color: accentText }]}>{reviewEditLabel}</Text>
-                        </Pressable>
+                        </PressableScale>
                       ) : null}
                       {review.onDelete ? (
-                        <Pressable
+                        <PressableScale
                           accessibilityRole="button"
                           accessibilityLabel={reviewDeleteLabel}
                           onPress={review.onDelete}
-                          style={({ pressed }) => [styles.reviewActionButton, pressed && styles.pressed]}>
+                          style={styles.reviewActionButton}>
                           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.sectionAction, { color: toneColors.no }]}>{reviewDeleteLabel}</Text>
-                        </Pressable>
+                        </PressableScale>
                       ) : null}
                     </View>
                   ) : null}
                 </View>
               ))}
               {model.reviews.hasMore ? (
-                <Pressable
+                <PressableScale
                   accessibilityRole="button"
                   onPress={model.reviews.onLoadMore}
-                  style={({ pressed }) => [styles.loadMoreButton, rowDivider, pressed && styles.pressed]}>
+                  style={[styles.loadMoreButton, rowDivider]}>
                   <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.loadMoreText, { color: accentText }]}>{model.reviews.loadMoreLabel}</Text>
-                </Pressable>
+                </PressableScale>
               ) : null}
             </View>
           ) : model.reviews.errorLabel ? null : (
@@ -499,7 +500,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: { opacity: 0.6 },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',

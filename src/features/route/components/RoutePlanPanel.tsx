@@ -1,5 +1,5 @@
 import { Text, TextInput } from '@/shared/ui/typography/Text';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useCloseScreen } from '@/shared/navigation';
 import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
@@ -18,6 +18,7 @@ import {
   routeStyles,
   routeTones,
 } from './palette';
+import PressableScale from '@/shared/ui/PressableScale';
 
 const TRAVEL_MODE_ICON: Record<TravelMode, IconName> = {
   transit: 'bus',
@@ -53,18 +54,17 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
   const renderModeTab = (option: PlanOption<TravelMode>) => {
     const tint = option.selected ? semantic.accent : colors.textSecondary;
     return (
-      <Pressable
+      <PressableScale
         key={option.value}
         accessibilityRole="tab"
         accessibilityLabel={option.accessibilityLabel}
         accessibilityState={{ selected: option.selected, disabled: option.disabled }}
         disabled={option.disabled}
         onPress={option.onSelect}
-        style={({ pressed }) => [
+        style={[
           styles.modeTab,
           option.selected && { backgroundColor: semantic.accentSoft },
           option.disabled && routeStyles.disabled,
-          pressed && !option.selected && styles.pressed,
         ]}>
         <Icon name={TRAVEL_MODE_ICON[option.value]} size={20} color={tint} />
         <Text
@@ -73,12 +73,12 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
           maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
           {option.label}
         </Text>
-      </Pressable>
+      </PressableScale>
     );
   };
 
   const renderOption = <T extends string>(option: PlanOption<T>, icon?: IconName) => (
-    <Pressable
+    <PressableScale
       key={option.value}
       accessibilityRole="button"
       accessibilityLabel={option.accessibilityLabel}
@@ -93,7 +93,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
       ]}>
       {icon ? <Icon name={icon} size={16} color={option.selected ? ROUTE_ON_ACCENT_COLOR : colors.text} /> : null}
       <Text style={[routeStyles.chipText, { color: option.selected ? ROUTE_ON_ACCENT_COLOR : colors.text }]}>{option.label}</Text>
-    </Pressable>
+    </PressableScale>
   );
 
   /** 直接在起點／終點那一列輸入（不再另開搜尋框）；自動完成建議顯示在卡片下方。 */
@@ -116,25 +116,25 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
     model.suggestionsLoading || model.resolving ? (
       <ActivityIndicator size="small" color={colors.textSecondary} />
     ) : (
-      <Pressable accessibilityRole="button" accessibilityLabel={model.labels.cancel} onPress={model.onCancelEdit} hitSlop={14}>
+      <PressableScale accessibilityRole="button" accessibilityLabel={model.labels.cancel} onPress={model.onCancelEdit} hitSlop={14}>
         <Icon name="close" size={16} color={colors.textSecondary} />
-      </Pressable>
+      </PressableScale>
     );
 
   const renderEditor = () => (
     <View style={routeStyles.section}>
       {model.editing === 'origin' ? (
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.labels.useMyLocation}
           onPress={model.onUseMyLocation}
           style={[routeStyles.listRow, { borderColor: ROUTE_BORDER_COLOR }]}>
           <Icon name="navigation" size={16} color={ROUTE_ORIGIN_COLOR} />
           <Text style={[routeStyles.bodyText, routeStyles.flex, { color: colors.text }]}>{model.labels.useMyLocation}</Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
       {model.suggestions.map((item) => (
-        <Pressable
+        <PressableScale
           key={item.key}
           accessibilityRole="button"
           accessibilityLabel={item.subtitle ? `${item.title}，${item.subtitle}` : item.title}
@@ -151,7 +151,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
               </Text>
             ) : null}
           </View>
-        </Pressable>
+        </PressableScale>
       ))}
     </View>
   );
@@ -168,14 +168,14 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
         <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
           {model.labels.title}
         </Text>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.labels.close}
           hitSlop={8}
           onPress={closeScreen}
           style={[styles.closeButton, { backgroundColor: surface }]}>
           <Icon name="close" size={16} color={colors.textSecondary} />
-        </Pressable>
+        </PressableScale>
       </View>
 
       <View style={[routeStyles.card, styles.endpoints, { backgroundColor: surface }]}>
@@ -189,7 +189,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
             {model.editing === 'origin' ? (
               renderInput(model.labels.origin)
             ) : (
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={`${model.labels.origin}：${model.originLabel}，${model.labels.edit}`}
                 onPress={() => model.onEdit('origin')}
@@ -197,7 +197,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
                 <Text style={[routeStyles.bodyText, { color: colors.text }]} numberOfLines={2}>
                   {model.originLabel}
                 </Text>
-              </Pressable>
+              </PressableScale>
             )}
             {model.editing === 'origin' ? renderEditorTrailing() : null}
           </View>
@@ -207,7 +207,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
             {model.editing === 'destination' ? (
               renderInput(model.labels.destination)
             ) : (
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={
                   model.destinationLabel
@@ -221,29 +221,29 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
                   numberOfLines={1}>
                   {model.destinationLabel ?? model.labels.searchPlaceholder}
                 </Text>
-              </Pressable>
+              </PressableScale>
             )}
             {model.editing === 'destination' ? (
               renderEditorTrailing()
             ) : model.destinationLabel ? (
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={model.labels.clear}
                 onPress={model.onClearDestination}
                 hitSlop={14}>
                 <Icon name="close" size={16} color={colors.textSecondary} />
-              </Pressable>
+              </PressableScale>
             ) : null}
           </View>
         </View>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.labels.swap}
           onPress={model.onSwap}
           hitSlop={4}
           style={[routeStyles.circleButton, styles.swapButton, { borderColor: ROUTE_BORDER_COLOR }]}>
           <Icon name="arrowUpDown" color={colors.text} />
-        </Pressable>
+        </PressableScale>
       </View>
 
       {model.editing ? renderEditor() : null}
@@ -272,17 +272,17 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
             <Text accessibilityRole="header" style={[styles.resultsTitle, { color: colors.text }]} maxFontSizeMultiplier={MAX_FONT_SCALE.heading}>
               {model.labels.routeOptions}
             </Text>
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={model.labels.replan}
               onPress={model.onStart}
               hitSlop={6}
-              style={({ pressed }) => [styles.refreshButton, { backgroundColor: surface }, pressed && styles.pressed]}>
+              style={[styles.refreshButton, { backgroundColor: surface }]}>
               <Icon name="refresh" size={16} color={semantic.accent} />
               <Text style={[styles.refreshText, { color: semantic.accent }]} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
                 {model.labels.replan}
               </Text>
-            </Pressable>
+            </PressableScale>
           </View>
           {model.results.routes.map((route, index) => (
             <RouteCard
@@ -310,7 +310,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
         // 按鈕仍要可以按——`model.onStart` 自己會補上對應的錯誤訊息（見 `useRoutePlanViewModel.start`），
         // 不然按鈕會無聲地停用，使用者只會覺得「按了沒反應」，看不出原因。這裡只在真的有非同步操作
         // 進行中（地點解析）時才擋，避免重複送出。
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.labels.start}
           accessibilityState={{ disabled: model.resolving }}
@@ -319,7 +319,7 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
           style={[routeStyles.primaryButton, model.resolving && routeStyles.disabled]}>
           <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
           <Text style={routeStyles.primaryButtonText}>{model.labels.start}</Text>
-        </Pressable>
+        </PressableScale>
       )}
     </ScrollView>
   );
@@ -337,7 +337,6 @@ const styles = StyleSheet.create({
   dot: { width: 14, height: 14, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 3, marginHorizontal: 1 },
   dotFilled: { borderWidth: 0 },
   searchInput: { fontSize: TYPE.callout, minHeight: 44, paddingVertical: 10 },
-  pressed: { opacity: 0.7 },
   modeTabs: { flexDirection: 'row', borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 4, gap: 4 },
   modeTab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: 56, borderRadius: SHAPE.control + 2, borderCurve: 'continuous', paddingHorizontal: 4 },
   modeTabText: { fontSize: TYPE.footnote, fontWeight: '600' },

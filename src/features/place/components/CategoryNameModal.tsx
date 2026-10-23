@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Modal, StyleSheet, TextInput, View, Pressable } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE } from '@/shared/theme';
 import { Text } from '@/shared/ui/typography/Text';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface CategoryNameModalProps {
   visible: boolean;
@@ -59,10 +60,10 @@ function CategoryNameModalContent({
           onSubmitEditing={() => trimmed && onSubmit(trimmed)}
         />
         <View style={styles.actions}>
-          <Pressable accessibilityRole="button" onPress={onCancel} style={styles.actionButton}>
+          <PressableScale accessibilityRole="button" onPress={onCancel} style={styles.actionButton}>
             <Text style={{ color: colors.textSecondary, fontSize: TYPE.callout }}>{t('cancel')}</Text>
-          </Pressable>
-          <Pressable
+          </PressableScale>
+          <PressableScale
             accessibilityRole="button"
             disabled={!trimmed}
             onPress={() => onSubmit(trimmed)}
@@ -70,7 +71,7 @@ function CategoryNameModalContent({
             <Text style={{ color: trimmed ? tones.accent : colors.textSecondary, fontSize: TYPE.callout, fontWeight: '600' }}>
               {t('done')}
             </Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </View>
     </View>

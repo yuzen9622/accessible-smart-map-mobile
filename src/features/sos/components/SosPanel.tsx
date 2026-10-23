@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -8,6 +8,7 @@ import { DANGER_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, SPACE, TYPE, sc
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { SosFlowModel } from '../hooks/useSosFlow';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * SOS 畫面（iOS／Android 共用 RN 實作）。
@@ -40,24 +41,21 @@ function BigButton({ label, onPress, icon, tone = 'light', hint, disabled = fals
   const background = tone === 'danger' ? DANGER_FILL : tone === 'light' ? WHITE : 'transparent';
   const foreground = tone === 'danger' ? WHITE : tone === 'light' ? DANGER_DEEP : colors.text;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.bigButton,
+      style={[styles.bigButton,
         { backgroundColor: background, borderColor: tone === 'outline' ? colors.textSecondary : background },
-        pressed && styles.pressed,
-        disabled && styles.disabled,
-      ]}>
+        disabled && styles.disabled]}>
       {icon ? <Icon name={icon} size={24} color={foreground} /> : null}
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.bigButtonText, { color: foreground, fontSize: scaledSize(TYPE.body, scale) }]}>
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -155,11 +153,11 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
         <BigButton label={t('sosCall119')} icon="phone" tone="danger" onPress={model.call119} />
         <View style={styles.spacer} />
         <BigButton label={t('loginRegisterCta')} tone="outline" onPress={model.login} />
-        <Pressable accessibilityRole="button" accessibilityLabel={t('close')} onPress={model.minimize} style={styles.textButton}>
+        <PressableScale accessibilityRole="button" accessibilityLabel={t('close')} onPress={model.minimize} style={styles.textButton}>
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.textButtonText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.body, scale) }]}>
             {t('close')}
           </Text>
-        </Pressable>
+        </PressableScale>
       </ScrollView>
     );
   }
@@ -265,11 +263,11 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
         <Label>{t('sosNotifiedContacts')}</Label>
         <Body>{model.notifiedText}</Body>
         {!model.hasBoundContacts ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={t('sosManageContactsLink')} onPress={model.manageContacts} style={styles.link}>
+          <PressableScale accessibilityRole="button" accessibilityLabel={t('sosManageContactsLink')} onPress={model.manageContacts} style={styles.link}>
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.linkText, { color: tones.accent }]}>
               {t('sosManageContactsLink')}
             </Text>
-          </Pressable>
+          </PressableScale>
         ) : null}
       </Card>
 
@@ -284,7 +282,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
           {chips.map((chip) => {
             const selected = model.supplementedType === chip.type;
             return (
-              <Pressable
+              <PressableScale
                 key={chip.type}
                 accessibilityRole="radio"
                 accessibilityState={{ selected }}
@@ -294,7 +292,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
                 <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: selected ? WHITE : colors.text, fontSize: scaledSize(TYPE.subhead, scale) }}>
                   {chip.label}
                 </Text>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
@@ -315,7 +313,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
       </Card>
 
       <Card>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityState={{ expanded: model.timelineOpen }}
           accessibilityLabel={t('sosTimelineLabel')}
@@ -323,7 +321,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
           style={styles.disclosure}>
           <Body bold>{t('sosTimelineLabel')}</Body>
           <Icon name={model.timelineOpen ? 'chevronUp' : 'chevronDown'} color={colors.text} />
-        </Pressable>
+        </PressableScale>
         {model.timelineOpen
           ? model.timeline.map((entry) => (
               <View key={entry.key} style={styles.timelineRow} accessible>
@@ -373,7 +371,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACE.lg,
   },
   bigButtonText: { fontWeight: '700' },
-  pressed: { opacity: 0.7 },
   disabled: { opacity: 0.5 },
   countdown: { flex: 1, backgroundColor: DANGER_DEEP, alignItems: 'center', justifyContent: 'center', padding: SPACE.xl, gap: SPACE.lg + 2 },
   countdownTitle: { color: WHITE, fontSize: TYPE.title1 + 4, fontWeight: '700', textAlign: 'center' },

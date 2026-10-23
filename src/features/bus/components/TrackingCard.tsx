@@ -1,10 +1,11 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { pillToneStyle, type PillTone } from './palette';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /** 進度條最多畫幾個站點；更多時中間以省略號表示。 */
 const MAX_NODES = 6;
@@ -113,22 +114,19 @@ export default function TrackingCard(props: TrackingCardProps) {
 
       {props.rideSummary ? <Text style={[styles.note, { color: colors.text }]}>{props.rideSummary}</Text> : null}
 
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityState={{ selected: props.reminderActive, disabled: props.reminderDisabled }}
         disabled={props.reminderDisabled}
         onPress={props.onToggleReminder}
-        style={({ pressed }) => [
-          styles.reminder,
+        style={[styles.reminder,
           props.reminderActive ? { backgroundColor: colors.background, borderColor: ACCENT_FILL, borderWidth: 1.5 } : { backgroundColor: ACCENT_FILL },
-          props.reminderDisabled && styles.disabled,
-          pressed && styles.pressed,
-        ]}>
+          props.reminderDisabled && styles.disabled]}>
         <Icon name={props.reminderActive ? 'circleCheck' : 'timer'} size={18} color={props.reminderActive ? semantic.accent : ON_ACCENT_FILL} />
         <Text style={[styles.reminderText, { color: props.reminderActive ? semantic.accent : ON_ACCENT_FILL }]}>
           {props.reminderLabel}
         </Text>
-      </Pressable>
+      </PressableScale>
       {props.reminderError ? (
         <Text accessibilityLiveRegion="polite" style={[styles.note, { color: semantic.danger.fg }]}>
           {props.reminderError}
@@ -170,5 +168,4 @@ const styles = StyleSheet.create({
   },
   reminderText: { fontSize: TYPE.body, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
   disabled: { opacity: 0.5 },
-  pressed: { opacity: 0.7 },
 });

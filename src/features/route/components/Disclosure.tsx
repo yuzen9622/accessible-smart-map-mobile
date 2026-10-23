@@ -1,9 +1,10 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useThemeColors, TYPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface DisclosureProps {
   label: string;
@@ -21,7 +22,7 @@ export default function Disclosure({ label, color, children }: DisclosureProps) 
   const tint = color ?? colors.textSecondary;
   return (
     <View>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ expanded: open }}
@@ -29,7 +30,7 @@ export default function Disclosure({ label, color, children }: DisclosureProps) 
         style={styles.header}>
         <Icon name={open ? 'chevronUp' : 'chevronDown'} size={14} color={tint} />
         <Text style={[styles.label, { color: tint }]}>{label}</Text>
-      </Pressable>
+      </PressableScale>
       {open ? <View style={styles.body}>{children}</View> : null}
     </View>
   );

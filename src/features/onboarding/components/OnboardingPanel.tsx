@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,6 +8,7 @@ import { Icon, type IconName } from '@/shared/ui';
 
 import type { FontSizeOption } from '../hooks/useOnboardingFlow';
 import type { OnboardingPanelProps } from './OnboardingPanel.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /** onboarding 第 2 步六個情況對應的圖示；純裝飾，意義由卡片文字提供。 */
 const SITUATION_ICON: Record<string, IconName> = {
@@ -64,14 +65,14 @@ export default function OnboardingPanel({ model, backLabel, skipLabel }: Onboard
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
         {model.canGoBack ? (
-          <Pressable
+          <PressableScale
             onPress={model.onBack}
             accessibilityRole="button"
             accessibilityLabel={backLabel}
             hitSlop={8}
             style={styles.headerSideButton}>
             <Icon name="chevronLeft" size={22} color={colors.text} />
-          </Pressable>
+          </PressableScale>
         ) : (
           <View style={styles.headerSideButton} />
         )}
@@ -90,7 +91,7 @@ export default function OnboardingPanel({ model, backLabel, skipLabel }: Onboard
           ))}
         </View>
         {model.canSkip ? (
-          <Pressable
+          <PressableScale
             onPress={model.onSkip}
             accessibilityRole="button"
             accessibilityLabel={skipLabel}
@@ -99,7 +100,7 @@ export default function OnboardingPanel({ model, backLabel, skipLabel }: Onboard
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.skipText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }]}>
               {skipLabel}
             </Text>
-          </Pressable>
+          </PressableScale>
         ) : (
           <View style={styles.headerSideButton} />
         )}
@@ -149,7 +150,7 @@ function FontSizeStep({ model }: { model: OnboardingPanelProps['model']['fontSiz
     <View style={styles.fontSizeBlock}>
       <View style={styles.fontChoiceRow}>
         {model.options.map((option: FontSizeOption) => (
-          <Pressable
+          <PressableScale
             key={option.value}
             onPress={() => model.onSelect(option.value)}
             accessibilityRole="radio"
@@ -171,7 +172,7 @@ function FontSizeStep({ model }: { model: OnboardingPanelProps['model']['fontSiz
               }}>
               {option.label}
             </Text>
-          </Pressable>
+          </PressableScale>
         ))}
       </View>
 
@@ -215,7 +216,7 @@ function NeedsStep({ model }: { model: OnboardingPanelProps['model']['needs'] })
     <View style={styles.needsBlock}>
       <View style={styles.needsGrid}>
         {model.options.map((option) => (
-          <Pressable
+          <PressableScale
             key={option.id}
             onPress={() => model.onToggle(option.id)}
             accessibilityRole="checkbox"
@@ -239,7 +240,7 @@ function NeedsStep({ model }: { model: OnboardingPanelProps['model']['needs'] })
               style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale), marginTop: 2 }}>
               {option.description}
             </Text>
-          </Pressable>
+          </PressableScale>
         ))}
       </View>
       <Text
@@ -305,7 +306,7 @@ function DoneStep({ model }: { model: OnboardingPanelProps['model']['done'] }) {
   return (
     <View style={styles.doneBlock}>
       {rows.map((row) => (
-        <Pressable
+        <PressableScale feedback="highlight"
           key={row.icon}
           onPress={row.onPress}
           accessibilityRole="button"
@@ -318,7 +319,7 @@ function DoneStep({ model }: { model: OnboardingPanelProps['model']['done'] }) {
             {row.label}
           </Text>
           <Icon name="chevronRight" size={18} color={colors.textSecondary} />
-        </Pressable>
+        </PressableScale>
       ))}
     </View>
   );
@@ -337,20 +338,17 @@ function PrimaryButton({
 }) {
   const scale = useFontScale();
   return (
-    <Pressable
+    <PressableScale
       onPress={loading ? undefined : onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!disabled, busy: !!loading }}
-      style={({ pressed }) => [
-        styles.primaryButton,
-        { backgroundColor: ACCENT_FILL, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
-      ]}>
+      style={[styles.primaryButton, { backgroundColor: ACCENT_FILL, opacity: disabled ? 0.5 : 1 }]}>
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: ON_ACCENT_FILL, fontWeight: '700', fontSize: scaledSize(TYPE.body, scale) }}>
         {loading ? '…' : label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 

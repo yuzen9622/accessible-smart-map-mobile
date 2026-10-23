@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
@@ -8,6 +8,7 @@ import { Icon, type IconName } from '@/shared/ui';
 
 import type { ToolCardIcon, ToolResultGroup, ToolResultItem } from '../domain/toolResultCards';
 import { httpResultUrl } from '../domain/resultUrl';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface ToolResultsBoxProps {
   groups: ToolResultGroup[];
@@ -52,13 +53,13 @@ export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxPro
 
   return (
     <View style={[styles.box, { backgroundColor: tones.surface }]}>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel={`${heading}，${t('nativeAiCardCount', { count: total })}`}
         onPress={() => setExpanded((value) => !value)}
         hitSlop={HEADER_HIT_SLOP}
-        style={({ pressed }) => [styles.header, pressed && styles.pressed]}>
+        style={styles.header}>
         <View style={[styles.headerIcon, { backgroundColor: tones.accentSoft }]}>
           <Icon name={ICON[groups.length > 1 ? 'search' : active.icon]} size={16} color={tones.accent} />
         </View>
@@ -69,7 +70,7 @@ export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxPro
           {t('nativeAiCardCount', { count: total })}
         </Text>
         <Icon name={expanded ? 'chevronUp' : 'chevronDown'} size={16} color={colors.textSecondary} />
-      </Pressable>
+      </PressableScale>
 
       {expanded ? (
         <>
@@ -78,7 +79,7 @@ export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxPro
               {groups.map((group, index) => {
                 const selected = group === active;
                 return (
-                  <Pressable
+                  <PressableScale
                     key={`${group.icon}-${group.heading}`}
                     accessibilityRole="tab"
                     accessibilityState={{ selected }}
@@ -91,7 +92,7 @@ export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxPro
                       style={[styles.tabText, { color: selected ? tones.accent : colors.textSecondary, fontSize: scaledSize(TYPE.caption, fontScale) }]}>
                       {group.heading}
                     </Text>
-                  </Pressable>
+                  </PressableScale>
                 );
               })}
             </ScrollView>
@@ -111,18 +112,15 @@ export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxPro
               {items.map((item) => {
                 const openable = Boolean(item.marker ?? item.position ?? httpResultUrl(item.url));
                 return (
-                  <Pressable
+                  <PressableScale
                     key={item.id}
                     accessibilityRole={httpResultUrl(item.url) ? 'link' : openable ? 'button' : 'text'}
                     accessibilityLabel={[item.title, item.subtitle, item.badge].filter(Boolean).join('，')}
                     accessibilityHint={openable ? t('nativeAiCardOpenHint') : undefined}
                     disabled={!openable}
                     onPress={() => onOpenItem(item)}
-                    style={({ pressed }) => [
-                      styles.card,
-                      { backgroundColor: colors.background, borderColor: tones.separator },
-                      pressed && styles.pressed,
-                    ]}>
+                    style={[styles.card,
+                      { backgroundColor: colors.background, borderColor: tones.separator }]}>
                     <Text style={[styles.cardTitle, { color: colors.text, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
                       {item.title}
                     </Text>
@@ -138,20 +136,20 @@ export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxPro
                         </Text>
                       </View>
                     ) : null}
-                  </Pressable>
+                  </PressableScale>
                 );
               })}
             </ScrollView>
           ) : null}
           {items.length < active.items.length ? (
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               onPress={() => setVisibleCounts(previous => ({ ...previous, [activeKey]: visibleCount + DISPLAY_PAGE_SIZE }))}
               style={[styles.more, { backgroundColor: tones.accentSoft }]}>
               <Text style={{ color: tones.accent, fontSize: scaledSize(TYPE.footnote, fontScale) }}>
                 {t('nativeAiShowMoreResults', { shown: items.length, total: active.items.length })}
               </Text>
-            </Pressable>
+            </PressableScale>
           ) : null}
         </>
       ) : null}
@@ -195,5 +193,4 @@ const styles = StyleSheet.create({
   cardTitle: { fontWeight: '600' },
   badge: { alignSelf: 'flex-start', borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 8, paddingVertical: 2, marginTop: 2 },
   badgeText: { fontWeight: '600' },
-  pressed: { opacity: 0.6 },
 });

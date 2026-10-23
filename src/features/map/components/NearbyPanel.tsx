@@ -1,5 +1,5 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, FACILITY, SHAPE } from '@/shared/theme';
 import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
@@ -7,6 +7,7 @@ import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
 import { FACILITY_COLORS } from '../domain/facilityStyle';
 import type { NearbyRow } from '../hooks/useNearbyViewModel';
 import type { NearbyPanelProps } from './NearbyPanel.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /** 與 `ParkingLayer` 的停車點同色。 */
 const PARKING_ICON_COLOR = FACILITY.parking.line;
@@ -57,13 +58,13 @@ export default function NearbyPanel({ model, onRequestLocation, labels }: Nearby
       {model.status === 'no-location' ? (
         <View style={styles.message}>
           <Text style={[styles.messageText, { color: colors.textSecondary }]}>{labels.noLocation}</Text>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             onPress={onRequestLocation}
-            style={({ pressed }) => [styles.locateButton, pressed && styles.pressed]}>
+            style={styles.locateButton}>
             <Icon name="crosshair" size={18} color={ON_ACCENT_FILL} />
             <Text style={styles.locateText}>{labels.locate}</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       ) : null}
 
@@ -72,16 +73,13 @@ export default function NearbyPanel({ model, onRequestLocation, labels }: Nearby
           {model.rows.map((row, index) => {
             const icon = rowIcon(row.category);
             return (
-              <Pressable
+              <PressableScale feedback="highlight"
                 key={row.key}
                 accessibilityRole="button"
                 accessibilityLabel={row.accessibilityLabel}
                 onPress={row.onPress}
-                style={({ pressed }) => [
-                  styles.row,
-                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: semantic.separator },
-                  pressed && styles.pressed,
-                ]}>
+                style={[styles.row,
+                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: semantic.separator }]}>
                 <View style={[styles.iconCircle, { backgroundColor: icon.color }]}>
                   <Icon name={icon.name} size={18} color={ON_ACCENT_FILL} />
                 </View>
@@ -96,7 +94,7 @@ export default function NearbyPanel({ model, onRequestLocation, labels }: Nearby
                   ) : null}
                 </View>
                 <Text style={[styles.distance, { color: colors.text }]}>{row.distanceText}</Text>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
@@ -135,7 +133,6 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: TYPE.body, fontWeight: '600' },
   rowSubtitle: { fontSize: TYPE.footnote },
   distance: { fontSize: TYPE.subhead, fontVariant: ['tabular-nums'] },
-  pressed: { opacity: 0.6 },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
   footerText: { flex: 1, fontSize: TYPE.caption },
 });

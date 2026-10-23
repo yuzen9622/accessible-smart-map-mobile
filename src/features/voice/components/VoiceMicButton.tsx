@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useRef } from 'react';
-import { Alert, Keyboard, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Keyboard, StyleSheet, View } from 'react-native';
 
 import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { useAppTranslation } from '@/shared/i18n';
@@ -11,6 +11,7 @@ import { Icon } from '@/shared/ui';
 import { startVoiceSession } from '../controller/voiceController';
 import { isVoiceSessionActive } from '../domain/voiceStatus';
 import { useVoiceStore } from '../store/voiceStore';
+import PressableScale from '@/shared/ui/PressableScale';
 
 const SIZE = 34;
 
@@ -56,19 +57,18 @@ export default function VoiceMicButton() {
   };
 
   return (
-    <Pressable
+    <PressableScale
       ref={buttonRef}
       accessibilityRole="button"
       accessibilityLabel={t('chatbot.voice.micLabel')}
       onPress={() => void onPress()}
       hitSlop={6}
-      style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
+      style={styles.button}>
       <Icon name="audioLines" size={18} color={ON_ACCENT_FILL} strokeWidth={2.4} />
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   button: { width: SIZE, height: SIZE, borderRadius: SIZE / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: ACCENT_FILL },
-  pressed: { opacity: 0.6 },
 });

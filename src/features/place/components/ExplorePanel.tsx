@@ -1,5 +1,5 @@
 import { Text, TextInput } from '@/shared/ui/typography/Text';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { useFontScale } from '@/shared/preferences';
 import { ACCENT_FILL, SPACE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE, ELEVATION } from '@/shared/theme';
@@ -7,6 +7,7 @@ import { Icon } from '@/shared/ui';
 
 import type { ExplorePanelProps, ExploreRow } from './ExplorePanel.types';
 import { PLACE_BORDER_COLOR } from './palette';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 首頁／搜尋面板（`(sheet)/explore`），iOS／Android 共用同一實作。
@@ -33,21 +34,21 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 
   const renderHistoryRow = (row: ExploreRow) => (
     <View key={row.key} style={[styles.historyRow, { borderColor: PLACE_BORDER_COLOR }]}>
-      <Pressable accessibilityRole="button" accessibilityLabel={row.title} onPress={row.onPress} style={styles.historyRowPress}>
+      <PressableScale feedback="highlight" accessibilityRole="button" accessibilityLabel={row.title} onPress={row.onPress} style={styles.historyRowPress}>
         <Icon name="clock" size={16} color={colors.textSecondary} />
         <Text style={[styles.listRowText, { color: colors.text }]} numberOfLines={1}>
           {row.title}
         </Text>
-      </Pressable>
+      </PressableScale>
       {row.onDelete ? (
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={row.deleteA11yLabel ?? row.title}
           onPress={row.onDelete}
           hitSlop={8}
           style={styles.historyDelete}>
           <Icon name="close" size={16} color={colors.textSecondary} />
-        </Pressable>
+        </PressableScale>
       ) : null}
     </View>
   );
@@ -61,18 +62,18 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
       keyboardDismissMode="on-drag">
       {model.showBrand ? (
         <View style={styles.needsRow}>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={model.header.needs.accessibilityLabel}
             onPress={model.header.needs.onPress}
             hitSlop={4}
-            style={({ pressed }) => [styles.needsPill, largeText && styles.needsPillStack, { backgroundColor: tones.accentSoft }, pressed && styles.pressed]}>
+            style={[styles.needsPill, largeText && styles.needsPillStack, { backgroundColor: tones.accentSoft }]}>
             <Icon name="accessibility" size={17} color={accentText} />
             <Text style={[styles.needsText, { color: accentText }]} numberOfLines={largeText ? undefined : 1}>
               {model.header.needs.label}
             </Text>
             <Icon name="chevronDown" size={14} color={accentText} />
-          </Pressable>
+          </PressableScale>
         </View>
       ) : null}
 
@@ -91,30 +92,30 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
           returnKeyType="search"
         />
         {model.loading ? <ActivityIndicator size="small" color={colors.textSecondary} /> : null}
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityState={{ selected: model.voiceInput.status === 'listening' }}
           accessibilityLabel={model.voiceInput.accessibilityLabel}
           onPress={model.voiceInput.onToggle}
           hitSlop={6}
-          style={({ pressed }) => [styles.voiceButton, pressed && styles.pressed]}>
+          style={styles.voiceButton}>
           <Icon
             name="audioLines"
             size={18}
             color={model.voiceInput.status === 'listening' ? tones.accent : colors.textSecondary}
           />
-        </Pressable>
+        </PressableScale>
         {model.mode !== 'idle' ? (
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={model.labels.cancelSearch}
             onPress={model.onCancelSearch}
             hitSlop={6}
-            style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
+            style={styles.cancelButton}>
             <Text style={[styles.cancelButtonText, { color: accentText }]}>{model.labels.cancelSearch}</Text>
-          </Pressable>
+          </PressableScale>
         ) : (
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={model.account.label}
             onPress={model.account.onPress}
@@ -125,7 +126,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             ) : (
               <Icon name="user" size={22} color={colors.textSecondary} />
             )}
-          </Pressable>
+          </PressableScale>
         )}
       </View>
 
@@ -156,17 +157,17 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             </Text>
             <View style={styles.facilityGrid}>
               {model.categoryShortcuts.nearbyFacilities.map((item) => (
-                <Pressable
+                <PressableScale
                   key={item.key}
                   accessibilityRole="button"
                   accessibilityLabel={item.label}
                   onPress={item.onPress}
-                  style={({ pressed }) => [styles.facilityTile, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
+                  style={[styles.facilityTile, { backgroundColor: colors.backgroundElement }]}>
                   <Icon name={item.iconName} size={22} color={accentText} />
                   <Text style={[styles.facilityTileText, { color: colors.text }]} numberOfLines={1}>
                     {item.label}
                   </Text>
-                </Pressable>
+                </PressableScale>
               ))}
             </View>
           </View>
@@ -176,16 +177,16 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
               {model.categoryShortcuts.moreTitle}
             </Text>
             {model.categoryShortcuts.moreCategories.map((item) => (
-              <Pressable
+              <PressableScale feedback="highlight"
                 key={item.key}
                 accessibilityRole="button"
                 accessibilityLabel={item.label}
                 onPress={item.onPress}
-                style={({ pressed }) => [styles.categoryRow, { borderColor: PLACE_BORDER_COLOR }, pressed && styles.pressed]}>
+                style={[styles.categoryRow, { borderColor: PLACE_BORDER_COLOR }]}>
                 <Icon name={item.iconName} size={20} color={colors.textSecondary} />
                 <Text style={[styles.categoryRowText, { color: colors.text }]}>{item.label}</Text>
                 <Icon name="chevronRight" size={16} color={colors.textSecondary} />
-              </Pressable>
+              </PressableScale>
             ))}
           </View>
         </>
@@ -197,29 +198,29 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             </Text>
             <View style={styles.quickGrid}>
               {model.quickActions.map((action) => (
-                <Pressable
+                <PressableScale
                   key={action.key}
                   accessibilityRole="button"
                   accessibilityLabel={action.label}
                   onPress={action.onPress}
-                  style={({ pressed }) => [styles.quickTile, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
+                  style={[styles.quickTile, { backgroundColor: colors.backgroundElement }]}>
                   <View style={[styles.quickTileIcon, { backgroundColor: action.color }]}>
                     <Icon name={action.iconName} size={20} color={WHITE} />
                   </View>
                   <Text style={[styles.quickTileText, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
                     {action.label}
                   </Text>
-                </Pressable>
+                </PressableScale>
               ))}
             </View>
           </View>
 
           {model.nearbySummary ? (
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={model.nearbySummary.text}
               onPress={model.nearbySummary.onPress}
-              style={({ pressed }) => [styles.summaryCard, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
+              style={[styles.summaryCard, { backgroundColor: colors.backgroundElement }]}>
               {model.nearbySummary.dots.length > 0 ? (
                 <View style={styles.summaryDots}>
                   {model.nearbySummary.dots.map((dot, index) => (
@@ -239,7 +240,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
               )}
               <Text style={[styles.summaryText, { color: colors.text }]}>{model.nearbySummary.text}</Text>
               <Icon name="chevronRight" size={16} color={colors.textSecondary} />
-            </Pressable>
+            </PressableScale>
           ) : null}
 
           {/* 常去地點：標題旁一顆小「新增」開收藏清單；不再是圓鈕那排裡的第 4 顆（設計調整 2026-10-11） */}
@@ -248,19 +249,19 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
               <Text accessibilityRole="header" style={[styles.sectionTitle, styles.flex, { color: colors.text }]}>
                 {model.labels.savedPlaces}
               </Text>
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={model.addShortcut.accessibilityLabel}
                 onPress={model.addShortcut.onPress}
                 hitSlop={8}
                 style={styles.addShortcutButton}>
                 <Icon name="plus" size={18} color={accentText} />
-              </Pressable>
+              </PressableScale>
             </View>
             {model.shortcutFilters.length > 1 ? (
               <View style={styles.shortcutFilterRow}>
                 {model.shortcutFilters.map((filter) => (
-                  <Pressable
+                  <PressableScale
                     key={filter.key}
                     accessibilityRole="button"
                     accessibilityState={{ selected: filter.selected }}
@@ -274,19 +275,19 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                     <Text style={[styles.shortcutFilterText, { color: filter.selected ? accentText : colors.textSecondary }]}>
                       {filter.label}
                     </Text>
-                  </Pressable>
+                  </PressableScale>
                 ))}
               </View>
             ) : null}
             {model.shortcuts.length > 0 ? (
               <View style={styles.shortcutsGrid}>
                 {model.shortcuts.map((shortcut) => (
-                  <Pressable
+                  <PressableScale
                     key={shortcut.key}
                     accessibilityRole="button"
                     accessibilityLabel={shortcut.meta ? `${shortcut.title}，${shortcut.meta}` : shortcut.title}
                     onPress={shortcut.onPress}
-                    style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
+                    style={styles.shortcut}>
                     <View style={[styles.shortcutIcon, { backgroundColor: shortcut.color }]}>
                       <Icon name={shortcut.iconName} size={24} color={WHITE} />
                     </View>
@@ -298,7 +299,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                         {shortcut.meta}
                       </Text>
                     ) : null}
-                  </Pressable>
+                  </PressableScale>
                 ))}
               </View>
             ) : null}
@@ -312,7 +313,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             </Text>
           ) : null}
           {model.resultRows.map((row) => (
-            <Pressable
+            <PressableScale feedback="highlight"
               key={row.key}
               accessibilityRole="button"
               accessibilityLabel={row.subtitle ? `${row.title}，${row.subtitle}` : row.title}
@@ -332,19 +333,19 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                 ) : null}
               </View>
               {row.resolving ? <ActivityIndicator size="small" color={colors.textSecondary} /> : null}
-            </Pressable>
+            </PressableScale>
           ))}
           {model.error ? (
             <View style={styles.empty} accessibilityRole="alert" accessible accessibilityLabel={model.labels.networkError}>
               <Icon name="alert" size={28} color={colors.textSecondary} />
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{model.labels.networkError}</Text>
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={model.labels.retry}
                 onPress={model.onRetry}
-                style={({ pressed }) => [styles.retryButton, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
+                style={[styles.retryButton, { backgroundColor: colors.backgroundElement }]}>
                 <Text style={[styles.resultTitle, { color: colors.text }]}>{model.labels.retry}</Text>
-              </Pressable>
+              </PressableScale>
             </View>
           ) : model.resultRows.length === 0 && model.loading ? (
             // 剛打完字、結果還沒回來：不擋著不顯示任何東西，不然使用者會以為整個畫面卡住
@@ -470,7 +471,6 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: TYPE.callout, paddingVertical: 10 },
   section: { gap: 8 },
   sectionTitle: { fontSize: TYPE.body, fontWeight: '700' },
-  pressed: { opacity: 0.6 },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',

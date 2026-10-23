@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useColorScheme, View, type LayoutChangeEvent } from 'react-native';
+import { ScrollView, StyleSheet, Text, useColorScheme, View, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -24,6 +24,7 @@ import { getVoiceStatusLabel, isTerminalVoiceStatus } from '../domain/voiceStatu
 import { voiceLevelFor } from '../store/voiceLevels';
 import { useVoiceStore, type VoiceLaunchOrigin } from '../store/voiceStore';
 import VoiceWaveform from './VoiceWaveform';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /** 音波中央與兩側的顏色：一律藍色系，深色模式改用亮藍、兩側往背景收。 */
 const WAVE_COLORS = {
@@ -71,18 +72,18 @@ function ControlButton({
   const fontScale = useFontScale();
   const colors = useThemeColors();
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={({ pressed }) => [styles.control, pressed && styles.pressed]}>
+      style={styles.control}>
       <View style={[styles.controlCircle, { backgroundColor: background }]}>
         <Icon name={icon} size={28} color={foreground} />
       </View>
       <Text numberOfLines={1} style={[styles.controlLabel, { color: colors.text, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -236,9 +237,9 @@ export default function VoiceModeView() {
             </View>
           ) : null}
           {status.status === 'playback-blocked' ? (
-            <Pressable accessibilityRole="button" onPress={resumeVoicePlayback} style={[styles.resume, { backgroundColor: tones.accentSoft }]}>
+            <PressableScale accessibilityRole="button" onPress={resumeVoicePlayback} style={[styles.resume, { backgroundColor: tones.accentSoft }]}>
               <Text style={{ color: tones.accent, fontWeight: '600' }}>{t('chatbot.voice.resumePlayback')}</Text>
-            </Pressable>
+            </PressableScale>
           ) : null}
         </View>
 
@@ -302,7 +303,7 @@ export default function VoiceModeView() {
       </View>
 
       {routeSyncState === 'unsupported' ? <Text style={{ color: colors.textSecondary }}>{t('nativeRouteSyncUnsupported')}</Text> : null}
-      {routeSyncState === 'error' && !terminal ? <Pressable accessibilityRole="button" onPress={retryRouteContextSync}><Text style={{ color: colors.text }}>{t('retry')}</Text></Pressable> : null}
+      {routeSyncState === 'error' && !terminal ? <PressableScale accessibilityRole="button" onPress={retryRouteContextSync}><Text style={{ color: colors.text }}>{t('retry')}</Text></PressableScale> : null}
       <Animated.View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, 12) }, controlsStyle]}>
         {terminal ? (
           <>
@@ -388,5 +389,4 @@ const styles = StyleSheet.create({
   controlCircle: { width: CONTROL_SIZE, height: CONTROL_SIZE, borderRadius: CONTROL_SIZE / 2, alignItems: 'center', justifyContent: 'center' },
   controlLabel: { fontWeight: '600', textAlign: 'center' },
   morph: { position: 'absolute', left: 0, top: 0, backgroundColor: ACCENT_FILL, alignItems: 'center', justifyContent: 'center' },
-  pressed: { opacity: 0.6 },
 });

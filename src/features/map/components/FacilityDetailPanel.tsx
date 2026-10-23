@@ -1,11 +1,12 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { FacilityDetailRow } from '../hooks/useFacilityDetail';
 import type { FacilityDetailPanelProps } from './FacilityDetailPanel.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 設施詳情（`(sheet)/facility/[id]`），iOS／Android 共用——設計 2a「原生清單」（2026-09-30）：
@@ -34,20 +35,20 @@ export default function FacilityDetailPanel({ model }: FacilityDetailPanelProps)
       </View>
 
       <View style={[styles.actions, fontScale >= 1.3 && styles.actionsLarge]}>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           onPress={model.onPlanRoute}
-          style={({ pressed }) => [styles.primaryButton, fontScale >= 1.3 && styles.primaryButtonLarge, pressed && styles.pressed]}>
+          style={[styles.primaryButton, fontScale >= 1.3 && styles.primaryButtonLarge]}>
           <Icon name="navigation" color={ON_ACCENT_FILL} />
           <Text style={styles.primaryText}>{model.planRouteLabel}</Text>
-        </Pressable>
-        <Pressable
+        </PressableScale>
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.showOnMapLabel}
           onPress={model.onShowOnMap}
-          style={({ pressed }) => [styles.circleButton, { backgroundColor: semantic.accentSoft }, pressed && styles.pressed]}>
+          style={[styles.circleButton, { backgroundColor: semantic.accentSoft }]}>
           <Icon name="mapPin" size={20} color={semantic.accent} />
-        </Pressable>
+        </PressableScale>
       </View>
 
       <View style={[styles.card, { backgroundColor: semantic.surface }]}>
@@ -68,14 +69,14 @@ export default function FacilityDetailPanel({ model }: FacilityDetailPanelProps)
 
       <View style={styles.feedback}>
         <Text style={[styles.feedbackText, { color: colors.text }]}>{model.mismatchLabel}</Text>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.reportAccessibilityLabel}
           onPress={model.onReport}
-          style={({ pressed }) => [styles.reportButton, { backgroundColor: semantic.warn.bg }, pressed && styles.pressed]}>
+          style={[styles.reportButton, { backgroundColor: semantic.warn.bg }]}>
           <Icon name="alert" size={16} color={semantic.warn.fg} />
           <Text style={[styles.reportText, { color: semantic.warn.fg }]}>{model.reportLabel}</Text>
-        </Pressable>
+        </PressableScale>
       </View>
     </ScrollView>
   );
@@ -102,7 +103,6 @@ const styles = StyleSheet.create({
   primaryButtonLarge: { flexGrow: 0, flexBasis: '100%', paddingVertical: 10 },
   primaryText: { color: ON_ACCENT_FILL, fontSize: TYPE.body, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
   circleButton: { width: 50, height: 50, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
-  pressed: { opacity: 0.6 },
   card: { borderRadius: SHAPE.card, borderCurve: 'continuous', paddingHorizontal: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingVertical: 10 },
   rowLabel: { fontSize: TYPE.subhead },

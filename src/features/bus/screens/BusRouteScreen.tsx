@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Stack, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { mapCamera, useMapUiStore } from '@/features/map';
 import { useAppTranslation } from '@/shared/i18n';
@@ -48,6 +48,7 @@ import { useBusRouteDetail } from '../hooks/useBusRouteDetail';
 import { useRouteLiveBuses } from '../hooks/useRouteLiveBuses';
 import { useTrackedArrival } from '../hooks/useTrackedArrival';
 import { useBusPanelStore, type PanelStop } from '../store/busPanelStore';
+import PressableScale from '@/shared/ui/PressableScale';
 
 const STOP_ZOOM = 17;
 /** 對焦時避開頂部狀態列與右側浮動控制（定位、3D、SOS 約 70pt 寬）；左右同路線規劃至少 40。 */
@@ -396,15 +397,15 @@ export default function BusRouteScreen() {
             ) : (
               <View>
                 {collapsedCount > 0 ? (
-                  <Pressable
+                  <PressableScale
                     accessibilityRole="button"
                     onPress={() => setExpandedFor(selectedKey)}
-                    style={({ pressed }) => [styles.earlier, pressed && styles.pressed]}>
+                    style={styles.earlier}>
                     <Icon name="chevronUp" size={16} color={semantic.accent} />
                     <Text style={[styles.earlierText, { color: semantic.accent }]}>
                       {t('nativeBusShowEarlierStops', { count: collapsedCount })}
                     </Text>
-                  </Pressable>
+                  </PressableScale>
                 ) : null}
                 {stops.map((stop, index) => {
                   if (index < collapsedCount) return null;
@@ -433,15 +434,15 @@ export default function BusRouteScreen() {
                       onPress={() => onSelectStop(stop)}
                       footer={
                         isSelected && canAlight ? (
-                          <Pressable
+                          <PressableScale
                             accessibilityRole="button"
                             onPress={() => setAlight(isAlight ? null : { key: selectedKey, seq: stop.seq })}
-                            style={({ pressed }) => [styles.alightButton, { borderColor: semantic.accent }, pressed && styles.pressed]}>
+                            style={[styles.alightButton, { borderColor: semantic.accent }]}>
                             <Icon name="flag" size={14} color={semantic.accent} />
                             <Text style={[styles.alightText, { color: semantic.accent }]}>
                               {isAlight ? t('nativeBusClearAlight') : t('nativeBusSetAlight')}
                             </Text>
-                          </Pressable>
+                          </PressableScale>
                         ) : undefined
                       }
                     />
@@ -478,5 +479,4 @@ const styles = StyleSheet.create({
   alightText: { fontSize: TYPE.footnote, fontWeight: '600' },
   earlier: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingLeft: 8 },
   earlierText: { fontSize: TYPE.subhead, fontWeight: '600' },
-  pressed: { opacity: 0.6 },
 });

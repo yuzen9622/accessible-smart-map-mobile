@@ -1,8 +1,9 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /** 分段條最多畫幾格：車子離你越近，亮的格數越多。 */
 const SEGMENTS = 4;
@@ -33,11 +34,11 @@ export default function NextAccessibleCard(props: NextAccessibleCardProps) {
   const stopsAway = props.stopsAway ?? null;
   const filled = stopsAway === null ? 0 : Math.max(1, SEGMENTS - stopsAway);
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={props.accessibilityLabel}
       onPress={props.onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+      style={styles.card}>
       <View style={styles.eyebrowRow}>
         <Icon name="accessibility" size={16} color={ON_ACCENT_FILL} />
         <Text style={styles.eyebrow}>{props.eyebrow}</Text>
@@ -75,13 +76,12 @@ export default function NextAccessibleCard(props: NextAccessibleCardProps) {
           </View>
         </View>
       ) : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   card: { backgroundColor: ACCENT_FILL, borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 16, gap: 8 },
-  pressed: { opacity: 0.8 },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   eyebrow: { color: ON_ACCENT_FILL, fontSize: TYPE.footnote, fontWeight: '600' },
   main: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },

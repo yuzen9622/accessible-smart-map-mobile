@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE } from '@/shared/theme';
@@ -7,6 +7,7 @@ import { Text } from '@/shared/ui/typography/Text';
 
 import type { StationSuggestion, StationTimetableEntry, TrainTimetableEntry } from '../domain/train';
 import type { TrainSearchPanelProps } from './TrainSearchPanel.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 火車／高鐵時刻查詢（像 Google 地圖查火車班次）：兩站間時刻或單站發車看板，兩個模式共用
@@ -132,12 +133,13 @@ function StationSuggestionList({
   return (
     <View style={[styles.suggestionList, { borderColor: colors.textSecondary + '33' }]}>
       {suggestions.map((suggestion) => (
-        <Pressable
+        <PressableScale
           key={suggestion.stationID}
           onPress={() => onSelect(suggestion)}
-          style={({ pressed }) => [styles.suggestionRow, pressed && { backgroundColor: colors.textSecondary + '1a' }]}>
+          feedback="highlight"
+          style={styles.suggestionRow}>
           <Text style={{ color: accent, fontSize: TYPE.subhead }}>{suggestion.name}</Text>
-        </Pressable>
+        </PressableScale>
       ))}
     </View>
   );

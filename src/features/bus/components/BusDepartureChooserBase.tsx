@@ -1,5 +1,5 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { candidateDeparture, formatRouteClock } from '@/features/route/domain';
 import { useAppTranslation } from '@/shared/i18n';
@@ -8,6 +8,7 @@ import { Icon } from '@/shared/ui';
 
 import type { BusDepartureChooserProps } from './BusDepartureChooser.types';
 import { BUS_ON_ACCENT_COLOR } from './palette';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export type BusDepartureChooserVariant = 'ios' | 'material';
 
@@ -67,7 +68,7 @@ export default function BusDepartureChooserBase({ candidates, viewed, legColor, 
             .join('，');
           const tone = live ? semantic.ok.fg : colors.textSecondary;
           return (
-            <Pressable
+            <PressableScale
               key={candidate.candidateId}
               accessibilityRole="radio"
               accessibilityLabel={label}
@@ -78,11 +79,9 @@ export default function BusDepartureChooserBase({ candidates, viewed, legColor, 
                 onFeedback();
                 onView(candidate);
               }}
-              android_ripple={variant === 'material' ? { color: semantic.accentSoft, borderless: false } : undefined}
-              style={({ pressed }) => [
+              style={[
                 styles.tile,
                 { backgroundColor: checked ? semantic.accentSoft : semantic.surface, borderColor: checked ? legColor : 'transparent' },
-                pressed && variant === 'ios' && styles.pressed,
               ]}>
               <View style={styles.tileHeader}>
                 <View style={[styles.routeBadge, { backgroundColor: legColor }]}>
@@ -113,7 +112,7 @@ export default function BusDepartureChooserBase({ candidates, viewed, legColor, 
                 </Text>
                 {lowFloor ? <Icon name="accessibility" size={12} color={semantic.ok.fg} /> : null}
               </View>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </ScrollView>
@@ -126,7 +125,6 @@ const styles = StyleSheet.create({
   title: { fontSize: TYPE.footnote, fontWeight: '600' },
   strip: { gap: 8, paddingRight: 16 },
   tile: { minWidth: 96, borderRadius: SHAPE.card, borderCurve: 'continuous', borderWidth: 2, paddingHorizontal: 12, paddingVertical: 10, gap: 4, overflow: 'hidden' },
-  pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
   tileHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   routeBadge: { borderRadius: SHAPE.badge, borderCurve: 'continuous', paddingHorizontal: 7, paddingVertical: 2, maxWidth: 200 },
   routeBadgeText: { color: BUS_ON_ACCENT_COLOR, fontSize: TYPE.footnote, fontWeight: '700' },

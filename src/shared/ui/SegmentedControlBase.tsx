@@ -1,10 +1,11 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { ACCENT_FILL, ON_ACCENT_FILL, useThemeColors, SEGMENT_THUMB_DARK, WHITE, TYPE, SHAPE, ELEVATION } from '@/shared/theme';
 import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
 
 import type { SegmentedControlProps } from './SegmentedControl.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export type SegmentedControlVariant = 'ios' | 'material';
 
@@ -36,7 +37,7 @@ export default function SegmentedControlBase<T extends string>({ label, options,
         const textColor = option.selected && highContrast ? colors.background
           : option.selected && !ios ? ON_ACCENT_FILL : colors.text;
         return (
-          <Pressable
+          <PressableScale
             key={option.value}
             accessibilityRole="radio"
             accessibilityLabel={option.accessibilityLabel ?? option.label}
@@ -47,7 +48,7 @@ export default function SegmentedControlBase<T extends string>({ label, options,
             <Text numberOfLines={1} style={[styles.text, { color: textColor, fontWeight: option.selected ? '600' : '400' }]}>
               {option.label}
             </Text>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AccessibilityInfo, StyleSheet, Text, View } from 'react-native';
 
 import { useOnboardingStore } from '@/features/onboarding';
 import type { AccessibleRoute } from '@/features/route/domain';
@@ -11,6 +11,7 @@ import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/sh
 import { Icon } from '@/shared/ui';
 
 import { explainRoute, type RouteExplanation } from '../api/explainApi';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface RouteExplanationCardProps {
   route: AccessibleRoute;
@@ -78,7 +79,7 @@ export default function RouteExplanationCard({ route }: RouteExplanationCardProp
               {t('nativeAiExplainFailed')}
             </Text>
           ) : null}
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             onPress={() => {
               // 路線起訖點會交給 Google Gemini 分析：先確認使用者同意（App Store 5.1.2(i)）
@@ -89,11 +90,11 @@ export default function RouteExplanationCard({ route }: RouteExplanationCardProp
               };
               void request();
             }}
-            style={({ pressed }) => [styles.button, { borderColor: tones.accent }, pressed && styles.pressed]}>
+            style={[styles.button, { borderColor: tones.accent }]}>
             <Text style={[styles.buttonText, { color: tones.accent, fontSize: body }]}>
               {visible.status === 'error' ? t('nativeAiExplainRetry') : t('nativeAiExplainAction')}
             </Text>
-          </Pressable>
+          </PressableScale>
         </>
       ) : null}
 
@@ -154,7 +155,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: { fontWeight: '600' },
-  pressed: { opacity: 0.6 },
   loading: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 40 },
   result: { gap: 8 },
   line: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },

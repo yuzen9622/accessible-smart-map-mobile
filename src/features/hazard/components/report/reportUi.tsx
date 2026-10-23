@@ -1,11 +1,12 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ACCENT_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, type ToneColors, SHAPE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { ReportTone } from '../../domain/review';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /** 回報頁面共用的小元件（RN 版型，兩平台一致；與地點／通報詳情面板同一套 token）。 */
 
@@ -74,23 +75,20 @@ export function ActionButton({
   const background = variant === 'primary' ? ACCENT_FILL : variant === 'secondary' ? colors.backgroundElement : 'transparent';
   const foreground = variant === 'primary' ? ON_ACCENT_FILL : variant === 'secondary' ? colors.text : colors.textSecondary;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
+      style={[styles.button,
         variant === 'plain' && styles.plainButton,
-        { backgroundColor: background },
-        (pressed || disabled) && styles.dim,
-      ]}>
+        { backgroundColor: background }, disabled && styles.dim]}>
       {icon ? <Icon name={icon} size={18} color={foreground} /> : null}
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.buttonText, { color: foreground }]}>
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -101,18 +99,18 @@ export function Disclosure({ title, icon, children }: { title: string; icon: Ico
   const [open, setOpen] = useState(false);
   return (
     <View style={[styles.disclosure, { borderColor: semantic.separator }]}>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={title}
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen((v) => !v)}
-        style={({ pressed }) => [styles.disclosureHeader, pressed && styles.dim]}>
+        style={styles.disclosureHeader}>
         <Icon name={icon} size={16} color={colors.textSecondary} />
         <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.disclosureTitle, { color: colors.text }]}>
           {title}
         </Text>
         <Icon name={open ? 'chevronUp' : 'chevronDown'} size={16} color={colors.textSecondary} />
-      </Pressable>
+      </PressableScale>
       {open ? <View style={[styles.disclosureBody, { borderTopColor: semantic.separator }]}>{children}</View> : null}
     </View>
   );
@@ -178,7 +176,6 @@ const styles = StyleSheet.create({
   },
   plainButton: { alignSelf: 'flex-start', paddingHorizontal: 4 },
   buttonText: { fontSize: TYPE.subhead, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
-  dim: { opacity: 0.55 },
   disclosure: { borderWidth: StyleSheet.hairlineWidth, borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
   disclosureHeader: { minHeight: MIN_TOUCH, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 },
   disclosureTitle: { flex: 1, fontSize: TYPE.subhead, fontWeight: '600' },
@@ -188,4 +185,5 @@ const styles = StyleSheet.create({
   keyValue: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   keyValueStacked: { gap: 2 },
   keyValueValue: { textAlign: 'right', flexShrink: 1 },
+  dim: { opacity: 0.55 },
 });

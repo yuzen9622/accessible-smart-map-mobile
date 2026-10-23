@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -22,6 +22,7 @@ import { Icon } from '@/shared/ui';
 
 import type { ThinkingHeader, TraceRow } from '../domain/thinkingTrace';
 import ShimmerText from './ShimmerText';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface ThinkingTraceProps {
   rows: TraceRow[];
@@ -85,7 +86,7 @@ export default function ThinkingTrace({ rows, header, isDark }: ThinkingTracePro
 
   return (
     <Animated.View layout={layout} style={styles.root}>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={header.label}
         accessibilityState={{ expanded, disabled: rows.length === 0 }}
@@ -93,7 +94,7 @@ export default function ThinkingTrace({ rows, header, isDark }: ThinkingTracePro
         disabled={rows.length === 0}
         onPress={() => setManualExpanded((current) => !(current ?? header.working))}
         hitSlop={6}
-        style={({ pressed }) => [styles.header, pressed && styles.pressed]}>
+        style={styles.header}>
         {header.working ? <WorkingGlyph color={tones.accent} /> : <Icon name="sparkles" size={16} color={colors.textSecondary} />}
         <View accessibilityLiveRegion="polite" style={styles.headerText}>
           <ShimmerText
@@ -105,7 +106,7 @@ export default function ThinkingTrace({ rows, header, isDark }: ThinkingTracePro
           </ShimmerText>
         </View>
         {rows.length > 0 ? <Icon name={expanded ? 'chevronUp' : 'chevronDown'} size={14} color={colors.textSecondary} /> : null}
-      </Pressable>
+      </PressableScale>
 
       {expanded ? (
         <Animated.View
@@ -157,7 +158,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', paddingVertical: 4, minHeight: 32 },
   headerText: { flexShrink: 1 },
   headerLabel: { fontWeight: '600' },
-  pressed: { opacity: 0.6 },
   timeline: { marginLeft: 7, paddingLeft: 16, paddingVertical: 2, gap: 2 },
   rail: { position: 'absolute', left: 0, top: 0, bottom: 8, width: StyleSheet.hairlineWidth * 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 28 },

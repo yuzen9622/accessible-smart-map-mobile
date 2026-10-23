@@ -1,6 +1,6 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import { useRouteSession } from '@/features/route';
 import { formatDistance } from '@/shared/geo';
@@ -13,6 +13,7 @@ import { getNavigationSpeechOwner, useNavigationSpeechOwnerState } from '../cont
 import { isNavigationAudioActive, resolveNavigationAudioToggle } from '../domain/navigationAudio';
 import { hudProgress } from '../domain/hudProgress';
 import { useNavStore } from '../store/navStore';
+import PressableScale from '@/shared/ui/PressableScale';
 
 function useNow(intervalMs: number): number {
   const [now, setNow] = useState(() => Date.now());
@@ -110,28 +111,28 @@ export default function NavigationTripBar() {
           {[etaText, visibleRemainingM != null ? formatDistance(visibleRemainingM) : null].filter(Boolean).join(' · ')}
         </Text>
       </View>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={audioActive ? t('voiceOff') : t('voiceOn')}
         accessibilityState={{ selected: audioActive }}
         onPress={toggleAudio}
         style={[styles.roundButton, { backgroundColor: neutral.bg }]}>
         <Icon name={audioActive ? 'volumeOn' : 'volumeOff'} size={22} color={colors.text} />
-      </Pressable>
-      <Pressable
+      </PressableScale>
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={viewMode === '3d' ? t('switchTo2D') : t('switchTo3D')}
         onPress={() => useNavStore.getState().setViewMode(viewMode === '3d' ? '2d' : '3d')}
         style={[styles.roundButton, { backgroundColor: neutral.bg }]}>
         <Text fixedSize style={[styles.viewModeText, { color: colors.text }]}>{viewMode === '3d' ? '2D' : '3D'}</Text>
-      </Pressable>
-      <Pressable
+      </PressableScale>
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={t('endNav')}
         onPress={confirmExit}
         style={[styles.endButton, { backgroundColor: DANGER_FILL }]}>
         <Text fixedSize style={styles.endText}>{t('end')}</Text>
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }

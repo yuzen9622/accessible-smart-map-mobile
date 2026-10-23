@@ -1,5 +1,5 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
@@ -13,6 +13,7 @@ import { resubmitHazardReport } from '../hooks/useMyReportDetail';
 import ReportPhoto from './report/ReportPhoto';
 import ReportReviewSection from './report/ReportReviewSection';
 import { ActionButton, KeyValue, SectionTitle, reportStyles } from './report/reportUi';
+import PressableScale from '@/shared/ui/PressableScale';
 
 type ReadyModel = Extract<MyReportDetailModel, { status: 'ready' }>;
 
@@ -110,16 +111,16 @@ function ReadyDetail({ model }: { model: ReadyModel }) {
             </Text>
           </View>
         </View>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={t('myReportsMap')}
           onPress={model.showOnMap}
-          style={({ pressed }) => [styles.mapButton, { borderTopColor: semantic.separator, backgroundColor: semantic.surface }, pressed && styles.dim]}>
+          style={[styles.mapButton, { borderTopColor: semantic.separator, backgroundColor: semantic.surface }]}>
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[reportStyles.body, styles.strong, { color: semantic.accent }]}>
             {t('myReportsMap')}
           </Text>
           <Icon name="arrowUpRight" size={18} color={semantic.accent} />
-        </Pressable>
+        </PressableScale>
       </View>
 
       <View style={styles.section}>
@@ -163,7 +164,6 @@ function Stat({ icon, value, label }: { icon: IconName; value: number; label: st
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  dim: { opacity: 0.6 },
   strong: { fontWeight: '600' },
   tabular: { fontVariant: ['tabular-nums'], marginTop: 2 },
   stateContainer: { flex: 1, padding: 24 },

@@ -1,6 +1,6 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
-import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import {
   candidateDeparture,
@@ -38,6 +38,7 @@ import BusDepartureChooser from './BusDepartureChooser';
 import { busName, etaLabelText, etaTonePill } from './busText';
 import EtaPill from './EtaPill';
 import { BUS_BORDER_COLOR, BUS_ON_ACCENT_COLOR, pillToneStyle } from './palette';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface BusLegStopsProps {
   route: AccessibleRoute;
@@ -235,7 +236,7 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg, 
           {otherPending ? t('nativeBusViewedStopsLoading') : t('nativeBusViewedStopsUnavailable')}
         </Text>
       ) : stopCount > 0 ? (
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={t('passStops', { count: stopCount })}
           accessibilityState={{ expanded: stopsOpen }}
@@ -243,7 +244,7 @@ export default function BusLegStops({ route, routeIndex, legIndex, leg: rawLeg, 
           style={styles.toggle}>
           <Icon name={stopsOpen ? 'chevronUp' : 'chevronDown'} size={14} color={colors.textSecondary} />
           <Text style={[styles.toggleText, { color: colors.textSecondary }]}>{t('passStops', { count: stopCount })}</Text>
-        </Pressable>
+        </PressableScale>
       ) : null}
 
       {stopsOpen && (other ? Boolean(otherRide) : true) ? (

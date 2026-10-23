@@ -1,5 +1,5 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
@@ -9,6 +9,7 @@ import type { MyReportRow } from '../hooks/useMyReports';
 import type { MyReportsPanelProps } from './MyReportsPanel.types';
 import ReportPhoto from './report/ReportPhoto';
 import { ActionButton, StatusPill, reportStyles } from './report/reportUi';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 設定 → 我的回報（Web `MyReportsPanel` 列表視圖）。卡片頂端是狀態膠囊與日期（使用者最在意「審核結果」），
@@ -54,13 +55,13 @@ export default function MyReportsPanel({ model }: MyReportsPanelProps) {
               {t('reportListSubtitle')}
             </Text>
           </View>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={t('myReportsNew')}
             onPress={model.newReport}
-            style={({ pressed }) => [styles.addButton, pressed && styles.dim]}>
+            style={styles.addButton}>
             <Icon name="plus" size={22} color={ON_ACCENT_FILL} />
-          </Pressable>
+          </PressableScale>
         </View>
       }
       ListEmptyComponent={
@@ -108,12 +109,12 @@ function ReportCard({ row }: { row: MyReportRow }) {
   const colors = useThemeColors();
   const semantic = useSemanticColors();
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={row.accessibilityLabel}
       accessibilityHint={row.reason ? `${t('reportReviewSummary')}：${row.reason}` : undefined}
       onPress={row.onPress}
-      style={({ pressed }) => [styles.card, { backgroundColor: colors.backgroundElement }, pressed && styles.dim]}>
+      style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
       <View style={[styles.cardTop, { borderBottomColor: semantic.separator }]}>
         <StatusPill label={row.statusLabel} tone={row.tone} />
         <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.caption, { color: colors.textSecondary }]}>
@@ -156,7 +157,7 @@ function ReportCard({ row }: { row: MyReportRow }) {
           </Text>
         </View>
       ) : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -182,7 +183,6 @@ function EmptyReports({ onNew }: { onNew: () => void }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  dim: { opacity: 0.6 },
   strong: { fontWeight: '600' },
   content: { padding: 16, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },

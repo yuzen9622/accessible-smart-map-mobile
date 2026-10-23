@@ -34,7 +34,8 @@ jest.mock('react-native-reanimated', () => {
   const { View } = jest.requireActual('react-native');
   const { useMemo } = jest.requireActual('react');
   return {
-    __esModule: true, default: { View }, useReducedMotion: () => true,
+    __esModule: true, default: { View, createAnimatedComponent: (component: unknown) => component }, useReducedMotion: () => true,
+    Easing: { bezier: () => ({}) }, ReduceMotion: { System: 'system', Always: 'always', Never: 'never' },
     useSharedValue: (value: number) => useMemo(() => ({ value, set: jest.fn() }), [value]),
     useAnimatedStyle: () => ({}), withTiming: (v: number) => v,
   };

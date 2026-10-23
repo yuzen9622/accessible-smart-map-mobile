@@ -1,6 +1,6 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { router, usePathname } from 'expo-router';
-import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useThemeColors, TYPE, SHAPE } from '@/shared/theme';
@@ -10,6 +10,7 @@ import { endRouteSession, fitSelectedRoute } from '../controller/routeSessionPor
 import { hasRouteSession, sheetModeFromPath, shouldShowRoutePill } from '../domain/routeSession';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import { routeTones } from './palette';
+import PressableScale from '@/shared/ui/PressableScale';
 
 const PILL_MAX_FONT_SCALE = 1.3;
 
@@ -52,7 +53,7 @@ export default function RouteSessionPill({ isNavigating, chatOpen = false }: Rou
 
   return (
     <GlassCard style={styles.pill} interactive>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={`${t('routeSessionPillResume')}，${label}${minutes !== null ? `，${t('minutesLeft', { count: minutes })}` : ''}`}
         onPress={resume}
@@ -67,11 +68,11 @@ export default function RouteSessionPill({ isNavigating, chatOpen = false }: Rou
             {t('minutesLeft', { count: minutes })}
           </Text>
         ) : null}
-      </Pressable>
+      </PressableScale>
       <View style={[styles.separator, { backgroundColor: colors.textSecondary }]} />
-      <Pressable accessibilityRole="button" accessibilityLabel={t('routeSessionPillEnd')} onPress={endRouteSession} style={styles.close}>
+      <PressableScale accessibilityRole="button" accessibilityLabel={t('routeSessionPillEnd')} onPress={endRouteSession} style={styles.close}>
         <Icon name="close" size={16} color={colors.textSecondary} />
-      </Pressable>
+      </PressableScale>
     </GlassCard>
   );
 }

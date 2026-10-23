@@ -71,7 +71,7 @@ export function getLatLng(item: unknown): LatLng | null {
   const pair = (lat: unknown, lng: unknown): LatLng | null => {
     const la = toNum(lat);
     const ln = toNum(lng);
-    return la !== null && ln !== null ? { lat: la, lng: ln } : null;
+    return la !== null && ln !== null && Number.isFinite(la) && Number.isFinite(ln) && Math.abs(la) <= 90 && Math.abs(ln) <= 180 ? { lat: la, lng: ln } : null;
   };
   // GeoJSON 座標陣列為 [lng, lat]
   const coords = (c: unknown): LatLng | null => (Array.isArray(c) && c.length >= 2 ? pair(c[1], c[0]) : null);
@@ -103,8 +103,13 @@ export function getLatLng(item: unknown): LatLng | null {
 
 export function isOk(res: unknown): res is Rec {
   if (!isRec(res)) return false;
-  if (res.ok === false) return false;
-  if (res.status && res.status !== 'OK') return false;
+  if (res.ok === false || (res.error != null && res.error !== false && res.error !== '')) return false;
+  if (res.status != null) {
+    const status = res.status;
+    if (typeof status === 'number') {
+      if (!Number.isFinite(status) || status < 200 || status >= 300) return false;
+    } else if (typeof status !== 'string' || !['OK', 'SUCCESS'].includes(status.toUpperCase())) return false;
+  }
   return true;
 }
 

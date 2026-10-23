@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, TYPE } from '@/shared/theme';
 
 import Button from './Button';
 import type { ErrorStateProps } from './ErrorState.types';
@@ -38,12 +38,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    fontSize: 18,
+    fontSize: TYPE.body,
     fontWeight: '700',
     textAlign: 'center',
   },
   description: {
-    fontSize: 15,
+    fontSize: TYPE.subhead,
     textAlign: 'center',
   },
   retry: {

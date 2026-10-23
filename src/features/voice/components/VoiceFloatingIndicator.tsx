@@ -1,9 +1,9 @@
 import { router, usePathname } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { GlassCard, Icon } from '@/shared/ui';
 
 import { dismissVoiceSession, endVoiceSession } from '../controller/voiceController';
@@ -12,6 +12,7 @@ import { getVoiceStatusLabel, isTerminalVoiceStatus, shouldShowVoicePill } from 
 import { voiceLevelFor } from '../store/voiceLevels';
 import { useVoiceStore } from '../store/voiceStore';
 import VoiceWaveform from './VoiceWaveform';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 地圖上的語音膠囊（對應 Web `VoiceFloatingIndicator.tsx`）：聊天 modal 關著、或使用者「切回文字」時顯示，
@@ -42,11 +43,11 @@ export default function VoiceFloatingIndicator() {
   return (
     <GlassCard style={styles.card} interactive>
       <View style={styles.row}>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={`${label}，${t('chatbot.voice.pillExpand')}`}
           onPress={expand}
-          style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
+          style={styles.main}>
           <VoiceWaveform
             level={voiceLevelFor(waveformLevelSource(status.status, isMuted))}
             mode={terminal || routeSyncState === 'pending' || routeSyncState === 'error' ? 'flat' : waveformMode(status.status, isMuted)}
@@ -57,29 +58,28 @@ export default function VoiceFloatingIndicator() {
             barWidth={3}
             gap={2}
           />
-          {isMuted ? <Icon name="volumeOff" size={16} color={colors.text} /> : null}
-          <Text numberOfLines={1} style={[styles.label, { color: colors.text, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
+          {isMuted ? <Icon name="volumeOff" size={ICON_SIZE.body} color={colors.text} /> : null}
+          <Text numberOfLines={1} style={[styles.label, { color: colors.text, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
             {label}
           </Text>
-        </Pressable>
-        <Pressable
+        </PressableScale>
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={terminal ? t('close') : t('chatbot.voice.endSession')}
           onPress={terminal ? dismissVoiceSession : endVoiceSession}
           hitSlop={8}
-          style={({ pressed }) => [styles.close, { backgroundColor: tones.neutral.bg }, pressed && styles.pressed]}>
-          <Icon name="close" size={14} color={colors.text} />
-        </Pressable>
+          style={[styles.close, { backgroundColor: tones.neutral.bg }]}>
+          <Icon name="close" size={ICON_SIZE.caption} color={colors.text} />
+        </PressableScale>
       </View>
     </GlassCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 24 },
+  card: { borderRadius: SHAPE.floating, borderCurve: 'continuous' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, paddingRight: 8, minHeight: 44 },
   main: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, minHeight: 44 },
   label: { fontWeight: '600', flexShrink: 1 },
-  close: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  pressed: { opacity: 0.6 },
+  close: { width: 28, height: 28, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
 });

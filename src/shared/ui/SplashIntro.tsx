@@ -2,7 +2,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { StyleSheet, useColorScheme } from 'react-native';
 import Animated, {
-  Easing,
   runOnJS,
   useAnimatedStyle,
   useReducedMotion,
@@ -14,9 +13,11 @@ import Animated, {
 import { useAppTranslation } from '@/shared/i18n';
 
 import { useSplashStore } from './splashStore';
+import { SPLASH_BG, BLACK, WHITE, TYPE } from '@/shared/theme';
+import { MOTION } from '@/shared/theme/motion';
 
-const LIGHT_BG = '#3C70FC';
-const DARK_BG = '#000000';
+const LIGHT_BG = SPLASH_BG;
+const DARK_BG = BLACK;
 
 /**
  * 原生 Splash（靜態圖，技術上無法做動畫）之後接的短動畫過渡畫面：logo 淡入放大、App 標語淡入，
@@ -49,13 +50,13 @@ export default function SplashIntro() {
     if (reduceMotion) {
       logoOpacity.value = 1;
       taglineOpacity.value = 1;
-      overlayOpacity.value = withDelay(260, withTiming(0, { duration: 180 }, (finished) => finished && finish()));
+      overlayOpacity.value = withDelay(260, withTiming(0, { duration: MOTION.small.duration }, (finished) => finished && finish()));
       return;
     }
-    logoOpacity.value = withTiming(1, { duration: 240 });
-    logoScale.value = withTiming(1, { duration: 240, easing: Easing.out(Easing.cubic) });
-    taglineOpacity.value = withDelay(220, withTiming(1, { duration: 260 }));
-    overlayOpacity.value = withDelay(900, withTiming(0, { duration: 280 }, (finished) => finished && finish()));
+    logoOpacity.value = withTiming(1, { duration: MOTION.medium.duration });
+    logoScale.value = withTiming(1, { duration: MOTION.medium.duration, easing: MOTION.medium.easing });
+    taglineOpacity.value = withDelay(220, withTiming(1, { duration: MOTION.medium.duration }));
+    overlayOpacity.value = withDelay(900, withTiming(0, { duration: MOTION.move.duration }, (finished) => finished && finish()));
   }, [reduceMotion, logoOpacity, logoScale, overlayOpacity, taglineOpacity]);
 
   const overlayStyle = useAnimatedStyle(() => ({ opacity: overlayOpacity.value }));
@@ -87,5 +88,5 @@ export default function SplashIntro() {
 const styles = StyleSheet.create({
   container: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', zIndex: 999 },
   logo: { width: 120, height: 120 },
-  tagline: { marginTop: 16, fontSize: 15, fontWeight: '600', color: '#FFFFFF', letterSpacing: 0.3 },
+  tagline: { marginTop: 16, fontSize: TYPE.subhead, fontWeight: '600', color: WHITE, letterSpacing: 0.3 },
 });

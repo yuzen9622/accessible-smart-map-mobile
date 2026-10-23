@@ -3,6 +3,8 @@
  * 狀態色（ok／warn／danger）屬於 `tokens.ts` 的語意層，不在這裡。
  * `line` 用於地圖線與底板，`text` 是對白底 ≥ 4.5:1 的文字色。
  */
+import { ACCENT_FILL } from './tokens';
+
 export interface DomainColor {
   line: string;
   text: string;
@@ -40,3 +42,96 @@ export const FEATURE = {
 } as const satisfies Record<string, DomainColor>;
 
 export type FeatureKey = keyof typeof FEATURE;
+
+export const WHITE = '#FFFFFF';
+export const BLACK = '#000000';
+/** 地圖浮動元件與卡片的陰影色。 */
+
+/** 無障礙評等（excellent → critical）。 */
+export const A11Y_SCORE = {
+  excellent: '#22c55e',
+  good: '#84cc16',
+  fair: '#eab308',
+  poor: '#f97316',
+  critical: '#ef4444',
+} as const;
+
+/** 路線上的無障礙特徵：障礙、穿越、坡道、升降、閘門。 */
+export const ROUTE_FEATURE = {
+  barrier: '#dc2626',
+  crossing: '#f59e0b',
+  ramp: '#16a34a',
+  lift: '#2563eb',
+  gate: '#7c3aed',
+} as const;
+
+export const TRAFFIC = {
+  light: '#22C55E',
+  moderate: '#F59E0B',
+  heavy: '#EF4444',
+  severe: '#991B1B',
+  closed: '#4B5563',
+  unknown: '#3B82F6',
+  base: '#475569',
+} as const;
+
+/** 路線地圖上的起點、終點、途經點與事件標記。 */
+export const ROUTE_MARKER = {
+  origin: '#10B981',
+  destination: '#EF4444',
+  waypoint: '#3B82F6',
+  closure: '#DC2626',
+  advisory: '#F59E0B',
+} as const;
+
+/** 即時班次的小圓點。 */
+export const LIVE_DOT = '#10B981';
+
+/** 空氣品質分級（與後端 `classifyPm25` 的中文分級一一對應）。 */
+export const AIR_QUALITY = {
+  good: '#2B8A3E',
+  moderate: '#E8A33D',
+  sensitive: '#E8590C',
+  unhealthy: '#C92A2A',
+  veryUnhealthy: '#862E2E',
+} as const;
+
+export const SAVED_CATEGORY = {
+  favorite: '#D6336C',
+  food: '#E8590C',
+  transport: '#0C8599',
+  medical: '#E03131',
+  other: '#495057',
+} as const;
+
+export const CUSTOM_CATEGORY = ['#7048E8', '#0F9960', '#C2255C', '#946200', '#1864AB', '#087F5B'] as const;
+
+export const HAZARD = { obstacle: '#F59E0B', construction: '#F97316', dataError: '#DC2626' } as const;
+
+/** 地圖圖層專用：描邊、標籤、圖示底色。 */
+export const MAP = {
+  stroke: WHITE,
+  verifiedStroke: '#111111',
+  label: '#0F172A',
+  labelAlt: '#1C1C1E',
+  busDefault: '#334155',
+  busAccessible: '#2563EB',
+  busPlainIcon: '#1F2937',
+  aiPlace: '#7B3FE4',
+  aiFacility: '#0065C8',
+  pinBody: '#C62828',
+  pinBorder: '#9F2020',
+  pinCore: '#7F1818',
+} as const;
+
+/** 緊急按鈕按下後的深紅。 */
+export const DANGER_DEEP = '#8E0000';
+export const DESTRUCTIVE_TEXT = '#D92D20';
+
+/** 語音聆聽光球的邊緣色（中心色取自主色）。 */
+export const VOICE_ORB_EDGE = { light: '#A8CFF5', dark: '#1F4A7A' } as const;
+
+export const SEGMENT_THUMB_DARK = '#636366';
+
+/** 啟動畫面底色：與 App icon、`app.json` 的 splash 同為主色。 */
+export const SPLASH_BG = ACCENT_FILL;

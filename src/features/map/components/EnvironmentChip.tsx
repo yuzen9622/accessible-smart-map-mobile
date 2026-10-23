@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, SPACE, useThemeColors } from '@/shared/theme';
+import { SPACE, useThemeColors, TYPE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
 import { AIR_QUALITY_COLOR } from '../domain/environment';
 import { useEnvironmentStore } from '../store/environmentStore';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 地圖左上角的天氣＋空氣品質小卡片（像 Google 地圖）：溫度＋AQI 分級，點一下看詳細頁
@@ -27,26 +28,26 @@ export default function EnvironmentChip() {
   const qualityColor = airQuality.quality ? AIR_QUALITY_COLOR[airQuality.quality] : undefined;
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={t('nativeEnvironmentChipTitle')}
       onPress={() => router.navigate('/environment')}
-      style={({ pressed }) => [styles.chip, { backgroundColor: colors.background }, pressed && styles.pressed]}>
+      style={[styles.chip, { backgroundColor: colors.background }]}>
       {weather.status === 'ok' && weather.temperature !== null ? (
         <View style={styles.segment}>
-          <Icon name="thermometer" size={15} color={colors.textSecondary} />
+          <Icon name="thermometer" size={ICON_SIZE.caption} color={colors.textSecondary} />
           <Text style={[styles.text, { color: colors.text }]}>{Math.round(weather.temperature)}°</Text>
         </View>
       ) : null}
       {airQuality.status === 'ok' && airQuality.quality ? (
         <View style={styles.segment}>
-          <Icon name="wind" size={15} color={qualityColor ?? colors.textSecondary} />
+          <Icon name="wind" size={ICON_SIZE.caption} color={qualityColor ?? colors.textSecondary} />
           <Text style={[styles.text, { color: qualityColor ?? colors.text }]} numberOfLines={1}>
             {airQuality.quality}
           </Text>
         </View>
       ) : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -55,16 +56,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACE.sm,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     paddingVertical: 6,
     paddingHorizontal: SPACE.md,
-    shadowColor: '#000000',
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    boxShadow: ELEVATION.floating,
   },
   segment: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  text: { fontSize: 13, fontWeight: '600' },
-  pressed: { opacity: 0.7 },
+  text: { fontSize: TYPE.footnote, fontWeight: '600' },
 });

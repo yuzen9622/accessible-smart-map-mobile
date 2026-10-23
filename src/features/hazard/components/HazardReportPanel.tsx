@@ -6,6 +6,7 @@ import { FormButton, FormInput, FormScreen, FormSection, FormSegmented, FormText
 
 import HazardReportResult from './HazardReportResult';
 import type { HazardReportPanelProps } from './HazardReportPanel.types';
+import { SHAPE } from '@/shared/theme';
 
 export default function HazardReportPanel({ model }: HazardReportPanelProps) {
   const { t } = useAppTranslation();
@@ -47,5 +48,5 @@ export default function HazardReportPanel({ model }: HazardReportPanelProps) {
 }
 
 const styles = StyleSheet.create({
-  preview: { width: '100%', height: 200, borderRadius: 12, marginVertical: 6 },
+  preview: { width: '100%', height: 200, borderRadius: SHAPE.control, borderCurve: 'continuous', marginVertical: 6 },
 });

@@ -4,7 +4,7 @@ import { PINNED_FACILITY_CATEGORIES, type PinnedFacilityCategory } from '@/featu
 import type { LatLng } from '@/shared/geo';
 
 import type { RouteFailureKind } from '../domain/routeRequest';
-import type { AiRoutePlan, EffectiveRoutePreferences, AccessibleRoute, MatchedAlert, MetroAlertResult, RouteMode, SlopeConstraint, TravelMode } from '../types/route';
+import type { AiRoutePlan, EffectiveRoutePreferences, AccessibleRoute, LngLatTuple, MatchedAlert, MetroAlertResult, RouteMode, SlopeConstraint, TravelMode } from '../types/route';
 
 /**
  * 移植自 Web `src/stores/map/createRouteSlice.ts`（commit 5eadc71）的路線欄位；拆出 route feature
@@ -22,6 +22,16 @@ export interface SelectedRoute {
   route: AccessibleRoute;
 }
 
+/**
+ * 地圖上暫時替換某段公車 leg 的線形：路線詳情查看別班候選公車、而那班走的路不同時，地圖跟著畫那班的路。
+ * 只影響地圖，不改路線本身（導航仍走規劃的那班）。
+ */
+export interface LegGeometryPreview {
+  routeId: string;
+  legIndex: number;
+  polyline: LngLatTuple[];
+}
+
 export interface RouteSessionState {
   planId: string | null;
   selectedRouteId: string | null;
@@ -37,6 +47,7 @@ export interface RouteSessionState {
   destinationName: string;
   computeRoutes: AccessibleRoute[] | null;
   selectRoute: SelectedRoute | null;
+  legGeometryPreview: LegGeometryPreview | null;
   routeWaypoints: LatLng[];
   metroAlerts: MetroAlertResult[] | null;
   transitAlerts: MatchedAlert[] | null;
@@ -94,6 +105,7 @@ const CLEARED_SESSION = {
   destinationName: '',
   computeRoutes: null,
   selectRoute: null,
+  legGeometryPreview: null,
   routeWaypoints: [],
   metroAlerts: null,
   transitAlerts: null,

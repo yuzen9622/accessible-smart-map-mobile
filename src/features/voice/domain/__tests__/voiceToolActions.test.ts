@@ -66,6 +66,19 @@ describe('voiceSessionBindings onToolEvent action routing', () => {
     expect(sinks.executeAction.mock.calls.map(([a]) => a.type)).toEqual(['show-route']);
     expect(sinks.publishTool).toHaveBeenLastCalledWith(expect.objectContaining({ summary: '摘要', result: undefined }));
   });
+  it('applies two concurrent route results without mistaking its own first update for a user selection', () => {
+    let generation = 1;
+    const sinks = { ...makeSinks(), getRouteGeneration: () => generation };
+    sinks.executeAction.mockImplementation(() => { generation++; });
+    const b = createVoiceBindings(sinks);
+    b.onToolEvent({ type: 'call', name: 'planAccessibleRoute', callId: 'a', turnId: 't' });
+    b.onToolEvent({ type: 'call', name: 'planAccessibleRoute', callId: 'b', turnId: 't' });
+    b.onToolEvent({ type: 'result', name: 'planAccessibleRoute', callId: 'a', turnId: 't', ok: true, result: routePlanFixture() });
+    b.onToolEvent({ type: 'result', name: 'planAccessibleRoute', callId: 'b', turnId: 't', ok: true, result: routePlanFixture() });
+    expect(sinks.executeAction).toHaveBeenCalledTimes(2);
+    expect(sinks.onRouteError).not.toHaveBeenCalled();
+  });
+
   it('rejects a result after selection changes and a mismatched turn', () => {
     let generation = 1;
     const sinks = { ...makeSinks(), getRouteGeneration: () => generation };
@@ -76,6 +89,50 @@ describe('voiceSessionBindings onToolEvent action routing', () => {
     expect(sinks.executeAction).not.toHaveBeenCalled();
     expect(sinks.onRouteError).toHaveBeenCalled();
   });
+  it('pairs concurrent calls by id and keeps the remaining query visible', () => {
+    const sinks = makeSinks(); const b = createVoiceBindings(sinks);
+    b.onToolEvent({ type: 'call', name: 'findGooglePlaces', callId: 'a', turnId: 'turn', args: { query: 'A' } });
+    b.onToolEvent({ type: 'call', name: 'findGooglePlaces', callId: 'b', turnId: 'turn', args: { query: 'B' } });
+    const result = { ok: true, places: [{ name: 'A', geometry: { location: { lat: 25, lng: 121 } } }] };
+    b.onToolEvent({ type: 'result', name: 'findGooglePlaces', callId: 'a', turnId: 'turn', ok: true, result });
+    expect(sinks.publishTool).toHaveBeenCalledWith(expect.objectContaining({ type: 'result', callId: 'a', args: { query: 'A' }, result }));
+    expect(sinks.publishTool).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'call', callId: 'b' }));
+    b.onToolEvent({ type: 'result', name: 'findGooglePlaces', callId: 'a', turnId: 'turn', ok: true, result });
+    expect(sinks.executeAction).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [false, { ok: true, places: [] }],
+    [true, { ok: false, error: 'failed', places: [] }],
+    [true, { status: 'ZERO_RESULTS', places: [] }],
+    [true, { error: 'not available', places: [] }],
+  ])('does not apply outer/inner failed results %s %j', (ok, result) => {
+    const sinks = makeSinks(); const b = createVoiceBindings(sinks);
+    b.onToolEvent({ type: 'call', name: 'findGooglePlaces', callId: 'a', turnId: 'turn' });
+    b.onToolEvent({ type: 'result', name: 'findGooglePlaces', callId: 'a', turnId: 'turn', ok, result });
+    expect(sinks.executeAction).not.toHaveBeenCalled();
+    expect(sinks.publishTool).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'result', ok: false }));
+  });
+
+  it.each(['onInterrupted', 'onTurnComplete'] as const)('%s cancels pending calls and ignores their late results', boundary => {
+    const clearTool = jest.fn();
+    const sinks = { ...makeSinks(), clearTool }; const b = createVoiceBindings(sinks);
+    b.onToolEvent({ type: 'call', name: 'findGooglePlaces', callId: 'a', turnId: 'turn' });
+    b[boundary]();
+    expect(clearTool).toHaveBeenCalled();
+    b.onToolEvent({ type: 'result', name: 'findGooglePlaces', callId: 'a', turnId: 'turn', ok: true, result: { ok: true, places: [] } });
+    expect(sinks.executeAction).not.toHaveBeenCalled();
+    expect(sinks.onRouteError).not.toHaveBeenCalled();
+  });
+
+  it('ignores an unpaired or mismatched non-route result', () => {
+    const sinks = makeSinks(); const b = createVoiceBindings(sinks);
+    b.onToolEvent({ type: 'result', name: 'findGooglePlaces', callId: 'missing', turnId: 't', result: { ok: true, places: [] } });
+    b.onToolEvent({ type: 'call', name: 'findGooglePlaces', callId: 'a', turnId: 't' });
+    b.onToolEvent({ type: 'result', name: 'findA11yPlaces', callId: 'a', turnId: 't', result: { ok: true, places: {} } });
+    expect(sinks.executeAction).not.toHaveBeenCalled();
+  });
+
   it('stops the route response when applying it throws', () => {
     const sinks = makeSinks();
     sinks.executeAction.mockImplementation(() => { throw new Error('Cannot open route'); });

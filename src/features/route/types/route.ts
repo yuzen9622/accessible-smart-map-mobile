@@ -218,9 +218,42 @@ export interface BusPlanContext {
   legIndex: number;
 }
 
+export type BusVehicleAccessibility = 'low_floor' | 'high_floor' | 'unknown';
+export type BusCandidateTimeSource = 'realtime' | 'schedule' | 'unknown';
+
+/**
+ * 同一組上下車站之間可搭的一班車（後端 `BusDepartureCandidate`，最多 5 班，依上車時間排序）。
+ * 時間是含 +08:00 的 ISO 字串；`null` 時 source 一定是 `unknown`。`selected` 是導航實際採用的那班，
+ * 前端「查看」別班只是資訊，不會改變導航路線（對齊 Web `BusDepartureCandidates`）。
+ */
+export interface BusDepartureCandidate {
+  candidateId: string;
+  routeName: string;
+  subRouteUid: string;
+  subRouteName?: string;
+  direction: 0 | 1;
+  departureStopId: string;
+  arrivalStopId: string;
+  tripId?: string;
+  plateNumb?: string;
+  estimatedWaitMinutes: number | null;
+  boardingTime: string | null;
+  alightingTime: string | null;
+  boardingTimeSource: BusCandidateTimeSource;
+  alightingTimeSource: BusCandidateTimeSource;
+  /** `unknown` 是沒有車輛證據，不是高底盤。 */
+  vehicleAccessibility: BusVehicleAccessibility;
+  hasLiftOrRamp: boolean | null;
+  selected: boolean;
+}
+
 export interface BusLeg extends LegSourceNames {
   /** Client-side request context, supplied by the containing planned route. */
   planContext?: BusPlanContext;
+  /** 同一上下車站對的候選班次；缺欄位＝後端沒查，空陣列＝查了但沒有。 */
+  departureCandidates?: BusDepartureCandidate[];
+  /** false＝搜尋有上限、清單可能不完整。 */
+  candidateSearchComplete?: boolean;
   scheduledTrip?: {
     tripId: string;
     boardingReadyAt: number;
@@ -436,6 +469,9 @@ export interface AccessibleRoute {
   routeToken?: string;
   routeName: string;
   totalMinutes: number;
+  /** 整趟出發／抵達時刻（含 +08:00 的 ISO 字串）；舊回應或 AI 路線可能沒有。 */
+  departureTime?: string;
+  arrivalTime?: string;
   transferCount: number;
   legs: RouteLeg[];
   accessibilityHighlights: string[];

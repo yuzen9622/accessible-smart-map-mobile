@@ -48,6 +48,6 @@ export default function HazardReportResult({ model, result }: { model: HazardRep
 
 const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40, gap: 20 },
-  title: { fontSize: TYPE.headline, fontWeight: '700' },
+  title: { fontSize: TYPE.title3, fontWeight: '700' },
   actions: { gap: 10 },
 });

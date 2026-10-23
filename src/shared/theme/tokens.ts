@@ -91,22 +91,24 @@ export const ON_ACCENT_FILL = '#FFFFFF';
 /** 緊急／危險實心按鈕（SOS、結束導航）。 */
 export const DANGER_FILL = '#C62828';
 
-/** 字級（pt，未乘使用者倍率）。 */
+/** 字級（pt，未乘使用者倍率），對齊 iOS Text Styles 的相對關係；numeral* 只給大數字（ETA、倒數、氣溫）。 */
 export const TYPE = {
-  /** 大標：地點名、路線總時間。 */
-  title: 24,
-  /** 區塊大標：面板標題。 */
-  headline: 20,
-  /** 卡片標題、列表主文字。 */
-  body: 16,
-  /** 次要內文。 */
-  callout: 15,
-  /** 輔助說明、距離、時間。 */
-  subhead: 13,
-  /** chip、badge。 */
+  largeTitle: 34,
+  title1: 28,
+  title2: 22,
+  title3: 20,
+  headline: 17,
+  body: 17,
+  callout: 16,
+  subhead: 15,
+  footnote: 13,
   caption: 12,
   /** 導航 HUD 的距離數字。 */
   display: 30,
+  numeralS: 40,
+  numeralM: 44,
+  numeralL: 56,
+  numeralXL: 64,
 } as const;
 
 /**
@@ -123,13 +125,6 @@ export const MAX_FONT_SCALE = {
   body: 2.5,
 } as const;
 
-/** 圓角：卡片 16、按鈕與 chip 用膠囊（高度的一半）、小元件 10。 */
-export const RADIUS = {
-  small: 10,
-  card: 16,
-  pill: 999,
-} as const;
-
 /** 間距：4 的倍數。 */
 export const SPACE = {
   xs: 4,
@@ -144,18 +139,18 @@ export const MIN_TOUCH = 44;
 /** 主要按鈕高度。 */
 export const BUTTON_HEIGHT = 50;
 
-/** iOS Text Styles 對齊的字級角色（pt，未乘使用者倍率）。舊 `TYPE` 遷移完成後移除。 */
+/** 字級角色（大小＋字重）。字重只有 regular 400、semibold 600、bold 700。 */
 export const TEXT_STYLE = {
-  largeTitle: { fontSize: 34, fontWeight: '700' },
-  title1: { fontSize: 28, fontWeight: '700' },
-  title2: { fontSize: 22, fontWeight: '700' },
-  title3: { fontSize: 20, fontWeight: '600' },
-  headline: { fontSize: 17, fontWeight: '600' },
-  body: { fontSize: 17, fontWeight: '400' },
-  callout: { fontSize: 16, fontWeight: '400' },
-  subhead: { fontSize: 15, fontWeight: '400' },
-  footnote: { fontSize: 13, fontWeight: '400' },
-  caption: { fontSize: 12, fontWeight: '600' },
+  largeTitle: { fontSize: TYPE.largeTitle, fontWeight: '700' },
+  title1: { fontSize: TYPE.title1, fontWeight: '700' },
+  title2: { fontSize: TYPE.title2, fontWeight: '700' },
+  title3: { fontSize: TYPE.title3, fontWeight: '600' },
+  headline: { fontSize: TYPE.headline, fontWeight: '600' },
+  body: { fontSize: TYPE.body, fontWeight: '400' },
+  callout: { fontSize: TYPE.callout, fontWeight: '400' },
+  subhead: { fontSize: TYPE.subhead, fontWeight: '400' },
+  footnote: { fontSize: TYPE.footnote, fontWeight: '400' },
+  caption: { fontSize: TYPE.caption, fontWeight: '600' },
 } as const;
 
 /** 圓角階層（搭配 `borderCurve: 'continuous'`）。 */
@@ -172,3 +167,16 @@ export const ELEVATION = {
   floating: '0 4px 12px rgba(0,0,0,0.16)',
   raised: '0 1px 3px rgba(0,0,0,0.10)',
 } as const;
+
+/** 圖示尺寸只有這幾階，對齊旁邊文字：caption／body／按鈕／地圖控制／功能磚；hero 只給空狀態與導航轉向大圖示。 */
+export const ICON_SIZE = {
+  caption: 14,
+  body: 17,
+  control: 20,
+  map: 24,
+  tile: 28,
+  hero: 36,
+} as const;
+
+/** SOS 浮動按鈕的尺寸與（非導航時）距安全區頂端的位置；其他浮動元件要據此避讓。 */
+export const SOS_BUTTON = { size: 64, top: 220, gap: 8 } as const;

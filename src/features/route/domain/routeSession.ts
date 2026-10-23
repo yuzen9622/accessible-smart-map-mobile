@@ -36,16 +36,6 @@ export function hasRouteSession(snapshot: RouteSessionSnapshot): boolean {
 /** 面板種類（對應 Web `SheetMode`）。本 App 由目前的 sheet 路由換算而來。 */
 export type SheetMode = 'home' | 'place' | 'plan' | 'route' | 'navigation' | 'station';
 
-export type RouteResumeTarget = Extract<SheetMode, 'plan' | 'route'>;
-
-/**
- * 「回到路線」要落在哪裡：有結果 → 使用者上次看的路線比較清單；只有目的地 →
- * 規劃表單（起訖點保持已填）。
- */
-export function routeResumeTarget(computeRoutes: unknown[] | null): RouteResumeTarget {
-  return computeRoutes && computeRoutes.length > 0 ? 'route' : 'plan';
-}
-
 /**
  * 決定「回到路線」pill 是否顯示的唯一判斷——pill 本身與測試都 import 這一個，
  * 不讓任何畫面算出另一個不一致的答案。
@@ -69,7 +59,7 @@ export function shouldShowRoutePill(args: {
 /** 目前 sheet 路由 → Web 的 SheetMode（SDD §4.5：sheet 狀態由路由推導，不另存一份）。 */
 export function sheetModeFromPath(pathname: string): SheetMode {
   if (pathname === '/plan') return 'plan';
-  if (pathname === '/routes' || pathname.startsWith('/routes/')) return 'route';
+  if (pathname.startsWith('/routes/')) return 'route';
   if (pathname === '/navigation') return 'navigation';
   if (pathname.startsWith('/place/') || pathname.startsWith('/loc/') || pathname.startsWith('/facility/')) return 'place';
   return 'home';

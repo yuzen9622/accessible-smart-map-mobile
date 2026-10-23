@@ -43,13 +43,19 @@ jest.mock('react-native-reanimated', () => {
     default: {
       View,
       Text,
+      createAnimatedComponent: (component: unknown) => component,
     },
     useReducedMotion: () => false,
+    useSharedValue: (value: number) => ({ value, set: () => undefined }),
+    useAnimatedStyle: () => ({}),
+    ReduceMotion: { System: 'system', Always: 'always', Never: 'never' },
     FadeIn: { duration: () => ({}) },
     FadeOut: { duration: () => ({}) },
     LayoutAnimationConfig: ({ children }: { children: React.ReactNode }) => children,
     Easing: { bezier: () => ({}) },
     withTiming: (v: any) => v,
+    withRepeat: (v: any) => v,
+    cancelAnimation: () => undefined,
   };
 });
 

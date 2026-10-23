@@ -1,14 +1,15 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { MyReportRow } from '../hooks/useMyReports';
 import type { MyReportsPanelProps } from './MyReportsPanel.types';
 import ReportPhoto from './report/ReportPhoto';
 import { ActionButton, StatusPill, reportStyles } from './report/reportUi';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 設定 → 我的回報（Web `MyReportsPanel` 列表視圖）。卡片頂端是狀態膠囊與日期（使用者最在意「審核結果」），
@@ -54,13 +55,13 @@ export default function MyReportsPanel({ model }: MyReportsPanelProps) {
               {t('reportListSubtitle')}
             </Text>
           </View>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={t('myReportsNew')}
             onPress={model.newReport}
-            style={({ pressed }) => [styles.addButton, pressed && styles.dim]}>
-            <Icon name="plus" size={22} color={ON_ACCENT_FILL} />
-          </Pressable>
+            style={styles.addButton}>
+            <Icon name="plus" size={ICON_SIZE.control} color={ON_ACCENT_FILL} />
+          </PressableScale>
         </View>
       }
       ListEmptyComponent={
@@ -87,7 +88,7 @@ export default function MyReportsPanel({ model }: MyReportsPanelProps) {
           {model.hasMore && !model.loadingMore ? <ActionButton label={t('myReportsMore')} variant="secondary" onPress={model.loadMore} /> : null}
           {model.rows.length > 0 && !model.hasMore ? (
             <View style={styles.footerNote}>
-              <Icon name="clock" size={14} color={colors.textSecondary} />
+              <Icon name="clock" size={ICON_SIZE.caption} color={colors.textSecondary} />
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.caption, { color: colors.textSecondary }]}>
                 {t('reportListFooter')}
               </Text>
@@ -108,12 +109,12 @@ function ReportCard({ row }: { row: MyReportRow }) {
   const colors = useThemeColors();
   const semantic = useSemanticColors();
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={row.accessibilityLabel}
       accessibilityHint={row.reason ? `${t('reportReviewSummary')}：${row.reason}` : undefined}
       onPress={row.onPress}
-      style={({ pressed }) => [styles.card, { backgroundColor: colors.backgroundElement }, pressed && styles.dim]}>
+      style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
       <View style={[styles.cardTop, { borderBottomColor: semantic.separator }]}>
         <StatusPill label={row.statusLabel} tone={row.tone} />
         <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.caption, { color: colors.textSecondary }]}>
@@ -125,7 +126,7 @@ function ReportCard({ row }: { row: MyReportRow }) {
           <ReportPhoto reportId={row.id} variant="thumbnail" />
         ) : (
           <View style={[styles.photoPlaceholder, { backgroundColor: semantic.surface }]}>
-            <Icon name="construction" size={26} color={colors.textSecondary} />
+            <Icon name="construction" size={ICON_SIZE.map} color={colors.textSecondary} />
           </View>
         )}
         <View style={styles.flex}>
@@ -144,7 +145,7 @@ function ReportCard({ row }: { row: MyReportRow }) {
             {row.description}
           </Text>
         </View>
-        <Icon name="chevronRight" size={18} color={colors.textSecondary} />
+        <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
       </View>
       {row.reason ? (
         <View style={[styles.reason, { backgroundColor: semantic.surface }]}>
@@ -156,7 +157,7 @@ function ReportCard({ row }: { row: MyReportRow }) {
           </Text>
         </View>
       ) : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -167,7 +168,7 @@ function EmptyReports({ onNew }: { onNew: () => void }) {
   return (
     <View style={[styles.empty, { borderColor: semantic.separator }]}>
       <View style={[styles.emptyIcon, { backgroundColor: semantic.surface }]}>
-        <Icon name="list" size={30} color={colors.textSecondary} />
+        <Icon name="list" size={ICON_SIZE.tile} color={colors.textSecondary} />
       </View>
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[reportStyles.body, styles.strong, styles.centerText, { color: colors.text }]}>
         {t('myReportsEmpty')}
@@ -182,13 +183,12 @@ function EmptyReports({ onNew }: { onNew: () => void }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  dim: { opacity: 0.6 },
   strong: { fontWeight: '600' },
   content: { padding: 16, paddingBottom: 32 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
   centerText: { textAlign: 'center' },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
-  heading: { fontSize: TYPE.headline, fontWeight: '700', marginBottom: 2 },
+  heading: { fontSize: TYPE.title3, fontWeight: '700', marginBottom: 2 },
   addButton: {
     width: MIN_TOUCH,
     height: MIN_TOUCH,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   state: { paddingVertical: 48, alignItems: 'center' },
   separator: { height: 12 },
-  card: { borderRadius: RADIUS.card, overflow: 'hidden' },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
   cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,8 +213,8 @@ const styles = StyleSheet.create({
   cardBody: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14 },
   cardTitle: { fontSize: TYPE.body, fontWeight: '700' },
   description: { marginTop: 6 },
-  photoPlaceholder: { width: 76, height: 76, borderRadius: RADIUS.small, alignItems: 'center', justifyContent: 'center' },
-  reason: { marginHorizontal: 14, marginBottom: 14, borderRadius: RADIUS.small, paddingHorizontal: 12, paddingVertical: 10 },
+  photoPlaceholder: { width: 76, height: 76, borderRadius: SHAPE.control, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  reason: { marginHorizontal: 14, marginBottom: 14, borderRadius: SHAPE.control, borderCurve: 'continuous', paddingHorizontal: 12, paddingVertical: 10 },
   reasonLabel: { marginBottom: 2, fontWeight: '600' },
   caption: { fontSize: TYPE.caption },
   footer: { gap: 12, marginTop: 16 },
@@ -222,11 +222,11 @@ const styles = StyleSheet.create({
   empty: {
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderRadius: RADIUS.card,
+    borderRadius: SHAPE.card, borderCurve: 'continuous',
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 20,
     paddingVertical: 40,
   },
-  emptyIcon: { borderRadius: RADIUS.card, padding: 16 },
+  emptyIcon: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 16 },
 });

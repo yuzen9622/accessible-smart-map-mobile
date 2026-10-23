@@ -24,6 +24,7 @@ import { bumpReviewRevision, useReviewEditorStore } from '../store/reviewEditorS
 import { isSavedPlace, useSavedPlacesStore } from '../store/savedPlacesStore';
 import type { PlaceDetail } from '../types/place';
 import { useReviews } from './useReviews';
+import { haptic } from '@/shared/haptics';
 
 const CHECKLIST_LABEL_KEY: Record<ChecklistItem['key'], string> = {
   wheelchair: 'wheelchairAccess',
@@ -188,6 +189,7 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   }, [lat, lng]);
 
   const handleToggleSave = () => {
+    haptic.commit();
     if (saved) removeSavedPlace(entry);
     else addSavedPlace(entry);
   };

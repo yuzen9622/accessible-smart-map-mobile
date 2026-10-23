@@ -1,24 +1,14 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import {
-  DANGER_FILL,
-  MAX_FONT_SCALE,
-  MIN_TOUCH,
-  ON_ACCENT_FILL,
-  RADIUS,
-  SPACE,
-  TYPE,
-  scaledSize,
-  useSemanticColors,
-  useThemeColors,
-} from '@/shared/theme';
+import { DANGER_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, DANGER_DEEP, WHITE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { SosFlowModel } from '../hooks/useSosFlow';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * SOS 畫面（iOS／Android 共用 RN 實作）。
@@ -33,8 +23,6 @@ import type { SosFlowModel } from '../hooks/useSosFlow';
  * 自己重複定義一份一樣的紅。
  */
 
-const DANGER_DEEP = '#8E0000';
-const WHITE = '#FFFFFF';
 /** SOS 主按鈕／倒數取消鈕的最小尺寸（SDD §10：緊急操作 ≥ 64pt，比一般按鈕的 `BUTTON_HEIGHT` 50pt 更大）。 */
 const BIG_TARGET = 64;
 
@@ -53,24 +41,21 @@ function BigButton({ label, onPress, icon, tone = 'light', hint, disabled = fals
   const background = tone === 'danger' ? DANGER_FILL : tone === 'light' ? WHITE : 'transparent';
   const foreground = tone === 'danger' ? WHITE : tone === 'light' ? DANGER_DEEP : colors.text;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.bigButton,
+      style={[styles.bigButton,
         { backgroundColor: background, borderColor: tone === 'outline' ? colors.textSecondary : background },
-        pressed && styles.pressed,
-        disabled && styles.disabled,
-      ]}>
-      {icon ? <Icon name={icon} size={24} color={foreground} /> : null}
+        disabled && styles.disabled]}>
+      {icon ? <Icon name={icon} size={ICON_SIZE.map} color={foreground} /> : null}
       <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.bigButtonText, { color: foreground, fontSize: scaledSize(TYPE.body, scale) }]}>
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -111,7 +96,7 @@ function Label({ children }: { children: React.ReactNode }) {
   const colors = useThemeColors();
   const scale = useFontScale();
   return (
-    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.label, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }]}>
+    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.label, { color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }]}>
       {children}
     </Text>
   );
@@ -123,7 +108,7 @@ function Body({ children, bold }: { children: React.ReactNode; bold?: boolean })
   return (
     <Text
       maxFontSizeMultiplier={MAX_FONT_SCALE.body}
-      style={{ color: colors.text, fontSize: scaledSize(TYPE.callout, scale), fontWeight: bold ? '700' : '400' }}>
+      style={{ color: colors.text, fontSize: scaledSize(TYPE.subhead, scale), fontWeight: bold ? '700' : '400' }}>
       {children}
     </Text>
   );
@@ -135,7 +120,7 @@ function HeroIcon({ name }: { name: IconName }) {
   const tones = useSemanticColors();
   return (
     <View style={[styles.heroIcon, { backgroundColor: tones.danger.bg }]}>
-      <Icon name={name} size={36} color={tones.danger.fg} strokeWidth={1.8} />
+      <Icon name={name} size={ICON_SIZE.hero} color={tones.danger.fg} />
     </View>
   );
 }
@@ -168,11 +153,11 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
         <BigButton label={t('sosCall119')} icon="phone" tone="danger" onPress={model.call119} />
         <View style={styles.spacer} />
         <BigButton label={t('loginRegisterCta')} tone="outline" onPress={model.login} />
-        <Pressable accessibilityRole="button" accessibilityLabel={t('close')} onPress={model.minimize} style={styles.textButton}>
+        <PressableScale accessibilityRole="button" accessibilityLabel={t('close')} onPress={model.minimize} style={styles.textButton}>
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.textButtonText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.body, scale) }]}>
             {t('close')}
           </Text>
-        </Pressable>
+        </PressableScale>
       </ScrollView>
     );
   }
@@ -238,7 +223,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
       <View style={[styles.activeHeader, { backgroundColor: DANGER_FILL }]} accessible accessibilityLiveRegion="polite">
         <View style={styles.pulse} />
         <View style={styles.flex}>
-          <Text accessibilityRole="header" maxFontSizeMultiplier={MAX_FONT_SCALE.heading} style={[styles.activeTitle, { fontSize: scaledSize(TYPE.headline, scale) }]}>
+          <Text accessibilityRole="header" maxFontSizeMultiplier={MAX_FONT_SCALE.heading} style={[styles.activeTitle, { fontSize: scaledSize(TYPE.title3, scale) }]}>
             {t('sosActiveTitle')}
           </Text>
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.activeSummary, { fontSize: scaledSize(TYPE.body, scale) }]}>
@@ -278,11 +263,11 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
         <Label>{t('sosNotifiedContacts')}</Label>
         <Body>{model.notifiedText}</Body>
         {!model.hasBoundContacts ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={t('sosManageContactsLink')} onPress={model.manageContacts} style={styles.link}>
+          <PressableScale accessibilityRole="button" accessibilityLabel={t('sosManageContactsLink')} onPress={model.manageContacts} style={styles.link}>
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.linkText, { color: tones.accent }]}>
               {t('sosManageContactsLink')}
             </Text>
-          </Pressable>
+          </PressableScale>
         ) : null}
       </Card>
 
@@ -297,17 +282,17 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
           {chips.map((chip) => {
             const selected = model.supplementedType === chip.type;
             return (
-              <Pressable
+              <PressableScale
                 key={chip.type}
                 accessibilityRole="radio"
                 accessibilityState={{ selected }}
                 accessibilityLabel={chip.label}
                 onPress={() => model.setSupplementedType(chip.type)}
                 style={[styles.chip, { borderColor: selected ? DANGER_FILL : colors.textSecondary, backgroundColor: selected ? DANGER_FILL : 'transparent' }]}>
-                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: selected ? WHITE : colors.text, fontSize: scaledSize(TYPE.callout, scale) }}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: selected ? WHITE : colors.text, fontSize: scaledSize(TYPE.subhead, scale) }}>
                   {chip.label}
                 </Text>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
@@ -328,7 +313,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
       </Card>
 
       <Card>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityState={{ expanded: model.timelineOpen }}
           accessibilityLabel={t('sosTimelineLabel')}
@@ -336,14 +321,14 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
           style={styles.disclosure}>
           <Body bold>{t('sosTimelineLabel')}</Body>
           <Icon name={model.timelineOpen ? 'chevronUp' : 'chevronDown'} color={colors.text} />
-        </Pressable>
+        </PressableScale>
         {model.timelineOpen
           ? model.timeline.map((entry) => (
               <View key={entry.key} style={styles.timelineRow} accessible>
-                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
                   {entry.time}
                 </Text>
-                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.flex, { color: colors.text, fontSize: scaledSize(TYPE.callout, scale) }]}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.flex, { color: colors.text, fontSize: scaledSize(TYPE.subhead, scale) }]}>
                   {entry.text}
                 </Text>
               </View>
@@ -362,13 +347,13 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
   row: { flexDirection: 'row', gap: SPACE.md },
-  title: { fontSize: TYPE.title + 8, fontWeight: '800' },
+  title: { fontSize: TYPE.title1 + 8, fontWeight: '700' },
   centerText: { textAlign: 'center' },
   hero: { alignItems: 'center', gap: SPACE.sm + 2, paddingTop: SPACE.xl, paddingBottom: SPACE.lg },
   heroIcon: {
     width: 88,
     height: 88,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -377,7 +362,7 @@ const styles = StyleSheet.create({
   textButtonText: { fontWeight: '600' },
   bigButton: {
     minHeight: BIG_TARGET,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
@@ -386,22 +371,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACE.lg,
   },
   bigButtonText: { fontWeight: '700' },
-  pressed: { opacity: 0.7 },
   disabled: { opacity: 0.5 },
   countdown: { flex: 1, backgroundColor: DANGER_DEEP, alignItems: 'center', justifyContent: 'center', padding: SPACE.xl, gap: SPACE.lg + 2 },
-  countdownTitle: { color: WHITE, fontSize: TYPE.title + 4, fontWeight: '800', textAlign: 'center' },
+  countdownTitle: { color: WHITE, fontSize: TYPE.title1 + 4, fontWeight: '700', textAlign: 'center' },
   countdownDesc: { color: WHITE, fontSize: TYPE.body + 1, textAlign: 'center' },
   countdownActions: { alignSelf: 'stretch', gap: SPACE.lg - 2 },
   ringWrap: { width: 180, height: 180, alignItems: 'center', justifyContent: 'center' },
-  ringText: { position: 'absolute', color: WHITE, fontSize: 64, fontWeight: '800' },
-  activeHeader: { borderRadius: RADIUS.card, padding: SPACE.lg, flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
-  pulse: { width: 14, height: 14, borderRadius: RADIUS.pill, backgroundColor: ON_ACCENT_FILL },
-  activeTitle: { color: WHITE, fontWeight: '800' },
+  ringText: { position: 'absolute', color: WHITE, fontSize: TYPE.numeralXL, fontWeight: '700' },
+  activeHeader: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.lg, flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
+  pulse: { width: 14, height: 14, borderRadius: SHAPE.pill, borderCurve: 'continuous', backgroundColor: ON_ACCENT_FILL },
+  activeTitle: { color: WHITE, fontWeight: '700' },
   activeSummary: { color: WHITE, marginTop: 2 },
-  card: { borderRadius: RADIUS.card, padding: SPACE.md + 2, gap: SPACE.xs + 2 },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.md + 2, gap: SPACE.xs + 2 },
   label: { fontWeight: '600' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.sm, marginTop: SPACE.xs },
-  chip: { minHeight: MIN_TOUCH, borderRadius: RADIUS.pill, borderWidth: 1.5, paddingHorizontal: SPACE.md + 2, justifyContent: 'center' },
+  chip: { minHeight: MIN_TOUCH, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 1.5, paddingHorizontal: SPACE.md + 2, justifyContent: 'center' },
   link: { minHeight: MIN_TOUCH, justifyContent: 'center' },
   linkText: { fontSize: TYPE.body, fontWeight: '600' },
   disclosure: { minHeight: MIN_TOUCH, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

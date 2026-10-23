@@ -60,8 +60,8 @@ describe('fetchRouteDetailCached', () => {
     ]);
 
     expect(getBusRouteDetail).toHaveBeenCalledTimes(1);
-    expect(a).toEqual(directions);
-    expect(b).toEqual(directions);
+    expect(a).toEqual({ directions });
+    expect(b).toEqual({ directions });
   });
 
   it('serves a warm entry without hitting the API again', async () => {
@@ -99,7 +99,7 @@ describe('fetchRouteDetailCached', () => {
 
     getBusRouteDetail.mockResolvedValue(ok());
     await expect(fetchRouteDetailCached('365', 'Taichung')).resolves.toEqual(
-      directions,
+      { directions },
     );
     expect(getBusRouteDetail).toHaveBeenCalledTimes(2);
   });
@@ -121,7 +121,7 @@ describe('receipt time and sub-route key', () => {
     await expect(fetchRouteDetailCached('365', 'Taichung', { force: true })).resolves.toBeNull();
 
     // 原本的收件時間（10 秒前）仍有效，且沒有被這次失敗延長。
-    expect(peekRouteDetail('365', 'Taichung')).toEqual(directions);
+    expect(peekRouteDetail('365', 'Taichung')).toEqual({ directions });
     jest.advanceTimersByTime(5_001);
     expect(peekRouteDetail('365', 'Taichung')).toBeNull();
   });
@@ -132,7 +132,7 @@ describe('receipt time and sub-route key', () => {
     jest.advanceTimersByTime(10_000);
     await fetchRouteDetailCached('365', 'Taichung', { force: true });
     jest.advanceTimersByTime(10_000);
-    expect(peekRouteDetail('365', 'Taichung')).toEqual(directions);
+    expect(peekRouteDetail('365', 'Taichung')).toEqual({ directions });
   });
 
   it('reading the cache never resets its age', async () => {
@@ -140,7 +140,7 @@ describe('receipt time and sub-route key', () => {
     await fetchRouteDetailCached('365', 'Taichung');
     jest.advanceTimersByTime(10_000);
     await fetchRouteDetailCached('365', 'Taichung');
-    expect(peekRouteDetail('365', 'Taichung')).toEqual(directions);
+    expect(peekRouteDetail('365', 'Taichung')).toEqual({ directions });
     jest.advanceTimersByTime(5_001);
     expect(peekRouteDetail('365', 'Taichung')).toBeNull();
   });
@@ -152,7 +152,7 @@ describe('receipt time and sub-route key', () => {
     await fetchRouteDetailCached('99', 'Taichung', { subRouteUid: 'TXG991' });
     expect(getBusRouteDetail).toHaveBeenCalledWith('99', 'Taichung', undefined, 'TXG991', undefined, 'en');
     expect(peekRouteDetail('99', 'Taichung')).toBeNull();
-    expect(peekRouteDetail('99', 'Taichung', 'TXG991')).toEqual(directions);
+    expect(peekRouteDetail('99', 'Taichung', 'TXG991')).toEqual({ directions });
   });
 });
 
@@ -165,7 +165,7 @@ describe('peekRouteDetail', () => {
     getBusRouteDetail.mockResolvedValue(ok());
     await fetchRouteDetailCached('365', 'Taichung');
 
-    expect(peekRouteDetail('365', 'Taichung')).toEqual(directions);
+    expect(peekRouteDetail('365', 'Taichung')).toEqual({ directions });
   });
 
   it('stops exposing a stale entry', async () => {
@@ -204,10 +204,10 @@ it('isolates both coalescing and settled values by language', async () => {
   const english = fetchRouteDetailCached('99', 'Taipei', { lang: 'en' });
   const englishAgain = fetchRouteDetailCached('99', 'Taipei', { lang: 'en', force: true });
   expect(englishAgain).toBe(english);
-  expect(await fetchRouteDetailCached('99', 'Taipei', { lang: 'zh-TW' })).toEqual(zh);
+  expect(await fetchRouteDetailCached('99', 'Taipei', { lang: 'zh-TW' })).toEqual({ directions: zh });
   resolveEn({ ok: true, data: { directions: en } });
-  expect(await english).toEqual(en);
+  expect(await english).toEqual({ directions: en });
   expect(mockGetBusRouteDetail).toHaveBeenCalledTimes(2);
-  expect(peekRouteDetail('99', 'Taipei', undefined, undefined, 'en')).toEqual(en);
-  expect(peekRouteDetail('99', 'Taipei', undefined, undefined, 'zh-TW')).toEqual(zh);
+  expect(peekRouteDetail('99', 'Taipei', undefined, undefined, 'en')).toEqual({ directions: en });
+  expect(peekRouteDetail('99', 'Taipei', undefined, undefined, 'zh-TW')).toEqual({ directions: zh });
 });

@@ -1,5 +1,5 @@
 import type { BusLeg, RouteLeg, WalkLeg } from '../../types/route';
-import { legChainSegments, legTimelineSegments, shortMetroLabel } from '../routeCard';
+import { firstBoarding, legChainSegments, legTimelineSegments, localizedDuration, shortMetroLabel } from '../routeCard';
 
 const walk: WalkLeg = { type: 'WALK', from: '', to: '', distanceM: 0, minutesEst: 0, polyline: [], a11yFacilities: [] };
 const bus: BusLeg = {
@@ -79,5 +79,47 @@ describe('shortMetroLabel', () => {
   it('falls back to the first terminus without a usable id', () => {
     expect(shortMetroLabel('南港展覽館－亞東醫院', '')).toBe('南港展覽館');
     expect(shortMetroLabel('南港展覽館－亞東醫院', 'TRTC-BL-LONG-ID')).toBe('南港展覽館');
+  });
+});
+
+describe('bus departure candidates on the route card', () => {
+  const now = Date.parse('2026-10-22T17:22:51+08:00');
+  const live = {
+    candidateId: '28|0|P|1', routeName: '28', subRouteUid: 'U28', direction: 0 as const, departureStopId: 'A', arrivalStopId: 'B',
+    estimatedWaitMinutes: 99, boardingTime: '2026-10-22T17:30:51+08:00', alightingTime: '2026-10-22T17:40:51+08:00',
+    boardingTimeSource: 'realtime' as const, alightingTimeSource: 'realtime' as const,
+    vehicleAccessibility: 'unknown' as const, hasLiftOrRamp: null, selected: true,
+  };
+  const withCandidates: BusLeg = {
+    ...bus,
+    fromDisplayName: 'Stop A',
+    departureTime: '17:31',
+    departureCandidates: [live, { ...live, candidateId: '108|0|Q|2', routeName: '108', selected: false }, { ...live, candidateId: '28|0|R|3', selected: false }],
+  };
+
+  it('marks other routes serving the same stop pair, once each, without the planned one', () => {
+    expect(legChainSegments([walk, withCandidates])).toEqual([{ type: 'WALK' }, { type: 'BUS', label: '28', alternatives: ['108'] }]);
+  });
+
+  it('counts the planned bus down from its boarding time', () => {
+    expect(firstBoarding([walk, withCandidates], now)).toEqual({ stop: 'Stop A', departure: { kind: 'live', minutes: 8, clock: '17:30' } });
+  });
+
+  it('stops claiming the planned bus is coming once it has left', () => {
+    const later = now + 10 * 60_000;
+    expect(firstBoarding([walk, withCandidates], later)).toEqual({ stop: 'Stop A', departure: { kind: 'unknown' } });
+    // 剛到站的一分鐘內仍算「即將抵達」
+    expect(firstBoarding([walk, withCandidates], Date.parse('2026-10-22T17:31:30+08:00'))?.departure).toEqual({ kind: 'live', minutes: 0, clock: '17:30' });
+  });
+
+  it('falls back to the scheduled clock without candidates, and to null without transit', () => {
+    expect(firstBoarding([walk, { ...bus, departureTime: '17:31' }], now)).toEqual({ stop: 'A', departure: { kind: 'scheduled', clock: '17:31' } });
+    expect(firstBoarding([walk], now)).toBeNull();
+  });
+
+  it('localises durations through the translator', () => {
+    const t = (key: string, options?: Record<string, unknown>) => `${key}:${JSON.stringify(options)}`;
+    expect(localizedDuration(17.4, t)).toBe('nativeRouteMinutes:{"count":17}');
+    expect(localizedDuration(65, t)).toBe('nativeRouteHoursMinutes:{"hours":1,"minutes":5}');
   });
 });

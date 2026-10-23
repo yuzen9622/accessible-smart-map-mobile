@@ -2,7 +2,7 @@
 // `src/types/route.ts`（`LiveBus`／`LiveBusPositionsData`），commit 5eadc71。
 // 只搬本 App 用得到的型別；Google Directions 時代的 `RouteTransitDetail` 等舊型別不搬。
 
-import type { WaitInfo } from '@/features/route/domain';
+import type { BusDepartureCandidate, WaitInfo } from '@/features/route/domain';
 
 /** TDX StopStatus 對照（後端 `statusLabel` 未覆寫時的原文）。 */
 export const BUS_STATUS = {
@@ -42,7 +42,12 @@ export interface RouteDetailStop {
 export interface BusRouteDetailData {
   routeDisplayName?: string;
   directions: RouteDetailDirection[];
+  /** 只有規劃路線的 `bus-arrivals` 會給：同一上下車站對刷新後的候選班次。 */
+  departureCandidates?: BusDepartureCandidate[];
 }
+
+/** 站序快取的內容：站序＋（規劃路線才有的）候選班次。 */
+export type RouteDetailPayload = Pick<BusRouteDetailData, 'directions' | 'departureCandidates'>;
 
 export interface RouteDetailDirection {
   subRouteDisplayName?: string;

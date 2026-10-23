@@ -1,18 +1,20 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Stack } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, ACCENT_FILL, semanticColors, WHITE, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { endNavigation } from '../controller/navigationSession';
 import { stepIcon } from '../domain/navStepIcon';
 import NavigationTripBar from '../components/NavigationTripBar';
 import { useNavStore } from '../store/navStore';
+import PressableScale from '@/shared/ui/PressableScale';
+import ArrivalCheck from '../components/ArrivalCheck';
 
-const ACCENT = '#0065C8';
+const ACCENT = ACCENT_FILL;
 
 /**
  * `(sheet)/navigation` — 導航中的 sheet 內容（對齊 Google Maps）：最上方是收合列（剩餘時間＋語音／2D3D／結束），
@@ -52,12 +54,12 @@ export default function NavigationStepsScreen() {
         ) : null}
         {arrived || !isNavigating ? (
           <View style={styles.arrived}>
-            <Icon name="circleCheck" size={28} color="#1B7F3B" />
+            <ArrivalCheck size={ICON_SIZE.tile} color={semanticColors(false).ok.fg} />
             <Text style={[styles.text, { color: colors.text }]}>{arrived ? t('arrived') : t('preparingNav')}</Text>
             {isNavigating ? (
-              <Pressable accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.end}>
+              <PressableScale accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.end}>
                 <Text style={styles.endText}>{t('endNav')}</Text>
-              </Pressable>
+              </PressableScale>
             ) : null}
           </View>
         ) : null}
@@ -69,7 +71,7 @@ export default function NavigationStepsScreen() {
           const passed = index < currentStepIndex;
           const detail = [step.streetName, step.distanceM != null ? formatDistance(step.distanceM) : null].filter(Boolean).join(' · ');
           return (
-            <Pressable
+            <PressableScale feedback="highlight"
               key={`${index}-${step.text}`}
               accessible
               accessibilityRole={previewing ? 'button' : undefined}
@@ -78,20 +80,17 @@ export default function NavigationStepsScreen() {
               accessibilityState={{ selected: active }}
               disabled={!previewing}
               onPress={() => useNavStore.getState().selectPreviewStep(index)}
-              style={({ pressed }) => [
-                styles.row,
+              style={[styles.row,
                 { borderColor: 'rgba(120,120,128,0.3)' },
                 active && styles.active,
-                passed && !previewing && styles.passed,
-                pressed && styles.pressed,
-              ]}>
+                passed && !previewing && styles.passed]}>
               <Text style={[styles.index, { color: active ? ACCENT : colors.textSecondary }]}>{index + 1}</Text>
-              <Icon name={stepIcon(step)} size={20} color={active ? ACCENT : colors.text} />
+              <Icon name={stepIcon(step)} size={ICON_SIZE.control} color={active ? ACCENT : colors.text} />
               <View style={styles.flex}>
                 <Text style={[styles.text, { color: colors.text }]}>{step.text}</Text>
                 {detail ? <Text style={[styles.meta, { color: colors.textSecondary }]}>{detail}</Text> : null}
               </View>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </ScrollView>
@@ -103,16 +102,15 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingBottom: 32, gap: 4 },
   contentTop: { paddingTop: 22 },
   tripBar: { marginHorizontal: -16, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 },
-  sectionTitle: { fontSize: 13, fontWeight: '600', paddingHorizontal: 8, paddingTop: 8, paddingBottom: 4 },
+  sectionTitle: { fontSize: TYPE.footnote, fontWeight: '600', paddingHorizontal: 8, paddingTop: 8, paddingBottom: 4 },
   flex: { flex: 1 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingVertical: 8, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderRadius: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingVertical: 8, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderRadius: SHAPE.control, borderCurve: 'continuous' },
   active: { backgroundColor: 'rgba(0,101,200,0.12)' },
   passed: { opacity: 0.5 },
-  pressed: { backgroundColor: 'rgba(120,120,128,0.16)' },
-  index: { width: 22, textAlign: 'right', fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  text: { fontSize: 15, fontWeight: '500' },
-  meta: { fontSize: 12 },
+  index: { width: 22, textAlign: 'right', fontSize: TYPE.footnote, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  text: { fontSize: TYPE.subhead, fontWeight: '600' },
+  meta: { fontSize: TYPE.caption },
   arrived: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, flexWrap: 'wrap' },
-  end: { minHeight: 44, borderRadius: 22, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: ACCENT },
-  endText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  end: { minHeight: 44, borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 16, justifyContent: 'center', backgroundColor: ACCENT },
+  endText: { color: WHITE, fontSize: TYPE.subhead, fontWeight: '700' },
 });

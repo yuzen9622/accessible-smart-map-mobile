@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, SPACE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
@@ -36,7 +36,7 @@ export default function EnvironmentDetailScreen() {
       {weather.status === 'ok' ? (
         <View style={styles.heroRow}>
           <View style={[styles.heroIcon, { backgroundColor: tones.accentSoft }]}>
-            <Icon name="cloudSun" size={34} color={tones.accent} />
+            <Icon name="cloudSun" size={ICON_SIZE.hero} color={tones.accent} />
           </View>
           <View style={styles.flex}>
             {weather.temperature !== null ? (
@@ -52,14 +52,14 @@ export default function EnvironmentDetailScreen() {
       <View style={styles.statRow}>
         {weather.status === 'ok' && weather.precipitationProbability !== null ? (
           <View style={[styles.statCard, { backgroundColor: colors.backgroundElement }]}>
-            <Icon name="droplets" size={18} color={colors.textSecondary} />
+            <Icon name="droplets" size={ICON_SIZE.body} color={colors.textSecondary} />
             <Text style={[styles.statValue, { color: colors.text }]}>{weather.precipitationProbability}%</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('nativeWeatherRainChance')}</Text>
           </View>
         ) : null}
         {airQuality.status === 'ok' && airQuality.pm25 !== null ? (
           <View style={[styles.statCard, { backgroundColor: colors.backgroundElement }]}>
-            <Icon name="wind" size={18} color={qualityColor ?? colors.textSecondary} />
+            <Icon name="wind" size={ICON_SIZE.body} color={qualityColor ?? colors.textSecondary} />
             <Text style={[styles.statValue, { color: qualityColor ?? colors.text }]}>{airQuality.pm25}</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]} numberOfLines={1}>
               PM2.5 · {airQuality.quality}
@@ -81,13 +81,13 @@ const styles = StyleSheet.create({
   content: { padding: SPACE.lg, gap: SPACE.md },
   flex: { flex: 1 },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
-  heroIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-  heroTemp: { fontSize: 44, fontWeight: '800', lineHeight: 50 },
-  heroCondition: { fontSize: 16, fontWeight: '600' },
+  heroIcon: { width: 64, height: 64, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  heroTemp: { fontSize: TYPE.numeralM, fontWeight: '700', lineHeight: 50 },
+  heroCondition: { fontSize: TYPE.callout, fontWeight: '600' },
   statRow: { flexDirection: 'row', gap: SPACE.sm },
-  statCard: { flex: 1, borderRadius: RADIUS.card, padding: SPACE.md, gap: 4, alignItems: 'flex-start' },
-  statValue: { fontSize: 20, fontWeight: '700' },
-  statLabel: { fontSize: 12, fontWeight: '600' },
-  adviceCard: { borderRadius: RADIUS.card, padding: SPACE.md },
-  adviceText: { fontSize: 14, lineHeight: 20 },
+  statCard: { flex: 1, borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.md, gap: 4, alignItems: 'flex-start' },
+  statValue: { fontSize: TYPE.title3, fontWeight: '700' },
+  statLabel: { fontSize: TYPE.caption, fontWeight: '600' },
+  adviceCard: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.md },
+  adviceText: { fontSize: TYPE.subhead, lineHeight: 20 },
 });

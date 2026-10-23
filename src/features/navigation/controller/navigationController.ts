@@ -17,7 +17,12 @@ import type { VisibilitySource } from '@/shared/polling';
 
 import { selectAdvisoryAnnouncement } from '../domain/advisorySpeech';
 import { stripStepDistance } from '../domain/hudProgress';
-import { isStraightManeuver, selectManeuverStage, type ManeuverStage } from '../domain/maneuverAnnouncement';
+import {
+  isStraightManeuver,
+  selectManeuverStage,
+  selectProgressReminder,
+  type ManeuverStage,
+} from '../domain/maneuverAnnouncement';
 import { requestForegroundLocationFix } from '../domain/foregroundLocation';
 import { isVehicleLegType, resolveActiveLegType, resolveCurrentLegType, resolveNavHeading } from '../domain/legMode';
 import { shouldSpeakLocally } from '../domain/navigationAudio';
@@ -85,6 +90,8 @@ export interface NavigationControllerDeps {
   onStepChange?: (stepIndex: number) => void;
   /** 「X 公尺後，{instruction}」的播報文字（i18n）；沒有時只念指令。 */
   maneuverAheadText?: (distanceM: number, instruction: string) => string;
+  /** 長直線進度提醒「繼續直行 N」的播報文字（i18n）；沒有時不提醒。 */
+  continueText?: (distanceM: number) => string;
   /** 公車段等車／搭乘的播報文字（i18n）；沒有時不播報公車段情境。 */
   transitSpeechText?: TransitRideDeps['speechText'];
 }
@@ -106,12 +113,23 @@ interface ManeuverAnnouncer {
   stepIndex: number;
   spoken: Set<ManeuverStage>;
   advanceDistanceM: number | null;
+  /** 這一步成為目前步驟時的距離，與已念過的進度點（見 `selectProgressReminder`）。 */
+  startDistanceM: number | null;
+  reminders: Set<number>;
   /** 下一次播報前要先說的話（下車提示、被直接越過的出發指令）。 */
   prefix: string | null;
 }
 
 function freshAnnouncer(): ManeuverAnnouncer {
-  return { instructions: null, stepIndex: -1, spoken: new Set(), advanceDistanceM: null, prefix: null };
+  return {
+    instructions: null,
+    stepIndex: -1,
+    spoken: new Set(),
+    advanceDistanceM: null,
+    startDistanceM: null,
+    reminders: new Set(),
+    prefix: null,
+  };
 }
 
 export function createNavigationController(deps: NavigationControllerDeps): NavigationController {
@@ -182,6 +200,8 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       stepIndex,
       spoken: new Set(),
       advanceDistanceM: null,
+      startDistanceM: null,
+      reminders: new Set(),
       prefix: [depart, prefix].filter(Boolean).join(' ') || null,
     };
   }
@@ -196,6 +216,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     if (announcer.instructions !== nav.instructions || announcer.stepIndex !== nav.currentStepIndex) {
       resetAnnouncer(nav.instructions, nav.currentStepIndex, null);
     }
+    announcer.startDistanceM ??= distanceM;
     const straight = isStraightManeuver(step);
     const stage = selectManeuverStage(distanceM, step.legType, announcer.spoken, announcer.advanceDistanceM, straight);
     if (!stage) {
@@ -205,6 +226,12 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
         const text = announcer.prefix;
         announcer.prefix = null;
         speak(text);
+        return;
+      }
+      const mark = selectProgressReminder(distanceM, step.legType, announcer.reminders, announcer.startDistanceM);
+      if (mark != null && deps.continueText) {
+        announcer.reminders.add(mark);
+        speak(deps.continueText(mark));
       }
       return;
     }

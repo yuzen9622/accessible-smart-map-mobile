@@ -25,6 +25,7 @@ import { useFontScale, usePreferencesEffects } from '@/shared/preferences';
 import { ErrorState, HeaderCloseButton, SplashIntro } from '@/shared/ui';
 // 背景定位任務必須在 JS 頂層定義（App 從背景被喚醒時要找得到）
 import '@/shared/location/backgroundLocation';
+import { TYPE } from '@/shared/theme';
 
 // 深層連結（例如 accessiblesmartmap://place/123）直接開 sheet 路由時，底下仍要有地圖。
 export const unstable_settings = { initialRouteName: 'index' };
@@ -99,7 +100,7 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
   const { t } = useAppTranslation();
   const sosInProgress = useSosStore(selectSosInProgress);
   return (
-    <Stack screenOptions={{ headerShown: false, headerBackButtonDisplayMode: 'minimal', headerTitleStyle: { fontSize: 17 * fontScale } }}>
+    <Stack screenOptions={{ headerShown: false, headerBackButtonDisplayMode: 'minimal', headerTitleStyle: { fontSize: TYPE.body * fontScale } }}>
       <Stack.Screen name="index" />
       <Stack.Screen
         name="(sheet)"

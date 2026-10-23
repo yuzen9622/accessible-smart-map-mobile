@@ -1,11 +1,11 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import { useRouteSession } from '@/features/route';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { DANGER_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { DANGER_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { AnimatedNumberText, Icon } from '@/shared/ui';
 
 import { endNavigation } from '../controller/navigationSession';
@@ -13,6 +13,7 @@ import { getNavigationSpeechOwner, useNavigationSpeechOwnerState } from '../cont
 import { isNavigationAudioActive, resolveNavigationAudioToggle } from '../domain/navigationAudio';
 import { hudProgress } from '../domain/hudProgress';
 import { useNavStore } from '../store/navStore';
+import PressableScale from '@/shared/ui/PressableScale';
 
 function useNow(intervalMs: number): number {
   const [now, setNow] = useState(() => Date.now());
@@ -24,8 +25,10 @@ function useNow(intervalMs: number): number {
 }
 
 /**
- * 導航 sheet 的收合列（1c 大字色塊）：36pt 剩餘分鐘、抵達時間與距離；52pt 語音開關與 2D/3D（同尺寸）、52 高紅色「結束」（確認對話框）。
+ * 導航 sheet 的收合列（對齊 Google Maps）：28pt 剩餘分鐘、抵達時間與距離；48pt 語音開關與 2D/3D（同尺寸）、48 高紅色「結束」（確認對話框）。
  * 它就是 sheet 在 peek detent 露出的全部內容，往上滑才看到下方的步驟清單。
+ * 字級固定（`fixedSize`），不跟 App 字級／Dynamic Type 放大：peek detent 高度是固定的，字一放大左欄就被裁掉、按鈕也不再置中
+ * （使用者回饋 2026-10-21）。完整資訊仍由 accessibilityLabel 提供給 VoiceOver。
  */
 export default function NavigationTripBar() {
   const { t } = useAppTranslation();
@@ -93,42 +96,43 @@ export default function NavigationTripBar() {
             <AnimatedNumberText
               text={String(progress.remainMinutes)}
               value={progress.remainMinutes}
-              fontSize={36}
+              fontSize={28}
               fontWeight="heavy"
+              fixedSize
               color={colors.text}
             />
           ) : (
-            <Text style={[styles.remain, { color: colors.text }]}>—</Text>
+            <Text fixedSize style={[styles.remain, { color: colors.text }]}>—</Text>
           )}
-          {progress.remainMinutes != null ? <Text style={[styles.unit, { color: colors.text }]}>{t('nativeMinuteUnit')}</Text> : null}
+          {progress.remainMinutes != null ? <Text fixedSize style={[styles.unit, { color: colors.text }]}>{t('nativeMinuteUnit')}</Text> : null}
         </View>
         {/* 限一行：換行會把左欄撐高，整列超出 peek detent、按鈕就不再垂直置中 */}
-        <Text style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+        <Text fixedSize style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
           {[etaText, visibleRemainingM != null ? formatDistance(visibleRemainingM) : null].filter(Boolean).join(' · ')}
         </Text>
       </View>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={audioActive ? t('voiceOff') : t('voiceOn')}
         accessibilityState={{ selected: audioActive }}
         onPress={toggleAudio}
         style={[styles.roundButton, { backgroundColor: neutral.bg }]}>
-        <Icon name={audioActive ? 'volumeOn' : 'volumeOff'} size={24} color={colors.text} />
-      </Pressable>
-      <Pressable
+        <Icon name={audioActive ? 'volumeOn' : 'volumeOff'} size={ICON_SIZE.control} color={colors.text} />
+      </PressableScale>
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={viewMode === '3d' ? t('switchTo2D') : t('switchTo3D')}
         onPress={() => useNavStore.getState().setViewMode(viewMode === '3d' ? '2d' : '3d')}
         style={[styles.roundButton, { backgroundColor: neutral.bg }]}>
-        <Text style={[styles.viewModeText, { color: colors.text }]}>{viewMode === '3d' ? '2D' : '3D'}</Text>
-      </Pressable>
-      <Pressable
+        <Text fixedSize style={[styles.viewModeText, { color: colors.text }]}>{viewMode === '3d' ? '2D' : '3D'}</Text>
+      </PressableScale>
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={t('endNav')}
         onPress={confirmExit}
         style={[styles.endButton, { backgroundColor: DANGER_FILL }]}>
-        <Text style={styles.endText}>{t('end')}</Text>
-      </Pressable>
+        <Text fixedSize style={styles.endText}>{t('end')}</Text>
+      </PressableScale>
     </View>
   );
 }
@@ -138,11 +142,11 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   // AnimatedNumberText 是原生 view、沒有文字 baseline：改底部對齊，單位字再墊高到數字的 baseline
   remainRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
-  remain: { fontSize: 36, fontWeight: '800' },
-  unit: { fontSize: 17, fontWeight: '600', paddingBottom: 7 },
-  meta: { fontSize: 15, marginTop: 2 },
-  roundButton: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  viewModeText: { fontSize: 17, fontWeight: '700' },
-  endButton: { height: 52, borderRadius: 26, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
-  endText: { color: ON_ACCENT_FILL, fontSize: 19, fontWeight: '700' },
+  remain: { fontSize: TYPE.title1, fontWeight: '700' },
+  unit: { fontSize: TYPE.subhead, fontWeight: '600', paddingBottom: 5 },
+  meta: { fontSize: TYPE.subhead },
+  roundButton: { width: 48, height: 48, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  viewModeText: { fontSize: TYPE.callout, fontWeight: '700' },
+  endButton: { height: 48, borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
+  endText: { color: ON_ACCENT_FILL, fontSize: TYPE.body, fontWeight: '700' },
 });

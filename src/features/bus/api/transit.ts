@@ -1,4 +1,4 @@
-import type { BusPlanContext } from "@/features/route";
+import type { BusDepartureCandidate, BusPlanContext } from "@/features/route";
 import { fetchRequest, type ApiResponse } from '@/shared/api';
 import { getAppConfig } from '@/shared/config';
 import type { AppLanguage } from '@/shared/i18n';
@@ -78,6 +78,72 @@ function parsePolyline(value: unknown): [number, number][] | undefined {
   return points.length >= 2 ? points : undefined;
 }
 
+const TIME_SOURCES: readonly string[] = ['realtime', 'schedule', 'unknown'];
+const VEHICLE_ACCESSIBILITY: readonly string[] = ['low_floor', 'high_floor', 'unknown'];
+
+function isTimeSource(value: unknown): value is BusDepartureCandidate['boardingTimeSource'] {
+  return typeof value === 'string' && TIME_SOURCES.includes(value);
+}
+
+function isVehicleAccessibility(value: unknown): value is BusDepartureCandidate['vehicleAccessibility'] {
+  return typeof value === 'string' && VEHICLE_ACCESSIBILITY.includes(value);
+}
+
+function nullableString(value: unknown): string | null | undefined {
+  return value === null ? null : typeof value === 'string' ? value : undefined;
+}
+
+/** 必要欄位缺任何一個就丟掉那一班（後端是 `.strict()` schema，正常不會發生）。 */
+function parseDepartureCandidate(value: unknown): BusDepartureCandidate | null {
+  if (!isRecord(value)) return null;
+  const { candidateId, routeName, subRouteUid, direction, departureStopId, arrivalStopId, selected } = value;
+  const boardingTime = nullableString(value.boardingTime);
+  const alightingTime = nullableString(value.alightingTime);
+  const estimatedWaitMinutes = value.estimatedWaitMinutes === null ? null : finiteOrNull(value.estimatedWaitMinutes);
+  if (
+    (value.estimatedWaitMinutes !== null && (estimatedWaitMinutes === null || estimatedWaitMinutes < 0)) ||
+    typeof candidateId !== 'string' ||
+    typeof routeName !== 'string' ||
+    typeof subRouteUid !== 'string' ||
+    (direction !== 0 && direction !== 1) ||
+    typeof departureStopId !== 'string' ||
+    typeof arrivalStopId !== 'string' ||
+    typeof selected !== 'boolean' ||
+    boardingTime === undefined ||
+    alightingTime === undefined ||
+    !isTimeSource(value.boardingTimeSource) ||
+    !isTimeSource(value.alightingTimeSource) ||
+    !isVehicleAccessibility(value.vehicleAccessibility)
+  ) {
+    return null;
+  }
+  return {
+    candidateId,
+    routeName,
+    subRouteUid,
+    subRouteName: optionalString(value.subRouteName),
+    direction,
+    departureStopId,
+    arrivalStopId,
+    tripId: optionalString(value.tripId),
+    plateNumb: optionalString(value.plateNumb),
+    estimatedWaitMinutes,
+    boardingTime,
+    alightingTime,
+    boardingTimeSource: value.boardingTimeSource,
+    alightingTimeSource: value.alightingTimeSource,
+    vehicleAccessibility: value.vehicleAccessibility,
+    hasLiftOrRamp: typeof value.hasLiftOrRamp === 'boolean' ? value.hasLiftOrRamp : null,
+    selected,
+  };
+}
+
+/** 欄位缺漏＝後端沒查（undefined），不是「沒有班次」（空陣列）。 */
+function parseDepartureCandidates(value: unknown): BusDepartureCandidate[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.map(parseDepartureCandidate).filter((c): c is BusDepartureCandidate => c !== null);
+}
+
 function parseRouteDetail(value: unknown): BusRouteDetailData | undefined {
   if (!isRecord(value) || !Array.isArray(value.directions)) return undefined;
   const directions: RouteDetailDirection[] = [];
@@ -97,7 +163,11 @@ function parseRouteDetail(value: unknown): BusRouteDetailData | undefined {
       polyline: parsePolyline(d.polyline),
     });
   }
-  return { routeDisplayName: optionalString(value.routeDisplayName), directions };
+  return {
+    routeDisplayName: optionalString(value.routeDisplayName),
+    directions,
+    departureCandidates: parseDepartureCandidates(value.departureCandidates),
+  };
 }
 
 function parseArrivalItem(value: unknown): BusArrivalItem | null {

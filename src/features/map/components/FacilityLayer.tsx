@@ -9,6 +9,7 @@ import { FACILITY_CLUSTER_COLOR, FACILITY_COLORS } from '../domain/facilityStyle
 import { useFacilityPills } from '../hooks/useFacilityPills';
 import { useFacilityStore } from '../store/facilityStore';
 import { logger } from '@/shared/logger';
+import { WHITE } from '@/shared/theme';
 
 /** Lucide 白色圖示（elevator＝arrow-up-down、ramp＝accessibility、toilet＝toilet），疊在類別色圓底上。 */
 const FACILITY_ICONS = {
@@ -80,7 +81,7 @@ export default function FacilityLayer() {
             'circle-color': FACILITY_CLUSTER_COLOR,
             'circle-radius': ['step', ['get', 'point_count'], 16, 50, 22, 200, 28],
             'circle-stroke-width': 2,
-            'circle-stroke-color': '#FFFFFF',
+            'circle-stroke-color': WHITE,
           }}
         />
         <Layer
@@ -93,7 +94,7 @@ export default function FacilityLayer() {
             'text-size': 13,
             'text-allow-overlap': true,
           }}
-          paint={{ 'text-color': '#FFFFFF' }}
+          paint={{ 'text-color': WHITE }}
         />
         <Layer
           id="facility-points"
@@ -111,7 +112,7 @@ export default function FacilityLayer() {
             ],
             'circle-radius': 14,
             'circle-stroke-width': 2,
-            'circle-stroke-color': '#FFFFFF',
+            'circle-stroke-color': WHITE,
           }}
         />
         <Layer

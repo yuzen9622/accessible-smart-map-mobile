@@ -16,6 +16,7 @@ import type { LatLng } from '@/shared/geo';
 import { filterIncidentsAlongRoute, isIncidentClosed } from './geo';
 import { A11Y_FEATURE_COLOR, TRAFFIC_LEVEL_COLORS, getLegColor, visibleTrafficSegments } from './routeDisplay';
 import type { AccessibleRoute, LngLatTuple } from '../types/route';
+import { ROUTE_MARKER } from '@/shared/theme/palettes';
 
 export type RouteLineKind = 'walk' | 'transit' | 'drive' | 'traffic' | 'a11y' | 'a11yIndoor' | 'incident';
 
@@ -42,11 +43,11 @@ export interface RouteLayerData {
   points: FeatureCollection<Point, RoutePointProps>;
 }
 
-export const ROUTE_ORIGIN_COLOR = '#10B981';
-export const ROUTE_DESTINATION_COLOR = '#EF4444';
-export const ROUTE_WAYPOINT_COLOR = '#3B82F6';
-export const INCIDENT_CLOSURE_COLOR = '#DC2626';
-export const INCIDENT_ADVISORY_COLOR = '#F59E0B';
+export const ROUTE_ORIGIN_COLOR = ROUTE_MARKER.origin;
+export const ROUTE_DESTINATION_COLOR = ROUTE_MARKER.destination;
+export const ROUTE_WAYPOINT_COLOR = ROUTE_MARKER.waypoint;
+export const INCIDENT_CLOSURE_COLOR = ROUTE_MARKER.closure;
+export const INCIDENT_ADVISORY_COLOR = ROUTE_MARKER.advisory;
 
 function line(id: string, coords: LngLatTuple[], props: Omit<RouteLineProps, 'id'>): Feature<LineString, RouteLineProps> {
   return { type: 'Feature', id, geometry: { type: 'LineString', coordinates: coords }, properties: { id, ...props } };

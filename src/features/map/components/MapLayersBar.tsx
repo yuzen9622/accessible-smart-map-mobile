@@ -1,10 +1,11 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
-import { RADIUS, SPACE, useSemanticColors, useThemeColors } from '@/shared/theme';
-import { Icon } from '@/shared/ui';
+import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
+import { GlassCard, Icon } from '@/shared/ui';
 
 import type { MapLayersBarProps } from './MapLayersBar.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 常駐貼在首頁 sheet 上緣的設施篩選列（取代方案 A 的「圖層」按鈕＋彈出選單，使用者回饋：
@@ -26,34 +27,32 @@ export default function MapLayersBar({ facilityToggles, needsPill }: MapLayersBa
       contentContainerStyle={styles.content}
       accessibilityRole="none">
       {facilityToggles.map((item) => (
-        <Pressable
-          key={item.key}
-          accessibilityRole="button"
-          accessibilityState={{ selected: item.selected }}
-          accessibilityLabel={item.label}
-          onPress={item.onToggle}
-          style={[
-            styles.button,
-            { backgroundColor: item.selected ? tones.accentSoft : colors.background },
-          ]}>
-          <Icon name={item.iconName} size={18} color={item.selected ? tones.accent : colors.textSecondary} />
-          <Text style={[styles.label, { color: item.selected ? tones.accent : colors.text }]} numberOfLines={1}>
-            {item.label}
-          </Text>
-        </Pressable>
+        <GlassCard key={item.key} style={styles.glass} interactive>
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityState={{ selected: item.selected }}
+            accessibilityLabel={item.label}
+            onPress={item.onToggle}
+            style={[styles.button, item.selected && { backgroundColor: tones.accentSoft }]}>
+            <Icon name={item.iconName} size={ICON_SIZE.body} color={item.selected ? tones.accent : colors.textSecondary} />
+            <Text style={[styles.label, { color: item.selected ? tones.accent : colors.text }]} numberOfLines={1}>
+              {item.label}
+            </Text>
+          </PressableScale>
+        </GlassCard>
       ))}
       {needsPill ? (
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={needsPill.accessibilityLabel}
           onPress={needsPill.onPress}
           style={[styles.button, { backgroundColor: tones.accentSoft }]}>
-          <Icon name="accessibility" size={18} color={tones.accent} />
+          <Icon name="accessibility" size={ICON_SIZE.body} color={tones.accent} />
           <Text style={[styles.label, { color: tones.accent }]} numberOfLines={1}>
             {needsPill.label}
           </Text>
-          <Icon name="chevronDown" size={14} color={tones.accent} />
-        </Pressable>
+          <Icon name="chevronDown" size={ICON_SIZE.caption} color={tones.accent} />
+        </PressableScale>
       ) : null}
     </ScrollView>
   );
@@ -67,12 +66,8 @@ const styles = StyleSheet.create({
     gap: 6,
     minHeight: 44,
     paddingHorizontal: SPACE.md,
-    borderRadius: RADIUS.pill,
-    shadowColor: '#000000',
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
   },
-  label: { fontSize: 14, fontWeight: '600' },
+  glass: { borderRadius: SHAPE.pill },
+  label: { fontSize: TYPE.subhead, fontWeight: '600' },
 });

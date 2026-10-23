@@ -26,6 +26,14 @@ it('reactively scales typography without changing layout or disabling system sca
   expect(text.props.maxFontSizeMultiplier).toBe(2);
 });
 
+it('fixedSize keeps the design size and opts out of system scaling', async () => {
+  const view = await render(<Text testID="fixed" fixedSize style={{ fontSize: 20, lineHeight: 28 }}>Fixed</Text>);
+  await act(() => usePreferencesStore.getState().setPreferences({ fontSize: 'mega' }));
+  const text = view.getByTestId('fixed');
+  expect(text).toHaveStyle({ fontSize: 20, lineHeight: 28 });
+  expect(text.props.allowFontScaling).toBe(false);
+});
+
 it('nested text inherits the scaled parent without scaling twice', async () => {
   const view = await render(<Text style={{ fontSize: 20 }}><Text testID="inherited" style={{ fontWeight: 'bold' }}>Inherited</Text><Text testID="explicit" style={{ fontSize: 12 }}>Small</Text></Text>);
   await act(() => usePreferencesStore.getState().setPreferences({ fontSize: 'mega' }));

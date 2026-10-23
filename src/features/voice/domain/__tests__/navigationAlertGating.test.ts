@@ -13,6 +13,7 @@ const LIVE_STATUSES: VoiceStatusName[] = [
   'ready',
   'listening',
   'model-speaking',
+  'ending',
   'playback-blocked',
 ];
 

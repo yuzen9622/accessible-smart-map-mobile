@@ -82,6 +82,7 @@ export type IconName =
   | 'brain'
   | 'audioLines'
   | 'wifiOff'
+  | 'live'
   | 'eye'
   | 'personStanding'
   | 'baby'
@@ -104,6 +105,4 @@ export interface IconProps {
   size?: number;
   /** 必填：由呼叫端傳 theme／palette 色 */
   color: string;
-  /** 預設依 size 換算；除非有特殊理由，呼叫端不要傳 */
-  strokeWidth?: number;
 }

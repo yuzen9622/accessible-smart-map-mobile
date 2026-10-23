@@ -1,4 +1,4 @@
-import * as Haptics from 'expo-haptics';
+import { haptic } from '@/shared/haptics';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useEffect, useRef } from 'react';
 import { AccessibilityInfo } from 'react-native';
@@ -62,14 +62,14 @@ export function useNavigationEffects(): void {
     if (!isNavigating) return;
     return useNavStore.subscribe((state, previous) => {
       if (state.currentStepIndex !== previous.currentStepIndex && state.instructions.length > 0) {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        haptic.emphasis();
       }
       if (state.arrived && !previous.arrived) {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        haptic.success();
         AccessibilityInfo.announceForAccessibility(tRef.current('arrived'));
       }
       if (state.rerouteStatus === 'pending' && previous.rerouteStatus !== 'pending') {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        haptic.warning();
         AccessibilityInfo.announceForAccessibility(tRef.current('recalculating'));
       }
       // 重算結束也要播報：只播「正在重新規劃」會讓視障使用者不知道新路線已套用或失敗（SDD §10）

@@ -1,4 +1,7 @@
 import { router } from 'expo-router';
+import { Linking } from 'react-native';
+import { logger } from '@/shared/logger';
+import { httpResultUrl } from '../domain/resultUrl';
 
 import { mapCamera, sheetNavigation } from '@/features/map';
 import { applyAiRoutePlan, applyComputedRoutes, fitSelectedRoute } from '@/features/route';
@@ -62,7 +65,7 @@ export function closeChat(): void {
 
 export function openRoutePanel(): void {
   closeChat();
-  sheetNavigation.whenVisible(() => router.navigate('/routes'));
+  sheetNavigation.whenVisible(() => router.navigate('/plan'));
 }
 
 export function executeAction(action: UIAction): ActionResult {
@@ -100,6 +103,11 @@ export function executeAction(action: UIAction): ActionResult {
  * 兩者都關掉聊天讓使用者看到地圖。
  */
 export function openAiResult(item: ToolResultItem): void {
+  const url = httpResultUrl(item.url);
+  if (url) {
+    void Linking.openURL(url).catch((error: unknown) => logger.warn('[ai] open result link failed', error));
+    return;
+  }
   const marker = item.marker;
   const position = marker?.position ?? item.position ?? null;
   if (!position) return;

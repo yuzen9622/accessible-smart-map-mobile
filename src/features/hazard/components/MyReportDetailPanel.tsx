@@ -1,8 +1,8 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { ErrorState, Icon, type IconName } from '@/shared/ui';
 
 import { hazardExpired } from '../domain/review';
@@ -13,6 +13,7 @@ import { resubmitHazardReport } from '../hooks/useMyReportDetail';
 import ReportPhoto from './report/ReportPhoto';
 import ReportReviewSection from './report/ReportReviewSection';
 import { ActionButton, KeyValue, SectionTitle, reportStyles } from './report/reportUi';
+import PressableScale from '@/shared/ui/PressableScale';
 
 type ReadyModel = Extract<MyReportDetailModel, { status: 'ready' }>;
 
@@ -99,7 +100,7 @@ function ReadyDetail({ model }: { model: ReadyModel }) {
       <View style={[styles.locationCard, { borderColor: semantic.separator }]}>
         <View style={styles.locationBody}>
           <View style={[styles.iconTile, { backgroundColor: semantic.surface }]}>
-            <Icon name="mapPin" size={20} color={colors.text} />
+            <Icon name="mapPin" size={ICON_SIZE.control} color={colors.text} />
           </View>
           <View style={styles.flex}>
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[reportStyles.body, styles.strong, { color: colors.text }]}>
@@ -110,16 +111,16 @@ function ReadyDetail({ model }: { model: ReadyModel }) {
             </Text>
           </View>
         </View>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={t('myReportsMap')}
           onPress={model.showOnMap}
-          style={({ pressed }) => [styles.mapButton, { borderTopColor: semantic.separator, backgroundColor: semantic.surface }, pressed && styles.dim]}>
+          style={[styles.mapButton, { borderTopColor: semantic.separator, backgroundColor: semantic.surface }]}>
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[reportStyles.body, styles.strong, { color: semantic.accent }]}>
             {t('myReportsMap')}
           </Text>
-          <Icon name="arrowUpRight" size={18} color={semantic.accent} />
-        </Pressable>
+          <Icon name="arrowUpRight" size={ICON_SIZE.body} color={semantic.accent} />
+        </PressableScale>
       </View>
 
       <View style={styles.section}>
@@ -148,7 +149,7 @@ function Stat({ icon, value, label }: { icon: IconName; value: number; label: st
   const colors = useThemeColors();
   return (
     <View accessible accessibilityLabel={`${label}：${value}`} style={[styles.stat, { backgroundColor: colors.backgroundElement }]}>
-      <Icon name={icon} size={16} color={colors.textSecondary} />
+      <Icon name={icon} size={ICON_SIZE.body} color={colors.textSecondary} />
       <View style={styles.flex}>
         <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.statValue, { color: colors.text }]}>
           {value}
@@ -163,7 +164,6 @@ function Stat({ icon, value, label }: { icon: IconName; value: number; label: st
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  dim: { opacity: 0.6 },
   strong: { fontWeight: '600' },
   tabular: { fontVariant: ['tabular-nums'], marginTop: 2 },
   stateContainer: { flex: 1, padding: 24 },
@@ -172,14 +172,14 @@ const styles = StyleSheet.create({
   header: { gap: 6 },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   eyebrow: { fontSize: TYPE.caption, fontWeight: '600', letterSpacing: 0.4 },
-  chip: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  chip: { borderRadius: SHAPE.badge, borderCurve: 'continuous', paddingHorizontal: 8, paddingVertical: 3 },
   chipText: { fontSize: TYPE.caption, fontWeight: '600' },
-  title: { fontSize: TYPE.title, fontWeight: '700' },
+  title: { fontSize: TYPE.title1, fontWeight: '700' },
   section: { gap: 10 },
   description: { fontSize: TYPE.body, lineHeight: 26 },
-  locationCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: RADIUS.card, overflow: 'hidden' },
+  locationCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
   locationBody: { flexDirection: 'row', gap: 12, padding: 14, alignItems: 'flex-start' },
-  iconTile: { borderRadius: RADIUS.small, padding: 9 },
+  iconTile: { borderRadius: SHAPE.control, borderCurve: 'continuous', padding: 9 },
   mapButton: {
     minHeight: MIN_TOUCH,
     flexDirection: 'row',
@@ -189,8 +189,8 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   stats: { flexDirection: 'row', gap: 10 },
-  stat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: RADIUS.small, padding: 12 },
-  statValue: { fontSize: TYPE.headline, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  stat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: SHAPE.control, borderCurve: 'continuous', padding: 12 },
+  statValue: { fontSize: TYPE.title3, fontWeight: '700', fontVariant: ['tabular-nums'] },
   statLabel: { fontSize: TYPE.caption },
   dates: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 16, gap: 10 },
 });

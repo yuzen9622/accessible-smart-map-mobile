@@ -2,12 +2,12 @@ import { busName } from '../components/busText';
 import { Text } from '@/shared/ui/typography/Text';
 import { Stack, useFocusEffect, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { mapCamera, useUserLocationStore } from '@/features/map';
 import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
 
 import { etaDisplay } from '../components/etaDisplay';
@@ -27,6 +27,8 @@ import {
 } from '../domain';
 import { useStopArrivals } from '../hooks/useStopArrivals';
 import { useBusPanelStore } from '../store/busPanelStore';
+import PressableScale from '@/shared/ui/PressableScale';
+import { Numeral } from '@/shared/ui/typography/Numeral';
 
 const STOP_ZOOM = 17;
 const STOP_ID = 'focused-stop';
@@ -148,12 +150,12 @@ export default function BusStopScreen() {
     const etaSpoken = eta.minutes !== null ? t('nativeBusEtaMinutes', { count: eta.minutes }) : eta.text;
     const label = t('nativeBusBoardRowLabel', { route: busName(a.routeDisplayName, a.routeName), headsign: headsignText(a), eta: etaSpoken });
     return (
-      <Pressable
+      <PressableScale feedback="highlight"
         key={arrivalKey(a)}
         accessibilityRole="button"
         accessibilityLabel={accessible ? `${label}，${accessText(a)}` : label}
         onPress={() => openRoute(a)}
-        style={({ pressed }) => [styles.row, separator(index), pressed && styles.pressed]}>
+        style={[styles.row, separator(index)]}>
         <RouteBadge name={busName(a.routeDisplayName, a.routeName)} />
         <View style={styles.rowTexts}>
           <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
@@ -161,14 +163,14 @@ export default function BusStopScreen() {
           </Text>
           {accessible ? (
             <View style={styles.accessTag}>
-              <Icon name="accessibility" size={13} color={semantic.accent} />
+              <Icon name="accessibility" size={ICON_SIZE.caption} color={semantic.accent} />
               <Text style={[styles.accessText, { color: semantic.accent }]}>{accessText(a)}</Text>
             </View>
           ) : null}
         </View>
         {eta.minutes !== null ? (
           <Text style={{ color: tone.color }}>
-            <Text style={styles.rowEta}>{eta.minutes}</Text>
+            <Numeral style={styles.rowEta}>{eta.minutes}</Numeral>
             <Text style={styles.rowEtaUnit}> {t('nativeBusMinuteUnit')}</Text>
           </Text>
         ) : (
@@ -176,22 +178,22 @@ export default function BusStopScreen() {
             {eta.text}
           </Text>
         )}
-      </Pressable>
+      </PressableScale>
     );
   };
 
   const renderNameRow = (routeName: string, index: number, note: string | null) => (
-    <Pressable
+    <PressableScale feedback="highlight"
       key={`name:${routeName}`}
       accessibilityRole="button"
       accessibilityLabel={note ? `${routeName}，${note}` : t('nativeBusStopRouteRowLabel', { route: routeName, stop: stopName })}
       onPress={() => openRouteByName(routeName)}
-      style={({ pressed }) => [styles.row, separator(index), pressed && styles.pressed]}>
+      style={[styles.row, separator(index)]}>
       <RouteBadge name={routeName} />
       <View style={styles.rowTexts} />
       {note ? <Text style={[styles.rowStatus, { color: colors.textSecondary }]}>{note}</Text> : null}
-      <Icon name="chevronRight" size={16} color={colors.textSecondary} />
-    </Pressable>
+      <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
+    </PressableScale>
   );
 
   const renderBoard = () => {
@@ -224,7 +226,7 @@ export default function BusStopScreen() {
           renderFeatured(featured)
         ) : (
           <View style={[styles.noteCard, { backgroundColor: semantic.surface }]}>
-            <Icon name="accessibility" size={18} color={colors.textSecondary} />
+            <Icon name="accessibility" size={ICON_SIZE.body} color={colors.textSecondary} />
             <Text accessibilityLiveRegion="polite" style={[styles.noteText, { color: colors.textSecondary }]}>
               {t('nativeBusNoAccessibleSoon')}
             </Text>
@@ -258,7 +260,7 @@ export default function BusStopScreen() {
         )}
 
         <View style={styles.footer}>
-          <Icon name="refresh" size={13} color={colors.textSecondary} />
+          <Icon name="refresh" size={ICON_SIZE.caption} color={colors.textSecondary} />
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>{t('nativeBusRefreshNote')}</Text>
         </View>
       </>
@@ -292,22 +294,21 @@ export default function BusStopScreen() {
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 14 },
   header: { gap: 4 },
-  title: { fontSize: TYPE.title, fontWeight: '700' },
-  subtitle: { fontSize: TYPE.callout },
-  sectionTitle: { fontSize: TYPE.subhead, fontWeight: '600' },
+  title: { fontSize: TYPE.title1, fontWeight: '700' },
+  subtitle: { fontSize: TYPE.subhead },
+  sectionTitle: { fontSize: TYPE.footnote, fontWeight: '600' },
   loading: { alignItems: 'center', paddingVertical: 24 },
-  message: { fontSize: TYPE.callout, textAlign: 'center', paddingVertical: 8 },
-  noteCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: RADIUS.card },
-  noteText: { flex: 1, fontSize: TYPE.callout },
+  message: { fontSize: TYPE.subhead, textAlign: 'center', paddingVertical: 8 },
+  noteCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: SHAPE.card, borderCurve: 'continuous' },
+  noteText: { flex: 1, fontSize: TYPE.subhead },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 },
-  pressed: { opacity: 0.6 },
   rowTexts: { flex: 1, gap: 2 },
-  rowTitle: { fontSize: TYPE.body, fontWeight: '500' },
+  rowTitle: { fontSize: TYPE.body, fontWeight: '600' },
   accessTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   accessText: { fontSize: TYPE.caption, fontWeight: '600' },
-  rowEta: { fontSize: 28, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  rowEtaUnit: { fontSize: TYPE.subhead, fontWeight: '600' },
-  rowStatus: { fontSize: TYPE.subhead, fontWeight: '600', maxWidth: 110, textAlign: 'right' },
+  rowEta: { fontSize: TYPE.title1, fontWeight: '700' },
+  rowEtaUnit: { fontSize: TYPE.footnote, fontWeight: '600' },
+  rowStatus: { fontSize: TYPE.footnote, fontWeight: '600', maxWidth: 110, textAlign: 'right' },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' },
   footerText: { fontSize: TYPE.caption },
 });

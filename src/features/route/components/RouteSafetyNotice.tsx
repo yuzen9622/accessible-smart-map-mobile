@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
@@ -16,7 +16,7 @@ export default function RouteSafetyNotice() {
   const colors = useThemeColors();
   return (
     <View accessible style={routeStyles.row}>
-      <Icon name="info" size={16} color={colors.textSecondary} />
+      <Icon name="info" size={ICON_SIZE.body} color={colors.textSecondary} />
       <Text style={[routeStyles.metaText, routeStyles.flex, { color: colors.textSecondary }]}>{t('nativeRouteSafetyNotice')}</Text>
     </View>
   );

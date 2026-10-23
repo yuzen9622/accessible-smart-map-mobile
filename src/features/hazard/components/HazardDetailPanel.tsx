@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { MAX_FONT_SCALE, RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, SPACE, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Button, ErrorState, Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
@@ -53,7 +53,7 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
       contentInsetAdjustmentBehavior="automatic">
         <View style={styles.header}>
           <View style={[styles.iconTile, { backgroundColor: severityTone.bg }]}>
-            <Icon name={report.hazardType === 'construction' ? 'construction' : report.hazardType === 'data_error' ? 'mapPin' : 'alert'} size={24} color={severityTone.fg} />
+            <Icon name={report.hazardType === 'construction' ? 'construction' : report.hazardType === 'data_error' ? 'mapPin' : 'alert'} size={ICON_SIZE.map} color={severityTone.fg} />
           </View>
           <View style={styles.heading}>
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} accessibilityRole="header" style={[styles.title, { color: colors.text }]}>
@@ -74,7 +74,7 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
             <PublicReportPhoto url={report.publicPhotoUrl} onRefresh={model.retry} />
           ) : (
             <View style={[styles.noPhoto, { backgroundColor: semantic.surface }]}>
-              <Icon name="image" size={22} color={colors.textSecondary} />
+              <Icon name="image" size={ICON_SIZE.control} color={colors.textSecondary} />
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.body, { color: colors.textSecondary }]}>{t(reportHasPhoto(report) ? 'hazardPublicPhotoUnavailable' : 'hazardDetailNoPhoto')}</Text>
             </View>
           )}
@@ -87,7 +87,7 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
           </Text>
           {model.createdText ? (
             <View style={styles.date}>
-              <Icon name="clock" size={14} color={colors.textSecondary} />
+              <Icon name="clock" size={ICON_SIZE.caption} color={colors.textSecondary} />
               <Text selectable maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.caption, styles.flex, { color: colors.textSecondary }]}>
                 {t('hazardDetailReportedAt', { date: model.createdText })}
               </Text>
@@ -99,7 +99,7 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
           <StatusPill label={t(presentation.label)} tone={presentation.tone} />
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.body, { color: colors.textSecondary }]}>{model.reviewText}</Text>
           <View style={[styles.community, { borderTopColor: semantic.separator }]}>
-            <Icon name="users" size={16} color={colors.textSecondary} />
+            <Icon name="users" size={ICON_SIZE.body} color={colors.textSecondary} />
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.caption, styles.flex, { color: colors.textSecondary }]}>
               {t('hazardDetailCommunity', { confirm: report.confirmCount ?? 0, deny: report.denyCount ?? 0 })}
             </Text>
@@ -109,7 +109,7 @@ export default function HazardDetailPanel({ model }: { model: HazardDetailModel 
         <View style={[styles.footer, { borderTopColor: semantic.separator }]}>
           {model.voted ? (
             <View style={styles.voted}>
-              <Icon name="circleCheck" size={20} color={semantic.ok.fg} />
+              <Icon name="circleCheck" size={ICON_SIZE.control} color={semantic.ok.fg} />
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.body, { color: colors.text }]}>{t('hazardVoted')}</Text>
             </View>
           ) : (
@@ -138,16 +138,16 @@ const styles = StyleSheet.create({
   content: { padding: SPACE.xl, paddingTop: SPACE.lg, gap: SPACE.xl },
   header: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
   heading: { flex: 1, gap: SPACE.xs },
-  iconTile: { width: 48, height: 48, borderRadius: RADIUS.card, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: TYPE.title, fontWeight: '700' },
-  severity: { fontSize: TYPE.subhead, lineHeight: 20, fontWeight: '600' },
+  iconTile: { width: 48, height: 48, borderRadius: SHAPE.card, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: TYPE.title1, fontWeight: '700' },
+  severity: { fontSize: TYPE.footnote, lineHeight: 20, fontWeight: '600' },
   section: { gap: SPACE.md },
-  body: { fontSize: TYPE.callout, lineHeight: 22 },
+  body: { fontSize: TYPE.subhead, lineHeight: 22 },
   description: { fontSize: TYPE.body, lineHeight: 24 },
-  caption: { fontSize: TYPE.subhead, lineHeight: 20 },
+  caption: { fontSize: TYPE.footnote, lineHeight: 20 },
   date: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.sm },
-  noPhoto: { minHeight: 96, borderRadius: RADIUS.card, alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, padding: SPACE.lg },
-  reviewCard: { borderRadius: RADIUS.card, padding: SPACE.lg, gap: SPACE.md },
+  noPhoto: { minHeight: 96, borderRadius: SHAPE.card, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, padding: SPACE.lg },
+  reviewCard: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.lg, gap: SPACE.md },
   community: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.sm, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: SPACE.md },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: SPACE.lg, gap: SPACE.sm },
   footerTitle: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },

@@ -1,23 +1,12 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import {
-  BUTTON_HEIGHT,
-  DANGER_FILL,
-  MAX_FONT_SCALE,
-  MIN_TOUCH,
-  ON_ACCENT_FILL,
-  RADIUS,
-  SPACE,
-  TYPE,
-  scaledSize,
-  useSemanticColors,
-  useThemeColors,
-} from '@/shared/theme';
+import { BUTTON_HEIGHT, DANGER_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { SosTrackerPanelProps, SosTrackerProgressStep } from './SosTrackerPanel.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 家人端即時求助追蹤（iOS／Android 共用 RN 實作，地圖 sheet 內）。
@@ -46,23 +35,20 @@ function ActionButton({ label, icon, onPress, tone, hint, big }: ActionButtonPro
   const background = tone === 'danger' ? DANGER_FILL : tone === 'dangerSoft' ? semantic.danger.bg : semantic.surface;
   const foreground = tone === 'danger' ? ON_ACCENT_FILL : tone === 'dangerSoft' ? semantic.danger.fg : colors.text;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={hint}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.action,
-        { backgroundColor: background, minHeight: big ? BIG_TARGET : BUTTON_HEIGHT },
-        pressed && styles.pressed,
-      ]}>
-      <Icon name={icon} size={big ? 24 : 20} color={foreground} />
+      style={[styles.action,
+        { backgroundColor: background, minHeight: big ? BIG_TARGET : BUTTON_HEIGHT }]}>
+      <Icon name={icon} size={big ? ICON_SIZE.map : ICON_SIZE.control} color={foreground} />
       <Text
         maxFontSizeMultiplier={MAX_FONT_SCALE.label}
-        style={[styles.actionText, { color: foreground, fontSize: scaledSize(big ? TYPE.headline : TYPE.body, scale) }]}>
+        style={[styles.actionText, { color: foreground, fontSize: scaledSize(big ? TYPE.title3 : TYPE.body, scale) }]}>
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -88,7 +74,7 @@ function ProgressStep({ step, index, total, last }: { step: SosTrackerProgressSt
               backgroundColor: step.state === 'todo' ? 'transparent' : dotColor,
             },
           ]}>
-          {step.state === 'done' ? <Icon name="check" size={14} strokeWidth={3} color={ON_ACCENT_FILL} /> : null}
+          {step.state === 'done' ? <Icon name="check" size={ICON_SIZE.caption} color={ON_ACCENT_FILL} /> : null}
         </View>
         {last ? null : (
           <View style={[styles.stepLine, { backgroundColor: step.state === 'done' ? semantic.ok.fg : semantic.separator }]} />
@@ -111,7 +97,7 @@ function StatusIllustration({ icon, tone }: { icon: IconName; tone: 'ok' | 'neut
   const semantic = useSemanticColors();
   return (
     <View style={[styles.illustration, { backgroundColor: semantic[tone].bg }]}>
-      <Icon name={icon} size={36} color={semantic[tone].fg} />
+      <Icon name={icon} size={ICON_SIZE.hero} color={semantic[tone].fg} />
     </View>
   );
 }
@@ -133,28 +119,28 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
       {active ? (
         <View style={styles.hero}>
           <View style={[styles.liveChip, { backgroundColor: DANGER_FILL }]}>
-            <Icon name="siren" size={16} color={ON_ACCENT_FILL} />
-            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.liveChipText, { fontSize: scaledSize(TYPE.subhead, scale) }]}>
+            <Icon name="siren" size={ICON_SIZE.body} color={ON_ACCENT_FILL} />
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.liveChipText, { fontSize: scaledSize(TYPE.footnote, scale) }]}>
               {t('nativeSosTrackerActive')}
             </Text>
           </View>
           <Text
             accessibilityRole="header"
             maxFontSizeMultiplier={MAX_FONT_SCALE.heading}
-            style={[styles.heroTitle, { color: colors.text, fontSize: scaledSize(TYPE.title, scale) }]}>
+            style={[styles.heroTitle, { color: colors.text, fontSize: scaledSize(TYPE.title1, scale) }]}>
             {model.typeLabel}
           </Text>
-          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
             {t('nativeSosTrackerLiveHint')}
           </Text>
         </View>
       ) : (
         <View style={styles.headerRow}>
-          <Icon name="siren" size={22} color={semantic.danger.fg} />
+          <Icon name="siren" size={ICON_SIZE.control} color={semantic.danger.fg} />
           <Text
             accessibilityRole="header"
             maxFontSizeMultiplier={MAX_FONT_SCALE.heading}
-            style={[styles.heroTitle, { color: colors.text, fontSize: scaledSize(TYPE.headline, scale) }]}>
+            style={[styles.heroTitle, { color: colors.text, fontSize: scaledSize(TYPE.title3, scale) }]}>
             {model.title}
           </Text>
         </View>
@@ -171,7 +157,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
         <View style={styles.centerBlock} accessible accessibilityLiveRegion="polite">
           <StatusIllustration icon={model.phase === 'resolved' ? 'shieldCheck' : 'circleX'} tone={model.phase === 'resolved' ? 'ok' : 'neutral'} />
           {model.phase === 'resolved' ? (
-            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} style={[styles.heroTitle, { color: colors.text, fontSize: scaledSize(TYPE.headline, scale) }]}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} style={[styles.heroTitle, { color: colors.text, fontSize: scaledSize(TYPE.title3, scale) }]}>
               {t('sosResolvedTitle')}
             </Text>
           ) : null}
@@ -193,27 +179,27 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
         <>
           <View style={[styles.card, { backgroundColor: semantic.surface }]} accessible>
             <View style={styles.cardLabelRow}>
-              <Icon name="mapPin" size={16} color={semantic.danger.fg} />
-              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+              <Icon name="mapPin" size={ICON_SIZE.body} color={semantic.danger.fg} />
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
                 {t('sosTrackingRequesterLabel')}
               </Text>
             </View>
-            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.address, { color: colors.text, fontSize: scaledSize(TYPE.headline, scale) }]}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.address, { color: colors.text, fontSize: scaledSize(TYPE.title3, scale) }]}>
               {model.addressText}
             </Text>
             <View style={styles.cardLabelRow}>
-              <Icon name="clock" size={14} color={model.stale ? semantic.warn.fg : colors.textSecondary} />
+              <Icon name="clock" size={ICON_SIZE.caption} color={model.stale ? semantic.warn.fg : colors.textSecondary} />
               <Text
                 accessibilityLiveRegion="polite"
                 maxFontSizeMultiplier={MAX_FONT_SCALE.label}
-                style={{ color: model.stale ? semantic.warn.fg : colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+                style={{ color: model.stale ? semantic.warn.fg : colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
                 {model.freshnessText}
               </Text>
             </View>
             {model.stale ? (
               <View style={[styles.staleBanner, { backgroundColor: semantic.warn.bg }]}>
-                <Icon name="alert" size={16} color={semantic.warn.fg} />
-                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.flexText, { color: semantic.warn.fg, fontSize: scaledSize(TYPE.subhead, scale) }]}>
+                <Icon name="alert" size={ICON_SIZE.body} color={semantic.warn.fg} />
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.flexText, { color: semantic.warn.fg, fontSize: scaledSize(TYPE.footnote, scale) }]}>
                   {t('nativeSosTrackerStale')}
                 </Text>
               </View>
@@ -232,7 +218,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
                 {t('nativeSosTrackerProgressTitle')}
               </Text>
               {model.waitingForFamily ? (
-                <Text accessibilityLiveRegion="polite" style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+                <Text accessibilityLiveRegion="polite" style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
                   {t('nativeSosTrackerWaiting')}
                 </Text>
               ) : null}
@@ -251,32 +237,32 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
           ) : null}
 
           {model.replyOnLine ? (
-            <Pressable
+            <PressableScale feedback="highlight"
               accessibilityRole="button"
               accessibilityLabel={t('nativeSosTrackerReplyOnLine')}
               accessibilityHint={t('nativeSosTrackerReplyOnLineHint')}
               onPress={model.replyOnLine}
-              style={({ pressed }) => [styles.lineRow, { backgroundColor: semantic.surface }, pressed && styles.pressed]}>
+              style={[styles.lineRow, { backgroundColor: semantic.surface }]}>
               <View style={[styles.lineBadge, { backgroundColor: semantic.ok.bg }]}>
-                <Icon name="messageSquare" size={20} color={semantic.ok.fg} />
+                <Icon name="messageSquare" size={ICON_SIZE.control} color={semantic.ok.fg} />
               </View>
               <View style={styles.flexText}>
                 <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.sectionTitle, { color: colors.text, fontSize: scaledSize(TYPE.body, scale) }]}>
                   {t('nativeSosTrackerReplyOnLine')}
                 </Text>
-                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
                   {t('nativeSosTrackerReplyOnLineHint')}
                 </Text>
               </View>
-              <Icon name="externalLink" size={18} color={colors.textSecondary} />
-            </Pressable>
+              <Icon name="externalLink" size={ICON_SIZE.body} color={colors.textSecondary} />
+            </PressableScale>
           ) : null}
 
           <View style={styles.callsBlock}>
             <Text
               accessibilityRole="header"
               maxFontSizeMultiplier={MAX_FONT_SCALE.label}
-              style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+              style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
               {t('nativeSosTrackerEmergencyCalls')}
             </Text>
             <View style={styles.callsRow}>
@@ -306,24 +292,24 @@ const styles = StyleSheet.create({
     gap: SPACE.xs,
     paddingHorizontal: SPACE.md,
     paddingVertical: SPACE.xs,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
   },
   liveChipText: { color: ON_ACCENT_FILL, fontWeight: '700' },
   heroTitle: { fontWeight: '700' },
   centerBlock: { alignItems: 'center', gap: SPACE.md, paddingVertical: SPACE.lg },
   centerText: { textAlign: 'center' },
-  illustration: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
-  card: { borderRadius: RADIUS.card, padding: SPACE.lg, gap: SPACE.sm },
+  illustration: { width: 72, height: 72, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.lg, gap: SPACE.sm },
   cardLabelRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.xs },
   address: { fontWeight: '700' },
-  staleBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.sm, borderRadius: RADIUS.small, padding: SPACE.md },
+  staleBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.sm, borderRadius: SHAPE.control, borderCurve: 'continuous', padding: SPACE.md },
   sectionTitle: { fontWeight: '700' },
   step: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.md, minHeight: 40 },
   stepRail: { alignItems: 'center', width: 22 },
-  stepDot: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  stepDot: { width: 22, height: 22, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   stepLine: { width: 2, flex: 1, minHeight: 16, marginVertical: 2 },
   action: {
-    borderRadius: RADIUS.card,
+    borderRadius: SHAPE.card, borderCurve: 'continuous',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -332,10 +318,9 @@ const styles = StyleSheet.create({
     minWidth: MIN_TOUCH,
   },
   actionText: { fontWeight: '700' },
-  lineRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, borderRadius: RADIUS.card, padding: SPACE.lg, minHeight: MIN_TOUCH },
-  lineBadge: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  lineRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.lg, minHeight: MIN_TOUCH },
+  lineBadge: { width: 40, height: 40, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   callsBlock: { gap: SPACE.sm },
   callsRow: { flexDirection: 'row', gap: SPACE.md },
   flexText: { flex: 1 },
-  pressed: { opacity: 0.7 },
 });

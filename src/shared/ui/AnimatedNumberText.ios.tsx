@@ -20,10 +20,11 @@ import type { AnimatedNumberTextProps } from './AnimatedNumberText.types';
  * iOS：SwiftUI `Text` + `.contentTransition(.numericText(countsDown:))`，系統原生的數字滾動。
  * 開「減少動態效果」時改成淡入淡出（`.opacity`），仍保留「數字變了」的提示。
  */
-export default function AnimatedNumberText({ text, value, fontSize, fontWeight = 'bold', color, accessibilityLabel }: AnimatedNumberTextProps) {
+export default function AnimatedNumberText({ text, value, fontSize, fontWeight = 'bold', fixedSize = false, color, accessibilityLabel }: AnimatedNumberTextProps) {
   const { fontScale } = useWindowDimensions();
   const appScale = useFontScale();
   const reduced = useReducedMotion();
+  const size = fixedSize ? fontSize : fontSize * appScale * fontScale;
   const [prev, setPrev] = useState(value);
   const [countsDown, setCountsDown] = useState(false);
   if (!Object.is(value, prev)) {
@@ -35,7 +36,7 @@ export default function AnimatedNumberText({ text, value, fontSize, fontWeight =
     <Host matchContents>
       <Text
         modifiers={[
-          font({ size: fontSize * appScale * fontScale, weight: fontWeight }),
+          font({ size, weight: fontWeight }),
           monospacedDigit(),
           foregroundStyle(color),
           lineLimit(1),

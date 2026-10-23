@@ -1,13 +1,26 @@
 import { create } from 'zustand';
 
-/** `@/features/route` 的最小替身：只有語音導航橋接會讀的 selectRoute 身分與 token。 */
+import type { AccessibleRoute } from '@/features/route/domain';
+
+type FakeRoute = { route: Pick<AccessibleRoute, 'navigationId' | 'routeVersion' | 'routeToken'> & Partial<AccessibleRoute> };
+
 export interface FakeRouteState {
-  selectRoute: { route: { navigationId?: string; routeVersion?: number; routeToken?: string } } | null;
+  selectRoute: FakeRoute | null;
+  navigationRoute: FakeRoute | null;
 }
 
-export const fakeRouteStore = create<FakeRouteState>(() => ({ selectRoute: null }));
+export const fakeRouteStore = create<FakeRouteState>(() => ({ selectRoute: null, navigationRoute: null }));
 
 export const routeModule = {
   getRouteSessionSnapshot: () => fakeRouteStore.getState(),
   subscribeRouteSession: (listener: (state: FakeRouteState, previous: FakeRouteState) => void) => fakeRouteStore.subscribe(listener),
+  replaceNavigationRoute: (route: AccessibleRoute) => {
+    const state = fakeRouteStore.getState();
+    if (!state.navigationRoute?.route.navigationId || state.navigationRoute.route.navigationId !== route.navigationId) return false;
+    fakeRouteStore.setState({
+      navigationRoute: { route },
+      ...(state.selectRoute?.route.navigationId === route.navigationId ? { selectRoute: { route } } : {}),
+    });
+    return true;
+  },
 };

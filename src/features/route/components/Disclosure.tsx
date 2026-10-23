@@ -1,9 +1,10 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, TYPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface DisclosureProps {
   label: string;
@@ -21,15 +22,15 @@ export default function Disclosure({ label, color, children }: DisclosureProps) 
   const tint = color ?? colors.textSecondary;
   return (
     <View>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen((v) => !v)}
         style={styles.header}>
-        <Icon name={open ? 'chevronUp' : 'chevronDown'} size={14} color={tint} />
+        <Icon name={open ? 'chevronUp' : 'chevronDown'} size={ICON_SIZE.caption} color={tint} />
         <Text style={[styles.label, { color: tint }]}>{label}</Text>
-      </Pressable>
+      </PressableScale>
       {open ? <View style={styles.body}>{children}</View> : null}
     </View>
   );
@@ -37,6 +38,6 @@ export default function Disclosure({ label, color, children }: DisclosureProps) 
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
-  label: { fontSize: 14, fontWeight: '500', flexShrink: 1 },
+  label: { fontSize: TYPE.subhead, fontWeight: '600', flexShrink: 1 },
   body: { gap: 6, paddingLeft: 8, paddingBottom: 4 },
 });

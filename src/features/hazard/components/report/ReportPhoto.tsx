@@ -5,7 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { useAuthStore } from '@/features/auth';
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, RADIUS, TYPE, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { logger } from '@/shared/logger';
@@ -92,7 +92,7 @@ function PhotoSession({ reportId, variant }: ReportPhotoProps) {
         ) : null}
         {state !== 'loaded' ? (
           <View style={compactFailure ? styles.unavailablePlaceholder : styles.placeholder} accessible accessibilityRole="text" accessibilityLabel={t(failed ? 'hazardPhotoUnavailable' : 'hazardPhotoLoading')}>
-            {failed ? <Icon name="image" size={variant === 'detail' ? 28 : 22} color={colors.textSecondary} /> : <ActivityIndicator />}
+            {failed ? <Icon name="image" size={variant === 'detail' ? ICON_SIZE.tile : ICON_SIZE.control} color={colors.textSecondary} /> : <ActivityIndicator />}
             {variant === 'detail' ? (
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.placeholderText, { color: colors.textSecondary }]}>
                 {t(failed ? 'hazardPhotoUnavailable' : 'hazardPhotoLoading')}
@@ -114,11 +114,11 @@ function PhotoSession({ reportId, variant }: ReportPhotoProps) {
 }
 
 const styles = StyleSheet.create({
-  thumbnail: { width: 76, height: 76, borderRadius: RADIUS.small, overflow: 'hidden' },
+  thumbnail: { width: 76, height: 76, borderRadius: SHAPE.control, borderCurve: 'continuous', overflow: 'hidden' },
   detailWrap: { gap: 10 },
-  detail: { width: '100%', aspectRatio: 4 / 3, borderRadius: RADIUS.card, overflow: 'hidden' },
-  detailUnavailable: { width: '100%', borderRadius: RADIUS.card, overflow: 'hidden' },
+  detail: { width: '100%', aspectRatio: 4 / 3, borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
+  detailUnavailable: { width: '100%', borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
   unavailablePlaceholder: { minHeight: 128, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 16 },
   placeholder: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 8 },
-  placeholderText: { fontSize: TYPE.subhead, textAlign: 'center' },
+  placeholderText: { fontSize: TYPE.footnote, textAlign: 'center' },
 });

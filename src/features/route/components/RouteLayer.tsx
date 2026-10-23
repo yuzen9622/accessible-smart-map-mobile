@@ -3,6 +3,7 @@ import type { Feature, Point } from 'geojson';
 
 import { ROUTE_DESTINATION_COLOR, buildRouteLayerData, type RoutePointProps } from '../domain/routeLayerData';
 import { useRouteSessionStore } from '../store/routeSessionStore';
+import { WHITE } from '@/shared/theme';
 
 /**
  * 路線圖層（SDD §4.4 RouteLayer）：選中路線的每段 leg 一條線，依 feature `kind` 分到不同 layer——
@@ -12,7 +13,14 @@ import { useRouteSessionStore } from '../store/routeSessionStore';
  * 只有目的地、還沒算出路線時也畫目的地 pin（對齊 `hasRouteSession` 的定義：它也需要 pill 當出口）。
  */
 export default function RouteLayer() {
-  const route = useRouteSessionStore((s) => s.selectRoute?.route ?? null);
+  const selected = useRouteSessionStore((s) => s.selectRoute?.route ?? null);
+  const preview = useRouteSessionStore((s) => s.legGeometryPreview);
+  // 查看別班公車時，那段 leg 改畫那班的線形（只在這張圖層上替換，不寫回路線）
+  const previewLeg = preview && selected?.routeId === preview.routeId ? selected.legs[preview.legIndex] : undefined;
+  const route =
+    selected && preview && previewLeg?.type === 'BUS'
+      ? { ...selected, legs: selected.legs.map((leg, index) => (index === preview.legIndex ? { ...previewLeg, polyline: preview.polyline } : leg)) }
+      : selected;
   const waypoints = useRouteSessionStore((s) => s.routeWaypoints);
   const destination = useRouteSessionStore((s) => s.destination);
 
@@ -36,7 +44,7 @@ export default function RouteLayer() {
           type="line"
           filter={['match', ['get', 'kind'], ['transit', 'drive'], true, false]}
           layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-          paint={{ 'line-color': '#FFFFFF', 'line-width': 11, 'line-opacity': 0.9 }}
+          paint={{ 'line-color': WHITE, 'line-width': 11, 'line-opacity': 0.9 }}
         />
         <Layer
           id="route-line-walk"
@@ -82,7 +90,7 @@ export default function RouteLayer() {
               'match',
               ['get', 'kind'],
               ['origin', 'transfer'],
-              '#FFFFFF',
+              WHITE,
               ['get', 'color'],
             ],
             'circle-radius': [
@@ -98,7 +106,7 @@ export default function RouteLayer() {
               6,
               8,
             ],
-            'circle-stroke-color': ['match', ['get', 'kind'], ['origin', 'transfer'], ['get', 'color'], '#FFFFFF'],
+            'circle-stroke-color': ['match', ['get', 'kind'], ['origin', 'transfer'], ['get', 'color'], WHITE],
             'circle-stroke-width': ['match', ['get', 'kind'], ['origin', 'transfer'], 3.5, 2],
           }}
         />

@@ -2,12 +2,12 @@ import { busName } from '../components/busText';
 import { Text, TextInput } from '@/shared/ui/typography/Text';
 import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { SHEET_DETENTS, sheetController, useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { SPACE, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
 
 import RouteBadge from '../components/RouteBadge';
@@ -15,6 +15,7 @@ import { groupByCity, type BusSearchResult, type BusStopSearchResult } from '../
 import { useBusSearch, type BusSearchError, type BusSearchMode } from '../hooks/useBusSearch';
 import { useNearbyBusStops } from '../hooks/useNearbyBusStops';
 import { useBusPanelStore, type PanelStop } from '../store/busPanelStore';
+import PressableScale from '@/shared/ui/PressableScale';
 
 function toPanelStops(stops: BusStopSearchResult[]): PanelStop[] {
   return stops.map((s) => ({ id: s.stopUid || s.stopName, name: busName(s.stopDisplayName, s.stopName), lat: s.coordinates[1], lng: s.coordinates[0] }));
@@ -81,7 +82,7 @@ export default function BusPanelScreen() {
             const preview = stop.routes.slice(0, STOP_ROUTE_PREVIEW);
             const more = stop.routes.length - preview.length;
             return (
-              <Pressable
+              <PressableScale feedback="highlight"
                 key={`${stop.stopUid}-${stop.stopName}-${stop.coordinates.join(',')}`}
                 accessibilityRole="button"
                 accessibilityLabel={t('nativeBusStopRowLabel', {
@@ -91,9 +92,9 @@ export default function BusPanelScreen() {
                   count: stop.routes.length,
                 })}
                 onPress={() => openStop(stop)}
-                style={({ pressed }) => [styles.row, separator(index), pressed && styles.pressed]}>
+                style={[styles.row, separator(index)]}>
                 <View style={[styles.iconCircle, { backgroundColor: semantic.accentSoft }]}>
-                  <Icon name="bus" size={18} color={semantic.accent} />
+                  <Icon name="bus" size={ICON_SIZE.body} color={semantic.accent} />
                 </View>
                 <View style={styles.rowTexts}>
                   <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
@@ -111,8 +112,8 @@ export default function BusPanelScreen() {
                   ) : null}
                 </View>
                 {distance ? <Text style={[styles.distance, { color: colors.textSecondary }]}>{distance}</Text> : null}
-                <Icon name="chevronRight" size={16} color={colors.textSecondary} />
-              </Pressable>
+                <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
+              </PressableScale>
             );
           })}
         </View>
@@ -127,7 +128,7 @@ export default function BusPanelScreen() {
         </Text>
         <View>
           {group.items.map((route, index) => (
-            <Pressable
+            <PressableScale feedback="highlight"
               key={`${route.city}-${route.routeName}-${route.departure}-${route.destination}`}
               accessibilityRole="button"
               accessibilityLabel={t('nativeBusRouteRowLabel', {
@@ -142,7 +143,7 @@ export default function BusPanelScreen() {
                   params: { routeName: route.routeName, city: route.city, departure: route.departure, destination: route.destination },
                 })
               }
-              style={({ pressed }) => [styles.row, separator(index), pressed && styles.pressed]}>
+              style={[styles.row, separator(index)]}>
               <RouteBadge name={busName(route.routeDisplayName, route.routeName)} />
               <View style={styles.rowTexts}>
                 {busName(route.departureDisplayName, route.departure) || busName(route.destinationDisplayName, route.destination) ? (
@@ -151,8 +152,8 @@ export default function BusPanelScreen() {
                   </Text>
                 ) : null}
               </View>
-              <Icon name="chevronRight" size={16} color={colors.textSecondary} />
-            </Pressable>
+              <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
+            </PressableScale>
           ))}
         </View>
       </View>
@@ -249,20 +250,19 @@ function Message({ text, color }: { text: string; color: string }) {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 14 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, minHeight: 48, paddingHorizontal: 14, borderRadius: RADIUS.pill },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, minHeight: 48, paddingHorizontal: 14, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
   input: { flex: 1, fontSize: TYPE.body, paddingVertical: 10 },
   section: { gap: 12 },
-  sectionTitle: { fontSize: TYPE.headline, fontWeight: '700' },
+  sectionTitle: { fontSize: TYPE.title3, fontWeight: '700' },
   group: { gap: 4 },
-  groupTitle: { fontSize: TYPE.subhead, fontWeight: '600' },
+  groupTitle: { fontSize: TYPE.footnote, fontWeight: '600' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 },
-  pressed: { opacity: 0.6 },
-  iconCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  iconCircle: { width: 34, height: 34, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   rowTexts: { flex: 1, gap: 6 },
   rowTitle: { fontSize: TYPE.body, fontWeight: '600' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 },
   moreText: { fontSize: TYPE.caption, fontWeight: '600' },
-  distance: { fontSize: TYPE.callout, fontVariant: ['tabular-nums'] },
+  distance: { fontSize: TYPE.subhead, fontVariant: ['tabular-nums'] },
   message: { alignItems: 'center', paddingVertical: 24 },
-  messageText: { fontSize: TYPE.callout, textAlign: 'center' },
+  messageText: { fontSize: TYPE.subhead, textAlign: 'center' },
 });

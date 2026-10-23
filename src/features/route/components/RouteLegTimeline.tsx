@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
+import { ICON_SIZE, SHAPE, TYPE, WHITE, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { LEG_ICON, LEG_LABEL_FILL } from '../domain/routeDisplay';
@@ -28,7 +28,7 @@ export default function RouteLegTimeline({ segments }: RouteLegTimelineProps) {
         <View key={`${segment.type}-${index}`} style={styles.step}>
           {index > 0 ? <View style={[styles.connector, { borderColor: colors.textSecondary }]} /> : null}
           <View style={[styles.iconBadge, { backgroundColor: LEG_LABEL_FILL[segment.type] }]}>
-            <Icon name={LEG_ICON[segment.type]} size={16} color="#FFFFFF" />
+            <Icon name={LEG_ICON[segment.type]} size={ICON_SIZE.caption} color={WHITE} />
           </View>
           {segment.label ? (
             <Text style={[styles.label, { color: colors.text }]} numberOfLines={1}>
@@ -43,7 +43,7 @@ export default function RouteLegTimeline({ segments }: RouteLegTimelineProps) {
       ))}
       <View style={styles.step}>
         <View style={[styles.connector, { borderColor: colors.textSecondary }]} />
-        <Icon name="flag" size={18} color={colors.textSecondary} />
+        <Icon name="flag" size={ICON_SIZE.body} color={colors.textSecondary} />
         <Text style={[styles.label, { color: colors.textSecondary }]}>{t('destination')}</Text>
       </View>
     </View>
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
   step: { flex: 1, alignItems: 'center', gap: 2 },
   // 用上邊框畫虛線，貼齊圖示中心的高度；寬度交給 flex:1 的 step 平分。
   connector: { position: 'absolute', top: 15, left: '-50%', right: '50%', borderTopWidth: 1.5, borderStyle: 'dashed' },
-  iconBadge: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: 12, fontWeight: '600' },
-  meta: { fontSize: 11 },
+  iconBadge: { width: 30, height: 30, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  label: { fontSize: TYPE.caption, fontWeight: '600' },
+  meta: { fontSize: TYPE.caption },
 });

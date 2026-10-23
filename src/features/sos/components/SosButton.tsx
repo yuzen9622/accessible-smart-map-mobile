@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { DANGER_FILL } from '@/shared/theme';
+import { DANGER_FILL, WHITE, TYPE, SHAPE, ELEVATION, SOS_BUTTON } from '@/shared/theme';
 
 import { selectSosInProgress, useSosStore } from '../store/sosStore';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 地圖上的 SOS 浮動按鈕（SDD §4.4 MapControls、§10：SOS 主按鈕 ≥ 64 pt）。一下就開 SOS 畫面並開始 5 秒倒數
@@ -14,37 +15,32 @@ export default function SosButton() {
   const { t } = useAppTranslation();
   const active = useSosStore(selectSosInProgress);
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={active ? t('sosActiveTitle') : t('nativeSosButtonLabel')}
       accessibilityHint={active ? undefined : t('nativeSosButtonHint')}
       onPress={() => router.navigate('/sos')}
-      style={({ pressed }) => [styles.button, active && styles.active, pressed && styles.pressed]}>
+      style={[styles.button, active && styles.active]}>
       <View importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
         {/* 固定 64pt 圓鈕：字級上限 1.2，放大字級時「SOS」不會超出圓形 */}
         <Text style={styles.text} maxFontSizeMultiplier={1.2}>
           SOS
         </Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: SOS_BUTTON.size,
+    height: SOS_BUTTON.size,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     backgroundColor: DANGER_FILL,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 6,
+    boxShadow: ELEVATION.floating,
   },
-  active: { borderWidth: 4, borderColor: '#FFFFFF' },
-  pressed: { opacity: 0.8 },
-  text: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', letterSpacing: 1 },
+  active: { borderWidth: 4, borderColor: WHITE },
+  text: { color: WHITE, fontSize: TYPE.body, fontWeight: '700', letterSpacing: 1 },
 });

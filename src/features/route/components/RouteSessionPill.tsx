@@ -1,15 +1,16 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { router, usePathname } from 'expo-router';
-import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { GlassCard, Icon } from '@/shared/ui';
 
 import { endRouteSession, fitSelectedRoute } from '../controller/routeSessionPort';
-import { hasRouteSession, routeResumeTarget, sheetModeFromPath, shouldShowRoutePill } from '../domain/routeSession';
+import { hasRouteSession, sheetModeFromPath, shouldShowRoutePill } from '../domain/routeSession';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import { routeTones } from './palette';
+import PressableScale from '@/shared/ui/PressableScale';
 
 const PILL_MAX_FONT_SCALE = 1.3;
 
@@ -22,7 +23,7 @@ export interface RouteSessionPillProps {
 
 /**
  * 「回到路線」常駐 pill（Web `RouteSessionPill.tsx`）：守住「路線幾何在地圖上 ⟺ 有出口」不變量。
- * 點本體回到規劃結果（或表單）並框回路線；✕ 是結束路線的唯一 UI 入口之一（`endRouteSession`）。
+ * 點本體回到規劃路線（有結果就列在同一頁）並框回路線；✕ 是結束路線的唯一 UI 入口之一（`endRouteSession`）。
  */
 export default function RouteSessionPill({ isNavigating, chatOpen = false }: RouteSessionPillProps) {
   const { t } = useAppTranslation();
@@ -46,19 +47,18 @@ export default function RouteSessionPill({ isNavigating, chatOpen = false }: Rou
   const minutes = selectRoute ? Math.round(selectRoute.route.totalMinutes) : null;
 
   const resume = () => {
-    const target = routeResumeTarget(computeRoutes);
-    router.navigate(target === 'route' ? '/routes' : '/plan');
+    router.navigate('/plan');
     fitSelectedRoute();
   };
 
   return (
     <GlassCard style={styles.pill} interactive>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={`${t('routeSessionPillResume')}，${label}${minutes !== null ? `，${t('minutesLeft', { count: minutes })}` : ''}`}
         onPress={resume}
         style={styles.body}>
-        <Icon name="navigation" size={16} color={tones.accent} />
+        <Icon name="navigation" size={ICON_SIZE.body} color={tones.accent} />
         {/* 浮在地圖上的膠囊：字級上限 1.3 倍。最大字級時目的地被擠成「前…」、分鐘數佔滿整顆膠囊（截圖實測） */}
         <Text style={[styles.label, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={PILL_MAX_FONT_SCALE}>
           {label}
@@ -68,20 +68,20 @@ export default function RouteSessionPill({ isNavigating, chatOpen = false }: Rou
             {t('minutesLeft', { count: minutes })}
           </Text>
         ) : null}
-      </Pressable>
+      </PressableScale>
       <View style={[styles.separator, { backgroundColor: colors.textSecondary }]} />
-      <Pressable accessibilityRole="button" accessibilityLabel={t('routeSessionPillEnd')} onPress={endRouteSession} style={styles.close}>
-        <Icon name="close" size={16} color={colors.textSecondary} />
-      </Pressable>
+      <PressableScale accessibilityRole="button" accessibilityLabel={t('routeSessionPillEnd')} onPress={endRouteSession} style={styles.close}>
+        <Icon name="close" size={ICON_SIZE.body} color={colors.textSecondary} />
+      </PressableScale>
     </GlassCard>
   );
 }
 
 const styles = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', maxWidth: 340, borderRadius: 24 },
+  pill: { flexDirection: 'row', alignItems: 'center', maxWidth: 340, borderRadius: SHAPE.floating, borderCurve: 'continuous' },
   body: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48, paddingLeft: 16, paddingRight: 8, flexShrink: 1 },
-  label: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
-  minutes: { fontSize: 14, fontWeight: '600' },
+  label: { fontSize: TYPE.subhead, fontWeight: '600', flexShrink: 1 },
+  minutes: { fontSize: TYPE.subhead, fontWeight: '600' },
   separator: { width: StyleSheet.hairlineWidth, height: 24, opacity: 0.4 },
   close: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
 });

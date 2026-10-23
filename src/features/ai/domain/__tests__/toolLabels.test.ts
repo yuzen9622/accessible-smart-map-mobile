@@ -18,6 +18,6 @@ describe('toolLabels', () => {
       expect(toolDoneLabel(name, t)).not.toBe('');
       expect(toolLoadingLabel(name, t)).toMatch(/…$/);
     }
-    expect(KNOWN_TOOL_NAMES).toHaveLength(26);
+    expect(KNOWN_TOOL_NAMES).toHaveLength(33);
   });
 });

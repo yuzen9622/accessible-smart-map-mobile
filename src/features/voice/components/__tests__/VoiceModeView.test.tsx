@@ -8,7 +8,12 @@ import { useVoiceStore } from '../../store/voiceStore';
 import VoiceModeView from '../VoiceModeView';
 
 let mockLanguage: 'zh-TW' | 'en' = 'zh-TW';
-jest.mock('@/features/ai', () => jest.requireActual('@/features/ai/domain/toolLabels'));
+jest.mock('@/features/ai', () => ({
+  ...jest.requireActual('@/features/ai/domain/toolLabels'),
+  getAggregatedToolResults: jest.requireActual('@/features/ai/domain/toolResultCards').getAggregatedToolResults,
+  ToolResultsBox: jest.requireActual('@/features/ai/components/ToolResultsBox').default,
+  openAiResult: jest.fn(),
+}));
 jest.mock('@/shared/i18n', () => ({
   useAppTranslation: () => ({ t: (key: string) => {
     const translations = mockLanguage === 'en'
@@ -29,7 +34,8 @@ jest.mock('react-native-reanimated', () => {
   const { View } = jest.requireActual('react-native');
   const { useMemo } = jest.requireActual('react');
   return {
-    __esModule: true, default: { View }, useReducedMotion: () => true,
+    __esModule: true, default: { View, createAnimatedComponent: (component: unknown) => component }, useReducedMotion: () => true,
+    Easing: { bezier: () => ({}) }, ReduceMotion: { System: 'system', Always: 'always', Never: 'never' },
     useSharedValue: (value: number) => useMemo(() => ({ value, set: jest.fn() }), [value]),
     useAnimatedStyle: () => ({}), withTiming: (v: number) => v,
   };
@@ -38,7 +44,7 @@ jest.mock('react-native-reanimated', () => {
 beforeEach(() => {
   jest.clearAllMocks();
   jest.mocked(ensureAiDataConsent).mockResolvedValue(true);
-  useVoiceStore.setState({ ...initialVoiceViewState, routeSyncState: 'idle', launchOrigin: null });
+  useVoiceStore.setState({ ...initialVoiceViewState, toolResults: [], routeSyncState: 'idle', launchOrigin: null });
 });
 
 it.each(['zh-TW', 'en'] as const)('shows recoverable errors and working retry/close controls in %s', async language => {
@@ -51,6 +57,25 @@ it.each(['zh-TW', 'en'] as const)('shows recoverable errors and working retry/cl
   await waitFor(() => expect(startVoiceSession).toHaveBeenCalledTimes(1));
   await fireEvent.press(view.getByRole('button', { name: language === 'en' ? 'Close' : '關閉' }));
   expect(dismissVoiceSession).toHaveBeenCalledTimes(1);
+});
+
+it('shows full query cards while voice is still listening', async () => {
+  mockLanguage = 'zh-TW';
+  useVoiceStore.setState({ status: { status: 'listening' }, toolResults: [
+    { type: 'result', name: 'findGooglePlaces', ok: true, result: { ok: true, places: [{ name: '市政府無障礙入口', formatted_address: '市府路1號', geometry: { location: { lat: 25, lng: 121 } } }] } },
+  ] });
+  const view = await render(<VoiceModeView />);
+  expect(view.getByText('市政府無障礙入口')).toBeTruthy();
+  expect(view.getByText('市府路1號')).toBeTruthy();
+  expect(view.getByRole('button', { name: '結束語音對話' })).toBeTruthy();
+});
+
+it('shows the farewell state without pretending the microphone is listening', async () => {
+  mockLanguage = 'zh-TW';
+  useVoiceStore.setState({ status: { status: 'ending' } });
+  const view = await render(<VoiceModeView />);
+  expect(view.getByText('正在結束對話…')).toBeTruthy();
+  expect(view.queryByText('聆聽中…')).toBeNull();
 });
 
 it('does not reconnect voice when the user has not consented to sharing data with AI', async () => {

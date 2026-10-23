@@ -1,5 +1,5 @@
 // 移植自 Web `src/lib/route/__tests__/routeSession.test.ts`（commit 5eadc71），案例逐一保留。
-import { hasRouteSession, planRequestKey, routeResumeTarget, sheetModeFromPath, shouldShowRoutePill } from '../routeSession';
+import { hasRouteSession, planRequestKey, sheetModeFromPath, shouldShowRoutePill } from '../routeSession';
 
 const EMPTY = {
   computeRoutes: null,
@@ -22,20 +22,6 @@ describe('hasRouteSession', () => {
 
   it('is true with a selected route', () => {
     expect(hasRouteSession({ ...EMPTY, selectRoute: { index: 0 } })).toBe(true);
-  });
-});
-
-describe('routeResumeTarget', () => {
-  it('returns to the results list when routes came back', () => {
-    expect(routeResumeTarget([{}, {}])).toBe('route');
-  });
-
-  it('returns to the planning form when only a destination was picked', () => {
-    expect(routeResumeTarget(null)).toBe('plan');
-  });
-
-  it('treats an empty result array as nothing to show', () => {
-    expect(routeResumeTarget([])).toBe('plan');
   });
 });
 
@@ -82,7 +68,6 @@ describe('shouldShowRoutePill', () => {
 describe('sheetModeFromPath', () => {
   it('maps the sheet routes to the Web SheetMode the pill rule expects', () => {
     expect(sheetModeFromPath('/plan')).toBe('plan');
-    expect(sheetModeFromPath('/routes')).toBe('route');
     expect(sheetModeFromPath('/routes/0')).toBe('route');
     expect(sheetModeFromPath('/navigation')).toBe('navigation');
     expect(sheetModeFromPath('/place/osm:node:1')).toBe('place');

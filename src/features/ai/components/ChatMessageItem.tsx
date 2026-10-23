@@ -3,7 +3,7 @@ import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, scaledSize, useSemanticColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { buildTraceRows, describeThinking, shouldShowTrace } from '../domain/thinkingTrace';
@@ -12,6 +12,7 @@ import type { ChatEntry } from '../store/chatStore';
 import StreamingMarkdown from './StreamingMarkdown';
 import ThinkingTrace from './ThinkingTrace';
 import ToolResultsBox from './ToolResultsBox';
+import { MOTION } from '@/shared/theme/motion';
 
 export interface ChatMessageItemProps {
   entry: ChatEntry;
@@ -28,11 +29,11 @@ export default function ChatMessageItem({ entry, isDark, onOpenResult }: ChatMes
   const tones = useSemanticColors();
   const fontScale = useFontScale();
   const reduceMotion = useReducedMotion();
-  const entering = reduceMotion ? undefined : FadeInDown.duration(240);
+  const entering = reduceMotion ? undefined : FadeInDown.duration(MOTION.medium.duration);
   const fromVoice = entry.source === 'voice';
   const voiceTag = fromVoice ? (
     <View style={styles.voiceTag} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Icon name="audioLines" size={12} color={tones.neutral.fg} />
+      <Icon name="audioLines" size={ICON_SIZE.caption} color={tones.neutral.fg} />
       <Text style={{ color: tones.neutral.fg, fontSize: scaledSize(TYPE.caption, fontScale), fontWeight: '600' }}>
         {t('chatbot.voice.fromVoice')}
       </Text>
@@ -48,7 +49,7 @@ export default function ChatMessageItem({ entry, isDark, onOpenResult }: ChatMes
           accessible
           accessibilityLabel={`${voicePrefix}${t('nativeAiYou')}：${entry.content}`}
           style={[styles.userBubble, { backgroundColor: ACCENT_FILL }]}>
-          <Text selectable style={{ color: ON_ACCENT_FILL, fontSize: scaledSize(TYPE.body, fontScale), lineHeight: scaledSize(22, fontScale) }}>
+          <Text selectable style={{ color: ON_ACCENT_FILL, fontSize: scaledSize(TYPE.body, fontScale), lineHeight: scaledSize(TYPE.title2, fontScale) }}>
             {entry.content}
           </Text>
         </View>
@@ -76,8 +77,8 @@ export default function ChatMessageItem({ entry, isDark, onOpenResult }: ChatMes
       {entry.content.length > 0 ? (
         entry.isError ? (
           <View accessibilityRole="alert" style={[styles.errorRow, { backgroundColor: tones.danger.bg }]}>
-            <Icon name="circleX" size={16} color={tones.danger.fg} />
-            <Text style={[styles.errorText, { color: tones.danger.fg, fontSize: scaledSize(TYPE.callout, fontScale) }]}>{entry.content}</Text>
+            <Icon name="circleX" size={ICON_SIZE.body} color={tones.danger.fg} />
+            <Text style={[styles.errorText, { color: tones.danger.fg, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>{entry.content}</Text>
           </View>
         ) : (
           <StreamingMarkdown content={entry.content} streaming={streaming} isDark={isDark} />
@@ -86,8 +87,8 @@ export default function ChatMessageItem({ entry, isDark, onOpenResult }: ChatMes
       {groups.length > 0 ? <ToolResultsBox groups={groups} isDark={isDark} onOpenItem={onOpenResult} /> : null}
       {entry.notice ? (
         <View accessibilityRole="alert" style={[styles.notice, { backgroundColor: tones.warn.bg }]}>
-          <Icon name="info" size={16} color={tones.warn.fg} />
-          <Text style={[styles.errorText, { color: tones.warn.fg, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>{entry.notice}</Text>
+          <Icon name="info" size={ICON_SIZE.body} color={tones.warn.fg} />
+          <Text style={[styles.errorText, { color: tones.warn.fg, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>{entry.notice}</Text>
         </View>
       ) : null}
     </Animated.View>
@@ -96,10 +97,10 @@ export default function ChatMessageItem({ entry, isDark, onOpenResult }: ChatMes
 
 const styles = StyleSheet.create({
   userRow: { alignItems: 'flex-end', paddingLeft: 48 },
-  userBubble: { borderRadius: 20, borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 9 },
+  userBubble: { borderRadius: SHAPE.floating, borderCurve: 'continuous', borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 9 },
   assistantRow: { alignItems: 'stretch', paddingRight: 8 },
   voiceTag: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
-  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: RADIUS.small, padding: 10 },
-  notice: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: RADIUS.small, padding: 10, marginTop: 8 },
-  errorText: { flex: 1, fontWeight: '500' },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: SHAPE.control, borderCurve: 'continuous', padding: 10 },
+  notice: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: SHAPE.control, borderCurve: 'continuous', padding: 10, marginTop: 8 },
+  errorText: { flex: 1, fontWeight: '600' },
 });

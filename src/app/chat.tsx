@@ -1,27 +1,28 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Platform, Pressable, StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 import { ChatScreen, clearChat, useChatStore } from '@/features/ai';
 import { VoiceMicButton, VoiceModeView, isVoiceSessionActive, useVoiceStore } from '@/features/voice';
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, ICON_SIZE } from '@/shared/theme';
 import { HeaderCloseButton, Icon } from '@/shared/ui';
+import PressableScale from '@/shared/ui/PressableScale';
 
 function ClearButton() {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   const empty = useChatStore((state) => state.entries.length === 0);
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={t('chatbot.clearConversation')}
       accessibilityState={{ disabled: empty }}
       disabled={empty}
       onPress={clearChat}
       hitSlop={8}
-      style={({ pressed }) => [styles.button, (pressed || empty) && styles.dim]}>
-      <Icon name="trash" size={20} color={colors.text} />
-    </Pressable>
+      style={[styles.button, empty && styles.dim]}>
+      <Icon name="trash" size={ICON_SIZE.control} color={colors.text} />
+    </PressableScale>
   );
 }
 

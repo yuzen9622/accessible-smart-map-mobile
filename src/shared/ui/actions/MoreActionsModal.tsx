@@ -1,12 +1,13 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, StyleSheet, View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import Icon from '../Icon';
 
 import type { MoreActionsButtonProps } from './MoreActionsButton.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 地點動作列的「⋯」：非原生平台 fallback，以底部 Modal 列出次要動作。
@@ -22,14 +23,13 @@ export default function MoreActionsModal({ label, cancelLabel, actions, backgrou
 
   return (
     <>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={label}
         onPress={() => setOpen(true)}
-        android_ripple={{ borderless: true }}
-        style={({ pressed }) => [styles.button, { backgroundColor }, pressed && styles.pressed]}>
-        <Icon name="ellipsis" size={20} color={color} />
-      </Pressable>
+        style={[styles.button, { backgroundColor }]}>
+        <Icon name="ellipsis" size={ICON_SIZE.control} color={color} />
+      </PressableScale>
       <Modal visible={open} transparent animationType="fade" onRequestClose={close} statusBarTranslucent>
         <Pressable accessibilityRole="button" accessibilityLabel={cancelLabel} onPress={close} style={styles.backdrop} />
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) }]}>
@@ -38,26 +38,26 @@ export default function MoreActionsModal({ label, cancelLabel, actions, backgrou
               {label}
             </Text>
             {actions.map((action) => (
-              <Pressable
+              <PressableScale
                 key={action.label}
                 accessibilityRole="button"
                 onPress={() => {
                   close();
                   action.onPress();
                 }}
-                android_ripple={{ color: semantic.separator }}
-                style={({ pressed }) => [styles.row, { borderColor: semantic.separator }, pressed && styles.pressed]}>
+                feedback="highlight"
+                style={[styles.row, { borderColor: semantic.separator }]}>
                 <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.rowText, { color: semantic.accent }]}>{action.label}</Text>
-              </Pressable>
+              </PressableScale>
             ))}
           </View>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             onPress={close}
-            android_ripple={{ color: semantic.separator }}
-            style={({ pressed }) => [styles.group, styles.cancel, { backgroundColor: colors.background }, pressed && styles.pressed]}>
+            feedback="highlight"
+            style={[styles.group, styles.cancel, { backgroundColor: colors.background }]}>
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.rowText, styles.cancelText, { color: colors.text }]}>{cancelLabel}</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </Modal>
     </>
@@ -65,12 +65,11 @@ export default function MoreActionsModal({ label, cancelLabel, actions, backgrou
 }
 
 const styles = StyleSheet.create({
-  button: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
-  pressed: { opacity: 0.6 },
+  button: { width: 50, height: 50, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.35)' },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, gap: 8 },
-  group: { borderRadius: RADIUS.card, overflow: 'hidden' },
-  title: { fontSize: TYPE.subhead, fontWeight: '600', textAlign: 'center', paddingVertical: 12, paddingHorizontal: 16 },
+  group: { borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
+  title: { fontSize: TYPE.footnote, fontWeight: '600', textAlign: 'center', paddingVertical: 12, paddingHorizontal: 16 },
   row: { minHeight: MIN_TOUCH + 8, justifyContent: 'center', paddingHorizontal: 16, borderTopWidth: StyleSheet.hairlineWidth },
   rowText: { fontSize: TYPE.body, textAlign: 'center' },
   cancel: { minHeight: MIN_TOUCH + 8, justifyContent: 'center' },

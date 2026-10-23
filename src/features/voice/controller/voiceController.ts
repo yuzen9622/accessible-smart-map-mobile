@@ -97,6 +97,7 @@ function sharedHistory() {
 }
 
 function onStatus(status: VoiceStatus): void {
+  const muted = useVoiceStore.getState().isMuted;
   useVoiceStore.setState((state) => reduceStatus(state, status));
   // 只播報使用者需要知道的轉折，不逐一念 listening／model-speaking（會蓋過模型語音）
   if (['connecting', 'reconnecting', 'needs-login', 'ended', 'error'].includes(status.status)) announce(status);
@@ -104,7 +105,7 @@ function onStatus(status: VoiceStatus): void {
     useVoiceStore.setState({ activeTool: null, routeSyncState: 'idle' });
     mergeIntoChat();
     releaseVoiceAudio();
-    onVoiceSessionTerminal();
+    onVoiceSessionTerminal({ muted, reason: status.status === 'ended' ? 'ended' : 'lost' });
   }
 }
 
@@ -116,8 +117,12 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
     publishTool: (event) => {
       const mark = toolMarkOf(event, useVoiceStore.getState().transcripts.length);
       if (mark) toolMarks.push(mark);
-      useVoiceStore.setState({ activeTool: event });
+      useVoiceStore.setState((state) => ({
+        activeTool: event,
+        ...(event.type === 'result' && event.ok !== false ? { toolResults: [...state.toolResults.filter(previous => previous.name !== event.name), event] } : {}),
+      }));
     },
+    clearTool: () => useVoiceStore.setState({ activeTool: null }),
     setMicLevel: (level) => voiceLevels.mic.set(level),
     executeAction,
     getRouteGeneration: () => getRouteSessionSnapshot().selectionGeneration,
@@ -197,6 +202,7 @@ useAuthStore.subscribe((state) => {
     merged = true;
     toolMarks = [];
     bindings?.reset();
+    useVoiceStore.setState({ toolResults: [] });
     controller?.requireLogin();
   }
 });
@@ -213,7 +219,7 @@ export function startVoiceSession(t: Translate): void {
   b.reset();
   toolMarks = [];
   merged = false;
-  useVoiceStore.setState((state) => ({ ...reduceSessionBoundary(state), routeSyncState: 'idle', activeTool: null, viewMode: 'panel' }));
+  useVoiceStore.setState((state) => ({ ...reduceSessionBoundary(state), routeSyncState: 'idle', activeTool: null, toolResults: [], viewMode: 'panel' }));
   armCurrentRoute();
   c.start();
 }

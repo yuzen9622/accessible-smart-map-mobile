@@ -1,9 +1,10 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, DESTRUCTIVE_TEXT, TYPE, SHAPE } from '@/shared/theme';
 
 import type { ButtonProps } from './Button.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 const MIN_TOUCH_TARGET = 48;
 
@@ -22,22 +23,19 @@ export default function Button({
       : isDestructive
         ? colors.backgroundElement
         : colors.backgroundElement;
-  const textColor = variant === 'primary' ? colors.background : isDestructive ? '#D92D20' : colors.text;
+  const textColor = variant === 'primary' ? colors.background : isDestructive ? DESTRUCTIVE_TEXT : colors.text;
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled }}
-      style={({ pressed }) => [
-        styles.button,
-        { backgroundColor, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 },
-      ]}>
+      style={[styles.button, { backgroundColor, opacity: disabled ? 0.5 : 1 }]}>
       <Text style={[styles.label, { color: textColor }]}>{label}</Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -46,12 +44,12 @@ const styles = StyleSheet.create({
     minHeight: MIN_TOUCH_TARGET,
     minWidth: MIN_TOUCH_TARGET,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: SHAPE.control, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
-    fontSize: 17,
+    fontSize: TYPE.body,
     fontWeight: '600',
   },
 });

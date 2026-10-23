@@ -3,7 +3,7 @@ import { HStack, RNHostView, ShareLink } from '@expo/ui/swift-ui';
 import { accessibilityLabel, contentShape, frame, shapes } from '@expo/ui/swift-ui/modifiers';
 import { StyleSheet, View } from 'react-native';
 
-import { RADIUS, useSemanticColors } from '@/shared/theme';
+import { useSemanticColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 
 import { Icon } from '@/shared/ui';
 
@@ -29,7 +29,7 @@ export default function ShareButton({ url, title, label }: ShareButtonProps) {
           {/* 圖示圓鈕，與旁邊的收藏、複製同一種樣式；文字只放在無障礙標籤（VoiceOver 仍念「分享」） */}
           <HStack modifiers={[frame({ width: 50, height: 50 }), contentShape(shapes.rectangle()), accessibilityLabel(label)]}>
             <RNHostView matchContents>
-              <Icon name="share" size={20} color={accentText} />
+              <Icon name="share" size={ICON_SIZE.control} color={accentText} />
             </RNHostView>
           </HStack>
         </ShareLink>
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   circle: {
     width: 50,
     height: 50,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',

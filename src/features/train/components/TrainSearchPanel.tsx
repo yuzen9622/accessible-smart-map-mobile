@@ -1,12 +1,13 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { SPACE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE } from '@/shared/theme';
 import { FormButton, FormInput, FormScreen, FormSection, FormSegmented, FormText } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
 import type { StationSuggestion, StationTimetableEntry, TrainTimetableEntry } from '../domain/train';
 import type { TrainSearchPanelProps } from './TrainSearchPanel.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 火車／高鐵時刻查詢（像 Google 地圖查火車班次）：兩站間時刻或單站發車看板，兩個模式共用
@@ -132,12 +133,13 @@ function StationSuggestionList({
   return (
     <View style={[styles.suggestionList, { borderColor: colors.textSecondary + '33' }]}>
       {suggestions.map((suggestion) => (
-        <Pressable
+        <PressableScale
           key={suggestion.stationID}
           onPress={() => onSelect(suggestion)}
-          style={({ pressed }) => [styles.suggestionRow, pressed && { backgroundColor: colors.textSecondary + '1a' }]}>
-          <Text style={{ color: accent, fontSize: 14 }}>{suggestion.name}</Text>
-        </Pressable>
+          feedback="highlight"
+          style={styles.suggestionRow}>
+          <Text style={{ color: accent, fontSize: TYPE.subhead }}>{suggestion.name}</Text>
+        </PressableScale>
       ))}
     </View>
   );
@@ -156,13 +158,13 @@ function OdTrainRow({
     <View style={[styles.row, { borderColor: colors.textSecondary + '22' }]}>
       <View style={styles.rowMain}>
         <Text style={[styles.trainNo, { color: accent }]}>{train.trainNo}</Text>
-        {train.trainType ? <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{train.trainType}</Text> : null}
+        {train.trainType ? <Text style={{ color: colors.textSecondary, fontSize: TYPE.caption }}>{train.trainType}</Text> : null}
       </View>
-      <Text style={{ color: colors.text, fontSize: 15 }}>
+      <Text style={{ color: colors.text, fontSize: TYPE.subhead }}>
         {train.departureTime} → {train.arrivalTime}
         {train.arrivesNextDay ? '+1' : ''}
       </Text>
-      <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{train.durationMinutes} 分</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: TYPE.footnote }}>{train.durationMinutes} 分</Text>
     </View>
   );
 }
@@ -180,10 +182,10 @@ function StationTrainRow({
     <View style={[styles.row, { borderColor: colors.textSecondary + '22' }]}>
       <View style={styles.rowMain}>
         <Text style={[styles.trainNo, { color: accent }]}>{train.trainNo}</Text>
-        {train.trainType ? <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{train.trainType}</Text> : null}
+        {train.trainType ? <Text style={{ color: colors.textSecondary, fontSize: TYPE.caption }}>{train.trainType}</Text> : null}
       </View>
-      <Text style={{ color: colors.text, fontSize: 15 }}>{train.departureTime}</Text>
-      {train.destination ? <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{train.destination}</Text> : null}
+      <Text style={{ color: colors.text, fontSize: TYPE.subhead }}>{train.departureTime}</Text>
+      {train.destination ? <Text style={{ color: colors.textSecondary, fontSize: TYPE.footnote }}>{train.destination}</Text> : null}
     </View>
   );
 }
@@ -198,10 +200,10 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   rowMain: { width: 64, gap: 2 },
-  trainNo: { fontSize: 15, fontWeight: '700' },
+  trainNo: { fontSize: TYPE.subhead, fontWeight: '700' },
   suggestionList: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 8,
+    borderRadius: SHAPE.control, borderCurve: 'continuous',
     marginTop: -SPACE.sm,
     marginBottom: SPACE.sm,
     overflow: 'hidden',

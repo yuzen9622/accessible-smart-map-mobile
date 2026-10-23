@@ -1,13 +1,14 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Marker } from '@maplibre/maplibre-react-native';
 import { router } from 'expo-router';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, TYPE, SHAPE, ELEVATION } from '@/shared/theme';
 
 import { FACILITY_COLORS } from '../domain/facilityStyle';
 import { formatDistance } from '../domain/parking';
 import { useFacilityPills } from '../hooks/useFacilityPills';
+import PressableScale from '@/shared/ui/PressableScale';
 
 const FACILITY_ICON = {
   elevator: require('../../../../assets/map-icons/elevator.png'),
@@ -35,7 +36,7 @@ export default function FacilityPills() {
         lngLat={[pill.position.lng, pill.position.lat]}
         anchor="left"
         offset={CIRCLE_CENTER_OFFSET}>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={`${pill.facility.displayName?.trim() || pill.facility.name}，${distanceText}`}
           onPress={() => router.navigate({ pathname: '/facility/[id]', params: { id: pill.id } })}
@@ -44,7 +45,7 @@ export default function FacilityPills() {
             <Image source={FACILITY_ICON[pill.facility.category]} style={styles.icon} />
           </View>
           <Text style={[styles.distance, { color: colors.text }]}>{distanceText}</Text>
-        </Pressable>
+        </PressableScale>
       </Marker>
     );
   });
@@ -58,14 +59,10 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingLeft: 3,
     paddingRight: 10,
-    borderRadius: 15,
-    shadowColor: '#000000',
-    shadowOpacity: 0.22,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    borderRadius: SHAPE.card, borderCurve: 'continuous',
+    boxShadow: ELEVATION.floating,
   },
-  circle: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  circle: { width: 24, height: 24, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   icon: { width: 14, height: 14 },
-  distance: { fontSize: 13, fontWeight: '600' },
+  distance: { fontSize: TYPE.footnote, fontWeight: '600' },
 });

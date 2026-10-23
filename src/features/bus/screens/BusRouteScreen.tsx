@@ -1,12 +1,12 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Stack, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { mapCamera, useMapUiStore } from '@/features/map';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
-import { TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
 
 import { busName, badgePillTone, badgeText } from '../components/busText';
@@ -48,6 +48,7 @@ import { useBusRouteDetail } from '../hooks/useBusRouteDetail';
 import { useRouteLiveBuses } from '../hooks/useRouteLiveBuses';
 import { useTrackedArrival } from '../hooks/useTrackedArrival';
 import { useBusPanelStore, type PanelStop } from '../store/busPanelStore';
+import PressableScale from '@/shared/ui/PressableScale';
 
 const STOP_ZOOM = 17;
 /** 對焦時避開頂部狀態列與右側浮動控制（定位、3D、SOS 約 70pt 寬）；左右同路線規劃至少 40。 */
@@ -363,7 +364,7 @@ export default function BusRouteScreen() {
             ) : null}
           </View>
           <View style={styles.eyebrow}>
-            <Icon name="bus" size={14} color={colors.textSecondary} />
+            <Icon name="bus" size={ICON_SIZE.caption} color={colors.textSecondary} />
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
           </View>
         </View>
@@ -396,15 +397,15 @@ export default function BusRouteScreen() {
             ) : (
               <View>
                 {collapsedCount > 0 ? (
-                  <Pressable
+                  <PressableScale
                     accessibilityRole="button"
                     onPress={() => setExpandedFor(selectedKey)}
-                    style={({ pressed }) => [styles.earlier, pressed && styles.pressed]}>
-                    <Icon name="chevronUp" size={16} color={semantic.accent} />
+                    style={styles.earlier}>
+                    <Icon name="chevronUp" size={ICON_SIZE.body} color={semantic.accent} />
                     <Text style={[styles.earlierText, { color: semantic.accent }]}>
                       {t('nativeBusShowEarlierStops', { count: collapsedCount })}
                     </Text>
-                  </Pressable>
+                  </PressableScale>
                 ) : null}
                 {stops.map((stop, index) => {
                   if (index < collapsedCount) return null;
@@ -433,15 +434,15 @@ export default function BusRouteScreen() {
                       onPress={() => onSelectStop(stop)}
                       footer={
                         isSelected && canAlight ? (
-                          <Pressable
+                          <PressableScale
                             accessibilityRole="button"
                             onPress={() => setAlight(isAlight ? null : { key: selectedKey, seq: stop.seq })}
-                            style={({ pressed }) => [styles.alightButton, { borderColor: semantic.accent }, pressed && styles.pressed]}>
-                            <Icon name="flag" size={14} color={semantic.accent} />
+                            style={[styles.alightButton, { borderColor: semantic.accent }]}>
+                            <Icon name="flag" size={ICON_SIZE.caption} color={semantic.accent} />
                             <Text style={[styles.alightText, { color: semantic.accent }]}>
                               {isAlight ? t('nativeBusClearAlight') : t('nativeBusSetAlight')}
                             </Text>
-                          </Pressable>
+                          </PressableScale>
                         ) : undefined
                       }
                     />
@@ -460,11 +461,11 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 14 },
   header: { gap: 6 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { flex: 1, fontSize: TYPE.headline, fontWeight: '700' },
+  title: { flex: 1, fontSize: TYPE.title3, fontWeight: '700' },
   eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  subtitle: { fontSize: TYPE.subhead, flexShrink: 1 },
+  subtitle: { fontSize: TYPE.footnote, flexShrink: 1 },
   message: { alignItems: 'center', paddingVertical: 24 },
-  messageText: { fontSize: TYPE.callout, textAlign: 'center' },
+  messageText: { fontSize: TYPE.subhead, textAlign: 'center' },
   alightButton: {
     flexDirection: 'row',
     alignSelf: 'flex-start',
@@ -472,11 +473,10 @@ const styles = StyleSheet.create({
     gap: 6,
     minHeight: 44,
     paddingHorizontal: 14,
-    borderRadius: 22,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: 1,
   },
-  alightText: { fontSize: TYPE.subhead, fontWeight: '600' },
+  alightText: { fontSize: TYPE.footnote, fontWeight: '600' },
   earlier: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingLeft: 8 },
-  earlierText: { fontSize: TYPE.callout, fontWeight: '600' },
-  pressed: { opacity: 0.6 },
+  earlierText: { fontSize: TYPE.subhead, fontWeight: '600' },
 });

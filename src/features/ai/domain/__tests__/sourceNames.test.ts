@@ -29,7 +29,7 @@ describe('source display names', () => {
     expect(groups[0].items.map((item) => item.id)).toEqual(['a11yfac_a', 'a11yfac_b']);
   });
 
-  it('uses route-detail stop displayName and direction display without rewriting stop ID', () => {
+  it('uses route-detail display names with direction-scoped stop identity', () => {
     const group = getToolResultGroup('getBusRouteDetail', {
       routeName: '藍一', routeDisplayName: 'Blue 1',
       directions: [{ direction: 0, toDisplayName: 'Station', stops: [
@@ -37,7 +37,7 @@ describe('source display names', () => {
       ] }],
     }, t)!;
     expect(group.heading).toContain('Blue 1');
-    expect(group.items[0]).toMatchObject({ id: 'stop_stop-a', title: 'Station', subtitle: 'Station' });
+    expect(group.items[0]).toMatchObject({ id: 'stop_0_0_stop-a_0', title: 'Station', subtitle: 'Station' });
   });
 
   it('uses parking display fields with canonical identity', () => {

@@ -1,12 +1,13 @@
 import { Text, TextInput } from '@/shared/ui/typography/Text';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 import { MapLayersBar } from '@/features/map';
-import { ACCENT_FILL, RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, SPACE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { ExplorePanelProps, ExploreRow } from './ExplorePanel.types';
 import { PLACE_BORDER_COLOR } from './palette';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 首頁／搜尋面板（`(sheet)/explore`），iOS／Android 共用同一實作。
@@ -32,21 +33,21 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 
   const renderHistoryRow = (row: ExploreRow) => (
     <View key={row.key} style={[styles.historyRow, { borderColor: PLACE_BORDER_COLOR }]}>
-      <Pressable accessibilityRole="button" accessibilityLabel={row.title} onPress={row.onPress} style={styles.historyRowPress}>
-        <Icon name="clock" size={16} color={colors.textSecondary} />
+      <PressableScale feedback="highlight" accessibilityRole="button" accessibilityLabel={row.title} onPress={row.onPress} style={styles.historyRowPress}>
+        <Icon name="clock" size={ICON_SIZE.body} color={colors.textSecondary} />
         <Text style={[styles.listRowText, { color: colors.text }]} numberOfLines={1}>
           {row.title}
         </Text>
-      </Pressable>
+      </PressableScale>
       {row.onDelete ? (
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={row.deleteA11yLabel ?? row.title}
           onPress={row.onDelete}
           hitSlop={8}
           style={styles.historyDelete}>
-          <Icon name="close" size={16} color={colors.textSecondary} />
-        </Pressable>
+          <Icon name="close" size={ICON_SIZE.body} color={colors.textSecondary} />
+        </PressableScale>
       ) : null}
     </View>
   );
@@ -74,30 +75,30 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
           returnKeyType="search"
         />
         {model.loading ? <ActivityIndicator size="small" color={colors.textSecondary} /> : null}
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityState={{ selected: model.voiceInput.status === 'listening' }}
           accessibilityLabel={model.voiceInput.accessibilityLabel}
           onPress={model.voiceInput.onToggle}
           hitSlop={6}
-          style={({ pressed }) => [styles.voiceButton, pressed && styles.pressed]}>
+          style={styles.voiceButton}>
           <Icon
             name="audioLines"
-            size={18}
+            size={ICON_SIZE.body}
             color={model.voiceInput.status === 'listening' ? tones.accent : colors.textSecondary}
           />
-        </Pressable>
+        </PressableScale>
         {model.mode !== 'idle' ? (
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={model.labels.cancelSearch}
             onPress={model.onCancelSearch}
             hitSlop={6}
-            style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}>
+            style={styles.cancelButton}>
             <Text style={[styles.cancelButtonText, { color: accentText }]}>{model.labels.cancelSearch}</Text>
-          </Pressable>
+          </PressableScale>
         ) : (
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={model.account.label}
             onPress={model.account.onPress}
@@ -106,9 +107,9 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             {model.account.initial ? (
               <Text style={styles.avatarText}>{model.account.initial}</Text>
             ) : (
-              <Icon name="user" size={22} color={colors.textSecondary} />
+              <Icon name="user" size={ICON_SIZE.control} color={colors.textSecondary} />
             )}
-          </Pressable>
+          </PressableScale>
         )}
       </View>
 
@@ -125,7 +126,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
               </>
             ) : (
               <View style={styles.empty}>
-                <Icon name="clock" size={28} color={colors.textSecondary} />
+                <Icon name="clock" size={ICON_SIZE.tile} color={colors.textSecondary} />
                 <Text accessibilityRole="text" style={[styles.emptyText, { color: colors.textSecondary }]}>
                   {model.labels.recentSearches}
                 </Text>
@@ -139,17 +140,17 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             </Text>
             <View style={styles.facilityGrid}>
               {model.categoryShortcuts.nearbyFacilities.map((item) => (
-                <Pressable
+                <PressableScale
                   key={item.key}
                   accessibilityRole="button"
                   accessibilityLabel={item.label}
                   onPress={item.onPress}
-                  style={({ pressed }) => [styles.facilityTile, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
-                  <Icon name={item.iconName} size={22} color={accentText} />
+                  style={[styles.facilityTile, { backgroundColor: colors.backgroundElement }]}>
+                  <Icon name={item.iconName} size={ICON_SIZE.control} color={accentText} />
                   <Text style={[styles.facilityTileText, { color: colors.text }]} numberOfLines={1}>
                     {item.label}
                   </Text>
-                </Pressable>
+                </PressableScale>
               ))}
             </View>
           </View>
@@ -159,16 +160,16 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
               {model.categoryShortcuts.moreTitle}
             </Text>
             {model.categoryShortcuts.moreCategories.map((item) => (
-              <Pressable
+              <PressableScale feedback="highlight"
                 key={item.key}
                 accessibilityRole="button"
                 accessibilityLabel={item.label}
                 onPress={item.onPress}
-                style={({ pressed }) => [styles.categoryRow, { borderColor: PLACE_BORDER_COLOR }, pressed && styles.pressed]}>
-                <Icon name={item.iconName} size={20} color={colors.textSecondary} />
+                style={[styles.categoryRow, { borderColor: PLACE_BORDER_COLOR }]}>
+                <Icon name={item.iconName} size={ICON_SIZE.control} color={colors.textSecondary} />
                 <Text style={[styles.categoryRowText, { color: colors.text }]}>{item.label}</Text>
-                <Icon name="chevronRight" size={16} color={colors.textSecondary} />
-              </Pressable>
+                <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
+              </PressableScale>
             ))}
           </View>
         </>
@@ -180,29 +181,29 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             </Text>
             <View style={styles.quickGrid}>
               {model.quickActions.map((action) => (
-                <Pressable
+                <PressableScale
                   key={action.key}
                   accessibilityRole="button"
                   accessibilityLabel={action.label}
                   onPress={action.onPress}
-                  style={({ pressed }) => [styles.quickTile, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
+                  style={[styles.quickTile, { backgroundColor: colors.backgroundElement }]}>
                   <View style={[styles.quickTileIcon, { backgroundColor: action.color }]}>
-                    <Icon name={action.iconName} size={20} color="#FFFFFF" />
+                    <Icon name={action.iconName} size={ICON_SIZE.control} color={WHITE} />
                   </View>
                   <Text style={[styles.quickTileText, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
                     {action.label}
                   </Text>
-                </Pressable>
+                </PressableScale>
               ))}
             </View>
           </View>
 
           {model.nearbySummary ? (
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={model.nearbySummary.text}
               onPress={model.nearbySummary.onPress}
-              style={({ pressed }) => [styles.summaryCard, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
+              style={[styles.summaryCard, { backgroundColor: colors.backgroundElement }]}>
               {model.nearbySummary.dots.length > 0 ? (
                 <View style={styles.summaryDots}>
                   {model.nearbySummary.dots.map((dot, index) => (
@@ -213,16 +214,16 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                         { backgroundColor: dot.color, borderColor: colors.backgroundElement },
                         index > 0 && styles.summaryDotOverlap,
                       ]}>
-                      <Icon name={dot.iconName} size={15} color="#FFFFFF" />
+                      <Icon name={dot.iconName} size={ICON_SIZE.caption} color={WHITE} />
                     </View>
                   ))}
                 </View>
               ) : (
-                <Icon name="accessibility" size={22} color={colors.textSecondary} />
+                <Icon name="accessibility" size={ICON_SIZE.control} color={colors.textSecondary} />
               )}
               <Text style={[styles.summaryText, { color: colors.text }]}>{model.nearbySummary.text}</Text>
-              <Icon name="chevronRight" size={16} color={colors.textSecondary} />
-            </Pressable>
+              <Icon name="chevronRight" size={ICON_SIZE.body} color={colors.textSecondary} />
+            </PressableScale>
           ) : null}
 
           {/* 常去地點：標題旁一顆小「新增」開收藏清單；不再是圓鈕那排裡的第 4 顆（設計調整 2026-10-11） */}
@@ -231,19 +232,19 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
               <Text accessibilityRole="header" style={[styles.sectionTitle, styles.flex, { color: colors.text }]}>
                 {model.labels.savedPlaces}
               </Text>
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={model.addShortcut.accessibilityLabel}
                 onPress={model.addShortcut.onPress}
                 hitSlop={8}
                 style={styles.addShortcutButton}>
-                <Icon name="plus" size={18} color={accentText} />
-              </Pressable>
+                <Icon name="plus" size={ICON_SIZE.body} color={accentText} />
+              </PressableScale>
             </View>
             {model.shortcutFilters.length > 1 ? (
               <View style={styles.shortcutFilterRow}>
                 {model.shortcutFilters.map((filter) => (
-                  <Pressable
+                  <PressableScale
                     key={filter.key}
                     accessibilityRole="button"
                     accessibilityState={{ selected: filter.selected }}
@@ -257,14 +258,14 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                     <Text style={[styles.shortcutFilterText, { color: filter.selected ? accentText : colors.textSecondary }]}>
                       {filter.label}
                     </Text>
-                  </Pressable>
+                  </PressableScale>
                 ))}
               </View>
             ) : null}
             {model.shortcuts.length > 0 ? (
               <View style={styles.shortcutsGrid}>
                 {model.shortcuts.map((shortcut) => (
-                  <Pressable
+                  <PressableScale
                     key={shortcut.key}
                     accessibilityRole="button"
                     accessibilityLabel={shortcut.meta ? `${shortcut.title}，${shortcut.meta}` : shortcut.title}
@@ -276,9 +277,9 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                     onAccessibilityAction={(event) => {
                       if (event.nativeEvent.actionName === 'longpress') shortcut.onLongPress();
                     }}
-                    style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
+                    style={styles.shortcut}>
                     <View style={[styles.shortcutIcon, { backgroundColor: shortcut.color }]}>
-                      <Icon name={shortcut.iconName} size={24} color="#FFFFFF" />
+                      <Icon name={shortcut.iconName} size={ICON_SIZE.map} color={WHITE} />
                     </View>
                     <Text style={[styles.shortcutTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
                       {shortcut.title}
@@ -288,7 +289,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                         {shortcut.meta}
                       </Text>
                     ) : null}
-                  </Pressable>
+                  </PressableScale>
                 ))}
               </View>
             ) : null}
@@ -302,7 +303,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             </Text>
           ) : null}
           {model.resultRows.map((row) => (
-            <Pressable
+            <PressableScale feedback="highlight"
               key={row.key}
               accessibilityRole="button"
               accessibilityLabel={row.subtitle ? `${row.title}，${row.subtitle}` : row.title}
@@ -310,7 +311,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
               disabled={row.disabled}
               onPress={row.onPress}
               style={[styles.resultRow, { borderColor: PLACE_BORDER_COLOR }, row.disabled && !row.resolving && styles.disabled]}>
-              <Icon name="mapPin" size={16} color={colors.textSecondary} />
+              <Icon name="mapPin" size={ICON_SIZE.body} color={colors.textSecondary} />
               <View style={styles.flex}>
                 <Text style={[styles.resultTitle, { color: colors.text }]} numberOfLines={2}>
                   {row.title}
@@ -322,19 +323,19 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                 ) : null}
               </View>
               {row.resolving ? <ActivityIndicator size="small" color={colors.textSecondary} /> : null}
-            </Pressable>
+            </PressableScale>
           ))}
           {model.error ? (
             <View style={styles.empty} accessibilityRole="alert" accessible accessibilityLabel={model.labels.networkError}>
-              <Icon name="alert" size={28} color={colors.textSecondary} />
+              <Icon name="alert" size={ICON_SIZE.tile} color={colors.textSecondary} />
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{model.labels.networkError}</Text>
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={model.labels.retry}
                 onPress={model.onRetry}
-                style={({ pressed }) => [styles.retryButton, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
+                style={[styles.retryButton, { backgroundColor: colors.backgroundElement }]}>
                 <Text style={[styles.resultTitle, { color: colors.text }]}>{model.labels.retry}</Text>
-              </Pressable>
+              </PressableScale>
             </View>
           ) : model.resultRows.length === 0 && model.loading ? (
             // 剛打完字、結果還沒回來：不擋著不顯示任何東西，不然使用者會以為整個畫面卡住
@@ -347,7 +348,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             </View>
           ) : model.resultRows.length === 0 && !model.loading ? (
             <View style={styles.empty}>
-              <Icon name="search" size={28} color={colors.textSecondary} />
+              <Icon name="search" size={ICON_SIZE.tile} color={colors.textSecondary} />
               <Text accessibilityRole="text" style={[styles.emptyText, { color: colors.textSecondary }]}>
                 {model.labels.noResults}
               </Text>
@@ -360,10 +361,10 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 }
 
 const styles = StyleSheet.create({
-  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  avatar: { width: 36, height: 36, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: WHITE, fontSize: TYPE.callout, fontWeight: '700' },
   cancelButton: { minHeight: 36, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
-  cancelButtonText: { fontSize: 15, fontWeight: '600' },
+  cancelButtonText: { fontSize: TYPE.subhead, fontWeight: '600' },
   voiceButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.sm, paddingBottom: 32, gap: 18 },
   flex: { flex: 1 },
@@ -373,56 +374,48 @@ const styles = StyleSheet.create({
   shortcutFilterChip: {
     paddingHorizontal: SPACE.md,
     paddingVertical: 6,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: 1,
   },
-  shortcutFilterText: { fontSize: 13, fontWeight: '600' },
+  shortcutFilterText: { fontSize: TYPE.footnote, fontWeight: '600' },
   shortcutsGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   shortcut: { width: '25%', alignItems: 'center', gap: 4, paddingVertical: SPACE.sm },
   shortcutIcon: {
     width: 56,
     height: 56,
-    borderRadius: 28,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOpacity: 0.16,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    boxShadow: ELEVATION.floating,
   },
-  shortcutTitle: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
-  shortcutMeta: { fontSize: 12, textAlign: 'center' },
+  shortcutTitle: { fontSize: TYPE.footnote, fontWeight: '600', textAlign: 'center' },
+  shortcutMeta: { fontSize: TYPE.caption, textAlign: 'center' },
   quickGrid: { flexDirection: 'row', gap: SPACE.sm },
   quickTile: {
     flex: 1,
     minHeight: 84,
-    borderRadius: RADIUS.card,
+    borderRadius: SHAPE.card, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     paddingVertical: SPACE.sm,
     paddingHorizontal: 4,
-    shadowColor: '#000000',
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    boxShadow: ELEVATION.raised,
   },
-  quickTileIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  quickTileText: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  quickTileIcon: { width: 40, height: 40, borderRadius: SHAPE.control, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  quickTileText: { fontSize: TYPE.footnote, fontWeight: '700', textAlign: 'center' },
   facilityGrid: { flexDirection: 'row', gap: SPACE.sm },
   facilityTile: {
     flex: 1,
     minHeight: 72,
-    borderRadius: RADIUS.card,
+    borderRadius: SHAPE.card, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     paddingVertical: SPACE.sm,
     paddingHorizontal: 4,
   },
-  facilityTileText: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  facilityTileText: { fontSize: TYPE.caption, fontWeight: '600', textAlign: 'center' },
   categoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -431,32 +424,31 @@ const styles = StyleSheet.create({
     paddingVertical: SPACE.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  categoryRowText: { flex: 1, fontSize: 15 },
-  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: RADIUS.card, padding: 14, minHeight: 58 },
+  categoryRowText: { flex: 1, fontSize: TYPE.subhead },
+  summaryCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 14, minHeight: 58 },
   summaryDots: { flexDirection: 'row' },
   summaryDot: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   summaryDotOverlap: { marginLeft: -10 },
-  summaryText: { flex: 1, fontSize: 15, lineHeight: 21 },
+  summaryText: { flex: 1, fontSize: TYPE.subhead, lineHeight: 21 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACE.sm,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     paddingLeft: 14,
     paddingRight: 4,
     minHeight: 48,
   },
-  searchInput: { flex: 1, fontSize: 16, paddingVertical: 10 },
+  searchInput: { flex: 1, fontSize: TYPE.callout, paddingVertical: 10 },
   section: { gap: 8 },
   sectionTitle: { fontSize: TYPE.body, fontWeight: '700' },
-  pressed: { opacity: 0.6 },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -465,7 +457,7 @@ const styles = StyleSheet.create({
   },
   historyRowPress: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   historyDelete: { minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center' },
-  listRowText: { flex: 1, fontSize: 15 },
+  listRowText: { flex: 1, fontSize: TYPE.subhead },
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -475,9 +467,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   disabled: { opacity: 0.4 },
-  resultTitle: { fontSize: 15, fontWeight: '500' },
-  resultSubtitle: { fontSize: 12 },
+  resultTitle: { fontSize: TYPE.subhead, fontWeight: '600' },
+  resultSubtitle: { fontSize: TYPE.caption },
   empty: { alignItems: 'center', gap: 8, paddingVertical: 24 },
-  emptyText: { fontSize: 15, textAlign: 'center' },
-  retryButton: { minHeight: 44, paddingHorizontal: 20, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  emptyText: { fontSize: TYPE.subhead, textAlign: 'center' },
+  retryButton: { minHeight: 44, paddingHorizontal: 20, borderRadius: SHAPE.control, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
 });

@@ -9,6 +9,7 @@
  */
 
 import { mapToolToActions, type Translate, type UIAction } from '@/features/ai/domain';
+import { isOk, isRec } from '@/features/ai/domain/aiResults';
 import { isRouteTool } from '@/features/ai/domain/routePlan';
 import { isMicActiveStatus, wrapFrameHandler } from './audioLevel';
 import {
@@ -36,6 +37,7 @@ export interface BindingSinks {
   publishStatus(status: VoiceStatus): void;
   /** Bind to the hook's `setActiveTool`. */
   publishTool(event: VoiceToolEvent): void;
+  clearTool?(): void;
   /** Bind to `voiceLevels.mic`（store/voiceLevels.ts，SharedValue，不經過 React）. */
   setMicLevel(level: number): void;
   /** 執行同步 UI action（原生：`features/ai/controller/actionExecutor` 的 executeAction）。 */
@@ -73,8 +75,24 @@ export function createVoiceBindings(sinks: BindingSinks): VoiceBindings {
   let agg: AggState = emptyAggState();
   let currentStatus: VoiceStatusName = 'idle';
   let muted = false;
-  const calls = new Map<string, { name: string; turnId?: string; generation: number }>();
+  const calls = new Map<string, { event: VoiceToolEvent; generation: number }>();
   const applied = new Set<string>();
+
+  function cancelPendingTools(): void {
+    for (const id of calls.keys()) applied.add(id);
+    calls.clear();
+    sinks.clearTool?.();
+  }
+
+  function publishResult(event: VoiceToolEvent): void {
+    if (event.callId) {
+      calls.delete(event.callId);
+      applied.add(event.callId);
+    }
+    sinks.publishTool(event);
+    const pending = Array.from(calls.values()).at(-1);
+    if (pending) sinks.publishTool(pending.event);
+  }
 
   function onTranscript(transcript: TranscriptFragment): void {
     agg = appendFragment(agg, transcript);
@@ -87,18 +105,20 @@ export function createVoiceBindings(sinks: BindingSinks): VoiceBindings {
   }
 
   function onTurnComplete(): void {
+    cancelPendingTools();
     agg = sealRole(agg, 'model');
     sinks.publishTranscripts(agg.entries);
   }
 
   function onInterrupted(): void {
+    cancelPendingTools();
     agg = sealRole(agg, 'model');
     agg = sealRole(agg, 'user');
     sinks.publishTranscripts(agg.entries);
   }
 
   function onStatusChange(status: VoiceStatus): void {
-    if (['connecting', 'reconnecting', 'ended', 'error', 'needs-login'].includes(status.status)) { calls.clear(); applied.clear(); }
+    if (['connecting', 'reconnecting', 'ending', 'ended', 'error', 'needs-login'].includes(status.status)) cancelPendingTools();
     agg = applyStatusTransition(agg, currentStatus, status.status);
     // 重連後伺服器 utteranceId 重新編號，舊 id 必須失效（見 detachUtteranceIds）。
     if (status.status === 'reconnecting') agg = detachUtteranceIds(agg);
@@ -112,21 +132,22 @@ export function createVoiceBindings(sinks: BindingSinks): VoiceBindings {
 
   function onToolEvent(event: VoiceToolEvent): void {
     if (event.type === 'call') {
-      if (event.callId && !calls.has(event.callId)) calls.set(event.callId, { name: event.name, turnId: event.turnId, generation: sinks.getRouteGeneration?.() ?? 0 });
+      if (event.callId) {
+        if (calls.has(event.callId) || applied.has(event.callId)) return;
+        calls.set(event.callId, { event, generation: sinks.getRouteGeneration?.() ?? 0 });
+      }
       sinks.publishTool(event); return;
     }
     if (event.callId && applied.has(event.callId)) return;
     const call = event.callId ? calls.get(event.callId) : undefined;
-    if (isRouteTool(event.name) && (!call || !event.turnId || call.turnId !== event.turnId || call.name !== event.name || call.generation !== (sinks.getRouteGeneration?.() ?? 0))) {
+    const matches = call && call.event.name === event.name && call.event.turnId === event.turnId;
+    if (isRouteTool(event.name) && (!matches || !event.turnId || call.generation !== (sinks.getRouteGeneration?.() ?? 0))) {
       sinks.onRouteError?.(); return;
     }
-    // A correlated tool failure is still a valid response. Gemini receives the
-    // same failure and can explain it or ask for the missing starting point.
-    // Reject malformed/stale successes below, but do not hang up on business errors.
-    if (isRouteTool(event.name) && (event.ok === false ||
-        (typeof event.result === 'object' && event.result !== null && 'ok' in event.result && event.result.ok === false))) {
-      if (event.callId) applied.add(event.callId);
-      sinks.publishTool({ ...event, ok: false, result: undefined, args: undefined, summary: undefined });
+    if (event.callId && !matches) return;
+    event = { ...event, args: event.args ?? call?.event.args };
+    if (event.ok === false || (isRec(event.result) && !isOk(event.result))) {
+      publishResult({ ...event, ok: false, result: undefined, args: undefined, summary: undefined });
       return;
     }
     if (isRouteTool(event.name) && event.result == null) { sinks.onRouteError?.(); return; }
@@ -134,16 +155,22 @@ export function createVoiceBindings(sinks: BindingSinks): VoiceBindings {
       if (event.result != null) {
         for (const action of mapToolToActions(event.name, event.result, event.args, sinks.t)) {
           if (action.type === 'close-chat') continue;
+          const previousGeneration = sinks.getRouteGeneration?.() ?? 0;
           if (action.type === 'route-error' || sinks.executeAction(action)?.ok === false) { sinks.onRouteError?.(); return; }
+          if (action.type === 'show-route') {
+            const nextGeneration = sinks.getRouteGeneration?.() ?? 0;
+            for (const pending of calls.values()) {
+              if (pending.generation === previousGeneration) pending.generation = nextGeneration;
+            }
+          }
         }
       }
-    } catch (error) {
-      if (!isRouteTool(event.name)) throw error;
-      sinks.onRouteError?.();
+    } catch {
+      if (isRouteTool(event.name)) sinks.onRouteError?.();
+      else publishResult({ ...event, ok: false, result: undefined, args: undefined, summary: undefined });
       return;
     }
-    if (event.callId) applied.add(event.callId);
-    sinks.publishTool(isRouteTool(event.name) ? { ...event, result: undefined, args: undefined } : event);
+    publishResult(isRouteTool(event.name) ? { ...event, result: undefined, args: undefined } : event);
   }
 
   function wrapCaptureFrame(

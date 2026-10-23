@@ -2,9 +2,10 @@ import { GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import type { Feature, FeatureCollection, Point } from 'geojson';
 
 import { useAiResultStore } from '../store/aiResultStore';
+import { MAP, WHITE } from '@/shared/theme';
 
-const PLACE_COLOR = '#7B3FE4';
-const FACILITY_COLOR = '#0065C8';
+const PLACE_COLOR = MAP.aiPlace;
+const FACILITY_COLOR = MAP.aiFacility;
 
 type MarkerProps = { id: string; title: string; place: boolean };
 
@@ -33,7 +34,7 @@ export default function AIResultLayer() {
           'circle-color': ['case', ['get', 'place'], PLACE_COLOR, FACILITY_COLOR],
           'circle-radius': 9,
           'circle-stroke-width': 2.5,
-          'circle-stroke-color': '#FFFFFF',
+          'circle-stroke-color': WHITE,
         }}
       />
       <Layer
@@ -48,7 +49,7 @@ export default function AIResultLayer() {
           'text-anchor': 'top',
           'text-max-width': 10,
         }}
-        paint={{ 'text-color': '#1C1C1E', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5 }}
+        paint={{ 'text-color': MAP.labelAlt, 'text-halo-color': WHITE, 'text-halo-width': 1.5 }}
       />
     </GeoJSONSource>
   );

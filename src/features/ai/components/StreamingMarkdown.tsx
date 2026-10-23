@@ -6,7 +6,7 @@ import remend from 'remend';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import { useFontScale } from '@/shared/preferences';
-import { RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 
 import { useSmoothStream } from '../hooks/useSmoothStream';
 
@@ -49,16 +49,16 @@ export default function StreamingMarkdown({ content, streaming, isDark }: Stream
   const body = scaledSize(TYPE.body, fontScale);
   const markdownStyle: MarkdownStyle = {
     paragraph: { fontSize: body, color: colors.text, lineHeight: Math.round(body * 1.45), marginBottom: 8 },
-    h1: { fontSize: scaledSize(TYPE.headline, fontScale), color: colors.text, fontWeight: '700', marginBottom: 8 },
-    h2: { fontSize: scaledSize(18, fontScale), color: colors.text, fontWeight: '700', marginBottom: 6 },
+    h1: { fontSize: scaledSize(TYPE.title3, fontScale), color: colors.text, fontWeight: '700', marginBottom: 8 },
+    h2: { fontSize: scaledSize(TYPE.body, fontScale), color: colors.text, fontWeight: '700', marginBottom: 6 },
     h3: { fontSize: body, color: colors.text, fontWeight: '700', marginBottom: 4 },
     list: { fontSize: body, color: colors.text, bulletColor: colors.textSecondary, markerColor: colors.textSecondary },
     link: { color: tones.accent },
     strong: { color: colors.text },
     code: { color: colors.text, backgroundColor: tones.surface },
-    codeBlock: { fontSize: scaledSize(TYPE.subhead, fontScale), color: colors.text, backgroundColor: tones.surface, borderRadius: RADIUS.small },
+    codeBlock: { fontSize: scaledSize(TYPE.footnote, fontScale), color: colors.text, backgroundColor: tones.surface, borderRadius: SHAPE.control },
     blockquote: { color: colors.textSecondary, borderColor: tones.separator },
-    table: { fontSize: scaledSize(TYPE.callout, fontScale), color: colors.text, borderColor: tones.separator },
+    table: { fontSize: scaledSize(TYPE.subhead, fontScale), color: colors.text, borderColor: tones.separator },
   };
 
   return (

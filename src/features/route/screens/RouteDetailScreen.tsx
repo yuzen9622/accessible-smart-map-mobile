@@ -2,10 +2,10 @@ import { Text } from '@/shared/ui/typography/Text';
 import { canNavigateRoute } from '../controller/routeSessionPort';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { useSemanticColors, useThemeColors } from '@/shared/theme';
+import { useSemanticColors, useThemeColors, ICON_SIZE, SHAPE, TYPE, WHITE } from '@/shared/theme';
 import { EmptyState, Icon } from '@/shared/ui';
 
 import LegDetail from '../components/LegDetail';
@@ -16,6 +16,7 @@ import { computeLegClock, nowClockMinutes } from '../domain/legClock';
 import { formatDuration } from '../domain/routeDisplay';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import type { AccessibleRoute, BusLeg } from '../types/route';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface BusLegRenderArgs {
   route: AccessibleRoute;
@@ -33,7 +34,9 @@ export interface RouteDetailScreenProps {
 }
 
 /**
- * `(sheet)/routes/[index]` — 路線明細：每段 leg 一張卡（SDD §4.5），底部「開始導航」。
+ * `(sheet)/routes/[index]` — 路線明細，版面參考 Google Maps 的大眾運輸詳情：
+ * 摘要（總時間、出發到抵達時刻、步行與轉乘）→「開始導航」→ 安全提醒與 AI 說明 →
+ * 垂直時間軸（起點 → 每段 leg → 終點；公車段內可切換查看同站其他班次的即時時刻）→ 完整提示與資料來源。
  * 這頁同時是路線的文字替代路徑（SDD §10）：所有步驟與站點都以可讀文字列出。
  */
 export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, renderExplanation }: RouteDetailScreenProps) {
@@ -46,11 +49,18 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
   const route = useRouteSessionStore((s) => (Number.isInteger(routeIndex) ? (s.computeRoutes?.[routeIndex] ?? null) : null));
   const destinationName = useRouteSessionStore((s) => s.destinationName);
   const preferredDeparture = useRouteSessionStore((s) => s.effectivePreferences?.departureTime);
+  const canNavigate = route ? canNavigateRoute(route) : false;
   // 時間軸從使用者規劃時選的出發時間起算，沒選就當作現在出發（使用者回饋 2026-10-23，參考設計圖三：
   // 每個步驟旁邊要有實際時鐘時間，不是只有相對分鐘數）。
   const startMinutes = preferredDeparture ? nowClockMinutes(new Date(preferredDeparture)) : nowClockMinutes();
   const legClock = route ? computeLegClock(route.legs, startMinutes) : [];
   const finalArrival = legClock.at(-1)?.arrivalLabel ?? null;
+  const notes = route
+    ? [
+        ...route.accessibilityHighlights.map((text) => ({ text, warning: false })),
+        ...[...(route.warnings ?? []), ...(route.scoreWarnings ?? [])].map((text) => ({ text, warning: true })),
+      ]
+    : [];
 
   return (
     <>
@@ -62,7 +72,7 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
           style={{ backgroundColor: colors.background }}
           contentContainerStyle={routeStyles.content}
           contentInsetAdjustmentBehavior="automatic">
-          {!canNavigateRoute(route) ? <Text style={{ color: colors.textSecondary }}>{t('nativeRouteTokenUnavailable')}</Text> : null}
+          {!canNavigate ? <Text style={{ color: colors.textSecondary }}>{t('nativeRouteTokenUnavailable')}</Text> : null}
           <RouteSafetyNotice />
           {renderExplanation ? renderExplanation(route) : null}
           <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.text }]}>
@@ -104,7 +114,7 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
               </View>
               <View accessible accessibilityLabel={[destinationName || t('destination'), t('arrived')].join('，')} style={styles.destinationRow}>
                 <View style={[styles.destinationDot, { backgroundColor: ROUTE_DESTINATION_COLOR }]}>
-                  <Icon name="flag" size={12} color="#FFFFFF" />
+                  <Icon name="flag" size={ICON_SIZE.caption} color={WHITE} />
                 </View>
                 <View style={routeStyles.flex}>
                   <Text style={[routeStyles.bodyText, { color: colors.text }]} numberOfLines={2}>
@@ -115,25 +125,32 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
               </View>
             </View>
           </View>
-          {/* Full original arrays, including items collapsed in RouteCard and legacy/source warnings. */}
-          {[route.accessibilityHighlights, route.warnings ?? [], route.scoreWarnings ?? []].map((messages, group) => (
-            <View key={group}>
-              {messages.map((message, index) => (
-                <Text key={index} style={[routeStyles.metaText, { color: colors.textSecondary }]}>
-                  {message}
-                </Text>
+          {/* 亮點與警告合併成一列、各自帶 info／alert 圖示，不是分三段各自列純文字。 */}
+          {notes.length > 0 || route.attribution ? (
+            <View style={[styles.notes, { borderTopColor: semantic.separator }]}>
+              {notes.map((note, noteIndex) => (
+                <View key={noteIndex} style={styles.noteRow}>
+                  <Icon name={note.warning ? 'alert' : 'info'} size={ICON_SIZE.caption} color={note.warning ? semantic.warn.fg : colors.textSecondary} />
+                  <Text style={[routeStyles.metaText, routeStyles.flex, { color: note.warning ? colors.text : colors.textSecondary }]}>{note.text}</Text>
+                </View>
               ))}
+              {route.attribution ? (
+                <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{route.attribution}</Text>
+              ) : null}
             </View>
-          ))}
-          {route.attribution ? (
-            <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{route.attribution}</Text>
           ) : null}
           {/* 「開始導航」收尾放在整條時間軸之後，不是畫面一開始就先要你按（使用者回饋 2026-10-23，
               參考設計圖三：看完完整路線再決定要不要出發）。 */}
-          <Pressable disabled={!canNavigateRoute(route)} accessibilityState={{ disabled: !canNavigateRoute(route) }} accessibilityRole="button" accessibilityLabel={t('startNav')} onPress={onStartNavigation} style={routeStyles.primaryButton}>
+          <PressableScale
+            disabled={!canNavigate}
+            accessibilityState={{ disabled: !canNavigate }}
+            accessibilityRole="button"
+            accessibilityLabel={t('startNav')}
+            onPress={onStartNavigation}
+            style={[routeStyles.primaryButton, !canNavigate && routeStyles.disabled]}>
             <Icon name="navigation" color={ROUTE_ON_ACCENT_COLOR} />
             <Text style={routeStyles.primaryButtonText}>{t('startNav')}</Text>
-          </Pressable>
+          </PressableScale>
         </ScrollView>
       )}
     </>
@@ -144,9 +161,11 @@ const styles = StyleSheet.create({
   timelineRow: { flexDirection: 'row', gap: 10 },
   // 固定寬度讓時鐘時間跟連接線對齊，不管文字多寬（"HH:mm" 都是 5 碼，但大字級要留餘裕）
   timelineRail: { width: 44, alignItems: 'center', gap: 2 },
-  clockLabel: { fontSize: 12, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  clockLabel: { fontSize: TYPE.caption, fontWeight: '600', fontVariant: ['tabular-nums'] },
   // flex:1 讓連接線補滿這個 leg 卡片的高度，貼到下一個時鐘時間
-  timelineLine: { flex: 1, width: 2, borderRadius: 1, minHeight: 12 },
+  timelineLine: { flex: 1, width: 2, borderRadius: SHAPE.pill, borderCurve: 'continuous', minHeight: 12 },
   destinationRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  destinationDot: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  destinationDot: { width: 24, height: 24, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  notes: { gap: 8, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth },
+  noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
 });

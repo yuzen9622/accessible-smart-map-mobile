@@ -11,7 +11,7 @@ import {
   localRerouteCoordinator,
   useNavStore,
 } from '@/features/navigation';
-import { getRouteSessionSnapshot, subscribeRouteSession } from '@/features/route';
+import { getRouteSessionSnapshot, replaceNavigationRoute, subscribeRouteSession } from '@/features/route';
 import { haversineMeters, type LatLng } from '@/shared/geo';
 import { appStateVisibility } from '@/shared/polling';
 
@@ -105,6 +105,36 @@ export function getVoiceNavigationResumeState(): VoiceNavigationResumeState | nu
   };
 }
 
+function resumedTransit(event: Extract<VoiceNavigationEvent, { type: 'nav.resume_ok' }>): ReturnType<typeof useNavStore.getState>['voiceTransit'] {
+  if (!event.onVehicle) return null;
+  const step = event.steps[event.currentStepIndex];
+  const route = getRouteSessionSnapshot().navigationRoute?.route;
+  const leg = route?.navigationId === event.navigationId && route.routeVersion === event.routeVersion && step?.legIndex != null
+    ? route.legs[step.legIndex]
+    : null;
+  if (!leg || leg.type !== step?.legType) return { onVehicle: true, leg: null };
+  switch (leg.type) {
+    case 'BUS':
+      return { onVehicle: true, leg: { mode: leg.type, from: leg.departureStop, to: leg.arrivalStop, routeName: leg.routeName } };
+    case 'METRO':
+      return { onVehicle: true, leg: { mode: leg.type, from: leg.departureStation, to: leg.arrivalStation, routeName: leg.lineName } };
+    case 'TRA':
+    case 'THSR':
+      return { onVehicle: true, leg: { mode: leg.type, from: leg.departureStation, to: leg.arrivalStation, routeName: leg.trainNo } };
+    default:
+      return { onVehicle: true, leg: null };
+  }
+}
+
+function handBackToLocal(muted = useVoiceStore.getState().isMuted): void {
+  const nav = useNavStore.getState();
+  nav.setVoiceEnabled(!muted);
+  nav.setVoiceTransit(null);
+  nav.setNavigationSource('local');
+  lastSent = null;
+  serverStopped = false;
+}
+
 function startVoiceNavigation(event: Extract<VoiceNavigationEvent, { type: 'nav.start' }>): void {
   const nav = useNavStore.getState();
   const instructions = event.steps.map(toNavInstruction);
@@ -112,6 +142,7 @@ function startVoiceNavigation(event: Extract<VoiceNavigationEvent, { type: 'nav.
   const route = (getRouteSessionSnapshot().navigationRoute ?? getRouteSessionSnapshot().selectRoute)?.route;
   // 先切來源再切 isNavigating：導航 controller 啟動時就看到「語音擁有」，不會搶播第一步
   nav.setNavigationSource('voice');
+  nav.setVoiceTransit(null);
   nav.setNavigationIdentity(route?.navigationId ?? null, route?.routeVersion ?? 0);
   nav.setInstructions(instructions, [], event.currentStepIndex);
   nav.setDistanceToNextM(event.steps[event.currentStepIndex]?.distanceM ?? null);
@@ -138,13 +169,18 @@ function startVoiceNavigation(event: Extract<VoiceNavigationEvent, { type: 'nav.
 
 function handleEvent(event: VoiceNavigationEvent): void {
   const nav = useNavStore.getState();
+  if (['nav.step', 'nav.transit', 'nav.offroute', 'nav.arrived', 'nav.stop'].includes(event.type) &&
+      (!nav.isNavigating || nav.navigationSource !== 'voice')) return;
   switch (event.type) {
     case 'nav.start':
       startVoiceNavigation(event);
       return;
-    case 'nav.step':
+    case 'nav.step': {
+      const step = nav.instructions[event.currentStepIndex];
+      if (!step || step.type === 'transit_alight' || !['BUS', 'METRO', 'TRA', 'THSR'].includes(step.legType)) nav.setVoiceTransit(null);
       nav.applyVoiceStep(event.currentStepIndex, event.instruction, event.remainingM);
       return;
+    }
     case 'nav.progress': {
       const { navigationId, routeVersion } = routeIdentity();
       if (
@@ -158,12 +194,9 @@ function handleEvent(event: VoiceNavigationEvent): void {
       }
       return;
     }
-    case 'nav.transit': {
-      const next = nav.instructions.findIndex((step, index) => index >= nav.currentStepIndex && step.legType === event.leg.mode);
-      if (next >= 0) nav.setCurrentStepIndex(next);
-      nav.setDistanceToNextM(null);
+    case 'nav.transit':
+      nav.setVoiceTransit({ onVehicle: true, leg: event.leg });
       return;
-    }
     case 'nav.offroute':
       nav.setIsOffRoute(true);
       return;
@@ -176,6 +209,7 @@ function handleEvent(event: VoiceNavigationEvent): void {
       });
       return;
     case 'nav.route_replaced':
+      if (nav.navigationId === event.navigationId && nav.routeVersion === event.previousRouteVersion) nav.setVoiceTransit(null);
       handleVoiceRerouteEvent({
         type: 'nav.route_replaced',
         replacement: {
@@ -211,17 +245,28 @@ function handleEvent(event: VoiceNavigationEvent): void {
         return;
       }
       nav.setNavigationSource('voice');
-      if (event.steps.length > 0) nav.setInstructions(event.steps.map(toNavInstruction), [], event.currentStepIndex);
-      else nav.setCurrentStepIndex(event.currentStepIndex);
+      nav.setVoiceEnabled(false);
+      nav.setInstructions(event.steps.map(toNavInstruction), [], event.currentStepIndex);
+      {
+        const active = getRouteSessionSnapshot().navigationRoute?.route;
+        if (active?.navigationId === event.navigationId && active.routeVersion === event.routeVersion) {
+          replaceNavigationRoute({ ...active, routeToken: event.routeToken });
+        }
+        const distances = event.steps.map((step) => step.distanceM);
+        const trustedDistances = distances.length > 0 && distances.every((distance) => distance != null && Number.isFinite(distance) && distance >= 0);
+        nav.setRouteTotalM(trustedDistances ? distances.reduce<number>((sum, distance) => sum + (distance ?? 0), 0) : null);
+        nav.setRemainingM(trustedDistances ? distances.slice(event.currentStepIndex).reduce<number>((sum, distance) => sum + (distance ?? 0), 0) : null);
+        const nextM = event.steps[event.currentStepIndex]?.distanceM;
+        nav.setDistanceToNextM(nextM != null && Number.isFinite(nextM) && nextM >= 0 ? nextM : null);
+        nav.setVoiceTransit(resumedTransit(event));
+      }
       serverStopped = false;
       lastSent = null;
       return;
     case 'nav.resume_failed': {
-      if (!nav.isNavigating || nav.arrived) return;
-      nav.setNavigationSource('local');
-      lastSent = null;
-      serverStopped = false;
-      notice(translate('voiceReconnectedRerouting'));
+      if (!voiceNavigationActive() || !nav.navigationId || event.navigationId !== nav.navigationId) return;
+      handBackToLocal();
+      notice(event.message);
       const position = useUserLocationStore.getState().position;
       if (position) void localRerouteCoordinator.triggerAutoReroute(position);
       return;
@@ -249,8 +294,6 @@ function handleEvent(event: VoiceNavigationEvent): void {
       }
       return;
     case 'nav.error':
-      nav.setNavigationSource('local');
-      if (nav.isNavigating) endNavigation();
       notice(event.message);
       return;
   }
@@ -262,13 +305,11 @@ export function handleVoiceNavigationEvent(event: VoiceNavigationEvent, status: 
 }
 
 /** 語音 session 結束（ended／needs-login／error）時，語音擁有的導航交回本機繼續（Web Host status effect）。 */
-export function onVoiceSessionTerminal(): void {
+export function onVoiceSessionTerminal(handoff?: { muted: boolean; reason: 'ended' | 'lost' }): void {
   const nav = useNavStore.getState();
   if (nav.navigationSource === 'voice' && nav.isNavigating) {
-    nav.setNavigationSource('local');
-    lastSent = null;
-    serverStopped = false;
-    notice(translate('voiceAssistantLostNavContinues'));
+    handBackToLocal(handoff?.muted);
+    if (handoff?.reason !== 'ended') notice(translate('voiceAssistantLostNavContinues'));
   }
 }
 

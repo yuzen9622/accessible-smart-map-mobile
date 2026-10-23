@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, TYPE } from '@/shared/theme';
 
 import { CONFIG_ERROR_TITLE, type ConfigErrorScreenProps } from './ConfigErrorScreen.types';
 
@@ -27,5 +27,5 @@ export default function ConfigErrorScreen({ errors }: ConfigErrorScreenProps) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 24, gap: 12 },
-  title: { fontSize: 22, fontWeight: '700' },
+  title: { fontSize: TYPE.title2, fontWeight: '700' },
 });

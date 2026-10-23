@@ -7,7 +7,7 @@ import { useAppTranslation } from '@/shared/i18n';
 import { useCloseScreen } from '@/shared/navigation';
 import { ensureAiDataConsent } from '@/shared/privacy';
 import { useFontScale } from '@/shared/preferences';
-import { TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, useKeyboardInset } from '@/shared/ui';
 
 import ChatComposer from '../components/ChatComposer';
@@ -15,6 +15,7 @@ import ChatMessageItem from '../components/ChatMessageItem';
 import { openAiResult, registerChatDismiss } from '../controller/actionExecutor';
 import { sendChatMessage, stopChatStreaming } from '../controller/chatController';
 import { useChatStore } from '../store/chatStore';
+import { MOTION } from '@/shared/theme/motion';
 
 /**
  * AI 聊天（SDD §6.6：全螢幕 modal、inverted 列表、鍵盤避讓）。對齊 Web `AIChatBot.tsx`：
@@ -81,7 +82,7 @@ export default function ChatScreen({ initialPrompt, voicePanel, composerAccessor
           ListEmptyComponent={
             <View style={styles.greeting}>
               <View style={[styles.greetingIcon, { backgroundColor: tones.accentSoft }]}>
-                <Icon name="sparkles" size={28} color={tones.accent} />
+                <Icon name="sparkles" size={ICON_SIZE.tile} color={tones.accent} />
               </View>
               <Text
                 accessibilityRole="header"
@@ -113,7 +114,7 @@ export default function ChatScreen({ initialPrompt, voicePanel, composerAccessor
         </View>
       </View>
       {voiceOpen ? (
-        <Animated.View exiting={FadeOut.duration(180)} style={StyleSheet.absoluteFill}>
+        <Animated.View exiting={FadeOut.duration(MOTION.small.duration)} style={StyleSheet.absoluteFill}>
           {voicePanel}
         </Animated.View>
       ) : null}
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
   emptyList: { flexGrow: 1, justifyContent: 'center' },
   separator: { height: 18 },
   greeting: { alignItems: 'center', gap: 12, paddingHorizontal: 12 },
-  greetingIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  greetingIcon: { width: 56, height: 56, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   greetingText: { textAlign: 'center', fontWeight: '600', lineHeight: 24 },
   disclaimer: { textAlign: 'center' },
 });

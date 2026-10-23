@@ -12,6 +12,7 @@ import type {
   NavViewMode,
   NavigationSource,
   RerouteStatus,
+  VoiceTransit,
 } from '../domain/types';
 import type { TransitGuide } from '../domain/transitRide';
 
@@ -93,6 +94,7 @@ interface NavState {
   stepCoord: LatLng | null;
   /** 公車段的等車／搭乘導引（`domain/transitRide.ts`）；目前步驟不在公車段時為 null。 */
   transitGuide: TransitGuide | null;
+  voiceTransit: VoiceTransit | null;
 }
 
 interface NavAction {
@@ -144,6 +146,7 @@ interface NavAction {
   setViewMode: (v: NavViewMode) => void;
   setStepCoord: (c: LatLng | null) => void;
   setTransitGuide: (guide: TransitGuide | null) => void;
+  setVoiceTransit: (transit: VoiceTransit | null) => void;
   reset: () => void;
 }
 
@@ -184,6 +187,7 @@ const initialState: NavState = {
   viewMode: '3d',
   stepCoord: null,
   transitGuide: null,
+  voiceTransit: null,
 };
 
 export const useNavStore = create<NavStore>()((set) => ({
@@ -270,6 +274,7 @@ export const useNavStore = create<NavStore>()((set) => ({
       ...(arrived
         ? {
             advisories: [],
+            voiceTransit: null,
             remainingM: 0,
             distanceToNextM: 0,
             remainingDurationSec: 0,
@@ -316,6 +321,7 @@ export const useNavStore = create<NavStore>()((set) => ({
   setViewMode: (viewMode) => set({ viewMode }),
   setStepCoord: (stepCoord) => set({ stepCoord }),
   setTransitGuide: (transitGuide) => set({ transitGuide }),
+  setVoiceTransit: (voiceTransit) => set({ voiceTransit }),
   // 對齊 Web：reset 不動導航開關（Web 的 isNavigating 在另一個 store），只有 stopNavigation 會關。
   reset: () => set((s) => ({ ...initialState, isNavigating: s.isNavigating })),
 }));

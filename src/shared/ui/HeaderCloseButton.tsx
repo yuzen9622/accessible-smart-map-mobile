@@ -1,10 +1,11 @@
-import { Platform, Pressable, StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useCloseScreen } from '@/shared/navigation';
-import { useSemanticColors } from '@/shared/theme';
+import { useSemanticColors, ICON_SIZE } from '@/shared/theme';
 
 import Icon from './Icon';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * modal 導覽列的關閉按鈕（X 圖示，不用文字）。iOS pageSheet 雖可下滑關閉，但 VoiceOver／Switch Control 使用者需要明確的按鈕
@@ -16,14 +17,14 @@ export default function HeaderCloseButton({ onPress }: { onPress?: () => void })
   // 深色導覽列上 #1565C0 只有約 2.9:1；改用規範的主色文字色（深色模式為亮藍）
   const color = useSemanticColors().accent;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={t('close')}
       hitSlop={8}
       onPress={onPress ?? closeScreen}
       style={styles.button}>
-      <Icon name="close" size={22} color={color} />
-    </Pressable>
+      <Icon name="close" size={ICON_SIZE.control} color={color} />
+    </PressableScale>
   );
 }
 

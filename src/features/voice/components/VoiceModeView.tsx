@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useColorScheme, View, type LayoutChangeEvent } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, Text, useColorScheme, View, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -11,11 +11,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { toolDoneLabel, toolLoadingLabel } from '@/features/ai';
+import { getAggregatedToolResults, openAiResult, ToolResultsBox, toolDoneLabel, toolLoadingLabel } from '@/features/ai';
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
 import { ensureAiDataConsent } from '@/shared/privacy';
-import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, TYPE, scaledSize, useSemanticColors, useThemeColors, VOICE_ORB_EDGE, semanticColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import { dismissVoiceSession, endVoiceSession, startVoiceSession, retryRouteContextSync, resumeVoicePlayback, toggleVoiceMute } from '../controller/voiceController';
@@ -24,11 +24,13 @@ import { getVoiceStatusLabel, isTerminalVoiceStatus } from '../domain/voiceStatu
 import { voiceLevelFor } from '../store/voiceLevels';
 import { useVoiceStore, type VoiceLaunchOrigin } from '../store/voiceStore';
 import VoiceWaveform from './VoiceWaveform';
+import PressableScale from '@/shared/ui/PressableScale';
+import { MOTION } from '@/shared/theme/motion';
 
 /** 音波中央與兩側的顏色：一律藍色系，深色模式改用亮藍、兩側往背景收。 */
 const WAVE_COLORS = {
-  light: { center: ACCENT_FILL, edge: '#A8CFF5' },
-  dark: { center: '#6BB2FF', edge: '#1F4A7A' },
+  light: { center: ACCENT_FILL, edge: VOICE_ORB_EDGE.light },
+  dark: { center: semanticColors(true).accent, edge: VOICE_ORB_EDGE.dark },
 } as const;
 const WAVE_HEIGHT = 128;
 /** 按下語音鈕後多久內掛載的才算「從按鈕進來」；過期的起點（例如當時連線沒成功）不重播飛入。 */
@@ -71,18 +73,18 @@ function ControlButton({
   const fontScale = useFontScale();
   const colors = useThemeColors();
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={({ pressed }) => [styles.control, pressed && styles.pressed]}>
+      style={styles.control}>
       <View style={[styles.controlCircle, { backgroundColor: background }]}>
-        <Icon name={icon} size={28} color={foreground} />
+        <Icon name={icon} size={ICON_SIZE.tile} color={foreground} />
       </View>
-      <Text numberOfLines={1} style={[styles.controlLabel, { color: colors.text, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
+      <Text numberOfLines={1} style={[styles.controlLabel, { color: colors.text, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -107,6 +109,8 @@ export default function VoiceModeView() {
   const status = useVoiceStore((s) => s.status);
   const transcripts = useVoiceStore((s) => s.transcripts);
   const activeTool = useVoiceStore((s) => s.activeTool);
+  const toolResults = useVoiceStore((s) => s.toolResults);
+  const resultGroups = useMemo(() => getAggregatedToolResults(toolResults, t), [toolResults, t]);
   const isMuted = useVoiceStore((s) => s.isMuted);
   const scrollRef = useRef<ScrollView>(null);
   const rootRef = useRef<View>(null);
@@ -139,8 +143,8 @@ export default function VoiceModeView() {
 
   useEffect(() => {
     if (origin) return; // 等量到音波位置再開始（measureWave）
-    backdrop.set(withTiming(1, { duration: 180 }));
-    content.set(withTiming(1, { duration: reduceMotion ? 0 : 260 }));
+    backdrop.set(withTiming(1, { duration: MOTION.small.duration }));
+    content.set(withTiming(1, { duration: reduceMotion ? 0 : MOTION.medium.duration }));
     reveal.set(reduceMotion ? 1 : withTiming(1, { duration: 520, easing: Easing.out(Easing.quad) }));
   }, [backdrop, content, origin, reduceMotion, reveal]);
 
@@ -153,9 +157,9 @@ export default function VoiceModeView() {
   useEffect(() => {
     if (!morph || !origin) return;
     const ease = Easing.out(Easing.cubic);
-    backdrop.set(withTiming(1, { duration: 240 }));
+    backdrop.set(withTiming(1, { duration: MOTION.medium.duration }));
     flight.set(withTiming(1, { duration: 360, easing: ease }));
-    flatten.set(withDelay(300, withTiming(1, { duration: 280, easing: Easing.in(Easing.quad) })));
+    flatten.set(withDelay(300, withTiming(1, { duration: MOTION.move.duration, easing: ease })));
     reveal.set(withDelay(320, withTiming(1, { duration: 560, easing: Easing.out(Easing.quad) })));
     content.set(withDelay(200, withTiming(1, { duration: 420, easing: ease })));
   }, [backdrop, content, flatten, flight, morph, origin, reveal]);
@@ -216,7 +220,7 @@ export default function VoiceModeView() {
               styles.status,
               {
                 color: status.status === 'error' || status.status === 'needs-login' ? tones.danger.fg : colors.text,
-                fontSize: scaledSize(TYPE.headline, fontScale),
+                fontSize: scaledSize(TYPE.title3, fontScale),
               },
             ]}>
             {statusLabel}
@@ -225,18 +229,18 @@ export default function VoiceModeView() {
             <View accessibilityLiveRegion="polite" style={styles.tool}>
               <Icon
                 name={activeTool.type === 'call' ? 'loader' : activeTool.ok === false ? 'alert' : 'check'}
-                size={14}
+                size={ICON_SIZE.caption}
                 color={activeTool.type === 'call' ? colors.textSecondary : activeTool.ok === false ? tones.warn.fg : tones.ok.fg}
               />
-              <Text style={[styles.toolText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
+              <Text style={[styles.toolText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
                 {activeTool.type === 'call' ? toolLoadingLabel(activeTool.name, t) : activeTool.ok === false ? t('chatbot.voice.toolFailed') : toolDoneLabel(activeTool.name, t)}
               </Text>
             </View>
           ) : null}
           {status.status === 'playback-blocked' ? (
-            <Pressable accessibilityRole="button" onPress={resumeVoicePlayback} style={[styles.resume, { backgroundColor: tones.accentSoft }]}>
+            <PressableScale accessibilityRole="button" onPress={resumeVoicePlayback} style={[styles.resume, { backgroundColor: tones.accentSoft }]}>
               <Text style={{ color: tones.accent, fontWeight: '600' }}>{t('chatbot.voice.resumePlayback')}</Text>
-            </Pressable>
+            </PressableScale>
           ) : null}
         </View>
 
@@ -245,7 +249,7 @@ export default function VoiceModeView() {
           style={styles.transcripts}
           contentContainerStyle={[styles.transcriptContent, transcripts.length === 0 && styles.transcriptEmpty]}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
-          {transcripts.length === 0 && hint ? (
+          {transcripts.length === 0 && resultGroups.length === 0 && hint ? (
             <Text style={[styles.hint, { color: colors.textSecondary, fontSize: scaledSize(26, fontScale), lineHeight: scaledSize(34, fontScale) }]}>
               {hint}
             </Text>
@@ -258,10 +262,10 @@ export default function VoiceModeView() {
                   accessible
                   accessibilityLabel={`${t('chatbot.voice.transcriptUser')}：${entry.text}`}
                   style={styles.userEntry}>
-                  <Text style={[styles.youSaid, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
+                  <Text style={[styles.youSaid, { color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
                     {t('chatbot.voice.youSaid')}
                   </Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: scaledSize(17, fontScale), lineHeight: scaledSize(24, fontScale) }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.body, fontScale), lineHeight: scaledSize(24, fontScale) }}>
                     {entry.text}
                   </Text>
                 </View>
@@ -284,6 +288,7 @@ export default function VoiceModeView() {
               </Text>
             );
           })}
+          {resultGroups.length > 0 ? <ToolResultsBox groups={resultGroups} isDark={isDark} onOpenItem={openAiResult} /> : null}
         </ScrollView>
       </Animated.View>
 
@@ -299,7 +304,7 @@ export default function VoiceModeView() {
       </View>
 
       {routeSyncState === 'unsupported' ? <Text style={{ color: colors.textSecondary }}>{t('nativeRouteSyncUnsupported')}</Text> : null}
-      {routeSyncState === 'error' && !terminal ? <Pressable accessibilityRole="button" onPress={retryRouteContextSync}><Text style={{ color: colors.text }}>{t('retry')}</Text></Pressable> : null}
+      {routeSyncState === 'error' && !terminal ? <PressableScale accessibilityRole="button" onPress={retryRouteContextSync}><Text style={{ color: colors.text }}>{t('retry')}</Text></PressableScale> : null}
       <Animated.View style={[styles.controls, { paddingBottom: Math.max(insets.bottom, 12) }, controlsStyle]}>
         {terminal ? (
           <>
@@ -355,7 +360,7 @@ export default function VoiceModeView() {
           pointerEvents="none"
           style={[styles.morph, { width: morph.size, height: morph.size, borderRadius: morph.size / 2 }, morphStyle]}>
           <Animated.View style={morphIconStyle}>
-            <Icon name="audioLines" size={morph.size * 0.5} color={ON_ACCENT_FILL} strokeWidth={2.4} />
+            <Icon name="audioLines" size={morph.size * 0.5} color={ON_ACCENT_FILL} />
           </Animated.View>
         </Animated.View>
       ) : null}
@@ -369,8 +374,8 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', gap: 4, paddingTop: 16, paddingHorizontal: 24 },
   status: { fontWeight: '700', textAlign: 'center' },
   tool: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' },
-  toolText: { flexShrink: 1, fontWeight: '500' },
-  resume: { borderRadius: RADIUS.pill, paddingHorizontal: 16, minHeight: MIN_TOUCH, justifyContent: 'center', marginTop: 6 },
+  toolText: { flexShrink: 1, fontWeight: '600' },
+  resume: { borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 16, minHeight: MIN_TOUCH, justifyContent: 'center', marginTop: 6 },
   transcripts: { flex: 1 },
   transcriptContent: { paddingHorizontal: 24, paddingVertical: 20, gap: 18 },
   transcriptEmpty: { flexGrow: 1, justifyContent: 'center' },
@@ -385,5 +390,4 @@ const styles = StyleSheet.create({
   controlCircle: { width: CONTROL_SIZE, height: CONTROL_SIZE, borderRadius: CONTROL_SIZE / 2, alignItems: 'center', justifyContent: 'center' },
   controlLabel: { fontWeight: '600', textAlign: 'center' },
   morph: { position: 'absolute', left: 0, top: 0, backgroundColor: ACCENT_FILL, alignItems: 'center', justifyContent: 'center' },
-  pressed: { opacity: 0.6 },
 });

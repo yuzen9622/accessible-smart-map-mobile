@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useFontScale } from '@/shared/preferences';
-import { ACCENT_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, MIN_TOUCH, ON_ACCENT_FILL, TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface ChatComposerProps {
   isDark: boolean;
@@ -54,14 +55,14 @@ export default function ChatComposer({
       {suggestions.length > 0 && !isLoading ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
           {suggestions.map((suggestion) => (
-            <Pressable
+            <PressableScale
               key={suggestion}
               accessibilityRole="button"
               onPress={() => onSend(suggestion)}
-              style={({ pressed }) => [styles.chip, { backgroundColor: tones.accentSoft }, pressed && styles.pressed]}>
-              <Icon name="sparkles" size={14} color={tones.accent} />
-              <Text style={[styles.chipText, { color: tones.accent, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>{suggestion}</Text>
-            </Pressable>
+              style={[styles.chip, { backgroundColor: tones.accentSoft }]}>
+              <Icon name="sparkles" size={ICON_SIZE.caption} color={tones.accent} />
+              <Text style={[styles.chipText, { color: tones.accent, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>{suggestion}</Text>
+            </PressableScale>
           ))}
         </ScrollView>
       ) : null}
@@ -81,29 +82,26 @@ export default function ChatComposer({
         />
         {accessory && !isLoading && text.length === 0 ? accessory : null}
         {isLoading ? (
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={stopLabel}
             onPress={onStop}
             hitSlop={6}
-            style={({ pressed }) => [styles.action, { backgroundColor: colors.text }, pressed && styles.pressed]}>
-            <Icon name="stop" size={14} color={colors.background} strokeWidth={3} />
-          </Pressable>
+            style={[styles.action, { backgroundColor: colors.text }]}>
+            <Icon name="stop" size={ICON_SIZE.caption} color={colors.background} />
+          </PressableScale>
         ) : (
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={sendLabel}
             accessibilityState={{ disabled: !canSend }}
             disabled={!canSend}
             onPress={submit}
             hitSlop={6}
-            style={({ pressed }) => [
-              styles.action,
-              { backgroundColor: canSend ? ACCENT_FILL : tones.neutral.bg },
-              pressed && styles.pressed,
-            ]}>
-            <Icon name="arrowUp" size={18} color={canSend ? ON_ACCENT_FILL : colors.textSecondary} strokeWidth={2.5} />
-          </Pressable>
+            style={[styles.action,
+              { backgroundColor: canSend ? ACCENT_FILL : tones.neutral.bg }]}>
+            <Icon name="arrowUp" size={ICON_SIZE.body} color={canSend ? ON_ACCENT_FILL : colors.textSecondary} />
+          </PressableScale>
         )}
       </View>
     </View>
@@ -121,14 +119,14 @@ const styles = StyleSheet.create({
     gap: 6,
     minHeight: MIN_TOUCH - 8,
     paddingHorizontal: 12,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
   },
   chipText: { fontWeight: '600' },
   bar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
-    borderRadius: 22,
+    borderRadius: SHAPE.floating, borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
     paddingLeft: 16,
     paddingRight: 6,
@@ -137,5 +135,4 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, maxHeight: 140, paddingTop: 7, paddingBottom: 7 },
   action: { width: ACTION, height: ACTION, borderRadius: ACTION / 2, alignItems: 'center', justifyContent: 'center' },
-  pressed: { opacity: 0.6 },
 });

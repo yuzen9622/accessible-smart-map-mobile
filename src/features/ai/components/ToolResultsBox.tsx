@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { ToolCardIcon, ToolResultGroup, ToolResultItem } from '../domain/toolResultCards';
+import { httpResultUrl } from '../domain/resultUrl';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface ToolResultsBoxProps {
   groups: ToolResultGroup[];
@@ -25,48 +27,50 @@ const ICON: Record<ToolCardIcon, IconName> = {
   nav: 'navigation',
 };
 
-/** 對齊 Web `MAX_DISPLAY_ITEMS_PER_GROUP`。 */
-const MAX_DISPLAY = 12;
+const DISPLAY_PAGE_SIZE = 12;
 const CARD_WIDTH = 220;
 
 /**
  * 工具結果卡（對齊 Web `AIChatBot.tsx` `ToolResultsBox`）：標題列（圖示、標題、筆數、展開／收起）、
  * 多組時的分頁 chips、摘要，下方橫向捲動的結果卡。點卡片飛到該處或開啟詳情（由呼叫端決定）。
  */
-export default function ToolResultsBox({ groups, isDark, onOpenItem }: ToolResultsBoxProps) {
+export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxProps) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   const tones = useSemanticColors();
   const fontScale = useFontScale();
   const [expanded, setExpanded] = useState(true);
   const [tab, setTab] = useState(0);
+  const [visibleCounts, setVisibleCounts] = useState<Record<string, number>>({});
   if (groups.length === 0) return null;
 
   const active = groups[Math.min(tab, groups.length - 1)];
   const total = groups.reduce((sum, group) => sum + group.items.length, 0);
   const heading = groups.length > 1 ? t('nativeAiCardRelated') : active.heading;
-  const items = active.items.slice(0, MAX_DISPLAY);
+  const activeKey = `${active.icon}-${active.heading}`;
+  const visibleCount = visibleCounts[activeKey] ?? DISPLAY_PAGE_SIZE;
+  const items = active.items.slice(0, visibleCount);
 
   return (
     <View style={[styles.box, { backgroundColor: tones.surface }]}>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel={`${heading}，${t('nativeAiCardCount', { count: total })}`}
         onPress={() => setExpanded((value) => !value)}
         hitSlop={HEADER_HIT_SLOP}
-        style={({ pressed }) => [styles.header, pressed && styles.pressed]}>
+        style={styles.header}>
         <View style={[styles.headerIcon, { backgroundColor: tones.accentSoft }]}>
           <Icon name={ICON[groups.length > 1 ? 'search' : active.icon]} size={16} color={tones.accent} />
         </View>
-        <Text numberOfLines={1} style={[styles.heading, { color: colors.text, fontSize: scaledSize(TYPE.callout, fontScale) }]}>
+        <Text numberOfLines={1} style={[styles.heading, { color: colors.text, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
           {heading}
         </Text>
         <Text style={[styles.count, { color: colors.textSecondary, fontSize: scaledSize(TYPE.caption, fontScale) }]}>
           {t('nativeAiCardCount', { count: total })}
         </Text>
-        <Icon name={expanded ? 'chevronUp' : 'chevronDown'} size={16} color={colors.textSecondary} />
-      </Pressable>
+        <Icon name={expanded ? 'chevronUp' : 'chevronDown'} size={ICON_SIZE.body} color={colors.textSecondary} />
+      </PressableScale>
 
       {expanded ? (
         <>
@@ -75,27 +79,27 @@ export default function ToolResultsBox({ groups, isDark, onOpenItem }: ToolResul
               {groups.map((group, index) => {
                 const selected = group === active;
                 return (
-                  <Pressable
+                  <PressableScale
                     key={`${group.icon}-${group.heading}`}
                     accessibilityRole="tab"
                     accessibilityState={{ selected }}
                     onPress={() => setTab(index)}
                     hitSlop={TAB_HIT_SLOP}
                     style={[styles.tab, { backgroundColor: selected ? tones.accentSoft : 'transparent', borderColor: tones.separator }]}>
-                    <Icon name={ICON[group.icon]} size={14} color={selected ? tones.accent : colors.textSecondary} />
+                    <Icon name={ICON[group.icon]} size={ICON_SIZE.caption} color={selected ? tones.accent : colors.textSecondary} />
                     <Text
                       numberOfLines={1}
                       style={[styles.tabText, { color: selected ? tones.accent : colors.textSecondary, fontSize: scaledSize(TYPE.caption, fontScale) }]}>
                       {group.heading}
                     </Text>
-                  </Pressable>
+                  </PressableScale>
                 );
               })}
             </ScrollView>
           ) : null}
 
           {active.note ? (
-            <Text style={[styles.note, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>{active.note}</Text>
+            <Text style={[styles.note, { color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>{active.note}</Text>
           ) : null}
 
           {items.length > 0 ? (
@@ -106,39 +110,46 @@ export default function ToolResultsBox({ groups, isDark, onOpenItem }: ToolResul
               decelerationRate="fast"
               contentContainerStyle={styles.cards}>
               {items.map((item) => {
-                const openable = Boolean(item.marker ?? item.position);
+                const openable = Boolean(item.marker ?? item.position ?? httpResultUrl(item.url));
                 return (
-                  <Pressable
+                  <PressableScale
                     key={item.id}
-                    accessibilityRole={openable ? 'button' : 'text'}
+                    accessibilityRole={httpResultUrl(item.url) ? 'link' : openable ? 'button' : 'text'}
                     accessibilityLabel={[item.title, item.subtitle, item.badge].filter(Boolean).join('，')}
                     accessibilityHint={openable ? t('nativeAiCardOpenHint') : undefined}
                     disabled={!openable}
                     onPress={() => onOpenItem(item)}
-                    style={({ pressed }) => [
-                      styles.card,
-                      { backgroundColor: colors.background, borderColor: tones.separator },
-                      pressed && styles.pressed,
-                    ]}>
-                    <Text numberOfLines={2} style={[styles.cardTitle, { color: colors.text, fontSize: scaledSize(TYPE.callout, fontScale) }]}>
+                    style={[styles.card,
+                      { backgroundColor: colors.background, borderColor: tones.separator }]}>
+                    <Text style={[styles.cardTitle, { color: colors.text, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
                       {item.title}
                     </Text>
                     {item.subtitle ? (
-                      <Text numberOfLines={2} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, fontScale) }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, fontScale) }}>
                         {item.subtitle}
                       </Text>
                     ) : null}
                     {item.badge ? (
                       <View style={[styles.badge, { backgroundColor: tones.accentSoft }]}>
-                        <Text numberOfLines={1} style={[styles.badgeText, { color: tones.accent, fontSize: scaledSize(TYPE.caption, fontScale) }]}>
+                        <Text style={[styles.badgeText, { color: tones.accent, fontSize: scaledSize(TYPE.caption, fontScale) }]}>
                           {item.badge}
                         </Text>
                       </View>
                     ) : null}
-                  </Pressable>
+                  </PressableScale>
                 );
               })}
             </ScrollView>
+          ) : null}
+          {items.length < active.items.length ? (
+            <PressableScale
+              accessibilityRole="button"
+              onPress={() => setVisibleCounts(previous => ({ ...previous, [activeKey]: visibleCount + DISPLAY_PAGE_SIZE }))}
+              style={[styles.more, { backgroundColor: tones.accentSoft }]}>
+              <Text style={{ color: tones.accent, fontSize: scaledSize(TYPE.footnote, fontScale) }}>
+                {t('nativeAiShowMoreResults', { shown: items.length, total: active.items.length })}
+              </Text>
+            </PressableScale>
           ) : null}
         </>
       ) : null}
@@ -151,9 +162,9 @@ const HEADER_HIT_SLOP = { top: 4, bottom: 4 };
 const TAB_HIT_SLOP = { top: 7, bottom: 7 };
 
 const styles = StyleSheet.create({
-  box: { borderRadius: RADIUS.card, paddingVertical: 10, gap: 8, marginTop: 8 },
+  box: { borderRadius: SHAPE.card, borderCurve: 'continuous', paddingVertical: 10, gap: 8, marginTop: 8 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, minHeight: 36 },
-  headerIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  headerIcon: { width: 28, height: 28, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   heading: { flex: 1, fontWeight: '700' },
   count: { fontWeight: '600' },
   tabs: { gap: 6, paddingHorizontal: 12, paddingVertical: 7 },
@@ -165,21 +176,21 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     minHeight: 30,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
   },
   tabText: { fontWeight: '600', maxWidth: 160 },
   note: { paddingHorizontal: 12 },
   cards: { gap: 8, paddingHorizontal: 12 },
+  more: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginHorizontal: 12, padding: 8, borderRadius: SHAPE.control, borderCurve: 'continuous' },
   card: {
     width: CARD_WIDTH,
-    borderRadius: RADIUS.small + 2,
+    borderRadius: SHAPE.control + 2, borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
     padding: 12,
     gap: 4,
   },
   cardTitle: { fontWeight: '600' },
-  badge: { alignSelf: 'flex-start', borderRadius: RADIUS.pill, paddingHorizontal: 8, paddingVertical: 2, marginTop: 2 },
+  badge: { alignSelf: 'flex-start', borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 8, paddingVertical: 2, marginTop: 2 },
   badgeText: { fontWeight: '600' },
-  pressed: { opacity: 0.6 },
 });

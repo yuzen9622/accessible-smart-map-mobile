@@ -1,11 +1,12 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { FacilityDetailRow } from '../hooks/useFacilityDetail';
 import type { FacilityDetailPanelProps } from './FacilityDetailPanel.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /**
  * 設施詳情（`(sheet)/facility/[id]`），iOS／Android 共用——設計 2a「原生清單」（2026-09-30）：
@@ -34,20 +35,20 @@ export default function FacilityDetailPanel({ model }: FacilityDetailPanelProps)
       </View>
 
       <View style={[styles.actions, fontScale >= 1.3 && styles.actionsLarge]}>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           onPress={model.onPlanRoute}
-          style={({ pressed }) => [styles.primaryButton, fontScale >= 1.3 && styles.primaryButtonLarge, pressed && styles.pressed]}>
+          style={[styles.primaryButton, fontScale >= 1.3 && styles.primaryButtonLarge]}>
           <Icon name="navigation" color={ON_ACCENT_FILL} />
           <Text style={styles.primaryText}>{model.planRouteLabel}</Text>
-        </Pressable>
-        <Pressable
+        </PressableScale>
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.showOnMapLabel}
           onPress={model.onShowOnMap}
-          style={({ pressed }) => [styles.circleButton, { backgroundColor: semantic.accentSoft }, pressed && styles.pressed]}>
-          <Icon name="mapPin" size={20} color={semantic.accent} />
-        </Pressable>
+          style={[styles.circleButton, { backgroundColor: semantic.accentSoft }]}>
+          <Icon name="mapPin" size={ICON_SIZE.control} color={semantic.accent} />
+        </PressableScale>
       </View>
 
       <View style={[styles.card, { backgroundColor: semantic.surface }]}>
@@ -57,7 +58,7 @@ export default function FacilityDetailPanel({ model }: FacilityDetailPanelProps)
             accessible
             accessibilityLabel={`${row.label}：${row.value}`}
             style={[styles.row, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: semantic.separator }]}>
-            <Icon name={row.icon} size={18} color={colors.textSecondary} />
+            <Icon name={row.icon} size={ICON_SIZE.body} color={colors.textSecondary} />
             <Text style={[styles.rowLabel, { color: colors.textSecondary }]}>{row.label}</Text>
             <Text style={[styles.rowValue, { color: toneColor(row.tone) }, row.tone && styles.rowValueStrong]}>
               {row.value}
@@ -68,14 +69,14 @@ export default function FacilityDetailPanel({ model }: FacilityDetailPanelProps)
 
       <View style={styles.feedback}>
         <Text style={[styles.feedbackText, { color: colors.text }]}>{model.mismatchLabel}</Text>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.reportAccessibilityLabel}
           onPress={model.onReport}
-          style={({ pressed }) => [styles.reportButton, { backgroundColor: semantic.warn.bg }, pressed && styles.pressed]}>
-          <Icon name="alert" size={16} color={semantic.warn.fg} />
+          style={[styles.reportButton, { backgroundColor: semantic.warn.bg }]}>
+          <Icon name="alert" size={ICON_SIZE.body} color={semantic.warn.fg} />
           <Text style={[styles.reportText, { color: semantic.warn.fg }]}>{model.reportLabel}</Text>
-        </Pressable>
+        </PressableScale>
       </View>
     </ScrollView>
   );
@@ -84,8 +85,8 @@ export default function FacilityDetailPanel({ model }: FacilityDetailPanelProps)
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 32, gap: 16 },
   header: { gap: 4 },
-  eyebrow: { fontSize: TYPE.subhead, fontWeight: '500' },
-  title: { fontSize: TYPE.title, fontWeight: '700' },
+  eyebrow: { fontSize: TYPE.footnote, fontWeight: '600' },
+  title: { fontSize: TYPE.title1, fontWeight: '700' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   actionsLarge: { flexWrap: 'wrap' },
   primaryButton: {
@@ -96,27 +97,26 @@ const styles = StyleSheet.create({
     gap: 8,
     minHeight: 50,
     paddingHorizontal: 12,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     backgroundColor: ACCENT_FILL,
   },
   primaryButtonLarge: { flexGrow: 0, flexBasis: '100%', paddingVertical: 10 },
-  primaryText: { color: ON_ACCENT_FILL, fontSize: 17, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
-  circleButton: { width: 50, height: 50, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
-  pressed: { opacity: 0.6 },
-  card: { borderRadius: RADIUS.card, paddingHorizontal: 14 },
+  primaryText: { color: ON_ACCENT_FILL, fontSize: TYPE.body, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
+  circleButton: { width: 50, height: 50, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', paddingHorizontal: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingVertical: 10 },
-  rowLabel: { fontSize: TYPE.callout },
-  rowValue: { flex: 1, fontSize: TYPE.callout, textAlign: 'right' },
+  rowLabel: { fontSize: TYPE.subhead },
+  rowValue: { flex: 1, fontSize: TYPE.subhead, textAlign: 'right' },
   rowValueStrong: { fontWeight: '600' },
   feedback: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-  feedbackText: { flex: 1, minWidth: 160, fontSize: TYPE.callout, fontWeight: '600' },
+  feedbackText: { flex: 1, minWidth: 160, fontSize: TYPE.subhead, fontWeight: '600' },
   reportButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     minHeight: 44,
     paddingHorizontal: 16,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
   },
-  reportText: { fontSize: TYPE.callout, fontWeight: '600' },
+  reportText: { fontSize: TYPE.subhead, fontWeight: '600' },
 });

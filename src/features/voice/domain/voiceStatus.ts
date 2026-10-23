@@ -48,6 +48,8 @@ export function getVoiceStatusLabel(status: VoiceStatus, t: Translate): string {
       return t('chatbot.voice.statusPlaybackBlocked');
     case 'needs-login':
       return t('chatbot.voice.statusNeedsLogin');
+    case 'ending':
+      return t('chatbot.voice.statusEnding');
     case 'ended':
       return t('chatbot.voice.statusEnded');
     case 'error':

@@ -54,6 +54,7 @@ interface SlotProps {
   travel: number;
   reduced: boolean;
   textStyle: TextStyle;
+  fixedSize: boolean;
 }
 
 /**
@@ -61,7 +62,7 @@ interface SlotProps {
  * （舊的滾走、新的滾進），兩者都拿到當下的方向；不用 `exiting`，因為被移除的元素
  * 只會帶著上一次 render 的 props，方向會晚一拍。
  */
-function Slot({ char, down, travel, reduced, textStyle }: SlotProps) {
+function Slot({ char, down, travel, reduced, textStyle, fixedSize }: SlotProps) {
   const [slot, setSlot] = useState<{ char: string; prevChar: string | null; gen: number }>({ char, prevChar: null, gen: 0 });
   if (char !== slot.char) setSlot({ char, prevChar: slot.char, gen: slot.gen + 1 });
 
@@ -71,6 +72,7 @@ function Slot({ char, down, travel, reduced, textStyle }: SlotProps) {
       {slot.prevChar !== null ? (
         <Animated.Text
           key={`out-${slot.gen}`}
+          allowFontScaling={!fixedSize}
           entering={reduced ? fadeAway() : rollAway(-travel * dir)}
           style={[styles.char, textStyle, styles.overlay]}>
           {slot.prevChar}
@@ -78,6 +80,7 @@ function Slot({ char, down, travel, reduced, textStyle }: SlotProps) {
       ) : null}
       <Animated.Text
         key={`in-${slot.gen}`}
+        allowFontScaling={!fixedSize}
         entering={reduced ? FadeIn.duration(DURATION) : rollIn(travel * dir)}
         style={[styles.char, textStyle]}>
         {slot.char}
@@ -91,7 +94,7 @@ function Slot({ char, down, travel, reduced, textStyle }: SlotProps) {
  * 字元格以「從右數第幾位」當 key，只有變動的那一位會滾；數值變大往上滾、變小往下滾。
  * 「減少動態效果」時只淡入淡出，不位移。首次掛載不播動畫。
  */
-export default function AnimatedNumberText({ text, value, fontSize, fontWeight = 'bold', color, accessibilityLabel }: AnimatedNumberTextProps) {
+export default function AnimatedNumberText({ text, value, fontSize, fontWeight = 'bold', fixedSize = false, color, accessibilityLabel }: AnimatedNumberTextProps) {
   const { fontScale } = useWindowDimensions();
   const appScale = useFontScale();
   const reduced = useReducedMotion();
@@ -102,16 +105,17 @@ export default function AnimatedNumberText({ text, value, fontSize, fontWeight =
     setCountsDown(value < prev);
   }
 
-  const travel = fontSize * appScale * fontScale * 0.8;
+  const size = fixedSize ? fontSize : fontSize * appScale;
+  const travel = (fixedSize ? fontSize : size * fontScale) * 0.8;
   const chars = Array.from(text);
-  const textStyle: TextStyle = { fontSize: fontSize * appScale, fontWeight: RN_FONT_WEIGHT[fontWeight], color };
+  const textStyle: TextStyle = { fontSize: size, fontWeight: RN_FONT_WEIGHT[fontWeight], color };
 
   return (
     <View accessible accessibilityLabel={accessibilityLabel ?? text} style={styles.row}>
       <LayoutAnimationConfig skipEntering>
         {chars.map((char, index) => (
           <Animated.View key={chars.length - index} exiting={FadeOut.duration(DURATION)}>
-            <Slot char={char} down={countsDown} travel={travel} reduced={reduced} textStyle={textStyle} />
+            <Slot char={char} down={countsDown} travel={travel} reduced={reduced} textStyle={textStyle} fixedSize={fixedSize} />
           </Animated.View>
         ))}
       </LayoutAnimationConfig>

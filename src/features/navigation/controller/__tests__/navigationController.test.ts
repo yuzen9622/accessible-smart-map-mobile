@@ -227,6 +227,40 @@ describe('NavigationController', () => {
     controller.stop();
   });
 
+  it('reminds "continue straight" every 500 m on a long stretch instead of relying on backend chunks', async () => {
+    // 往東 14 點，每點約 101 m：左轉在 ~1212 m。
+    const longPolyline: [number, number][] = Array.from({ length: 14 }, (_, i) => [121.5 + i * 0.001, 25.05]);
+    const route = { ...makeRoute(), legs: [{ ...makeRoute().legs[0], distanceM: 1313, polyline: longPolyline }] };
+    useMapStore.setState({ selectRoute: { index: 0, route }, computeRoutes: [route] });
+    const instructions = [
+      step('出發', 0, { type: 'depart', maneuver: 'DEPART' }),
+      step('左轉', 12, { maneuver: 'LEFT', distanceM: 1212 }),
+      step('抵達', 13, { type: 'arrive', maneuver: null }),
+    ];
+    const { controller, speech } = setup({
+      fetchInstructions: jest.fn(async () => ok(instructions)),
+      maneuverAheadText: (meters, instruction) => `${Math.round(meters / 10) * 10}m後${instruction}`,
+      continueText: (meters) => `繼續直行${meters}m`,
+    });
+    fix(25.05, 121.5);
+    controller.start();
+    await flush();
+    expect(speech.speak).toHaveBeenLastCalledWith('出發 1210m後左轉', 'zh-TW');
+
+    speech.speak.mockClear();
+    for (const lng of [121.5015, 121.5022, 121.5025, 121.5045, 121.5072, 121.5076, 121.5117]) {
+      fix(25.05, lng);
+      await flush();
+    }
+    // ~1060 m → no mark; ~990 m → 1 km; ~485 m → 500 m; ~30 m before the turn the prepare call-out takes over.
+    expect(speech.speak.mock.calls).toEqual([
+      ['繼續直行1000m', 'zh-TW'],
+      ['繼續直行500m', 'zh-TW'],
+      ['30m後左轉', 'zh-TW'],
+    ]);
+    controller.stop();
+  });
+
   it('still stages a turn the backend marks as RIGHT', async () => {
     const instructions = [step('出發', 0, { type: 'depart' }), step('右轉', 2, { maneuver: 'RIGHT' }), step('左轉', 4), step('抵達', 5, { type: 'arrive' })];
     const { controller, speech } = setup({

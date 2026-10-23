@@ -126,7 +126,7 @@ export type WaveformLevelSource = 'mic' | 'model' | null;
 
 export function waveformLevelSource(statusName: VoiceStatusName, muted: boolean): WaveformLevelSource {
   if (muted) return null;
-  if (statusName === 'model-speaking') return 'model';
+  if (statusName === 'model-speaking' || statusName === 'ending') return 'model';
   if (statusName === 'listening') return 'mic';
   return null;
 }
@@ -136,6 +136,6 @@ export type WaveformMode = 'live' | 'idle' | 'flat';
 
 export function waveformMode(statusName: VoiceStatusName, muted: boolean): WaveformMode {
   if (statusName === 'connecting' || statusName === 'reconnecting' || statusName === 'ready') return 'idle';
-  if (muted || !isMicActiveStatus(statusName)) return 'flat';
+  if (muted || (!isMicActiveStatus(statusName) && statusName !== 'ending')) return 'flat';
   return 'live';
 }

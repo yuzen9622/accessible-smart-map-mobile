@@ -2,7 +2,7 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, SHAPE, ELEVATION } from '@/shared/theme';
 import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
 
 import type { GlassCardProps } from './GlassCard.types';
@@ -47,12 +47,9 @@ export default function GlassCard({ children, style, interactive = false }: Glas
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 22, overflow: 'hidden' },
+  card: { borderRadius: SHAPE.floating, borderCurve: 'continuous', overflow: 'hidden' },
   opaque: {
     overflow: 'visible',
-    shadowColor: '#000000',
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+    boxShadow: ELEVATION.floating,
   },
 });

@@ -16,7 +16,7 @@ import {
 } from '../domain/routeRequest';
 import { adaptRoutePreviewRoutes } from '../domain/routePreviewAdapter';
 import { hasRouteSession } from '../domain/routeSession';
-import { useRouteSessionStore } from '../store/routeSessionStore';
+import { useRouteSessionStore, type LegGeometryPreview } from '../store/routeSessionStore';
 import type { AiRoutePlan, AccessibleRoute } from '../types/route';
 
 /**
@@ -248,6 +248,16 @@ export function selectRouteAt(index: number): void {
   store.selectRouteIndex(index);
   const route = useRouteSessionStore.getState().selectRoute?.route;
   if (route) fitCamera(route, { origin: store.origin, destination: store.destination, waypoints: store.routeWaypoints });
+}
+
+/**
+ * 路線詳情查看別班公車時，地圖改畫那班的線形；傳 null 還原。只換地圖上的線，不動路線資料，
+ * 所以結束查看、離開詳情或換路線後一律要清掉（呼叫端在 effect cleanup 傳 null）。
+ */
+export function previewLegGeometry(preview: LegGeometryPreview | null): void {
+  const current = useRouteSessionStore.getState().legGeometryPreview;
+  if (current === preview) return;
+  useRouteSessionStore.setState({ legGeometryPreview: preview });
 }
 
 /** 「回到路線」pill（Web `RouteSessionPill`）：把相機框回選中的路線。 */

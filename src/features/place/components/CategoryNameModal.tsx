@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Modal, StyleSheet, TextInput, View, Pressable } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, SPACE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE } from '@/shared/theme';
 import { Text } from '@/shared/ui/typography/Text';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export interface CategoryNameModalProps {
   visible: boolean;
@@ -59,18 +60,18 @@ function CategoryNameModalContent({
           onSubmitEditing={() => trimmed && onSubmit(trimmed)}
         />
         <View style={styles.actions}>
-          <Pressable accessibilityRole="button" onPress={onCancel} style={styles.actionButton}>
-            <Text style={{ color: colors.textSecondary, fontSize: 16 }}>{t('cancel')}</Text>
-          </Pressable>
-          <Pressable
+          <PressableScale accessibilityRole="button" onPress={onCancel} style={styles.actionButton}>
+            <Text style={{ color: colors.textSecondary, fontSize: TYPE.callout }}>{t('cancel')}</Text>
+          </PressableScale>
+          <PressableScale
             accessibilityRole="button"
             disabled={!trimmed}
             onPress={() => onSubmit(trimmed)}
             style={styles.actionButton}>
-            <Text style={{ color: trimmed ? tones.accent : colors.textSecondary, fontSize: 16, fontWeight: '600' }}>
+            <Text style={{ color: trimmed ? tones.accent : colors.textSecondary, fontSize: TYPE.callout, fontWeight: '600' }}>
               {t('done')}
             </Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </View>
     </View>
@@ -79,9 +80,9 @@ function CategoryNameModalContent({
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
-  card: { width: '84%', borderRadius: RADIUS.card, padding: SPACE.lg, gap: SPACE.md },
-  title: { fontSize: 17, fontWeight: '600' },
-  input: { minHeight: 44, borderRadius: RADIUS.small, paddingHorizontal: SPACE.md, fontSize: 16 },
+  card: { width: '84%', borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.lg, gap: SPACE.md },
+  title: { fontSize: TYPE.body, fontWeight: '600' },
+  input: { minHeight: 44, borderRadius: SHAPE.control, borderCurve: 'continuous', paddingHorizontal: SPACE.md, fontSize: TYPE.callout },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: SPACE.lg },
   actionButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: SPACE.sm },
 });

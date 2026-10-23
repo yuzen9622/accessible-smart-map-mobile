@@ -1,23 +1,24 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, SHAPE, ELEVATION } from '@/shared/theme';
 
 import type { MapControlsProps } from './MapControls.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 export default function MapControls({ actions }: MapControlsProps) {
   const colors = useThemeColors();
   return (
     <View style={styles.column}>
       {actions.map((action) => (
-        <Pressable
+        <PressableScale
           key={action.key}
           accessibilityRole="button"
           accessibilityLabel={action.label}
           onPress={action.onPress}
           style={[styles.button, { backgroundColor: colors.backgroundElement }]}>
           <Text style={[styles.text, { color: colors.text }]}>{action.shortLabel}</Text>
-        </Pressable>
+        </PressableScale>
       ))}
     </View>
   );
@@ -28,10 +29,10 @@ const styles = StyleSheet.create({
   button: {
     minWidth: 48,
     minHeight: 48,
-    borderRadius: 24,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 3,
+    boxShadow: ELEVATION.floating,
   },
   text: { fontWeight: '600' },
 });

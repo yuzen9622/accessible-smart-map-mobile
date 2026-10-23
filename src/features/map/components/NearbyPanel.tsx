@@ -1,15 +1,16 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, FACILITY, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
 
 import { FACILITY_COLORS } from '../domain/facilityStyle';
 import type { NearbyRow } from '../hooks/useNearbyViewModel';
 import type { NearbyPanelProps } from './NearbyPanel.types';
+import PressableScale from '@/shared/ui/PressableScale';
 
 /** 與 `ParkingLayer` 的停車點同色。 */
-const PARKING_ICON_COLOR = '#3949AB';
+const PARKING_ICON_COLOR = FACILITY.parking.line;
 
 function rowIcon(category: NearbyRow['category']): { name: IconName; color: string } {
   if (category === 'parking') return { name: 'parking', color: PARKING_ICON_COLOR };
@@ -57,13 +58,13 @@ export default function NearbyPanel({ model, onRequestLocation, labels }: Nearby
       {model.status === 'no-location' ? (
         <View style={styles.message}>
           <Text style={[styles.messageText, { color: colors.textSecondary }]}>{labels.noLocation}</Text>
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             onPress={onRequestLocation}
-            style={({ pressed }) => [styles.locateButton, pressed && styles.pressed]}>
-            <Icon name="crosshair" size={18} color={ON_ACCENT_FILL} />
+            style={styles.locateButton}>
+            <Icon name="crosshair" size={ICON_SIZE.body} color={ON_ACCENT_FILL} />
             <Text style={styles.locateText}>{labels.locate}</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       ) : null}
 
@@ -72,18 +73,15 @@ export default function NearbyPanel({ model, onRequestLocation, labels }: Nearby
           {model.rows.map((row, index) => {
             const icon = rowIcon(row.category);
             return (
-              <Pressable
+              <PressableScale feedback="highlight"
                 key={row.key}
                 accessibilityRole="button"
                 accessibilityLabel={row.accessibilityLabel}
                 onPress={row.onPress}
-                style={({ pressed }) => [
-                  styles.row,
-                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: semantic.separator },
-                  pressed && styles.pressed,
-                ]}>
+                style={[styles.row,
+                  index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: semantic.separator }]}>
                 <View style={[styles.iconCircle, { backgroundColor: icon.color }]}>
-                  <Icon name={icon.name} size={18} color={ON_ACCENT_FILL} />
+                  <Icon name={icon.name} size={ICON_SIZE.body} color={ON_ACCENT_FILL} />
                 </View>
                 <View style={styles.rowTexts}>
                   <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
@@ -96,7 +94,7 @@ export default function NearbyPanel({ model, onRequestLocation, labels }: Nearby
                   ) : null}
                 </View>
                 <Text style={[styles.distance, { color: colors.text }]}>{row.distanceText}</Text>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
@@ -104,7 +102,7 @@ export default function NearbyPanel({ model, onRequestLocation, labels }: Nearby
 
       {model.sourcesNote ? (
         <View style={styles.footer}>
-          <Icon name="info" size={14} color={colors.textSecondary} />
+          <Icon name="info" size={ICON_SIZE.caption} color={colors.textSecondary} />
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>{model.sourcesNote}</Text>
         </View>
       ) : null}
@@ -115,27 +113,26 @@ export default function NearbyPanel({ model, onRequestLocation, labels }: Nearby
 const styles = StyleSheet.create({
   // paddingTop 多留一點：透明導覽列底緣的 scroll-edge 效果會蓋到第一行
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 12 },
-  note: { fontSize: TYPE.subhead, paddingHorizontal: 4 },
+  note: { fontSize: TYPE.footnote, paddingHorizontal: 4 },
   message: { alignItems: 'center', paddingVertical: 24, gap: 12 },
-  messageText: { fontSize: TYPE.callout, textAlign: 'center' },
+  messageText: { fontSize: TYPE.subhead, textAlign: 'center' },
   locateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     minHeight: 44,
     paddingHorizontal: 20,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     backgroundColor: ACCENT_FILL,
   },
   locateText: { color: ON_ACCENT_FILL, fontSize: TYPE.body, fontWeight: '600' },
-  card: { borderRadius: RADIUS.card, paddingHorizontal: 12 },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', paddingHorizontal: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 },
-  iconCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  iconCircle: { width: 34, height: 34, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   rowTexts: { flex: 1, gap: 2 },
   rowTitle: { fontSize: TYPE.body, fontWeight: '600' },
-  rowSubtitle: { fontSize: TYPE.subhead },
-  distance: { fontSize: TYPE.callout, fontVariant: ['tabular-nums'] },
-  pressed: { opacity: 0.6 },
+  rowSubtitle: { fontSize: TYPE.footnote },
+  distance: { fontSize: TYPE.subhead, fontVariant: ['tabular-nums'] },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
   footerText: { flex: 1, fontSize: TYPE.caption },
 });

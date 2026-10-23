@@ -1,6 +1,7 @@
+import { CUSTOM_CATEGORY } from '@/shared/theme/palettes';
 /** 自訂收藏分類沒有預先指定的顏色；用名字算一個固定色票索引，同一個分類名字在任何裝置上
  * 永遠是同一個顏色（不依賴建立順序，重灌或換裝置後顏色不會跳）。 */
-const CUSTOM_CATEGORY_PALETTE = ['#7048E8', '#0F9960', '#C2255C', '#946200', '#1864AB', '#087F5B'] as const;
+const CUSTOM_CATEGORY_PALETTE = CUSTOM_CATEGORY;
 
 export function customCategoryColor(name: string): string {
   let hash = 0;

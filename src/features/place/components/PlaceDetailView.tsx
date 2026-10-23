@@ -1,10 +1,10 @@
 import { ContentActions } from '@/features/content-safety';
 import { Text } from '@/shared/ui/typography/Text';
 import { useState, type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, useColorScheme, useWindowDimensions, View } from 'react-native';
 
 import { FACILITY_COLORS } from '@/features/map';
-import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, semanticColors, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, semanticColors, useSemanticColors, useThemeColors, WHITE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import CategoryNameModal from './CategoryNameModal';
@@ -27,6 +27,7 @@ import {
   PLACE_WARN_SURFACE,
 } from './palette';
 import ShareButton from './ShareButton';
+import PressableScale from '@/shared/ui/PressableScale';
 
 interface ToneColors {
   ok: string;
@@ -156,7 +157,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                   accessible
                   accessibilityLabel={badge.label}
                   style={[styles.badge, { backgroundColor: tone ? tone.surface : PLACE_SURFACE_COLOR }]}>
-                  {badge.iconName ? <Icon name={badge.iconName} size={scaled(13)} color={color} /> : null}
+                  {badge.iconName ? <Icon name={badge.iconName} size={scaled(ICON_SIZE.caption)} color={color} /> : null}
                   <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.badgeText, { color }]}>{badge.label}</Text>
                 </View>
               );
@@ -167,24 +168,24 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
 
       {/* 主按鈕是「路線」，次要動作收成同高 50pt 的圓鈕；回到此地點／複製連結／外部地圖收進「⋯」 */}
       <View style={[styles.actionsRow, largeText && styles.actionsRowLarge]}>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.planRouteLabel}
           onPress={model.onPlanRoute}
-          style={({ pressed }) => [styles.primaryButton, largeText && styles.primaryButtonLarge, pressed && styles.pressed]}>
+          style={[styles.primaryButton, largeText && styles.primaryButtonLarge]}>
           <Icon name="navigation" color={PLACE_ON_ACCENT_COLOR} />
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={styles.primaryButtonText}>
             {model.planRouteLabel}
           </Text>
-        </Pressable>
-        <Pressable
+        </PressableScale>
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.saveLabel}
           accessibilityState={{ selected: model.saved }}
           onPress={model.onToggleSave}
-          style={({ pressed }) => [styles.circleButton, { backgroundColor: circleSurface }, pressed && styles.pressed]}>
-          <Icon name={model.saved ? 'bookmarkFilled' : 'bookmark'} size={20} color={accentText} />
-        </Pressable>
+          style={[styles.circleButton, { backgroundColor: circleSurface }]}>
+          <Icon name={model.saved ? 'bookmarkFilled' : 'bookmark'} size={ICON_SIZE.control} color={accentText} />
+        </PressableScale>
         <ShareButton url={model.shareUrl} title={model.title} label={model.shareLabel} onShare={model.onShare} />
         <MoreActionsButton
           label={model.moreLabel}
@@ -202,7 +203,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
       {model.categories ? (
         <View style={styles.chipsRow}>
           {model.categories.map((cat) => (
-            <Pressable
+            <PressableScale
               key={cat.value}
               accessibilityRole="button"
               accessibilityState={{ selected: cat.isSelected }}
@@ -212,22 +213,22 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                 { backgroundColor: colors.backgroundElement },
                 cat.isSelected && { backgroundColor: PLACE_ACCENT_COLOR },
               ]}>
-              {cat.isSelected ? <Icon name="check" size={scaled(14)} color={PLACE_ON_ACCENT_COLOR} /> : null}
+              {cat.isSelected ? <Icon name="check" size={scaled(ICON_SIZE.caption)} color={PLACE_ON_ACCENT_COLOR} /> : null}
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.categoryChipText, { color: cat.isSelected ? PLACE_ON_ACCENT_COLOR : colors.text }]}>
                 {cat.label}
               </Text>
-            </Pressable>
+            </PressableScale>
           ))}
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={model.addCategoryLabel}
             onPress={() => setAddingCategory(true)}
             style={[styles.categoryChip, { backgroundColor: colors.backgroundElement }]}>
-            <Icon name="plus" size={scaled(14)} color={colors.textSecondary} />
+            <Icon name="plus" size={scaled(ICON_SIZE.caption)} color={colors.textSecondary} />
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.categoryChipText, { color: colors.textSecondary }]}>
               {model.addCategoryLabel}
             </Text>
-          </Pressable>
+          </PressableScale>
         </View>
       ) : null}
       {model.categories ? (
@@ -275,7 +276,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                     accessibilityLabel={`${item.label}：${item.statusLabel}`}
                     style={styles.checklistBody}>
                     <View style={[styles.checklistIcon, { width: scaled(44), height: scaled(44), backgroundColor: tone.surface }]}>
-                      <Icon name={CHECKLIST_ICON[item.key] ?? tone.icon} size={scaled(22)} color={tone.color} />
+                      <Icon name={CHECKLIST_ICON[item.key] ?? tone.icon} size={scaled(ICON_SIZE.control)} color={tone.color} />
                     </View>
                     <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.checklistLabel, { color: colors.text }]} numberOfLines={2}>
                       {item.label}
@@ -289,30 +290,30 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             })}
           </View>
           {model.checklist.some((item) => item.onReport) ? (
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={model.checklistSupplementLabel}
               onPress={model.checklist.find((item) => item.onReport)?.onReport}
               hitSlop={REPORT_HIT_SLOP}
-              style={({ pressed }) => [styles.supplementButton, { borderColor: PLACE_BORDER_COLOR }, pressed && styles.pressed]}>
-              <Icon name="plus" size={scaled(16)} color={accentText} />
+              style={[styles.supplementButton, { borderColor: PLACE_BORDER_COLOR }]}>
+              <Icon name="plus" size={scaled(ICON_SIZE.body)} color={accentText} />
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.supplementButtonText, { color: accentText }]}>
                 {model.checklistSupplementLabel}
               </Text>
-            </Pressable>
+            </PressableScale>
           ) : null}
         </View>
       ) : null}
 
       {/* 每個地點都能回報現場狀況（障礙物、施工、資料錯誤）；放在無障礙資訊之後，看完現況再決定要不要回報 */}
-      <Pressable
+      <PressableScale feedback="highlight"
         accessibilityRole="button"
         accessibilityLabel={model.placeReport.accessibilityLabel}
         accessibilityHint={model.placeReport.subtitle}
         onPress={model.placeReport.onPress}
-        style={({ pressed }) => [groupStyle, styles.reportRow, pressed && styles.pressed]}>
+        style={[groupStyle, styles.reportRow]}>
         <View style={[styles.reportIcon, { width: scaled(36), height: scaled(36), backgroundColor: PLACE_WARN_SURFACE }]}>
-          <Icon name="alert" size={scaled(18)} color={toneColors.warn} />
+          <Icon name="alert" size={scaled(ICON_SIZE.body)} color={toneColors.warn} />
         </View>
         <View style={styles.flex}>
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.reportTitle, { color: colors.text }]}>
@@ -322,8 +323,8 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             {model.placeReport.subtitle}
           </Text>
         </View>
-        <Icon name="chevronRight" size={scaled(16)} color={colors.textSecondary} />
-      </Pressable>
+        <Icon name="chevronRight" size={scaled(ICON_SIZE.body)} color={colors.textSecondary} />
+      </PressableScale>
 
       <View style={styles.section}>
         <SectionHeader title={model.nearbyTitle} color={colors.text} stacked={largeText} />
@@ -336,7 +337,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                 accessibilityLabel={[row.name, row.typeLabel, row.address, row.distanceText].filter(Boolean).join('，')}
                 style={styles.nearbyRow}>
                 <View style={[styles.nearbyIcon, { width: scaled(30), height: scaled(30), backgroundColor: nearbyKindStyle(row.kind).color }]}>
-                  <Icon name={nearbyKindStyle(row.kind).icon} size={scaled(16)} color="#FFFFFF" />
+                  <Icon name={nearbyKindStyle(row.kind).icon} size={scaled(ICON_SIZE.body)} color={WHITE} />
                 </View>
                 {/* 分隔線從文字起點開始（iOS inset grouped 列表的慣例），不切過圖示 */}
                 <View style={[styles.nearbyText, index > 0 && rowDivider]}>
@@ -361,7 +362,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
           </View>
         ) : (
           <View style={[groupStyle, styles.emptyCard]}>
-            <Icon name="accessibility" size={scaled(20)} color={colors.textSecondary} />
+            <Icon name="accessibility" size={scaled(ICON_SIZE.control)} color={colors.textSecondary} />
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.bodyText, styles.emptyText, { color: colors.textSecondary }]}>{model.nearbyEmptyLabel}</Text>
           </View>
         )}
@@ -374,13 +375,13 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             color={colors.text}
             stacked={largeText}
             accessory={
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={model.reviews.write.label}
                 onPress={model.reviews.write.onPress}
-                style={({ pressed }) => [styles.headerAction, !largeText && styles.headerActionInline, pressed && styles.pressed]}>
+                style={[styles.headerAction, !largeText && styles.headerActionInline]}>
                 <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.sectionAction, { color: accentText }]}>{model.reviews.write.label}</Text>
-              </Pressable>
+              </PressableScale>
             }
           />
           {model.reviews.write.hint ? (
@@ -395,9 +396,9 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
           {model.reviews.errorLabel ? (
             <View style={groupStyle}>
               <Text accessibilityLiveRegion="polite" style={[styles.bodyText, { color: colors.textSecondary }]}>{model.reviews.errorLabel}</Text>
-              <Pressable accessibilityRole="button" onPress={model.reviews.onRetry} style={styles.loadMoreButton}>
+              <PressableScale accessibilityRole="button" onPress={model.reviews.onRetry} style={styles.loadMoreButton}>
                 <Text style={[styles.loadMoreText, { color: accentText }]}>{model.reviews.retryLabel}</Text>
-              </Pressable>
+              </PressableScale>
             </View>
           ) : null}
           {model.reviews.loading ? (
@@ -422,39 +423,39 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                   {review.onEdit || review.onDelete ? (
                     <View style={styles.reviewActions}>
                       {review.onEdit ? (
-                        <Pressable
+                        <PressableScale
                           accessibilityRole="button"
                           accessibilityLabel={reviewEditLabel}
                           onPress={review.onEdit}
-                          style={({ pressed }) => [styles.reviewActionButton, pressed && styles.pressed]}>
+                          style={styles.reviewActionButton}>
                           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.sectionAction, { color: accentText }]}>{reviewEditLabel}</Text>
-                        </Pressable>
+                        </PressableScale>
                       ) : null}
                       {review.onDelete ? (
-                        <Pressable
+                        <PressableScale
                           accessibilityRole="button"
                           accessibilityLabel={reviewDeleteLabel}
                           onPress={review.onDelete}
-                          style={({ pressed }) => [styles.reviewActionButton, pressed && styles.pressed]}>
+                          style={styles.reviewActionButton}>
                           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.sectionAction, { color: toneColors.no }]}>{reviewDeleteLabel}</Text>
-                        </Pressable>
+                        </PressableScale>
                       ) : null}
                     </View>
                   ) : null}
                 </View>
               ))}
               {model.reviews.hasMore ? (
-                <Pressable
+                <PressableScale
                   accessibilityRole="button"
                   onPress={model.reviews.onLoadMore}
-                  style={({ pressed }) => [styles.loadMoreButton, rowDivider, pressed && styles.pressed]}>
+                  style={[styles.loadMoreButton, rowDivider]}>
                   <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.loadMoreText, { color: accentText }]}>{model.reviews.loadMoreLabel}</Text>
-                </Pressable>
+                </PressableScale>
               ) : null}
             </View>
           ) : model.reviews.errorLabel ? null : (
             <View style={[groupStyle, styles.emptyCard]}>
-              <Icon name="messageSquare" size={scaled(20)} color={colors.textSecondary} />
+              <Icon name="messageSquare" size={scaled(ICON_SIZE.control)} color={colors.textSecondary} />
               <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.bodyText, styles.emptyText, { color: colors.textSecondary }]}>{model.reviews.emptyLabel}</Text>
             </View>
           )}
@@ -470,15 +471,15 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: { gap: 4 },
   headerBadges: { marginTop: 8 },
-  title: { fontSize: TYPE.title, fontWeight: '700', letterSpacing: 0.2 },
-  subtitle: { fontSize: TYPE.callout, lineHeight: 21 },
+  title: { fontSize: TYPE.title1, fontWeight: '700', letterSpacing: 0.2 },
+  subtitle: { fontSize: TYPE.subhead, lineHeight: 21 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     minHeight: 26,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     paddingHorizontal: 10,
   },
   badgeText: { fontSize: TYPE.caption, fontWeight: '600' },
@@ -491,49 +492,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     minHeight: 50,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     paddingHorizontal: 12,
     backgroundColor: PLACE_ACCENT_COLOR,
   },
   primaryButtonLarge: { flexGrow: 0, flexBasis: '100%', paddingVertical: 10 },
-  primaryButtonText: { color: PLACE_ON_ACCENT_COLOR, fontSize: 17, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
+  primaryButtonText: { color: PLACE_ON_ACCENT_COLOR, fontSize: TYPE.body, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
   circleButton: {
     width: 50,
     height: 50,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: { opacity: 0.6 },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     minHeight: 44,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     paddingHorizontal: 14,
   },
-  categoryChipText: { fontSize: TYPE.subhead, fontWeight: '500' },
+  categoryChipText: { fontSize: TYPE.footnote, fontWeight: '600' },
   section: { gap: 10 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionHeaderStacked: { flexDirection: 'column', alignItems: 'flex-start', gap: 0 },
   // 實體 44pt：Android 的 hitSlop 超出父層範圍就點不到，不能只靠 hitSlop
   headerAction: { minHeight: MIN_TOUCH, justifyContent: 'center' },
   headerActionInline: { paddingLeft: 8 },
-  sectionHeading: { fontSize: TYPE.headline, fontWeight: '700' },
-  sectionMeta: { fontSize: TYPE.subhead, fontWeight: '600' },
-  sectionAction: { fontSize: TYPE.callout, fontWeight: '600' },
-  group: { borderRadius: RADIUS.card, overflow: 'hidden' },
-  bodyText: { fontSize: 14, lineHeight: 20 },
+  sectionHeading: { fontSize: TYPE.title3, fontWeight: '700' },
+  sectionMeta: { fontSize: TYPE.footnote, fontWeight: '600' },
+  sectionAction: { fontSize: TYPE.subhead, fontWeight: '600' },
+  group: { borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
+  bodyText: { fontSize: TYPE.subhead, lineHeight: 20 },
   nearbyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 14 },
   nearbyText: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10, paddingRight: 14 },
-  nearbyName: { fontSize: TYPE.body, fontWeight: '500' },
-  nearbyMeta: { fontSize: TYPE.subhead, marginTop: 2 },
+  nearbyName: { fontSize: TYPE.body, fontWeight: '600' },
+  nearbyMeta: { fontSize: TYPE.footnote, marginTop: 2 },
   reportRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12, minHeight: MIN_TOUCH },
-  reportIcon: { borderRadius: RADIUS.small, alignItems: 'center', justifyContent: 'center' },
+  reportIcon: { borderRadius: SHAPE.control, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   reportTitle: { fontSize: TYPE.body, fontWeight: '600' },
-  nearbyDistance: { fontSize: TYPE.subhead, fontVariant: ['tabular-nums'] },
-  nearbyIcon: { width: 30, height: 30, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
+  nearbyDistance: { fontSize: TYPE.footnote, fontVariant: ['tabular-nums'] },
+  nearbyIcon: { width: 30, height: 30, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   checklistRow: { flexDirection: 'row', gap: 4, paddingVertical: 16, paddingHorizontal: 8 },
   checklistItem: { flex: 1, minWidth: 0, alignItems: 'center', gap: 4 },
   // 固定 2×2（原本只有大字級才換成 2×2，四欄擠在一起字級一大就被截斷；改成預設就 2×2，卡片夠寬
@@ -546,26 +546,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     minHeight: MIN_TOUCH,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
   },
   supplementButtonText: { fontSize: TYPE.callout, fontWeight: '600' },
   checklistBody: { alignItems: 'center', gap: 6 },
-  checklistIcon: { width: 44, height: 44, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
-  checklistLabel: { fontSize: TYPE.subhead, textAlign: 'center' },
+  checklistIcon: { width: 44, height: 44, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  checklistLabel: { fontSize: TYPE.footnote, textAlign: 'center' },
   checklistStatus: { fontSize: TYPE.caption, fontWeight: '700', textAlign: 'center' },
   summaryCard: { padding: 14, gap: 6 },
-  summaryLabel: { fontSize: TYPE.subhead, fontWeight: '700' },
+  summaryLabel: { fontSize: TYPE.footnote, fontWeight: '700' },
   reviewRow: { paddingVertical: 12, paddingHorizontal: 14, gap: 4 },
   reviewHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  reviewStars: { fontSize: TYPE.subhead, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  reviewStars: { fontSize: TYPE.footnote, fontWeight: '700', fontVariant: ['tabular-nums'] },
   reviewMeta: { fontSize: TYPE.caption },
-  reviewComment: { fontSize: TYPE.callout, lineHeight: 21 },
-  reviewEvidence: { fontSize: TYPE.subhead },
+  reviewComment: { fontSize: TYPE.subhead, lineHeight: 21 },
+  reviewEvidence: { fontSize: TYPE.footnote },
   reviewActions: { flexDirection: 'row', gap: 12, marginLeft: -4 },
   reviewActionButton: { minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
   loadMoreButton: { minHeight: MIN_TOUCH, justifyContent: 'center' },
-  loadMoreText: { textAlign: 'center', fontSize: TYPE.callout, fontWeight: '600' },
+  loadMoreText: { textAlign: 'center', fontSize: TYPE.subhead, fontWeight: '600' },
   emptyCard: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, paddingHorizontal: 14 },
   emptyText: { flex: 1 },
 });

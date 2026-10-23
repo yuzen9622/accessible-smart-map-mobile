@@ -1,13 +1,13 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, WHITE, TYPE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
 import { AnimatedNumberText, GlassCard, Icon } from '@/shared/ui';
 
 import { localRerouteCoordinator } from '../controller/localRerouteCoordinator';
@@ -17,18 +17,22 @@ import { findLegHandoffIndex, isVehicleLegType, resolveActiveLegType } from '../
 import { stepIcon } from '../domain/navStepIcon';
 import { transitDetail, transitHeadline, transitInstruction, type Translate } from '../domain/transitCopy';
 import { useNavStore } from '../store/navStore';
+import PressableScale from '@/shared/ui/PressableScale';
+import { Numeral } from '@/shared/ui/typography/Numeral';
+import ArrivalCheck from './ArrivalCheck';
 
 const ACCENT = ACCENT_FILL;
-/** 橫幅內「接著」列：比主指示淡一階的白；0.9 疊在 ACCENT_FILL 上 ≈ 4.9:1（0.72 只有 3.7:1，不到 AA）。 */
+/** 卡片內次要文字（「接著」、補充資訊）：比主指示淡一階的白；0.9 疊在 ACCENT_FILL 上 ≈ 4.9:1（0.72 只有 3.7:1，不到 AA）。 */
 const THEN_TEXT = 'rgba(255,255,255,0.9)';
 
 /**
- * 導航 HUD（SDD §4.5「導航 HUD」、Web `NavigationHUD.tsx`；設計 1c 大字色塊）：疊在地圖上。
- * - 頂部：貼齊螢幕頂端（延伸到狀態列後方）的實心主色橫幅——64pt 轉向圖示、60pt 即時距離（數字滾動）、24pt 指示文字（live region，去掉寫死的距離）、
- *   開車 chip／開車→步行交接提示；抵達時換成抵達橫幅。
- * - 橫幅底部：分隔線下的「接著」列（下一步的指示與距離，較小較淡的字）。
- * - 橫幅下方：偏航／重算時的重算列（重新規劃／重試）；主動警報。
- * - 預覽（人不在路線附近，`stepMode === 'preview'`）：橫幅內多一列上一步／下一步，VoiceOver 可上下滑調整；實際導航不顯示。
+ * 導航 HUD（SDD §4.5「導航 HUD」、Web `NavigationHUD.tsx`）：疊在地圖上，版型對齊 Google／Apple Maps。
+ * - 頂部：狀態列下方的浮動主色卡片，高度約螢幕 10%——轉向圖示、28pt 即時距離（數字滾動）、單行指示文字（live region，去掉寫死的距離）、
+ *   右側「接著」與下一步圖示；開車／開車→步行交接／步驟警告／公車段細節收成一行小字。抵達時換成抵達卡片。
+ *   字級固定（`fixedSize`），不跟 App 字級／Dynamic Type 放大，否則卡片會吃掉三成畫面（使用者回饋 2026-10-21）；
+ *   完整指示與下一步走 accessibilityLabel。
+ * - 卡片下方：偏航／重算時的重算列（重新規劃／重試）；主動警報。這兩者是需要細讀的警示，仍跟字級放大。
+ * - 預覽（人不在路線附近，`stepMode === 'preview'`）：卡片內多一列上一步／下一步，VoiceOver 可上下滑調整；實際導航不顯示。
  * - 使用者拖曳地圖後出現「回到導航」。
  * 剩餘時間／預計抵達與語音、2D/3D、結束按鈕是 sheet 的收合列（`NavigationTripBar`），步驟清單在其下方，HUD 不重複。
  */
@@ -60,7 +64,11 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
   const advisories = useNavStore((s) => s.advisories);
   const followPaused = useNavStore((s) => s.followPaused);
   const stepMode = useNavStore((s) => s.stepMode);
-  const transitGuide = useNavStore((s) => s.transitGuide);
+  const localTransitGuide = useNavStore((s) => s.transitGuide);
+  const voiceTransit = useNavStore((s) => s.voiceTransit);
+  const transitGuide = navigationSource === 'local' ? localTransitGuide : null;
+  const voiceLeg = navigationSource === 'voice' && voiceTransit?.onVehicle ? voiceTransit.leg : null;
+  const voiceTransitLine = voiceLeg ? [voiceLeg.routeName, `${voiceLeg.from} → ${voiceLeg.to}`].filter(Boolean).join(' · ') : null;
 
   const step = instructions[currentStepIndex];
   // 第一個定位樣本進來前引擎還沒算出距離：先用這一步的規劃距離，大字不會空著。
@@ -102,6 +110,16 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
   };
 
   const nextDetail = next ? [next.streetName, next.distanceM != null ? formatDistance(next.distanceM) : null].filter(Boolean).join(' · ') : '';
+  // 主列以外的補充資訊收成一行小字：開車／交接／步驟警告／公車段細節，橫幅高度才不會隨狀態一路疊高
+  const metaIcon = handoff ? 'footprints' : vehicle ? (step?.legType === 'MOTORCYCLE' ? 'bike' : 'car') : null;
+  const metaText = [
+    voiceTransitLine,
+    transitLine,
+    handoff ? t('parkThenWalk') : vehicle ? t(step?.legType === 'MOTORCYCLE' ? 'motorcycle' : 'drive') : null,
+    stepWarning,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <>
@@ -109,46 +127,48 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
       <StatusBar style="light" />
       <View
         pointerEvents="box-none"
-        style={styles.top}
-        // 量整個區塊（橫幅＋下方重新規劃／警示卡／回到導航）的高度，不是只量橫幅本體——
+        style={[styles.top, { paddingTop: insets.top }]}
+        // 量整個區塊（橫幅＋下方重新規劃／警示卡／回到導航）的高度，含 safe-area top，不是只量橫幅本體——
         // 重算列或警示卡展開時區塊會變高，呼叫端的語音膠囊要跟著往下移，不然會疊在警示卡上
         // （使用者回饋 2026-10-23：語音功能＋導航時左上角重疊）。
         onLayout={onBannerHeightChange ? (event) => onBannerHeightChange(event.nativeEvent.layout.height) : undefined}>
         <View pointerEvents="box-none">
         {instructionError ? (
-          <View style={[styles.banner, { paddingTop: insets.top + 8 }]}>
-            <Text accessibilityLiveRegion="assertive" style={styles.bannerInstruction}>{t(instructionError === 'expired' ? 'nativeRouteTokenExpired' : 'nativeInstructionsUnavailable')}</Text>
-            <Pressable accessibilityRole="button" onPress={() => { endNavigation(); router.navigate('/plan'); }} style={styles.arrivedButton}>
-              <Text style={styles.arrivedButtonText}>{t('nativePlanAgain')}</Text>
-            </Pressable>
+          <View style={[styles.banner, styles.bannerRow]}>
+            <Text fixedSize accessibilityLiveRegion="assertive" numberOfLines={2} style={[styles.bannerMessage, styles.flex]}>
+              {t(instructionError === 'expired' ? 'nativeRouteTokenExpired' : 'nativeInstructionsUnavailable')}
+            </Text>
+            <PressableScale accessibilityRole="button" onPress={() => { endNavigation(); router.dismissTo('/plan'); }} style={styles.bannerButton}>
+              <Text fixedSize style={styles.bannerButtonText}>{t('nativePlanAgain')}</Text>
+            </PressableScale>
           </View>
         ) : arrived ? (
-          <View style={[styles.banner, { paddingTop: insets.top + 8 }]}>
-            <View accessible accessibilityLiveRegion="assertive" style={styles.bannerRow}>
-              <Icon name="circleCheck" size={64} color={ON_ACCENT_FILL} />
+          <View style={[styles.banner, styles.bannerRow]}>
+            <View accessible accessibilityLiveRegion="assertive" style={[styles.bannerRow, styles.flex]}>
+              <ArrivalCheck size={ICON_SIZE.hero} color={ON_ACCENT_FILL} />
               <View style={styles.flex}>
-                <Text style={styles.bannerTitle}>{t('arrived')}</Text>
-                <Text style={styles.bannerInstruction}>{t('arrivedDesc')}</Text>
+                <Text fixedSize numberOfLines={1} style={styles.bannerTitle}>{t('arrived')}</Text>
+                <Text fixedSize numberOfLines={1} style={styles.bannerMeta}>{t('arrivedDesc')}</Text>
               </View>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.arrivedButton}>
-              <Text style={styles.arrivedButtonText}>{t('endNav')}</Text>
-            </Pressable>
+            <PressableScale accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.bannerButton}>
+              <Text fixedSize style={styles.bannerButtonText}>{t('endNav')}</Text>
+            </PressableScale>
           </View>
         ) : (
-          <View style={[styles.banner, { paddingTop: insets.top + 8 }]}>
+          <View style={styles.banner}>
             {/* 預覽列放最上方：上面沒有會變高的內容，連按上一步／下一步時按鈕不會隨指示文字長短跳位 */}
             {previewing ? (
               <View style={styles.previewRow}>
-                <Pressable
+                <PressableScale
                   accessibilityRole="button"
                   accessibilityLabel={t('prevStep')}
                   accessibilityState={{ disabled: !canPrev }}
                   disabled={!canPrev}
                   onPress={() => selectStep(currentStepIndex - 1)}
                   style={[styles.previewButton, !canPrev && styles.previewButtonDisabled]}>
-                  <Icon name="chevronLeft" size={26} color={ON_ACCENT_FILL} strokeWidth={2.6} />
-                </Pressable>
+                  <Icon name="chevronLeft" size={ICON_SIZE.control} color={ON_ACCENT_FILL} />
+                </PressableScale>
                 <View
                   accessible
                   accessibilityRole="adjustable"
@@ -160,64 +180,56 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                     if (event.nativeEvent.actionName === 'decrement' && canPrev) selectStep(currentStepIndex - 1);
                   }}
                   style={styles.previewLabel}>
-                  <Text style={styles.previewTitle}>{t('routePreviewMode')}</Text>
-                  <Text style={styles.previewMeta}>{t('stepOf', { current: currentStepIndex + 1, total: instructions.length })}</Text>
+                  <Text fixedSize numberOfLines={1} style={styles.previewTitle}>
+                    {t('routePreviewMode')}
+                    <Numeral fixedSize style={styles.previewMeta}>{`  ${t('stepOf', { current: currentStepIndex + 1, total: instructions.length })}`}</Numeral>
+                  </Text>
                 </View>
-                <Pressable
+                <PressableScale
                   accessibilityRole="button"
                   accessibilityLabel={t('nextStep')}
                   accessibilityState={{ disabled: !canNext }}
                   disabled={!canNext}
                   onPress={() => selectStep(currentStepIndex + 1)}
                   style={[styles.previewButton, !canNext && styles.previewButtonDisabled]}>
-                  <Icon name="chevronRight" size={26} color={ON_ACCENT_FILL} strokeWidth={2.6} />
-                </Pressable>
+                  <Icon name="chevronRight" size={ICON_SIZE.control} color={ON_ACCENT_FILL} />
+                </PressableScale>
               </View>
             ) : null}
             <View style={styles.bannerRow}>
-              <View style={styles.bannerIconBadge}>
-                <Icon name={stepIcon(step)} size={44} color={ON_ACCENT_FILL} strokeWidth={2.2} />
-              </View>
+              <Icon name={stepIcon(step)} size={ICON_SIZE.hero} color={ON_ACCENT_FILL} />
               <View style={styles.flex}>
                 {transitHead ? (
-                  <AnimatedNumberText text={transitHead} value={transitValue} fontSize={45} fontWeight="heavy" color={ON_ACCENT_FILL} />
+                  <AnimatedNumberText text={transitHead} value={transitValue} fontSize={28} fontWeight="heavy" fixedSize color={ON_ACCENT_FILL} />
                 ) : distanceM != null && step ? (
-                  <AnimatedNumberText text={formatDistance(distanceM)} value={distanceM} fontSize={45} fontWeight="heavy" color={ON_ACCENT_FILL} />
+                  <AnimatedNumberText text={formatDistance(distanceM)} value={distanceM} fontSize={28} fontWeight="heavy" fixedSize color={ON_ACCENT_FILL} />
                 ) : null}
+                {/* 一行為限：長路名先縮字再截斷；完整指示走 accessibilityLabel，步驟清單也看得到全文 */}
                 <Text
+                  fixedSize
                   accessibilityLiveRegion="assertive"
                   accessibilityLabel={instructionLabel}
-                  style={step ? styles.bannerInstruction : styles.bannerTitle}>
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                  style={styles.bannerInstruction}>
                   {instructionText}
                 </Text>
-                {transitLine ? <Text style={styles.bannerMeta}>{transitLine}</Text> : null}
               </View>
-            </View>
-            {vehicle ? (
-              <View style={styles.chips}>
-                <View style={styles.bannerChip}>
-                  <Icon name={step?.legType === 'MOTORCYCLE' ? 'bike' : 'car'} size={14} color={ON_ACCENT_FILL} />
-                  <Text style={styles.bannerChipText}>{t(step?.legType === 'MOTORCYCLE' ? 'motorcycle' : 'drive')}</Text>
+              {next ? (
+                <View
+                  accessible
+                  accessibilityLabel={[t('then'), next.text, nextDetail].filter(Boolean).join('，')}
+                  style={styles.then}>
+                  <Text fixedSize style={styles.thenLabel}>{t('then')}</Text>
+                  <Icon name={stepIcon(next)} size={ICON_SIZE.control} color={ON_ACCENT_FILL} />
                 </View>
-              </View>
-            ) : null}
-            {handoff ? (
-              <View style={styles.nextRow}>
-                <Icon name="footprints" size={18} color={ON_ACCENT_FILL} />
-                <Text style={[styles.bannerMeta, styles.flex]}>{t('parkThenWalk')}</Text>
-              </View>
-            ) : null}
-            {stepWarning ? <Text style={styles.bannerMeta}>{stepWarning}</Text> : null}
-            {next ? (
-              <View
-                accessible
-                accessibilityLabel={[t('then'), next.text, nextDetail].filter(Boolean).join('，')}
-                style={styles.thenRow}>
-                <Text style={styles.thenLabel}>{t('then')}</Text>
-                <Icon name={stepIcon(next)} size={18} color={THEN_TEXT} strokeWidth={2.4} />
-                <Text style={[styles.thenText, styles.flex]} numberOfLines={2}>
-                  {[stripStepDistance(next.text), next.distanceM != null ? formatDistance(next.distanceM) : null].filter(Boolean).join(' ')}
-                </Text>
+              ) : null}
+            </View>
+            {metaText ? (
+              <View style={styles.metaRow}>
+                {metaIcon ? <Icon name={metaIcon} size={ICON_SIZE.caption} color={THEN_TEXT} /> : null}
+                <Text fixedSize numberOfLines={1} style={[styles.bannerMeta, styles.flex]}>{metaText}</Text>
               </View>
             ) : null}
           </View>
@@ -232,16 +244,16 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
               <Text style={[styles.meta, styles.flex, { color: tones.warn }]}>{stripText}</Text>
             </View>
             {canReroute ? (
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={rerouteStatus === 'error' ? t('retry') : t('recalculate')}
                 accessibilityState={{ disabled: rerouteStatus === 'pending', busy: rerouteStatus === 'pending' }}
                 disabled={rerouteStatus === 'pending'}
                 onPress={reroute}
                 style={[styles.smallButton, { borderColor: tones.warn }]}>
-                <Icon name="refresh" size={14} color={tones.warn} />
+                <Icon name="refresh" size={ICON_SIZE.caption} color={tones.warn} />
                 <Text style={[styles.chipText, { color: tones.warn }]}>{rerouteStatus === 'error' ? t('retry') : t('recalculate')}</Text>
-              </Pressable>
+              </PressableScale>
             ) : null}
           </GlassCard>
         ) : null}
@@ -261,7 +273,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                   <View style={styles.chips}>
                     {advisory.action === 'reroute_suggested' && navigationSource === 'local' ? (
                       <>
-                        <Pressable
+                        <PressableScale
                           accessibilityRole="button"
                           onPress={() => {
                             const position = useUserLocationStore.getState().position ?? undefined;
@@ -269,26 +281,26 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                           }}
                           style={[styles.smallButton, { borderColor: color }]}>
                           <Text style={[styles.chipText, { color }]}>{t('viewAlternative')}</Text>
-                        </Pressable>
-                        <Pressable
+                        </PressableScale>
+                        <PressableScale
                           accessibilityRole="button"
                           onPress={() => useNavStore.getState().dismissAdvisory(advisory.advisoryId)}
                           style={[styles.smallButton, { borderColor: colors.textSecondary }]}>
                           <Text style={[styles.chipText, { color: colors.textSecondary }]}>{t('keepRoute')}</Text>
-                        </Pressable>
+                        </PressableScale>
                       </>
                     ) : null}
                     {advisory.action === 'reroute_applied' ? (
                       <Text style={[styles.meta, { color: colors.textSecondary }]}>{t('rerouteApplied')}</Text>
                     ) : null}
                     {advisory.action === 'none' ? (
-                      <Pressable
+                      <PressableScale
                         accessibilityRole="button"
                         accessibilityLabel={t('close')}
                         onPress={() => useNavStore.getState().dismissAdvisory(advisory.advisoryId)}
                         style={styles.iconButton}>
-                        <Icon name="close" size={16} color={colors.textSecondary} />
-                      </Pressable>
+                        <Icon name="close" size={ICON_SIZE.body} color={colors.textSecondary} />
+                      </PressableScale>
                     ) : null}
                   </View>
                 </GlassCard>
@@ -298,14 +310,14 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
 
         {followPaused && !arrived ? (
           <GlassCard style={styles.resume} interactive>
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={t('resumeFollow')}
               onPress={() => useNavStore.getState().setFollowPaused(false)}
               style={styles.resumeBody}>
-              <Icon name="navigation" size={16} color={ACCENT} />
+              <Icon name="navigation" size={ICON_SIZE.body} color={ACCENT} />
               <Text style={[styles.chipText, { color: ACCENT }]}>{t('resumeFollow')}</Text>
-            </Pressable>
+            </PressableScale>
           </GlassCard>
         ) : null}
         </View>
@@ -315,86 +327,69 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
 }
 
 const styles = StyleSheet.create({
-  top: { position: 'absolute', top: 0, left: 0, right: 0 },
-  stack: { paddingHorizontal: 16, paddingTop: 12, gap: 10 },
+  top: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: 8 },
+  stack: { paddingHorizontal: 8, paddingTop: 10, gap: 10 },
   banner: {
     backgroundColor: ACCENT_FILL,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    paddingHorizontal: 22,
-    paddingBottom: 20,
-    gap: 10,
-    shadowColor: '#000000',
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    borderRadius: SHAPE.floating, borderCurve: 'continuous',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 6,
+    boxShadow: ELEVATION.floating,
   },
-  bannerRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  bannerIconBadge: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
+  bannerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  bannerTitle: { color: ON_ACCENT_FILL, fontSize: TYPE.title2, fontWeight: '700' },
+  bannerInstruction: { color: ON_ACCENT_FILL, fontSize: TYPE.body, fontWeight: '700' },
+  bannerMessage: { color: ON_ACCENT_FILL, fontSize: TYPE.callout, fontWeight: '700' },
+  bannerMeta: { color: THEN_TEXT, fontSize: TYPE.footnote, fontWeight: '600' },
+  bannerButton: { minHeight: 44, borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: ON_ACCENT_FILL },
+  bannerButtonText: { color: ACCENT_FILL, fontSize: TYPE.callout, fontWeight: '700' },
+  then: {
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    gap: 2,
+    paddingLeft: 12,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: 'rgba(255,255,255,0.35)',
   },
-  bannerTitle: { color: ON_ACCENT_FILL, fontSize: 34, fontWeight: '800' },
-  bannerInstruction: { color: ON_ACCENT_FILL, fontSize: 24, fontWeight: '700', marginTop: 2 },
-  bannerMeta: { color: ON_ACCENT_FILL, fontSize: 15, fontWeight: '600' },
-  bannerChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 14, paddingHorizontal: 10, minHeight: 28, backgroundColor: 'rgba(255,255,255,0.2)' },
-  bannerChipText: { color: ON_ACCENT_FILL, fontSize: 14, fontWeight: '600' },
-  arrivedButton: { minHeight: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: ON_ACCENT_FILL },
-  arrivedButtonText: { color: ACCENT_FILL, fontSize: 19, fontWeight: '700' },
-  thenRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.35)',
-  },
+  thenLabel: { color: THEN_TEXT, fontSize: TYPE.caption, fontWeight: '600' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   previewRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingBottom: 12,
+    gap: 8,
+    paddingBottom: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(255,255,255,0.35)',
   },
-  previewButton: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.2)' },
+  previewButton: { width: 44, height: 44, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.2)' },
   previewButtonDisabled: { opacity: 0.4 },
   previewLabel: { flex: 1, alignItems: 'center' },
-  previewTitle: { color: ON_ACCENT_FILL, fontSize: 17, fontWeight: '700' },
-  previewMeta: { color: THEN_TEXT, fontSize: 15, fontWeight: '500', fontVariant: ['tabular-nums'] },
-  thenLabel: { color: THEN_TEXT, fontSize: 17, fontWeight: '600' },
-  thenText: { color: THEN_TEXT, fontSize: 17, fontWeight: '500' },
+  previewTitle: { color: ON_ACCENT_FILL, fontSize: TYPE.subhead, fontWeight: '700' },
+  previewMeta: { color: THEN_TEXT, fontSize: TYPE.footnote, fontWeight: '600' },
   card: { padding: 14, gap: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   flex: { flex: 1 },
-  title: { fontSize: 20, fontWeight: '700' },
-  instruction: { fontSize: 18, fontWeight: '600' },
-  instructionSmall: { fontSize: 15, fontWeight: '600' },
-  meta: { fontSize: 13 },
+  title: { fontSize: TYPE.title3, fontWeight: '700' },
+  instruction: { fontSize: TYPE.body, fontWeight: '600' },
+  instructionSmall: { fontSize: TYPE.subhead, fontWeight: '600' },
+  meta: { fontSize: TYPE.footnote },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 12, paddingHorizontal: 8, minHeight: 24 },
-  chipText: { fontSize: 13, fontWeight: '600' },
-  nextRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 8, minHeight: 24 },
+  chipText: { fontSize: TYPE.footnote, fontWeight: '600' },
   strip: { flexDirection: 'row', alignItems: 'center' },
   smallButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     minHeight: 44,
-    borderRadius: 22,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 12,
   },
   advisory: { gap: 6 },
-  resume: { alignSelf: 'center', borderRadius: 22 },
+  resume: { alignSelf: 'center', borderRadius: SHAPE.floating, borderCurve: 'continuous' },
   resumeBody: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 16 },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  primary: { minHeight: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  primary: { minHeight: 48, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  primaryText: { color: WHITE, fontSize: TYPE.subhead, fontWeight: '700' },
 });

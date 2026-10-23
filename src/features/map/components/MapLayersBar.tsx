@@ -1,8 +1,8 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { ScrollView, StyleSheet } from 'react-native';
 
-import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
-import { Icon } from '@/shared/ui';
+import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
+import { GlassCard, Icon } from '@/shared/ui';
 
 import type { MapLayersBarProps } from './MapLayersBar.types';
 import PressableScale from '@/shared/ui/PressableScale';
@@ -25,21 +25,19 @@ export default function MapLayersBar({ facilityToggles }: MapLayersBarProps) {
       contentContainerStyle={styles.content}
       accessibilityRole="none">
       {facilityToggles.map((item) => (
-        <PressableScale
-          key={item.key}
-          accessibilityRole="button"
-          accessibilityState={{ selected: item.selected }}
-          accessibilityLabel={item.label}
-          onPress={item.onToggle}
-          style={[
-            styles.button,
-            { backgroundColor: item.selected ? tones.accentSoft : colors.background },
-          ]}>
-          <Icon name={item.iconName} size={ICON_SIZE.body} color={item.selected ? tones.accent : colors.textSecondary} />
-          <Text style={[styles.label, { color: item.selected ? tones.accent : colors.text }]} numberOfLines={1}>
-            {item.label}
-          </Text>
-        </PressableScale>
+        <GlassCard key={item.key} style={styles.glass} interactive>
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityState={{ selected: item.selected }}
+            accessibilityLabel={item.label}
+            onPress={item.onToggle}
+            style={[styles.button, item.selected && { backgroundColor: tones.accentSoft }]}>
+            <Icon name={item.iconName} size={ICON_SIZE.body} color={item.selected ? tones.accent : colors.textSecondary} />
+            <Text style={[styles.label, { color: item.selected ? tones.accent : colors.text }]} numberOfLines={1}>
+              {item.label}
+            </Text>
+          </PressableScale>
+        </GlassCard>
       ))}
     </ScrollView>
   );
@@ -54,7 +52,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: SPACE.md,
     borderRadius: SHAPE.pill, borderCurve: 'continuous',
-    boxShadow: ELEVATION.floating,
   },
+  glass: { borderRadius: SHAPE.pill },
   label: { fontSize: TYPE.subhead, fontWeight: '600' },
 });

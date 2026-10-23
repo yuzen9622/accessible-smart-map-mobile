@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, RADIUS, TYPE, useSemanticColors, useThemeColors, WHITE } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE } from '@/shared/theme';
 import { useNow } from '@/shared/time';
 import { Icon, type IconName } from '@/shared/ui';
 
@@ -325,26 +325,26 @@ function boardingLine(boarding: FirstBoarding, t: (key: string, options?: Record
 
 const styles = StyleSheet.create({
   // 選中與未選中同樣 2pt 外框（未選中是透明），切換時卡片不會跳動
-  card: { borderWidth: 2, borderRadius: RADIUS.card, padding: 14, gap: 10 },
+  card: { borderWidth: 2, borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 14, gap: 10 },
   summary: { gap: 8 },
   pressed: { opacity: 0.7 },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 8 },
-  duration: { fontSize: TYPE.title, fontWeight: '700' },
-  journey: { fontSize: TYPE.callout, fontWeight: '500', fontVariant: ['tabular-nums'] },
+  duration: { fontSize: TYPE.title1, fontWeight: '700' },
+  journey: { fontSize: TYPE.subhead, fontWeight: '600', fontVariant: ['tabular-nums'] },
   legChain: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', rowGap: 6 },
   legChainItem: { flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 4 },
   // minHeight 而非固定高度：字級放大時膠囊跟著長高，不截字
-  legPill: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 24, paddingVertical: 2, borderRadius: 6, paddingHorizontal: 7, maxWidth: 140 },
-  legPillText: { color: WHITE, fontSize: 13, fontWeight: '700' },
-  altBadge: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, paddingHorizontal: 5, minHeight: 20, justifyContent: 'center' },
+  legPill: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 24, paddingVertical: 2, borderRadius: SHAPE.badge, borderCurve: 'continuous', paddingHorizontal: 7, maxWidth: 140 },
+  legPillText: { color: WHITE, fontSize: TYPE.footnote, fontWeight: '700' },
+  altBadge: { borderWidth: StyleSheet.hairlineWidth, borderRadius: SHAPE.badge, borderCurve: 'continuous', paddingHorizontal: 5, minHeight: 20, justifyContent: 'center' },
   altBadgeText: { fontSize: TYPE.caption, fontWeight: '600', fontVariant: ['tabular-nums'] },
   boardingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  boardingText: { flex: 1, fontSize: TYPE.subhead + 1, fontWeight: '500' },
+  boardingText: { flex: 1, fontSize: TYPE.footnote + 1, fontWeight: '600' },
   compactMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   expanded: { gap: 10 },
   highlights: { gap: 6 },
   highlightRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  warningCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: RADIUS.small, padding: 10 },
+  warningCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderRadius: SHAPE.control, borderCurve: 'continuous', padding: 10 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 2 },
   primaryAction: { flex: 1 },
   secondaryAction: {
@@ -353,8 +353,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     minHeight: 50,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     paddingHorizontal: 18,
   },
-  secondaryActionText: { fontSize: 16, fontWeight: '600' },
+  secondaryActionText: { fontSize: TYPE.callout, fontWeight: '600' },
 });

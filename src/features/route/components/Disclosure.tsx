@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, TYPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 export interface DisclosureProps {
@@ -37,6 +37,6 @@ export default function Disclosure({ label, color, children }: DisclosureProps) 
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44 },
-  label: { fontSize: 14, fontWeight: '500', flexShrink: 1 },
+  label: { fontSize: TYPE.subhead, fontWeight: '600', flexShrink: 1 },
   body: { gap: 6, paddingLeft: 8, paddingBottom: 4 },
 });

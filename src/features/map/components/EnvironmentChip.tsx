@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, SPACE, useThemeColors, SHADOW_COLOR } from '@/shared/theme';
+import { SPACE, useThemeColors, TYPE, SHAPE, ELEVATION } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
@@ -55,16 +55,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACE.sm,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     paddingVertical: 6,
     paddingHorizontal: SPACE.md,
-    shadowColor: SHADOW_COLOR,
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    boxShadow: ELEVATION.floating,
   },
   segment: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  text: { fontSize: 13, fontWeight: '600' },
+  text: { fontSize: TYPE.footnote, fontWeight: '600' },
   pressed: { opacity: 0.7 },
 });

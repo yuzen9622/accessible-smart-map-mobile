@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors, ACCENT_FILL, semanticColors, WHITE } from '@/shared/theme';
+import { useThemeColors, ACCENT_FILL, semanticColors, WHITE, TYPE, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { endNavigation } from '../controller/navigationSession';
@@ -103,16 +103,16 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingBottom: 32, gap: 4 },
   contentTop: { paddingTop: 22 },
   tripBar: { marginHorizontal: -16, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 },
-  sectionTitle: { fontSize: 13, fontWeight: '600', paddingHorizontal: 8, paddingTop: 8, paddingBottom: 4 },
+  sectionTitle: { fontSize: TYPE.footnote, fontWeight: '600', paddingHorizontal: 8, paddingTop: 8, paddingBottom: 4 },
   flex: { flex: 1 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingVertical: 8, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderRadius: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingVertical: 8, paddingHorizontal: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderRadius: SHAPE.control, borderCurve: 'continuous' },
   active: { backgroundColor: 'rgba(0,101,200,0.12)' },
   passed: { opacity: 0.5 },
   pressed: { backgroundColor: 'rgba(120,120,128,0.16)' },
-  index: { width: 22, textAlign: 'right', fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  text: { fontSize: 15, fontWeight: '500' },
-  meta: { fontSize: 12 },
+  index: { width: 22, textAlign: 'right', fontSize: TYPE.footnote, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  text: { fontSize: TYPE.subhead, fontWeight: '600' },
+  meta: { fontSize: TYPE.caption },
   arrived: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, flexWrap: 'wrap' },
-  end: { minHeight: 44, borderRadius: 22, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: ACCENT },
-  endText: { color: WHITE, fontSize: 15, fontWeight: '700' },
+  end: { minHeight: 44, borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 16, justifyContent: 'center', backgroundColor: ACCENT },
+  endText: { color: WHITE, fontSize: TYPE.subhead, fontWeight: '700' },
 });

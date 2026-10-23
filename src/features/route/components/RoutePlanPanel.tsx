@@ -2,7 +2,7 @@ import { Text, TextInput } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useCloseScreen } from '@/shared/navigation';
-import { MAX_FONT_SCALE, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
 
 import { ROUTE_DESTINATION_COLOR, ROUTE_ORIGIN_COLOR } from '../domain/routeLayerData';
@@ -327,26 +327,26 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
 
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: TYPE.title, fontWeight: '700' },
-  closeButton: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  swapButton: { width: 36, height: 36, borderRadius: 18 },
-  endpoints: { borderRadius: 16, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  title: { fontSize: TYPE.title1, fontWeight: '700' },
+  closeButton: { width: 32, height: 32, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  swapButton: { width: 36, height: 36, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
+  endpoints: { borderRadius: SHAPE.card, borderCurve: 'continuous', paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 8 },
   endpointRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
   endpointPress: { minHeight: 44, justifyContent: 'center' },
   divider: { height: StyleSheet.hairlineWidth, marginLeft: 26 },
-  dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 3, marginHorizontal: 1 },
+  dot: { width: 14, height: 14, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 3, marginHorizontal: 1 },
   dotFilled: { borderWidth: 0 },
-  searchInput: { fontSize: 16, minHeight: 44, paddingVertical: 10 },
+  searchInput: { fontSize: TYPE.callout, minHeight: 44, paddingVertical: 10 },
   pressed: { opacity: 0.7 },
-  modeTabs: { flexDirection: 'row', borderRadius: RADIUS.card, padding: 4, gap: 4 },
-  modeTab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: 56, borderRadius: RADIUS.small + 2, paddingHorizontal: 4 },
-  modeTabText: { fontSize: TYPE.subhead, fontWeight: '500' },
+  modeTabs: { flexDirection: 'row', borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 4, gap: 4 },
+  modeTab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: 56, borderRadius: SHAPE.control + 2, borderCurve: 'continuous', paddingHorizontal: 4 },
+  modeTabText: { fontSize: TYPE.footnote, fontWeight: '600' },
   modeTabTextSelected: { fontWeight: '700' },
   results: { gap: 10 },
   resultsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 4 },
-  resultsTitle: { fontSize: TYPE.headline, fontWeight: '700', flexShrink: 1 },
-  refreshButton: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, borderRadius: RADIUS.pill, paddingHorizontal: 12 },
-  refreshText: { fontSize: TYPE.subhead + 1, fontWeight: '600' },
+  resultsTitle: { fontSize: TYPE.title3, fontWeight: '700', flexShrink: 1 },
+  refreshButton: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 12 },
+  refreshText: { fontSize: TYPE.footnote + 1, fontWeight: '600' },
   filters: { gap: 8, marginTop: 6 },
   filterStrip: { gap: 8, paddingRight: 16 },
   errorCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,59,48,0.12)' },

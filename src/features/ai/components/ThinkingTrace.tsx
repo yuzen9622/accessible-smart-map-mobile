@@ -100,7 +100,7 @@ export default function ThinkingTrace({ rows, header, isDark }: ThinkingTracePro
             active={header.working}
             color={colors.textSecondary}
             highlight={colors.text}
-            style={[styles.headerLabel, { fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
+            style={[styles.headerLabel, { fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
             {header.label}
           </ShimmerText>
         </View>
@@ -134,7 +134,7 @@ export default function ThinkingTrace({ rows, header, isDark }: ThinkingTracePro
               </View>
               <Text
                 numberOfLines={1}
-                style={[styles.rowLabel, { color: colors.text, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
+                style={[styles.rowLabel, { color: colors.text, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
                 {row.label}
               </Text>
               {row.detail ? (
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   rail: { position: 'absolute', left: 0, top: 0, bottom: 8, width: StyleSheet.hairlineWidth * 2 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 28 },
   rowIcon: { width: 16, alignItems: 'center' },
-  rowLabel: { fontWeight: '500', flexShrink: 1 },
+  rowLabel: { fontWeight: '600', flexShrink: 1 },
   // 空間不夠時先犧牲補充說明，保住工具名稱（對齊 Web shrink-[3]）
   rowDetail: { flexShrink: 3 },
 });

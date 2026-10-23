@@ -6,6 +6,7 @@ import { Pressable, StyleSheet } from 'react-native';
 import Icon from '../Icon';
 
 import type { MoreActionsButtonProps } from './MoreActionsButton.types';
+import { SHAPE } from '@/shared/theme';
 
 /** Android 使用錨定在「⋯」按鈕的原生下拉選單。 */
 export default function MoreActionsButton({ label, actions, backgroundColor, color }: MoreActionsButtonProps) {
@@ -47,6 +48,6 @@ export default function MoreActionsButton({ label, actions, backgroundColor, col
 }
 
 const styles = StyleSheet.create({
-  button: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
+  button: { width: 50, height: 50, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6 },
 });

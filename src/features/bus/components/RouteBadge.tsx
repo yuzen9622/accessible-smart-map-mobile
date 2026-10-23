@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { StyleSheet, View } from 'react-native';
 
-import { TYPE, useSemanticColors, WHITE } from '@/shared/theme';
+import { TYPE, useSemanticColors, WHITE, SHAPE } from '@/shared/theme';
 
 interface RouteBadgeProps {
   name: string;
@@ -26,8 +26,8 @@ export default function RouteBadge({ name, onAccent, small }: RouteBadgeProps) {
 }
 
 const styles = StyleSheet.create({
-  badge: { minWidth: 56, minHeight: 32, paddingHorizontal: 10, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  badgeSmall: { minWidth: 0, minHeight: 22, paddingHorizontal: 7, borderRadius: 6 },
+  badge: { minWidth: 56, minHeight: 32, paddingHorizontal: 10, borderRadius: SHAPE.control, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  badgeSmall: { minWidth: 0, minHeight: 22, paddingHorizontal: 7, borderRadius: SHAPE.badge, borderCurve: 'continuous' },
   text: { fontSize: TYPE.body, fontWeight: '700', fontVariant: ['tabular-nums'] },
   textSmall: { fontSize: TYPE.caption },
 });

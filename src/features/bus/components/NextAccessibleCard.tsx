@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 /** 分段條最多畫幾格：車子離你越近，亮的格數越多。 */
@@ -80,23 +80,23 @@ export default function NextAccessibleCard(props: NextAccessibleCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: ACCENT_FILL, borderRadius: RADIUS.card, padding: 16, gap: 8 },
+  card: { backgroundColor: ACCENT_FILL, borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 16, gap: 8 },
   pressed: { opacity: 0.8 },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  eyebrow: { color: ON_ACCENT_FILL, fontSize: TYPE.subhead, fontWeight: '600' },
+  eyebrow: { color: ON_ACCENT_FILL, fontSize: TYPE.footnote, fontWeight: '600' },
   main: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
   routeCol: { flex: 1, gap: 2 },
-  route: { color: ON_ACCENT_FILL, fontSize: 34, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  detail: { color: ON_ACCENT_FILL, fontSize: TYPE.callout },
+  route: { color: ON_ACCENT_FILL, fontSize: TYPE.largeTitle, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  detail: { color: ON_ACCENT_FILL, fontSize: TYPE.subhead },
   eta: { color: ON_ACCENT_FILL },
-  etaNumber: { fontSize: 56, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  etaUnit: { fontSize: TYPE.headline, fontWeight: '600' },
-  etaText: { color: ON_ACCENT_FILL, fontSize: 28, fontWeight: '700' },
+  etaNumber: { fontSize: TYPE.numeralL, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  etaUnit: { fontSize: TYPE.title3, fontWeight: '600' },
+  etaText: { color: ON_ACCENT_FILL, fontSize: TYPE.title1, fontWeight: '700' },
   progress: { gap: 6, marginTop: 4 },
   segments: { flexDirection: 'row', gap: 6 },
-  segment: { flex: 1, height: 6, borderRadius: 3 },
+  segment: { flex: 1, height: 6, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
   segmentOn: { backgroundColor: ON_ACCENT_FILL },
   segmentOff: { backgroundColor: 'rgba(255,255,255,0.35)' },
   progressLabels: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  progressText: { color: ON_ACCENT_FILL, fontSize: TYPE.subhead, flexShrink: 1 },
+  progressText: { color: ON_ACCENT_FILL, fontSize: TYPE.footnote, flexShrink: 1 },
 });

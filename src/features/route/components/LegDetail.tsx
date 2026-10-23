@@ -4,7 +4,7 @@ import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, WHITE } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { filterIncidentsAlongRoute, formatIncidentEnd, isIncidentClosed } from '../domain/geo';
@@ -382,15 +382,15 @@ export default function LegDetail({ leg: originalLeg, busStops, engine, isFirst 
 const styles = StyleSheet.create({
   segment: { flexDirection: 'row', gap: 12 },
   rail: { width: 32, alignItems: 'center' },
-  legIcon: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  line: { flex: 1, width: 5, borderRadius: 3, marginVertical: 4 },
+  legIcon: { width: 32, height: 32, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  line: { flex: 1, width: 5, borderRadius: SHAPE.pill, borderCurve: 'continuous', marginVertical: 4 },
   dotsTrack: { flex: 1, alignSelf: 'stretch' },
   dots: { position: 'absolute', top: 6, bottom: 4, left: 0, right: 0, overflow: 'hidden', alignItems: 'center' },
-  railDot: { marginBottom: 5, width: 5, height: 5, borderRadius: 2.5 },
+  railDot: { marginBottom: 5, width: 5, height: 5, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
   body: { flex: 1, gap: 8, paddingTop: 5, paddingBottom: 24 },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
   title: { fontSize: TYPE.body + 1, fontWeight: '700', flexShrink: 1 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
+  dot: { width: 8, height: 8, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
   metrics: { gap: 6 },
   metricLabel: { minWidth: 40 },
   step: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 32 },

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { candidateDeparture, formatRouteClock } from '@/features/route/domain';
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { BusDepartureChooserProps } from './BusDepartureChooser.types';
@@ -123,14 +123,14 @@ export default function BusDepartureChooserBase({ candidates, viewed, legColor, 
 
 const styles = StyleSheet.create({
   root: { gap: 8 },
-  title: { fontSize: TYPE.subhead, fontWeight: '600' },
+  title: { fontSize: TYPE.footnote, fontWeight: '600' },
   strip: { gap: 8, paddingRight: 16 },
-  tile: { minWidth: 96, borderRadius: RADIUS.card, borderWidth: 2, paddingHorizontal: 12, paddingVertical: 10, gap: 4, overflow: 'hidden' },
+  tile: { minWidth: 96, borderRadius: SHAPE.card, borderCurve: 'continuous', borderWidth: 2, paddingHorizontal: 12, paddingVertical: 10, gap: 4, overflow: 'hidden' },
   pressed: { opacity: 0.7, transform: [{ scale: 0.97 }] },
   tileHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  routeBadge: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2, maxWidth: 200 },
-  routeBadgeText: { color: BUS_ON_ACCENT_COLOR, fontSize: TYPE.subhead, fontWeight: '700' },
-  time: { fontSize: TYPE.headline, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  routeBadge: { borderRadius: SHAPE.badge, borderCurve: 'continuous', paddingHorizontal: 7, paddingVertical: 2, maxWidth: 200 },
+  routeBadgeText: { color: BUS_ON_ACCENT_COLOR, fontSize: TYPE.footnote, fontWeight: '700' },
+  time: { fontSize: TYPE.title3, fontWeight: '700', fontVariant: ['tabular-nums'] },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontSize: TYPE.caption, fontWeight: '500' },
+  metaText: { fontSize: TYPE.caption, fontWeight: '600' },
 });

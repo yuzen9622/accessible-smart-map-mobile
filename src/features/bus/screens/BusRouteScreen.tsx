@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, V
 import { mapCamera, useMapUiStore } from '@/features/map';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
-import { TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
 
 import { busName, badgePillTone, badgeText } from '../components/busText';
@@ -460,11 +460,11 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 14 },
   header: { gap: 6 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { flex: 1, fontSize: TYPE.headline, fontWeight: '700' },
+  title: { flex: 1, fontSize: TYPE.title3, fontWeight: '700' },
   eyebrow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  subtitle: { fontSize: TYPE.subhead, flexShrink: 1 },
+  subtitle: { fontSize: TYPE.footnote, flexShrink: 1 },
   message: { alignItems: 'center', paddingVertical: 24 },
-  messageText: { fontSize: TYPE.callout, textAlign: 'center' },
+  messageText: { fontSize: TYPE.subhead, textAlign: 'center' },
   alightButton: {
     flexDirection: 'row',
     alignSelf: 'flex-start',
@@ -472,11 +472,11 @@ const styles = StyleSheet.create({
     gap: 6,
     minHeight: 44,
     paddingHorizontal: 14,
-    borderRadius: 22,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: 1,
   },
-  alightText: { fontSize: TYPE.subhead, fontWeight: '600' },
+  alightText: { fontSize: TYPE.footnote, fontWeight: '600' },
   earlier: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingLeft: 8 },
-  earlierText: { fontSize: TYPE.callout, fontWeight: '600' },
+  earlierText: { fontSize: TYPE.subhead, fontWeight: '600' },
   pressed: { opacity: 0.6 },
 });

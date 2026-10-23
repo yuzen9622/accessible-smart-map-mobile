@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { usePlaceUiStore } from '../store/placeUiStore';
-import { MAP, SHADOW_COLOR } from '@/shared/theme';
+import { MAP, ELEVATION } from '@/shared/theme';
 
 // Google Maps 風格的圖釘：紅色水滴＋深紅圓心，尖端（底部中央）對準座標。
 const PIN_WIDTH = 30;
@@ -38,9 +38,6 @@ const styles = StyleSheet.create({
   pin: {
     width: PIN_WIDTH,
     height: PIN_HEIGHT,
-    shadowColor: SHADOW_COLOR,
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 2 },
+    boxShadow: ELEVATION.raised,
   },
 });

@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale, usePreferencesStore } from '@/shared/preferences';
-import { useSemanticColors, useThemeColors } from '@/shared/theme';
+import { useSemanticColors, useThemeColors, TYPE } from '@/shared/theme';
 import { HeaderCloseButton } from '@/shared/ui';
 
 export const unstable_settings = { initialRouteName: 'index' };
@@ -17,7 +17,7 @@ export default function SettingsLayout() {
   return (
     <Stack screenOptions={{
       headerBackButtonDisplayMode: 'minimal',
-      headerTitleStyle: { fontSize: 17 * fontScale, ...(highContrast ? { color: colors.text } : {}) },
+      headerTitleStyle: { fontSize: TYPE.body * fontScale, ...(highContrast ? { color: colors.text } : {}) },
       headerTintColor: highContrast ? tones.accent : undefined,
       headerStyle: highContrast ? { backgroundColor: colors.background } : undefined,
     }}>

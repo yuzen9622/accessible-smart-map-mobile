@@ -1,6 +1,6 @@
 // 數值一律來自 `@/shared/theme` 的設計規範（tokens.ts），這裡只保留各 feature 既有的常數名稱。
 import { StyleSheet } from 'react-native';
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, semanticColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, semanticColors, TYPE, SHAPE } from '@/shared/theme';
 
 /**
  * 路線面板的色票與共用版型。與 place 面板（`features/place/components/palette.ts`）同一套數值，
@@ -43,38 +43,38 @@ export const routeStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   section: { gap: 8 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitle: { fontSize: 15, fontWeight: '600' },
-  bodyText: { fontSize: 14 },
-  metaText: { fontSize: 13 },
-  card: { borderRadius: RADIUS.card, padding: 14, gap: 8 },
+  sectionTitle: { fontSize: TYPE.subhead, fontWeight: '600' },
+  bodyText: { fontSize: TYPE.subhead },
+  metaText: { fontSize: TYPE.footnote },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 14, gap: 8 },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     minHeight: 44,
-    borderRadius: 22,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 14,
   },
-  chipText: { fontSize: 14, fontWeight: '500' },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 28, borderRadius: 14, paddingHorizontal: 10 },
-  badgeText: { fontSize: 12, fontWeight: '600' },
+  chipText: { fontSize: TYPE.subhead, fontWeight: '600' },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 28, borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 10 },
+  badgeText: { fontSize: TYPE.caption, fontWeight: '600' },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     minHeight: 50,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     paddingHorizontal: 16,
     backgroundColor: ROUTE_ACCENT_COLOR,
   },
-  primaryButtonText: { color: ROUTE_ON_ACCENT_COLOR, fontSize: 16, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
+  primaryButtonText: { color: ROUTE_ON_ACCENT_COLOR, fontSize: TYPE.callout, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
   circleButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',

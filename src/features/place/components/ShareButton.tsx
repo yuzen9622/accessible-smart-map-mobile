@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet } from 'react-native';
 
-import { RADIUS, useSemanticColors } from '@/shared/theme';
+import { useSemanticColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { ShareButtonProps } from './ShareButton.types';
@@ -20,6 +20,6 @@ export default function ShareButton({ label, onShare }: ShareButtonProps) {
 }
 
 const styles = StyleSheet.create({
-  circle: { width: 50, height: 50, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
+  circle: { width: 50, height: 50, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6 },
 });

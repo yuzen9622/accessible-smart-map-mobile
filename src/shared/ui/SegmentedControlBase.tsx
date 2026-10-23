@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, useThemeColors, SEGMENT_THUMB_DARK, WHITE, SHADOW_COLOR } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, useThemeColors, SEGMENT_THUMB_DARK, WHITE, TYPE, SHAPE, ELEVATION } from '@/shared/theme';
 import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
 
 import type { SegmentedControlProps } from './SegmentedControl.types';
@@ -29,7 +29,7 @@ export default function SegmentedControlBase<T extends string>({ label, options,
     <View
       accessibilityRole="radiogroup"
       accessibilityLabel={label}
-      style={[styles.track, { backgroundColor: highContrast ? colors.backgroundElement : track, borderRadius: ios ? RADIUS.small : RADIUS.pill }]}>
+      style={[styles.track, { backgroundColor: highContrast ? colors.backgroundElement : track, borderRadius: ios ? SHAPE.control : SHAPE.pill }]}>
       {options.map((option) => {
         const selectedStyle = highContrast ? { backgroundColor: colors.text }
           : ios ? [styles.thumb, { backgroundColor: thumb }] : { backgroundColor: ACCENT_FILL };
@@ -43,8 +43,8 @@ export default function SegmentedControlBase<T extends string>({ label, options,
             accessibilityState={{ selected: option.selected, disabled: option.disabled }}
             disabled={option.disabled}
             onPress={() => onSelect(option.value)}
-            style={[styles.segment, { borderRadius: ios ? 8 : RADIUS.pill }, option.selected && selectedStyle]}>
-            <Text numberOfLines={1} style={[styles.text, { color: textColor, fontWeight: option.selected ? '600' : '500' }]}>
+            style={[styles.segment, { borderRadius: ios ? 8 : SHAPE.pill }, option.selected && selectedStyle]}>
+            <Text numberOfLines={1} style={[styles.text, { color: textColor, fontWeight: option.selected ? '600' : '400' }]}>
               {option.label}
             </Text>
           </Pressable>
@@ -59,11 +59,7 @@ const styles = StyleSheet.create({
   // 40 + 軌道上下 padding 2 = 44pt 觸控高度（SDD §10）
   segment: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   thumb: {
-    shadowColor: SHADOW_COLOR,
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    boxShadow: ELEVATION.raised,
   },
-  text: { fontSize: 13 },
+  text: { fontSize: TYPE.footnote },
 });

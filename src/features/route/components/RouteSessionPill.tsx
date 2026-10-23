@@ -3,7 +3,7 @@ import { router, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, TYPE, SHAPE } from '@/shared/theme';
 import { GlassCard, Icon } from '@/shared/ui';
 
 import { endRouteSession, fitSelectedRoute } from '../controller/routeSessionPort';
@@ -77,10 +77,10 @@ export default function RouteSessionPill({ isNavigating, chatOpen = false }: Rou
 }
 
 const styles = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', maxWidth: 340, borderRadius: 24 },
+  pill: { flexDirection: 'row', alignItems: 'center', maxWidth: 340, borderRadius: SHAPE.floating, borderCurve: 'continuous' },
   body: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48, paddingLeft: 16, paddingRight: 8, flexShrink: 1 },
-  label: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
-  minutes: { fontSize: 14, fontWeight: '600' },
+  label: { fontSize: TYPE.subhead, fontWeight: '600', flexShrink: 1 },
+  minutes: { fontSize: TYPE.subhead, fontWeight: '600' },
   separator: { width: StyleSheet.hairlineWidth, height: 24, opacity: 0.4 },
   close: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
 });

@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { ACCENT_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors, type ToneColors } from '@/shared/theme';
+import { ACCENT_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, type ToneColors, SHAPE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { ReportTone } from '../../domain/review';
@@ -153,23 +153,23 @@ export function KeyValue({ label, value }: { label: string; value: string }) {
 }
 
 export const reportStyles = StyleSheet.create({
-  body: { fontSize: TYPE.callout, lineHeight: 22 },
-  small: { fontSize: TYPE.subhead, lineHeight: 19 },
-  card: { borderRadius: RADIUS.card, padding: 16, gap: 8 },
+  body: { fontSize: TYPE.subhead, lineHeight: 22 },
+  small: { fontSize: TYPE.footnote, lineHeight: 19 },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 16, gap: 8 },
 });
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   body: reportStyles.body,
   small: reportStyles.small,
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: RADIUS.pill, paddingHorizontal: 10, paddingVertical: 4 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 10, paddingVertical: 4 },
+  dot: { width: 6, height: 6, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
   pillText: { fontSize: TYPE.caption, fontWeight: '600' },
   sectionTitle: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  sectionTitleText: { fontSize: TYPE.callout, fontWeight: '700' },
+  sectionTitleText: { fontSize: TYPE.subhead, fontWeight: '700' },
   button: {
     minHeight: MIN_TOUCH,
-    borderRadius: RADIUS.small,
+    borderRadius: SHAPE.control, borderCurve: 'continuous',
     paddingHorizontal: 16,
     flexDirection: 'row',
     gap: 8,
@@ -177,11 +177,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   plainButton: { alignSelf: 'flex-start', paddingHorizontal: 4 },
-  buttonText: { fontSize: TYPE.callout, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
+  buttonText: { fontSize: TYPE.subhead, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
   dim: { opacity: 0.55 },
-  disclosure: { borderWidth: StyleSheet.hairlineWidth, borderRadius: RADIUS.card, overflow: 'hidden' },
+  disclosure: { borderWidth: StyleSheet.hairlineWidth, borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
   disclosureHeader: { minHeight: MIN_TOUCH, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14 },
-  disclosureTitle: { flex: 1, fontSize: TYPE.callout, fontWeight: '600' },
+  disclosureTitle: { flex: 1, fontSize: TYPE.subhead, fontWeight: '600' },
   disclosureBody: { borderTopWidth: StyleSheet.hairlineWidth, padding: 14, gap: 12 },
   bullets: { gap: 6 },
   bulletRow: { flexDirection: 'row', gap: 8 },

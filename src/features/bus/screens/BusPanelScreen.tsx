@@ -7,7 +7,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { SHEET_DETENTS, sheetController, useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { SPACE, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon, SegmentedControl } from '@/shared/ui';
 
 import RouteBadge from '../components/RouteBadge';
@@ -249,20 +249,20 @@ function Message({ text, color }: { text: string; color: string }) {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 14 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, minHeight: 48, paddingHorizontal: 14, borderRadius: RADIUS.pill },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, minHeight: 48, paddingHorizontal: 14, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
   input: { flex: 1, fontSize: TYPE.body, paddingVertical: 10 },
   section: { gap: 12 },
-  sectionTitle: { fontSize: TYPE.headline, fontWeight: '700' },
+  sectionTitle: { fontSize: TYPE.title3, fontWeight: '700' },
   group: { gap: 4 },
-  groupTitle: { fontSize: TYPE.subhead, fontWeight: '600' },
+  groupTitle: { fontSize: TYPE.footnote, fontWeight: '600' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 },
   pressed: { opacity: 0.6 },
-  iconCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  iconCircle: { width: 34, height: 34, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   rowTexts: { flex: 1, gap: 6 },
   rowTitle: { fontSize: TYPE.body, fontWeight: '600' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 },
   moreText: { fontSize: TYPE.caption, fontWeight: '600' },
-  distance: { fontSize: TYPE.callout, fontVariant: ['tabular-nums'] },
+  distance: { fontSize: TYPE.subhead, fontVariant: ['tabular-nums'] },
   message: { alignItems: 'center', paddingVertical: 24 },
-  messageText: { fontSize: TYPE.callout, textAlign: 'center' },
+  messageText: { fontSize: TYPE.subhead, textAlign: 'center' },
 });

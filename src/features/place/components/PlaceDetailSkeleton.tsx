@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 
 /**
  * 地點詳情載入中的骨架：版型對齊 `PlaceDetailView`（標題、副標、動作列、無障礙卡、附近設施），
@@ -79,17 +79,17 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 40 },
   stack: { gap: 24 },
   header: { gap: 10 },
-  line: { borderRadius: 6 },
+  line: { borderRadius: SHAPE.badge, borderCurve: 'continuous' },
   title: { width: '60%', height: 26 },
   subtitle: { width: '85%', height: 15 },
   badges: { flexDirection: 'row', gap: 6, marginTop: 4 },
-  badge: { width: 64, height: 26, borderRadius: RADIUS.pill },
+  badge: { width: 64, height: 26, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
   actions: { flexDirection: 'row', gap: 8, marginTop: -8 },
-  primary: { flex: 1, height: 50, borderRadius: RADIUS.pill },
-  circle: { width: 50, height: 50, borderRadius: RADIUS.pill },
+  primary: { flex: 1, height: 50, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
+  circle: { width: 50, height: 50, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
   section: { gap: 10 },
   heading: { width: 140, height: 20 },
-  card: { borderRadius: RADIUS.card },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous' },
   checklist: { height: 112 },
   list: { height: 180 },
 });

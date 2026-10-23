@@ -7,7 +7,7 @@ import { useAppTranslation } from '@/shared/i18n';
 import { useCloseScreen } from '@/shared/navigation';
 import { ensureAiDataConsent } from '@/shared/privacy';
 import { useFontScale } from '@/shared/preferences';
-import { TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon, useKeyboardInset } from '@/shared/ui';
 
 import ChatComposer from '../components/ChatComposer';
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   emptyList: { flexGrow: 1, justifyContent: 'center' },
   separator: { height: 18 },
   greeting: { alignItems: 'center', gap: 12, paddingHorizontal: 12 },
-  greetingIcon: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
+  greetingIcon: { width: 56, height: 56, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   greetingText: { textAlign: 'center', fontWeight: '600', lineHeight: 24 },
   disclaimer: { textAlign: 'center' },
 });

@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { pillToneStyle, type PillTone } from './palette';
@@ -139,26 +139,26 @@ export default function TrackingCard(props: TrackingCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: RADIUS.card, padding: 16, gap: 12 },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 16, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   title: { flex: 1, fontSize: TYPE.body, fontWeight: '600' },
-  etaNumber: { fontSize: 40, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  etaNumber: { fontSize: TYPE.numeralS, fontWeight: '700', fontVariant: ['tabular-nums'] },
   etaUnit: { fontSize: TYPE.body, fontWeight: '600' },
-  etaText: { fontSize: TYPE.headline, fontWeight: '700' },
+  etaText: { fontSize: TYPE.title3, fontWeight: '700' },
   track: { gap: 6 },
   nodes: { flexDirection: 'row', alignItems: 'center' },
   nodeCell: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', height: 28 },
   nodeCellFirst: { flex: 0 },
   line: { flex: 1, height: 3 },
-  stopNode: { width: 12, height: 12, borderRadius: 6, borderWidth: 2 },
-  busNode: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  mineNode: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  mineDot: { width: 10, height: 10, borderRadius: 5 },
+  stopNode: { width: 12, height: 12, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 2 },
+  busNode: { width: 28, height: 28, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  mineNode: { width: 22, height: 22, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  mineDot: { width: 10, height: 10, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
   gap: { fontSize: TYPE.body, fontWeight: '700', paddingHorizontal: 2 },
   labels: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  label: { fontSize: TYPE.subhead, flexShrink: 1 },
+  label: { fontSize: TYPE.footnote, flexShrink: 1 },
   labelMine: { fontWeight: '600' },
-  note: { fontSize: TYPE.callout },
+  note: { fontSize: TYPE.subhead },
   reminder: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     gap: 8,
     minHeight: 50,
     paddingHorizontal: 16,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
   },
   reminderText: { fontSize: TYPE.body, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
   disabled: { opacity: 0.5 },

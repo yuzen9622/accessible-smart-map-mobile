@@ -3,7 +3,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors, WHITE, DANGER_FILL } from '@/shared/theme';
+import { useThemeColors, WHITE, DANGER_FILL, TYPE, SHAPE } from '@/shared/theme';
 import { EmptyState, Icon } from '@/shared/ui';
 
 import CategoryNameModal from './CategoryNameModal';
@@ -61,7 +61,7 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
               { borderColor: PLACE_BORDER_COLOR },
               filter.isSelected && { backgroundColor: PLACE_ACCENT_COLOR, borderColor: PLACE_ACCENT_COLOR },
             ]}>
-            <Text style={{ color: filter.isSelected ? WHITE : colors.text, fontSize: 12, fontWeight: '500' }}>
+            <Text style={{ color: filter.isSelected ? WHITE : colors.text, fontSize: TYPE.caption, fontWeight: '600' }}>
               {filter.label}
             </Text>
           </Pressable>
@@ -72,7 +72,7 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
           onPress={() => setModalState({ mode: 'create' })}
           style={[styles.filterChip, styles.addChip, { borderColor: PLACE_BORDER_COLOR }]}>
           <Icon name="plus" size={14} color={colors.textSecondary} />
-          <Text style={{ color: colors.textSecondary, fontSize: 12, fontWeight: '500' }}>{categoryManagement.addLabel}</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: TYPE.caption, fontWeight: '600' }}>{categoryManagement.addLabel}</Text>
         </Pressable>
       </View>
     </View>
@@ -96,7 +96,7 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
               <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={1}>
                 {item.title}
               </Text>
-              {item.categoryLabel ? <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{item.categoryLabel}</Text> : null}
+              {item.categoryLabel ? <Text style={{ color: colors.textSecondary, fontSize: TYPE.caption }}>{item.categoryLabel}</Text> : null}
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -125,13 +125,13 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
 
 const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingTop: 12, gap: 8 },
-  count: { fontSize: 12 },
+  count: { fontSize: TYPE.caption },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   filterChip: {
     minHeight: 48,
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 999,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     paddingHorizontal: 12,
   },
   addChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -146,6 +146,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   rowMain: { flex: 1, gap: 2, minHeight: 48, justifyContent: 'center' },
-  rowTitle: { fontSize: 15, fontWeight: '500' },
+  rowTitle: { fontSize: TYPE.subhead, fontWeight: '600' },
   removeButton: { minHeight: 48, minWidth: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
 });

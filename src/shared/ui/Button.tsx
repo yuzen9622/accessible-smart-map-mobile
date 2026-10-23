@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Pressable, StyleSheet } from 'react-native';
 
-import { useThemeColors, DESTRUCTIVE_TEXT } from '@/shared/theme';
+import { useThemeColors, DESTRUCTIVE_TEXT, TYPE, SHAPE } from '@/shared/theme';
 
 import type { ButtonProps } from './Button.types';
 
@@ -46,12 +46,12 @@ const styles = StyleSheet.create({
     minHeight: MIN_TOUCH_TARGET,
     minWidth: MIN_TOUCH_TARGET,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: SHAPE.control, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
-    fontSize: 17,
+    fontSize: TYPE.body,
     fontWeight: '600',
   },
 });

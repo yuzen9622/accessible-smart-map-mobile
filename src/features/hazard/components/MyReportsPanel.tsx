@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { MyReportRow } from '../hooks/useMyReports';
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
   centerText: { textAlign: 'center' },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
-  heading: { fontSize: TYPE.headline, fontWeight: '700', marginBottom: 2 },
+  heading: { fontSize: TYPE.title3, fontWeight: '700', marginBottom: 2 },
   addButton: {
     width: MIN_TOUCH,
     height: MIN_TOUCH,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   state: { paddingVertical: 48, alignItems: 'center' },
   separator: { height: 12 },
-  card: { borderRadius: RADIUS.card, overflow: 'hidden' },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
   cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,8 +213,8 @@ const styles = StyleSheet.create({
   cardBody: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14 },
   cardTitle: { fontSize: TYPE.body, fontWeight: '700' },
   description: { marginTop: 6 },
-  photoPlaceholder: { width: 76, height: 76, borderRadius: RADIUS.small, alignItems: 'center', justifyContent: 'center' },
-  reason: { marginHorizontal: 14, marginBottom: 14, borderRadius: RADIUS.small, paddingHorizontal: 12, paddingVertical: 10 },
+  photoPlaceholder: { width: 76, height: 76, borderRadius: SHAPE.control, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  reason: { marginHorizontal: 14, marginBottom: 14, borderRadius: SHAPE.control, borderCurve: 'continuous', paddingHorizontal: 12, paddingVertical: 10 },
   reasonLabel: { marginBottom: 2, fontWeight: '600' },
   caption: { fontSize: TYPE.caption },
   footer: { gap: 12, marginTop: 16 },
@@ -222,11 +222,11 @@ const styles = StyleSheet.create({
   empty: {
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderRadius: RADIUS.card,
+    borderRadius: SHAPE.card, borderCurve: 'continuous',
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 20,
     paddingVertical: 40,
   },
-  emptyIcon: { borderRadius: RADIUS.card, padding: 16 },
+  emptyIcon: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 16 },
 });

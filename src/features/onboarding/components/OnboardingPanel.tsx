@@ -3,18 +3,7 @@ import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFontScale } from '@/shared/preferences';
-import {
-  ACCENT_FILL,
-  MAX_FONT_SCALE,
-  MIN_TOUCH,
-  ON_ACCENT_FILL,
-  RADIUS,
-  SPACE,
-  TYPE,
-  scaledSize,
-  useSemanticColors,
-  useThemeColors,
-} from '@/shared/theme';
+import { ACCENT_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { FontSizeOption } from '../hooks/useOnboardingFlow';
@@ -107,7 +96,7 @@ export default function OnboardingPanel({ model, backLabel, skipLabel }: Onboard
             accessibilityLabel={skipLabel}
             hitSlop={8}
             style={styles.headerSideButton}>
-            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.skipText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.callout, scale) }]}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.skipText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }]}>
               {skipLabel}
             </Text>
           </Pressable>
@@ -124,7 +113,7 @@ export default function OnboardingPanel({ model, backLabel, skipLabel }: Onboard
           <Text
             accessibilityRole="header"
             maxFontSizeMultiplier={MAX_FONT_SCALE.heading}
-            style={[styles.title, { color: colors.text, fontSize: scaledSize(TYPE.title, scale) }]}>
+            style={[styles.title, { color: colors.text, fontSize: scaledSize(TYPE.title1, scale) }]}>
             {title[model.stepId]}
           </Text>
           {subtitle[model.stepId] ? (
@@ -178,7 +167,7 @@ function FontSizeStep({ model }: { model: OnboardingPanelProps['model']['fontSiz
               style={{
                 color: option.selected ? ON_ACCENT_FILL : colors.text,
                 fontSize: Math.min(scaledSize(TYPE.body, option.scale), 26),
-                fontWeight: option.selected ? '700' : '500',
+                fontWeight: option.selected ? '700' : '400',
               }}>
               {option.label}
             </Text>
@@ -199,16 +188,16 @@ function FontSizeStep({ model }: { model: OnboardingPanelProps['model']['fontSiz
           </Text>
           <Text
             maxFontSizeMultiplier={MAX_FONT_SCALE.body}
-            style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, model.scale), marginTop: 2 }}>
+            style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, model.scale), marginTop: 2 }}>
             {model.previewAddress}
           </Text>
           <Text
             maxFontSizeMultiplier={MAX_FONT_SCALE.body}
-            style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, model.scale), marginTop: 2 }}>
+            style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, model.scale), marginTop: 2 }}>
             {model.previewMeta}
           </Text>
           <View style={[styles.previewButton, { backgroundColor: ACCENT_FILL }]}>
-            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: ON_ACCENT_FILL, fontWeight: '700', fontSize: scaledSize(TYPE.callout, model.scale) }}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: ON_ACCENT_FILL, fontWeight: '700', fontSize: scaledSize(TYPE.subhead, model.scale) }}>
               {model.previewButtonLabel}
             </Text>
           </View>
@@ -242,12 +231,12 @@ function NeedsStep({ model }: { model: OnboardingPanelProps['model']['needs'] })
             <Icon name={SITUATION_ICON[option.id] ?? 'accessibility'} size={22} color={option.selected ? tones.accent : colors.textSecondary} />
             <Text
               maxFontSizeMultiplier={MAX_FONT_SCALE.label}
-              style={{ color: colors.text, fontWeight: '700', fontSize: scaledSize(TYPE.callout, scale), marginTop: SPACE.sm }}>
+              style={{ color: colors.text, fontWeight: '700', fontSize: scaledSize(TYPE.subhead, scale), marginTop: SPACE.sm }}>
               {option.label}
             </Text>
             <Text
               maxFontSizeMultiplier={MAX_FONT_SCALE.body}
-              style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale), marginTop: 2 }}>
+              style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale), marginTop: 2 }}>
               {option.description}
             </Text>
           </Pressable>
@@ -256,7 +245,7 @@ function NeedsStep({ model }: { model: OnboardingPanelProps['model']['needs'] })
       <Text
         accessibilityLiveRegion="polite"
         maxFontSizeMultiplier={MAX_FONT_SCALE.body}
-        style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale), marginTop: SPACE.lg, textAlign: 'center' }}>
+        style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale), marginTop: SPACE.lg, textAlign: 'center' }}>
         {model.derivedModeText ?? model.hint}
       </Text>
     </View>
@@ -281,7 +270,7 @@ function LocationStep({ model }: { model: OnboardingPanelProps['model']['locatio
       ))}
       <Text
         maxFontSizeMultiplier={MAX_FONT_SCALE.body}
-        style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale), marginTop: SPACE.md, textAlign: 'center' }}>
+        style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale), marginTop: SPACE.md, textAlign: 'center' }}>
         {model.privacy}
       </Text>
       {model.outcomeText ? (
@@ -378,22 +367,22 @@ const styles = StyleSheet.create({
   headerSideButton: { minHeight: MIN_TOUCH, minWidth: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' },
   skipText: { fontWeight: '600' },
   dots: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dot: { height: 7, borderRadius: RADIUS.pill },
+  dot: { height: 7, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
   content: { padding: SPACE.xl, alignItems: 'center', flexGrow: 1 },
   hero: {
     width: 88,
     height: 88,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACE.lg,
   },
-  title: { fontWeight: '800', textAlign: 'center' },
+  title: { fontWeight: '700', textAlign: 'center' },
   subtitle: { textAlign: 'center', marginTop: SPACE.sm, lineHeight: 22 },
   footer: { paddingHorizontal: SPACE.xl, paddingTop: SPACE.md, borderTopWidth: StyleSheet.hairlineWidth, gap: SPACE.sm },
   primaryButton: {
     minHeight: 52,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -404,7 +393,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     minWidth: 64,
     paddingHorizontal: SPACE.lg,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -414,17 +403,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: SPACE.md,
     padding: SPACE.lg,
-    borderRadius: RADIUS.card,
+    borderRadius: SHAPE.card, borderCurve: 'continuous',
   },
   previewPin: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  previewButton: { alignSelf: 'flex-start', marginTop: SPACE.sm, paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, borderRadius: RADIUS.pill },
+  previewButton: { alignSelf: 'flex-start', marginTop: SPACE.sm, paddingHorizontal: SPACE.md, paddingVertical: SPACE.sm, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
 
   needsBlock: { width: '100%', marginTop: SPACE.lg },
   needsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.sm, justifyContent: 'space-between' },
   needCard: {
     width: '47%',
     minHeight: 112,
-    borderRadius: RADIUS.card,
+    borderRadius: SHAPE.card, borderCurve: 'continuous',
     borderWidth: 2,
     padding: SPACE.md,
   },
@@ -438,8 +427,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACE.md,
     minHeight: 56,
-    borderRadius: RADIUS.card,
+    borderRadius: SHAPE.card, borderCurve: 'continuous',
     paddingHorizontal: SPACE.md,
   },
-  doneRowIcon: { width: 36, height: 36, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
+  doneRowIcon: { width: 36, height: 36, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
 });

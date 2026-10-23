@@ -4,7 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { DANGER_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, DANGER_DEEP, WHITE } from '@/shared/theme';
+import { DANGER_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, DANGER_DEEP, WHITE, SHAPE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { SosFlowModel } from '../hooks/useSosFlow';
@@ -98,7 +98,7 @@ function Label({ children }: { children: React.ReactNode }) {
   const colors = useThemeColors();
   const scale = useFontScale();
   return (
-    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.label, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }]}>
+    <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.label, { color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }]}>
       {children}
     </Text>
   );
@@ -110,7 +110,7 @@ function Body({ children, bold }: { children: React.ReactNode; bold?: boolean })
   return (
     <Text
       maxFontSizeMultiplier={MAX_FONT_SCALE.body}
-      style={{ color: colors.text, fontSize: scaledSize(TYPE.callout, scale), fontWeight: bold ? '700' : '400' }}>
+      style={{ color: colors.text, fontSize: scaledSize(TYPE.subhead, scale), fontWeight: bold ? '700' : '400' }}>
       {children}
     </Text>
   );
@@ -225,7 +225,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
       <View style={[styles.activeHeader, { backgroundColor: DANGER_FILL }]} accessible accessibilityLiveRegion="polite">
         <View style={styles.pulse} />
         <View style={styles.flex}>
-          <Text accessibilityRole="header" maxFontSizeMultiplier={MAX_FONT_SCALE.heading} style={[styles.activeTitle, { fontSize: scaledSize(TYPE.headline, scale) }]}>
+          <Text accessibilityRole="header" maxFontSizeMultiplier={MAX_FONT_SCALE.heading} style={[styles.activeTitle, { fontSize: scaledSize(TYPE.title3, scale) }]}>
             {t('sosActiveTitle')}
           </Text>
           <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.activeSummary, { fontSize: scaledSize(TYPE.body, scale) }]}>
@@ -291,7 +291,7 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
                 accessibilityLabel={chip.label}
                 onPress={() => model.setSupplementedType(chip.type)}
                 style={[styles.chip, { borderColor: selected ? DANGER_FILL : colors.textSecondary, backgroundColor: selected ? DANGER_FILL : 'transparent' }]}>
-                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: selected ? WHITE : colors.text, fontSize: scaledSize(TYPE.callout, scale) }}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: selected ? WHITE : colors.text, fontSize: scaledSize(TYPE.subhead, scale) }}>
                   {chip.label}
                 </Text>
               </Pressable>
@@ -327,10 +327,10 @@ export default function SosPanel({ model }: { model: SosFlowModel }) {
         {model.timelineOpen
           ? model.timeline.map((entry) => (
               <View key={entry.key} style={styles.timelineRow} accessible>
-                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
                   {entry.time}
                 </Text>
-                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.flex, { color: colors.text, fontSize: scaledSize(TYPE.callout, scale) }]}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.flex, { color: colors.text, fontSize: scaledSize(TYPE.subhead, scale) }]}>
                   {entry.text}
                 </Text>
               </View>
@@ -349,13 +349,13 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
   row: { flexDirection: 'row', gap: SPACE.md },
-  title: { fontSize: TYPE.title + 8, fontWeight: '800' },
+  title: { fontSize: TYPE.title1 + 8, fontWeight: '700' },
   centerText: { textAlign: 'center' },
   hero: { alignItems: 'center', gap: SPACE.sm + 2, paddingTop: SPACE.xl, paddingBottom: SPACE.lg },
   heroIcon: {
     width: 88,
     height: 88,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
   textButtonText: { fontWeight: '600' },
   bigButton: {
     minHeight: BIG_TARGET,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
@@ -376,19 +376,19 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   disabled: { opacity: 0.5 },
   countdown: { flex: 1, backgroundColor: DANGER_DEEP, alignItems: 'center', justifyContent: 'center', padding: SPACE.xl, gap: SPACE.lg + 2 },
-  countdownTitle: { color: WHITE, fontSize: TYPE.title + 4, fontWeight: '800', textAlign: 'center' },
+  countdownTitle: { color: WHITE, fontSize: TYPE.title1 + 4, fontWeight: '700', textAlign: 'center' },
   countdownDesc: { color: WHITE, fontSize: TYPE.body + 1, textAlign: 'center' },
   countdownActions: { alignSelf: 'stretch', gap: SPACE.lg - 2 },
   ringWrap: { width: 180, height: 180, alignItems: 'center', justifyContent: 'center' },
-  ringText: { position: 'absolute', color: WHITE, fontSize: 64, fontWeight: '800' },
-  activeHeader: { borderRadius: RADIUS.card, padding: SPACE.lg, flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
-  pulse: { width: 14, height: 14, borderRadius: RADIUS.pill, backgroundColor: ON_ACCENT_FILL },
-  activeTitle: { color: WHITE, fontWeight: '800' },
+  ringText: { position: 'absolute', color: WHITE, fontSize: TYPE.numeralXL, fontWeight: '700' },
+  activeHeader: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.lg, flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
+  pulse: { width: 14, height: 14, borderRadius: SHAPE.pill, borderCurve: 'continuous', backgroundColor: ON_ACCENT_FILL },
+  activeTitle: { color: WHITE, fontWeight: '700' },
   activeSummary: { color: WHITE, marginTop: 2 },
-  card: { borderRadius: RADIUS.card, padding: SPACE.md + 2, gap: SPACE.xs + 2 },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.md + 2, gap: SPACE.xs + 2 },
   label: { fontWeight: '600' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.sm, marginTop: SPACE.xs },
-  chip: { minHeight: MIN_TOUCH, borderRadius: RADIUS.pill, borderWidth: 1.5, paddingHorizontal: SPACE.md + 2, justifyContent: 'center' },
+  chip: { minHeight: MIN_TOUCH, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 1.5, paddingHorizontal: SPACE.md + 2, justifyContent: 'center' },
   link: { minHeight: MIN_TOUCH, justifyContent: 'center' },
   linkText: { fontSize: TYPE.body, fontWeight: '600' },
   disclosure: { minHeight: MIN_TOUCH, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

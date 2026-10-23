@@ -2,19 +2,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import {
-  BUTTON_HEIGHT,
-  DANGER_FILL,
-  MAX_FONT_SCALE,
-  MIN_TOUCH,
-  ON_ACCENT_FILL,
-  RADIUS,
-  SPACE,
-  TYPE,
-  scaledSize,
-  useSemanticColors,
-  useThemeColors,
-} from '@/shared/theme';
+import { BUTTON_HEIGHT, DANGER_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { SosTrackerPanelProps, SosTrackerProgressStep } from './SosTrackerPanel.types';
@@ -59,7 +47,7 @@ function ActionButton({ label, icon, onPress, tone, hint, big }: ActionButtonPro
       <Icon name={icon} size={big ? 24 : 20} color={foreground} />
       <Text
         maxFontSizeMultiplier={MAX_FONT_SCALE.label}
-        style={[styles.actionText, { color: foreground, fontSize: scaledSize(big ? TYPE.headline : TYPE.body, scale) }]}>
+        style={[styles.actionText, { color: foreground, fontSize: scaledSize(big ? TYPE.title3 : TYPE.body, scale) }]}>
         {label}
       </Text>
     </Pressable>
@@ -134,17 +122,17 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
         <View style={styles.hero}>
           <View style={[styles.liveChip, { backgroundColor: DANGER_FILL }]}>
             <Icon name="siren" size={16} color={ON_ACCENT_FILL} />
-            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.liveChipText, { fontSize: scaledSize(TYPE.subhead, scale) }]}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.liveChipText, { fontSize: scaledSize(TYPE.footnote, scale) }]}>
               {t('nativeSosTrackerActive')}
             </Text>
           </View>
           <Text
             accessibilityRole="header"
             maxFontSizeMultiplier={MAX_FONT_SCALE.heading}
-            style={[styles.heroTitle, { color: colors.text, fontSize: scaledSize(TYPE.title, scale) }]}>
+            style={[styles.heroTitle, { color: colors.text, fontSize: scaledSize(TYPE.title1, scale) }]}>
             {model.typeLabel}
           </Text>
-          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
             {t('nativeSosTrackerLiveHint')}
           </Text>
         </View>
@@ -154,7 +142,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
           <Text
             accessibilityRole="header"
             maxFontSizeMultiplier={MAX_FONT_SCALE.heading}
-            style={[styles.heroTitle, { color: colors.text, fontSize: scaledSize(TYPE.headline, scale) }]}>
+            style={[styles.heroTitle, { color: colors.text, fontSize: scaledSize(TYPE.title3, scale) }]}>
             {model.title}
           </Text>
         </View>
@@ -171,7 +159,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
         <View style={styles.centerBlock} accessible accessibilityLiveRegion="polite">
           <StatusIllustration icon={model.phase === 'resolved' ? 'shieldCheck' : 'circleX'} tone={model.phase === 'resolved' ? 'ok' : 'neutral'} />
           {model.phase === 'resolved' ? (
-            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} style={[styles.heroTitle, { color: colors.text, fontSize: scaledSize(TYPE.headline, scale) }]}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.heading} style={[styles.heroTitle, { color: colors.text, fontSize: scaledSize(TYPE.title3, scale) }]}>
               {t('sosResolvedTitle')}
             </Text>
           ) : null}
@@ -194,11 +182,11 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
           <View style={[styles.card, { backgroundColor: semantic.surface }]} accessible>
             <View style={styles.cardLabelRow}>
               <Icon name="mapPin" size={16} color={semantic.danger.fg} />
-              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+              <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
                 {t('sosTrackingRequesterLabel')}
               </Text>
             </View>
-            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.address, { color: colors.text, fontSize: scaledSize(TYPE.headline, scale) }]}>
+            <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.address, { color: colors.text, fontSize: scaledSize(TYPE.title3, scale) }]}>
               {model.addressText}
             </Text>
             <View style={styles.cardLabelRow}>
@@ -206,14 +194,14 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
               <Text
                 accessibilityLiveRegion="polite"
                 maxFontSizeMultiplier={MAX_FONT_SCALE.label}
-                style={{ color: model.stale ? semantic.warn.fg : colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+                style={{ color: model.stale ? semantic.warn.fg : colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
                 {model.freshnessText}
               </Text>
             </View>
             {model.stale ? (
               <View style={[styles.staleBanner, { backgroundColor: semantic.warn.bg }]}>
                 <Icon name="alert" size={16} color={semantic.warn.fg} />
-                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.flexText, { color: semantic.warn.fg, fontSize: scaledSize(TYPE.subhead, scale) }]}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.flexText, { color: semantic.warn.fg, fontSize: scaledSize(TYPE.footnote, scale) }]}>
                   {t('nativeSosTrackerStale')}
                 </Text>
               </View>
@@ -232,7 +220,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
                 {t('nativeSosTrackerProgressTitle')}
               </Text>
               {model.waitingForFamily ? (
-                <Text accessibilityLiveRegion="polite" style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+                <Text accessibilityLiveRegion="polite" style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
                   {t('nativeSosTrackerWaiting')}
                 </Text>
               ) : null}
@@ -264,7 +252,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
                 <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.sectionTitle, { color: colors.text, fontSize: scaledSize(TYPE.body, scale) }]}>
                   {t('nativeSosTrackerReplyOnLine')}
                 </Text>
-                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+                <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
                   {t('nativeSosTrackerReplyOnLineHint')}
                 </Text>
               </View>
@@ -276,7 +264,7 @@ export default function SosTrackerPanel({ model }: SosTrackerPanelProps) {
             <Text
               accessibilityRole="header"
               maxFontSizeMultiplier={MAX_FONT_SCALE.label}
-              style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }}>
+              style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>
               {t('nativeSosTrackerEmergencyCalls')}
             </Text>
             <View style={styles.callsRow}>
@@ -306,24 +294,24 @@ const styles = StyleSheet.create({
     gap: SPACE.xs,
     paddingHorizontal: SPACE.md,
     paddingVertical: SPACE.xs,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
   },
   liveChipText: { color: ON_ACCENT_FILL, fontWeight: '700' },
   heroTitle: { fontWeight: '700' },
   centerBlock: { alignItems: 'center', gap: SPACE.md, paddingVertical: SPACE.lg },
   centerText: { textAlign: 'center' },
-  illustration: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
-  card: { borderRadius: RADIUS.card, padding: SPACE.lg, gap: SPACE.sm },
+  illustration: { width: 72, height: 72, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.lg, gap: SPACE.sm },
   cardLabelRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.xs },
   address: { fontWeight: '700' },
-  staleBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.sm, borderRadius: RADIUS.small, padding: SPACE.md },
+  staleBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.sm, borderRadius: SHAPE.control, borderCurve: 'continuous', padding: SPACE.md },
   sectionTitle: { fontWeight: '700' },
   step: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.md, minHeight: 40 },
   stepRail: { alignItems: 'center', width: 22 },
-  stepDot: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  stepDot: { width: 22, height: 22, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   stepLine: { width: 2, flex: 1, minHeight: 16, marginVertical: 2 },
   action: {
-    borderRadius: RADIUS.card,
+    borderRadius: SHAPE.card, borderCurve: 'continuous',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -332,8 +320,8 @@ const styles = StyleSheet.create({
     minWidth: MIN_TOUCH,
   },
   actionText: { fontWeight: '700' },
-  lineRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, borderRadius: RADIUS.card, padding: SPACE.lg, minHeight: MIN_TOUCH },
-  lineBadge: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  lineRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.lg, minHeight: MIN_TOUCH },
+  lineBadge: { width: 40, height: 40, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   callsBlock: { gap: SPACE.sm },
   callsRow: { flexDirection: 'row', gap: SPACE.md },
   flexText: { flex: 1 },

@@ -14,7 +14,7 @@ import Animated, {
 import { useAppTranslation } from '@/shared/i18n';
 
 import { useSplashStore } from './splashStore';
-import { SPLASH_BG, BLACK, WHITE } from '@/shared/theme';
+import { SPLASH_BG, BLACK, WHITE, TYPE } from '@/shared/theme';
 
 const LIGHT_BG = SPLASH_BG;
 const DARK_BG = BLACK;
@@ -88,5 +88,5 @@ export default function SplashIntro() {
 const styles = StyleSheet.create({
   container: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', zIndex: 999 },
   logo: { width: 120, height: 120 },
-  tagline: { marginTop: 16, fontSize: 15, fontWeight: '600', color: WHITE, letterSpacing: 0.3 },
+  tagline: { marginTop: 16, fontSize: TYPE.subhead, fontWeight: '600', color: WHITE, letterSpacing: 0.3 },
 });

@@ -2,7 +2,7 @@ import { GeoJSONSource, Layer, ViewAnnotation } from '@maplibre/maplibre-react-n
 import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 import { StyleSheet, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, DANGER_FILL, MAP, WHITE, SHADOW_COLOR } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, DANGER_FILL, MAP, WHITE, SHAPE, ELEVATION } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { useBusPanelStore, type PanelBus, type PanelStop } from '../store/busPanelStore';
@@ -130,12 +130,8 @@ const styles = StyleSheet.create({
     gap: 2,
     height: 30,
     paddingHorizontal: 7,
-    borderRadius: 9,
-    shadowColor: SHADOW_COLOR,
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    borderRadius: SHAPE.control, borderCurve: 'continuous',
+    boxShadow: ELEVATION.raised,
   },
   busAccessible: { backgroundColor: ACCENT_FILL },
   busPlain: { backgroundColor: WHITE },

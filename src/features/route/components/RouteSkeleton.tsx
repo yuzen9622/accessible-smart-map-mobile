@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
-import { RADIUS, useSemanticColors } from '@/shared/theme';
+import { useSemanticColors, SHAPE } from '@/shared/theme';
 
 const CARDS = [0, 1, 2];
 
@@ -48,9 +48,9 @@ export default function RouteSkeleton({ label }: { label: string }) {
 
 const styles = StyleSheet.create({
   list: { gap: 10 },
-  card: { borderRadius: RADIUS.card, padding: 16, gap: 12 },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 16, gap: 12 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  bar: { borderRadius: 6 },
+  bar: { borderRadius: SHAPE.badge, borderCurve: 'continuous' },
   duration: { width: 96, height: 24 },
   journey: { width: 88, height: 14 },
   chain: { flexDirection: 'row', gap: 8 },

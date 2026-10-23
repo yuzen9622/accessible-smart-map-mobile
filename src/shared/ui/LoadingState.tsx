@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, TYPE } from '@/shared/theme';
 
 import type { LoadingStateProps } from './LoadingState.types';
 
@@ -30,6 +30,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   label: {
-    fontSize: 15,
+    fontSize: TYPE.subhead,
   },
 });

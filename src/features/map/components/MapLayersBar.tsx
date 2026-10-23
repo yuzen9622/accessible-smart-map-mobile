@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Pressable, ScrollView, StyleSheet } from 'react-native';
 
-import { RADIUS, SPACE, useSemanticColors, useThemeColors, SHADOW_COLOR } from '@/shared/theme';
+import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE, ELEVATION } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { MapLayersBarProps } from './MapLayersBar.types';
@@ -52,12 +52,8 @@ const styles = StyleSheet.create({
     gap: 6,
     minHeight: 44,
     paddingHorizontal: SPACE.md,
-    borderRadius: RADIUS.pill,
-    shadowColor: SHADOW_COLOR,
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
+    boxShadow: ELEVATION.floating,
   },
-  label: { fontSize: 14, fontWeight: '600' },
+  label: { fontSize: TYPE.subhead, fontWeight: '600' },
 });

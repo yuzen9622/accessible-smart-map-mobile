@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, SHAPE, ELEVATION } from '@/shared/theme';
 
 import type { PlatformBadgeProps } from './PlatformBadge.types';
 
@@ -19,10 +19,10 @@ const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 8,
-    elevation: 2,
+    borderRadius: SHAPE.control, borderCurve: 'continuous',
+    boxShadow: ELEVATION.raised,
   },
   text: {
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });

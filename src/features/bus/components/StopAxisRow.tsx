@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 export interface StopAxisRowProps {
@@ -89,22 +89,22 @@ export default function StopAxisRow(props: StopAxisRowProps) {
 const AXIS_WIDTH = 32;
 
 const styles = StyleSheet.create({
-  wrap: { borderRadius: 12 },
+  wrap: { borderRadius: SHAPE.control, borderCurve: 'continuous' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingRight: 10 },
   pressed: { opacity: 0.6 },
   axis: { width: AXIS_WIDTH, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
   lineTop: { position: 'absolute', top: 0, bottom: '50%', width: 3 },
   lineBottom: { position: 'absolute', top: '50%', bottom: 0, width: 3 },
-  stopNode: { width: 12, height: 12, borderRadius: 6, borderWidth: 2 },
-  mineNode: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  mineDot: { width: 8, height: 8, borderRadius: 4 },
-  busNode: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  stopNode: { width: 12, height: 12, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 2 },
+  mineNode: { width: 20, height: 20, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  mineDot: { width: 8, height: 8, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
+  busNode: { width: 26, height: 26, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   texts: { flex: 1, gap: 2, paddingVertical: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   name: { fontSize: TYPE.body },
   nameMine: { fontWeight: '700' },
   note: { fontSize: TYPE.caption, fontWeight: '600' },
-  tag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  tag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: SHAPE.control, borderCurve: 'continuous' },
   tagText: { fontSize: TYPE.caption, fontWeight: '700' },
   footer: { paddingLeft: AXIS_WIDTH + 10, paddingRight: 10, paddingBottom: 10 },
   footerLine: { position: 'absolute', left: AXIS_WIDTH / 2 - 1.5, top: 0, bottom: 0, width: 3 },

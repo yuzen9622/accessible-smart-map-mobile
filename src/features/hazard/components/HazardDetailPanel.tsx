@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { MAX_FONT_SCALE, RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, SPACE, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Button, ErrorState, Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
@@ -138,16 +138,16 @@ const styles = StyleSheet.create({
   content: { padding: SPACE.xl, paddingTop: SPACE.lg, gap: SPACE.xl },
   header: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
   heading: { flex: 1, gap: SPACE.xs },
-  iconTile: { width: 48, height: 48, borderRadius: RADIUS.card, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: TYPE.title, fontWeight: '700' },
-  severity: { fontSize: TYPE.subhead, lineHeight: 20, fontWeight: '600' },
+  iconTile: { width: 48, height: 48, borderRadius: SHAPE.card, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: TYPE.title1, fontWeight: '700' },
+  severity: { fontSize: TYPE.footnote, lineHeight: 20, fontWeight: '600' },
   section: { gap: SPACE.md },
-  body: { fontSize: TYPE.callout, lineHeight: 22 },
+  body: { fontSize: TYPE.subhead, lineHeight: 22 },
   description: { fontSize: TYPE.body, lineHeight: 24 },
-  caption: { fontSize: TYPE.subhead, lineHeight: 20 },
+  caption: { fontSize: TYPE.footnote, lineHeight: 20 },
   date: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.sm },
-  noPhoto: { minHeight: 96, borderRadius: RADIUS.card, alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, padding: SPACE.lg },
-  reviewCard: { borderRadius: RADIUS.card, padding: SPACE.lg, gap: SPACE.md },
+  noPhoto: { minHeight: 96, borderRadius: SHAPE.card, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', gap: SPACE.sm, padding: SPACE.lg },
+  reviewCard: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.lg, gap: SPACE.md },
   community: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACE.sm, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: SPACE.md },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: SPACE.lg, gap: SPACE.sm },
   footerTitle: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },

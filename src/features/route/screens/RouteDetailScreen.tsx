@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { EmptyState, Icon } from '@/shared/ui';
 
 import LegDetail from '../components/LegDetail';
@@ -179,17 +179,17 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
 
 const styles = StyleSheet.create({
   summary: { gap: 4 },
-  duration: { fontSize: TYPE.title + 4, fontWeight: '700' },
-  facts: { fontSize: TYPE.callout, fontVariant: ['tabular-nums'] },
+  duration: { fontSize: TYPE.title1 + 4, fontWeight: '700' },
+  facts: { fontSize: TYPE.subhead, fontVariant: ['tabular-nums'] },
   pressed: { opacity: 0.7 },
   timeline: { marginTop: 4 },
   node: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingBottom: 12 },
   nodeRail: { width: 32, alignItems: 'center' },
-  nodeDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 4 },
+  nodeDot: { width: 18, height: 18, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 4 },
   nodeTexts: { flex: 1, gap: 1 },
   nodeLabel: { fontSize: TYPE.caption, fontWeight: '600' },
   nodeName: { fontSize: TYPE.body, fontWeight: '600' },
-  nodeTime: { fontSize: TYPE.callout, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  nodeTime: { fontSize: TYPE.subhead, fontWeight: '600', fontVariant: ['tabular-nums'] },
   notes: { gap: 8, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth },
   noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
 });

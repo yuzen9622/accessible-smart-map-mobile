@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { GlassCard, Icon } from '@/shared/ui';
 
 import { dismissVoiceSession, endVoiceSession } from '../controller/voiceController';
@@ -58,7 +58,7 @@ export default function VoiceFloatingIndicator() {
             gap={2}
           />
           {isMuted ? <Icon name="volumeOff" size={16} color={colors.text} /> : null}
-          <Text numberOfLines={1} style={[styles.label, { color: colors.text, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
+          <Text numberOfLines={1} style={[styles.label, { color: colors.text, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
             {label}
           </Text>
         </Pressable>
@@ -76,10 +76,10 @@ export default function VoiceFloatingIndicator() {
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: 24 },
+  card: { borderRadius: SHAPE.floating, borderCurve: 'continuous' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 14, paddingRight: 8, minHeight: 44 },
   main: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, minHeight: 44 },
   label: { fontWeight: '600', flexShrink: 1 },
-  close: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  close: { width: 28, height: 28, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6 },
 });

@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, SHAPE, ELEVATION } from '@/shared/theme';
 
 import type { MapControlsProps } from './MapControls.types';
 
@@ -28,10 +28,10 @@ const styles = StyleSheet.create({
   button: {
     minWidth: 48,
     minHeight: 48,
-    borderRadius: 24,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 3,
+    boxShadow: ELEVATION.floating,
   },
   text: { fontWeight: '600' },
 });

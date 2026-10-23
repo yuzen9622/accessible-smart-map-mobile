@@ -3,7 +3,7 @@ import Animated, { FadeInDown, useReducedMotion } from 'react-native-reanimated'
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, scaledSize, useSemanticColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { buildTraceRows, describeThinking, shouldShowTrace } from '../domain/thinkingTrace';
@@ -48,7 +48,7 @@ export default function ChatMessageItem({ entry, isDark, onOpenResult }: ChatMes
           accessible
           accessibilityLabel={`${voicePrefix}${t('nativeAiYou')}：${entry.content}`}
           style={[styles.userBubble, { backgroundColor: ACCENT_FILL }]}>
-          <Text selectable style={{ color: ON_ACCENT_FILL, fontSize: scaledSize(TYPE.body, fontScale), lineHeight: scaledSize(22, fontScale) }}>
+          <Text selectable style={{ color: ON_ACCENT_FILL, fontSize: scaledSize(TYPE.body, fontScale), lineHeight: scaledSize(TYPE.title2, fontScale) }}>
             {entry.content}
           </Text>
         </View>
@@ -77,7 +77,7 @@ export default function ChatMessageItem({ entry, isDark, onOpenResult }: ChatMes
         entry.isError ? (
           <View accessibilityRole="alert" style={[styles.errorRow, { backgroundColor: tones.danger.bg }]}>
             <Icon name="circleX" size={16} color={tones.danger.fg} />
-            <Text style={[styles.errorText, { color: tones.danger.fg, fontSize: scaledSize(TYPE.callout, fontScale) }]}>{entry.content}</Text>
+            <Text style={[styles.errorText, { color: tones.danger.fg, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>{entry.content}</Text>
           </View>
         ) : (
           <StreamingMarkdown content={entry.content} streaming={streaming} isDark={isDark} />
@@ -87,7 +87,7 @@ export default function ChatMessageItem({ entry, isDark, onOpenResult }: ChatMes
       {entry.notice ? (
         <View accessibilityRole="alert" style={[styles.notice, { backgroundColor: tones.warn.bg }]}>
           <Icon name="info" size={16} color={tones.warn.fg} />
-          <Text style={[styles.errorText, { color: tones.warn.fg, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>{entry.notice}</Text>
+          <Text style={[styles.errorText, { color: tones.warn.fg, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>{entry.notice}</Text>
         </View>
       ) : null}
     </Animated.View>
@@ -96,10 +96,10 @@ export default function ChatMessageItem({ entry, isDark, onOpenResult }: ChatMes
 
 const styles = StyleSheet.create({
   userRow: { alignItems: 'flex-end', paddingLeft: 48 },
-  userBubble: { borderRadius: 20, borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 9 },
+  userBubble: { borderRadius: SHAPE.floating, borderCurve: 'continuous', borderBottomRightRadius: 6, paddingHorizontal: 14, paddingVertical: 9 },
   assistantRow: { alignItems: 'stretch', paddingRight: 8 },
   voiceTag: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
-  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: RADIUS.small, padding: 10 },
-  notice: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: RADIUS.small, padding: 10, marginTop: 8 },
-  errorText: { flex: 1, fontWeight: '500' },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: SHAPE.control, borderCurve: 'continuous', padding: 10 },
+  notice: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: SHAPE.control, borderCurve: 'continuous', padding: 10, marginTop: 8 },
+  errorText: { flex: 1, fontWeight: '600' },
 });

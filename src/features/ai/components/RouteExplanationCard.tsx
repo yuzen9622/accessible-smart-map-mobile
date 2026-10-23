@@ -7,7 +7,7 @@ import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import { useFontScale } from '@/shared/preferences';
 import { ensureAiDataConsent } from '@/shared/privacy';
-import { RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { explainRoute, type RouteExplanation } from '../api/explainApi';
@@ -59,7 +59,7 @@ export default function RouteExplanationCard({ route }: RouteExplanationCardProp
     return () => controller.abort();
   }, [requested, route, mode, language, attempt]);
 
-  const body = scaledSize(TYPE.callout, fontScale);
+  const body = scaledSize(TYPE.subhead, fontScale);
   const visible = requested === route ? state : { status: 'idle' as const };
 
   return (
@@ -142,13 +142,13 @@ export default function RouteExplanationCard({ route }: RouteExplanationCardProp
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: RADIUS.card, padding: 14, gap: 10, marginBottom: 16 },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 14, gap: 10, marginBottom: 16 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   title: { fontWeight: '700' },
   button: {
     alignSelf: 'flex-start',
     borderWidth: 1.5,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     paddingHorizontal: 16,
     minHeight: 40,
     justifyContent: 'center',

@@ -12,7 +12,7 @@ import {
   type TextInputProps,
 } from 'react-native';
 
-import { ACCENT_FILL, DANGER_FILL, scaledSize, useSemanticColors, useThemeColors, WHITE } from '@/shared/theme';
+import { ACCENT_FILL, DANGER_FILL, scaledSize, useSemanticColors, useThemeColors, WHITE, SHAPE, TYPE } from '@/shared/theme';
 import { useFontScale } from '@/shared/preferences';
 
 /**
@@ -45,12 +45,12 @@ export function FormSection({ title, footer, children }: { title?: string; foote
   return (
     <View style={styles.section}>
       {title ? (
-        <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.textSecondary, fontSize: scaledSize(13, scale) }]}>
+        <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }]}>
           {title}
         </Text>
       ) : null}
       <View style={[styles.card, { backgroundColor: colors.background }]}>{children}</View>
-      {footer ? <Text style={[styles.footer, { color: colors.textSecondary, fontSize: scaledSize(12, scale) }]}>{footer}</Text> : null}
+      {footer ? <Text style={[styles.footer, { color: colors.textSecondary, fontSize: scaledSize(TYPE.caption, scale) }]}>{footer}</Text> : null}
     </View>
   );
 }
@@ -110,7 +110,7 @@ export function FormInput({ label, value, onChangeText, secure, keyboardType, au
       style={[
         styles.input,
         multiline && styles.multiline,
-        { color: colors.text, borderColor: colors.backgroundElement, fontSize: scaledSize(16, scale) },
+        { color: colors.text, borderColor: colors.backgroundElement, fontSize: scaledSize(TYPE.callout, scale) },
       ]}
     />
   );
@@ -133,10 +133,10 @@ export function FormRow({ label, value, onPress, destructive, disabled, icon }: 
   const content = (
     <>
       {icon ? <View importantForAccessibility="no-hide-descendants">{icon}</View> : null}
-      <Text style={[styles.rowLabel, { color: destructive ? text.danger : onPress ? text.accent : colors.text, fontSize: scaledSize(16, scale) }]}>
+      <Text style={[styles.rowLabel, { color: destructive ? text.danger : onPress ? text.accent : colors.text, fontSize: scaledSize(TYPE.callout, scale) }]}>
         {label}
       </Text>
-      {value ? <Text style={[styles.rowValue, { color: colors.textSecondary, fontSize: scaledSize(15, scale) }]}>{value}</Text> : null}
+      {value ? <Text style={[styles.rowValue, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, scale) }]}>{value}</Text> : null}
     </>
   );
   if (!onPress) {
@@ -178,9 +178,9 @@ export function FormSwitch({
   return (
     <View style={styles.row}>
       <View style={styles.rowLabel}>
-        <Text style={{ color: colors.text, fontSize: scaledSize(16, scale) }}>{label}</Text>
+        <Text style={{ color: colors.text, fontSize: scaledSize(TYPE.callout, scale) }}>{label}</Text>
         {description ? (
-          <Text style={{ color: colors.textSecondary, fontSize: scaledSize(13, scale) }}>{description}</Text>
+          <Text style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, scale) }}>{description}</Text>
         ) : null}
       </View>
       <Switch
@@ -224,7 +224,7 @@ export function FormSegmented<T extends string>({
             accessibilityState={{ selected }}
             onPress={() => onChange(choice.value)}
             style={[styles.segment, { backgroundColor: selected ? ACCENT : colors.backgroundElement }]}>
-            <Text style={{ color: selected ? WHITE : colors.text, fontSize: scaledSize(14, scale), fontWeight: selected ? '600' : '400' }}>
+            <Text style={{ color: selected ? WHITE : colors.text, fontSize: scaledSize(TYPE.subhead, scale), fontWeight: selected ? '600' : '400' }}>
               {choice.label}
             </Text>
           </Pressable>
@@ -259,7 +259,7 @@ export function FormButton({
       disabled={disabled || loading}
       onPress={onPress}
       style={({ pressed }) => [styles.button, { backgroundColor: background }, (pressed || disabled) && styles.pressed]}>
-      {loading ? <ActivityIndicator color={foreground} /> : <Text style={{ color: foreground, fontSize: scaledSize(16, scale), fontWeight: '600' }}>{label}</Text>}
+      {loading ? <ActivityIndicator color={foreground} /> : <Text style={{ color: foreground, fontSize: scaledSize(TYPE.callout, scale), fontWeight: '600' }}>{label}</Text>}
     </Pressable>
   );
 }
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   screen: { padding: 16, paddingBottom: 48, gap: 20 },
   section: { gap: 6 },
   sectionTitle: { textTransform: 'uppercase', paddingHorizontal: 12 },
-  card: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 4, gap: 4 },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', paddingHorizontal: 12, paddingVertical: 4, gap: 4 },
   footer: { paddingHorizontal: 12 },
   text: { paddingVertical: 10 },
   input: { minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 8 },
@@ -278,6 +278,6 @@ const styles = StyleSheet.create({
   rowValue: { flexShrink: 1, textAlign: 'right' },
   pressed: { opacity: 0.5 },
   segmented: { flexDirection: 'row', gap: 6, paddingVertical: 8, flexWrap: 'wrap' },
-  segment: { minHeight: 44, flexGrow: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
-  button: { minHeight: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', marginVertical: 6, paddingHorizontal: 16 },
+  segment: { minHeight: 44, flexGrow: 1, borderRadius: SHAPE.control, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  button: { minHeight: 50, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', marginVertical: 6, paddingHorizontal: 16 },
 });

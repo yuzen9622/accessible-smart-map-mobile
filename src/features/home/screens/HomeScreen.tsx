@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getAppConfig } from '@/shared/config';
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, TYPE } from '@/shared/theme';
 
 import PlatformBadge from '../components/PlatformBadge';
 
@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: {
-    fontSize: 28,
+    fontSize: TYPE.title1,
     fontWeight: '700',
   },
 });

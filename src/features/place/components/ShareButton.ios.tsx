@@ -3,7 +3,7 @@ import { HStack, RNHostView, ShareLink } from '@expo/ui/swift-ui';
 import { accessibilityLabel, contentShape, frame, shapes } from '@expo/ui/swift-ui/modifiers';
 import { StyleSheet, View } from 'react-native';
 
-import { RADIUS, useSemanticColors } from '@/shared/theme';
+import { useSemanticColors, SHAPE } from '@/shared/theme';
 
 import { Icon } from '@/shared/ui';
 
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   circle: {
     width: 50,
     height: 50,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',

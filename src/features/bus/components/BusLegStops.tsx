@@ -16,7 +16,7 @@ import {
   type LngLatTuple,
 } from '@/features/route/domain';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { useThemeColors, LIVE_DOT } from '@/shared/theme';
+import { useThemeColors, LIVE_DOT, TYPE, SHAPE } from '@/shared/theme';
 import { useNow } from '@/shared/time';
 import { Icon } from '@/shared/ui';
 
@@ -323,28 +323,28 @@ function StopRow({ row, legColor, isDark, plate }: { row: BusLegStopRow; legColo
 const styles = StyleSheet.create({
   root: { gap: 8 },
   badgeRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
-  routeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  routeBadgeText: { color: BUS_ON_ACCENT_COLOR, fontSize: 13, fontWeight: '700' },
-  wait: { fontSize: 13 },
+  routeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: SHAPE.badge, borderCurve: 'continuous' },
+  routeBadgeText: { color: BUS_ON_ACCENT_COLOR, fontSize: TYPE.footnote, fontWeight: '700' },
+  wait: { fontSize: TYPE.footnote },
   live: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: LIVE_DOT },
-  liveText: { fontSize: 12 },
-  plate: { fontSize: 12, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  liveDot: { width: 8, height: 8, borderRadius: SHAPE.pill, borderCurve: 'continuous', backgroundColor: LIVE_DOT },
+  liveText: { fontSize: TYPE.caption },
+  plate: { fontSize: TYPE.caption, fontWeight: '600', fontVariant: ['tabular-nums'] },
   endpoint: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 32 },
-  endpointLabel: { fontSize: 13 },
-  endpointName: { fontSize: 15, fontWeight: '600', flex: 1 },
-  planned: { fontSize: 14, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  endpointLabel: { fontSize: TYPE.footnote },
+  endpointName: { fontSize: TYPE.subhead, fontWeight: '600', flex: 1 },
+  planned: { fontSize: TYPE.subhead, fontWeight: '600', fontVariant: ['tabular-nums'] },
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 8, alignSelf: 'flex-start' },
-  toggleText: { fontSize: 13 },
+  toggleText: { fontSize: TYPE.footnote },
   stops: { gap: 8, marginLeft: 12, paddingLeft: 12, borderLeftWidth: StyleSheet.hairlineWidth },
   stopRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 32 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  dotCurrent: { width: 12, height: 12, borderRadius: 6 },
+  dot: { width: 8, height: 8, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
+  dotCurrent: { width: 12, height: 12, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
   stopTexts: { flex: 1, gap: 2 },
-  stopName: { fontSize: 14 },
+  stopName: { fontSize: TYPE.subhead },
   passed: { textDecorationLine: 'line-through', opacity: 0.6 },
   currentName: { fontWeight: '700' },
-  skeleton: { width: 44, height: 18, borderRadius: 9 },
-  note: { fontSize: 13 },
-  nearest: { fontSize: 13 },
+  skeleton: { width: 44, height: 18, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
+  note: { fontSize: TYPE.footnote },
+  nearest: { fontSize: TYPE.footnote },
 });

@@ -2,6 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { pillToneStyle, type PillTone } from './palette';
+import { TYPE, SHAPE } from '@/shared/theme';
 
 interface EtaPillProps {
   text: string;
@@ -20,7 +21,7 @@ export default function EtaPill({ text, tone }: EtaPillProps) {
 }
 
 const styles = StyleSheet.create({
-  pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, flexShrink: 0 },
-  text: { fontSize: 13, fontVariant: ['tabular-nums'] },
+  pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: SHAPE.pill, borderCurve: 'continuous', flexShrink: 0 },
+  text: { fontSize: TYPE.footnote, fontVariant: ['tabular-nums'] },
   bold: { fontWeight: '700' },
 });

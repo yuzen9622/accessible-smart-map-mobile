@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors, FACILITY } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, FACILITY, SHAPE } from '@/shared/theme';
 import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
 
 import { FACILITY_COLORS } from '../domain/facilityStyle';
@@ -115,26 +115,26 @@ export default function NearbyPanel({ model, onRequestLocation, labels }: Nearby
 const styles = StyleSheet.create({
   // paddingTop 多留一點：透明導覽列底緣的 scroll-edge 效果會蓋到第一行
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 12 },
-  note: { fontSize: TYPE.subhead, paddingHorizontal: 4 },
+  note: { fontSize: TYPE.footnote, paddingHorizontal: 4 },
   message: { alignItems: 'center', paddingVertical: 24, gap: 12 },
-  messageText: { fontSize: TYPE.callout, textAlign: 'center' },
+  messageText: { fontSize: TYPE.subhead, textAlign: 'center' },
   locateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     minHeight: 44,
     paddingHorizontal: 20,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     backgroundColor: ACCENT_FILL,
   },
   locateText: { color: ON_ACCENT_FILL, fontSize: TYPE.body, fontWeight: '600' },
-  card: { borderRadius: RADIUS.card, paddingHorizontal: 12 },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', paddingHorizontal: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 },
-  iconCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  iconCircle: { width: 34, height: 34, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   rowTexts: { flex: 1, gap: 2 },
   rowTitle: { fontSize: TYPE.body, fontWeight: '600' },
-  rowSubtitle: { fontSize: TYPE.subhead },
-  distance: { fontSize: TYPE.callout, fontVariant: ['tabular-nums'] },
+  rowSubtitle: { fontSize: TYPE.footnote },
+  distance: { fontSize: TYPE.subhead, fontVariant: ['tabular-nums'] },
   pressed: { opacity: 0.6 },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4 },
   footerText: { flex: 1, fontSize: TYPE.caption },

@@ -1,7 +1,7 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, SPACE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { SPACE, useSemanticColors, useThemeColors, TYPE, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
@@ -81,13 +81,13 @@ const styles = StyleSheet.create({
   content: { padding: SPACE.lg, gap: SPACE.md },
   flex: { flex: 1 },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
-  heroIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-  heroTemp: { fontSize: 44, fontWeight: '800', lineHeight: 50 },
-  heroCondition: { fontSize: 16, fontWeight: '600' },
+  heroIcon: { width: 64, height: 64, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  heroTemp: { fontSize: TYPE.numeralM, fontWeight: '700', lineHeight: 50 },
+  heroCondition: { fontSize: TYPE.callout, fontWeight: '600' },
   statRow: { flexDirection: 'row', gap: SPACE.sm },
-  statCard: { flex: 1, borderRadius: RADIUS.card, padding: SPACE.md, gap: 4, alignItems: 'flex-start' },
-  statValue: { fontSize: 20, fontWeight: '700' },
-  statLabel: { fontSize: 12, fontWeight: '600' },
-  adviceCard: { borderRadius: RADIUS.card, padding: SPACE.md },
-  adviceText: { fontSize: 14, lineHeight: 20 },
+  statCard: { flex: 1, borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.md, gap: 4, alignItems: 'flex-start' },
+  statValue: { fontSize: TYPE.title3, fontWeight: '700' },
+  statLabel: { fontSize: TYPE.caption, fontWeight: '600' },
+  adviceCard: { borderRadius: SHAPE.card, borderCurve: 'continuous', padding: SPACE.md },
+  adviceText: { fontSize: TYPE.subhead, lineHeight: 20 },
 });

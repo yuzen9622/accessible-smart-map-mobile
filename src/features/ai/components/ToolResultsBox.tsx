@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import { RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { ToolCardIcon, ToolResultGroup, ToolResultItem } from '../domain/toolResultCards';
@@ -62,7 +62,7 @@ export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxPro
         <View style={[styles.headerIcon, { backgroundColor: tones.accentSoft }]}>
           <Icon name={ICON[groups.length > 1 ? 'search' : active.icon]} size={16} color={tones.accent} />
         </View>
-        <Text numberOfLines={1} style={[styles.heading, { color: colors.text, fontSize: scaledSize(TYPE.callout, fontScale) }]}>
+        <Text numberOfLines={1} style={[styles.heading, { color: colors.text, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
           {heading}
         </Text>
         <Text style={[styles.count, { color: colors.textSecondary, fontSize: scaledSize(TYPE.caption, fontScale) }]}>
@@ -98,7 +98,7 @@ export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxPro
           ) : null}
 
           {active.note ? (
-            <Text style={[styles.note, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>{active.note}</Text>
+            <Text style={[styles.note, { color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>{active.note}</Text>
           ) : null}
 
           {items.length > 0 ? (
@@ -123,11 +123,11 @@ export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxPro
                       { backgroundColor: colors.background, borderColor: tones.separator },
                       pressed && styles.pressed,
                     ]}>
-                    <Text style={[styles.cardTitle, { color: colors.text, fontSize: scaledSize(TYPE.callout, fontScale) }]}>
+                    <Text style={[styles.cardTitle, { color: colors.text, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
                       {item.title}
                     </Text>
                     {item.subtitle ? (
-                      <Text style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, fontScale) }}>
+                      <Text style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, fontScale) }}>
                         {item.subtitle}
                       </Text>
                     ) : null}
@@ -148,7 +148,7 @@ export default function ToolResultsBox({ groups, onOpenItem }: ToolResultsBoxPro
               accessibilityRole="button"
               onPress={() => setVisibleCounts(previous => ({ ...previous, [activeKey]: visibleCount + DISPLAY_PAGE_SIZE }))}
               style={[styles.more, { backgroundColor: tones.accentSoft }]}>
-              <Text style={{ color: tones.accent, fontSize: scaledSize(TYPE.subhead, fontScale) }}>
+              <Text style={{ color: tones.accent, fontSize: scaledSize(TYPE.footnote, fontScale) }}>
                 {t('nativeAiShowMoreResults', { shown: items.length, total: active.items.length })}
               </Text>
             </Pressable>
@@ -164,9 +164,9 @@ const HEADER_HIT_SLOP = { top: 4, bottom: 4 };
 const TAB_HIT_SLOP = { top: 7, bottom: 7 };
 
 const styles = StyleSheet.create({
-  box: { borderRadius: RADIUS.card, paddingVertical: 10, gap: 8, marginTop: 8 },
+  box: { borderRadius: SHAPE.card, borderCurve: 'continuous', paddingVertical: 10, gap: 8, marginTop: 8 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, minHeight: 36 },
-  headerIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  headerIcon: { width: 28, height: 28, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   heading: { flex: 1, fontWeight: '700' },
   count: { fontWeight: '600' },
   tabs: { gap: 6, paddingHorizontal: 12, paddingVertical: 7 },
@@ -178,22 +178,22 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     minHeight: 30,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
   },
   tabText: { fontWeight: '600', maxWidth: 160 },
   note: { paddingHorizontal: 12 },
   cards: { gap: 8, paddingHorizontal: 12 },
-  more: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginHorizontal: 12, padding: 8, borderRadius: RADIUS.small },
+  more: { minHeight: 44, alignItems: 'center', justifyContent: 'center', marginHorizontal: 12, padding: 8, borderRadius: SHAPE.control, borderCurve: 'continuous' },
   card: {
     width: CARD_WIDTH,
-    borderRadius: RADIUS.small + 2,
+    borderRadius: SHAPE.control + 2, borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
     padding: 12,
     gap: 4,
   },
   cardTitle: { fontWeight: '600' },
-  badge: { alignSelf: 'flex-start', borderRadius: RADIUS.pill, paddingHorizontal: 8, paddingVertical: 2, marginTop: 2 },
+  badge: { alignSelf: 'flex-start', borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 8, paddingVertical: 2, marginTop: 2 },
   badgeText: { fontWeight: '600' },
   pressed: { opacity: 0.6 },
 });

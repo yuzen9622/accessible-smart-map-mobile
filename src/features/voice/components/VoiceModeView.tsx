@@ -15,7 +15,7 @@ import { getAggregatedToolResults, openAiResult, ToolResultsBox, toolDoneLabel, 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
 import { ensureAiDataConsent } from '@/shared/privacy';
-import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors, VOICE_ORB_EDGE, semanticColors } from '@/shared/theme';
+import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, TYPE, scaledSize, useSemanticColors, useThemeColors, VOICE_ORB_EDGE, semanticColors, SHAPE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import { dismissVoiceSession, endVoiceSession, startVoiceSession, retryRouteContextSync, resumeVoicePlayback, toggleVoiceMute } from '../controller/voiceController';
@@ -79,7 +79,7 @@ function ControlButton({
       <View style={[styles.controlCircle, { backgroundColor: background }]}>
         <Icon name={icon} size={28} color={foreground} />
       </View>
-      <Text numberOfLines={1} style={[styles.controlLabel, { color: colors.text, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
+      <Text numberOfLines={1} style={[styles.controlLabel, { color: colors.text, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
         {label}
       </Text>
     </Pressable>
@@ -218,7 +218,7 @@ export default function VoiceModeView() {
               styles.status,
               {
                 color: status.status === 'error' || status.status === 'needs-login' ? tones.danger.fg : colors.text,
-                fontSize: scaledSize(TYPE.headline, fontScale),
+                fontSize: scaledSize(TYPE.title3, fontScale),
               },
             ]}>
             {statusLabel}
@@ -230,7 +230,7 @@ export default function VoiceModeView() {
                 size={14}
                 color={activeTool.type === 'call' ? colors.textSecondary : activeTool.ok === false ? tones.warn.fg : tones.ok.fg}
               />
-              <Text style={[styles.toolText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
+              <Text style={[styles.toolText, { color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
                 {activeTool.type === 'call' ? toolLoadingLabel(activeTool.name, t) : activeTool.ok === false ? t('chatbot.voice.toolFailed') : toolDoneLabel(activeTool.name, t)}
               </Text>
             </View>
@@ -260,10 +260,10 @@ export default function VoiceModeView() {
                   accessible
                   accessibilityLabel={`${t('chatbot.voice.transcriptUser')}：${entry.text}`}
                   style={styles.userEntry}>
-                  <Text style={[styles.youSaid, { color: colors.textSecondary, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>
+                  <Text style={[styles.youSaid, { color: colors.textSecondary, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>
                     {t('chatbot.voice.youSaid')}
                   </Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: scaledSize(17, fontScale), lineHeight: scaledSize(24, fontScale) }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: scaledSize(TYPE.body, fontScale), lineHeight: scaledSize(24, fontScale) }}>
                     {entry.text}
                   </Text>
                 </View>
@@ -372,8 +372,8 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', gap: 4, paddingTop: 16, paddingHorizontal: 24 },
   status: { fontWeight: '700', textAlign: 'center' },
   tool: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' },
-  toolText: { flexShrink: 1, fontWeight: '500' },
-  resume: { borderRadius: RADIUS.pill, paddingHorizontal: 16, minHeight: MIN_TOUCH, justifyContent: 'center', marginTop: 6 },
+  toolText: { flexShrink: 1, fontWeight: '600' },
+  resume: { borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 16, minHeight: MIN_TOUCH, justifyContent: 'center', marginTop: 6 },
   transcripts: { flex: 1 },
   transcriptContent: { paddingHorizontal: 24, paddingVertical: 20, gap: 18 },
   transcriptEmpty: { flexGrow: 1, justifyContent: 'center' },

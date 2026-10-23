@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useFontScale } from '@/shared/preferences';
-import { ACCENT_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, MIN_TOUCH, ON_ACCENT_FILL, TYPE, scaledSize, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 export interface ChatComposerProps {
@@ -60,7 +60,7 @@ export default function ChatComposer({
               onPress={() => onSend(suggestion)}
               style={({ pressed }) => [styles.chip, { backgroundColor: tones.accentSoft }, pressed && styles.pressed]}>
               <Icon name="sparkles" size={14} color={tones.accent} />
-              <Text style={[styles.chipText, { color: tones.accent, fontSize: scaledSize(TYPE.subhead, fontScale) }]}>{suggestion}</Text>
+              <Text style={[styles.chipText, { color: tones.accent, fontSize: scaledSize(TYPE.footnote, fontScale) }]}>{suggestion}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -121,14 +121,14 @@ const styles = StyleSheet.create({
     gap: 6,
     minHeight: MIN_TOUCH - 8,
     paddingHorizontal: 12,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
   },
   chipText: { fontWeight: '600' },
   bar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
-    borderRadius: 22,
+    borderRadius: SHAPE.floating, borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
     paddingLeft: 16,
     paddingRight: 6,

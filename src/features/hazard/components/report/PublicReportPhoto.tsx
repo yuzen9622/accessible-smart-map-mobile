@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, RADIUS, SPACE, TYPE, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, SPACE, TYPE, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
@@ -61,9 +61,9 @@ function PublicPhotoSession({ url, onRefresh }: { url: string; onRefresh: () => 
 
 const styles = StyleSheet.create({
   wrap: { gap: SPACE.sm },
-  frame: { width: '100%', aspectRatio: 4 / 3, borderRadius: RADIUS.card, overflow: 'hidden' },
-  unavailable: { borderRadius: RADIUS.card, overflow: 'hidden' },
+  frame: { width: '100%', aspectRatio: 4 / 3, borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
+  unavailable: { borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
   failedContent: { minHeight: 128, padding: SPACE.lg, gap: SPACE.sm, alignItems: 'center', justifyContent: 'center' },
   placeholder: { ...StyleSheet.absoluteFill, padding: SPACE.lg, gap: SPACE.sm, alignItems: 'center', justifyContent: 'center' },
-  label: { fontSize: TYPE.subhead, textAlign: 'center' },
+  label: { fontSize: TYPE.footnote, textAlign: 'center' },
 });

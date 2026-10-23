@@ -9,6 +9,7 @@ import { FormPrimaryButton, KeyboardAvoidingHost } from '@/shared/ui';
 
 import HazardReportResult from './HazardReportResult';
 import type { HazardReportPanelProps } from './HazardReportPanel.types';
+import { SHAPE } from '@/shared/theme';
 
 /** iOS：SwiftUI Form；照片預覽以 RNHostView 嵌入 expo-image。 */
 export default function HazardReportPanel({ model }: HazardReportPanelProps) {
@@ -112,5 +113,5 @@ function ReportForm({ model }: HazardReportPanelProps) {
 
 const styles = StyleSheet.create({
   previewWrap: { paddingVertical: 4 },
-  preview: { height: 200, borderRadius: 12 },
+  preview: { height: 200, borderRadius: SHAPE.control, borderCurve: 'continuous' },
 });

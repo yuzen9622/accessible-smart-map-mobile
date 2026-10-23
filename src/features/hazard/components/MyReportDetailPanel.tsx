@@ -2,7 +2,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { ErrorState, Icon, type IconName } from '@/shared/ui';
 
 import { hazardExpired } from '../domain/review';
@@ -172,14 +172,14 @@ const styles = StyleSheet.create({
   header: { gap: 6 },
   eyebrowRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
   eyebrow: { fontSize: TYPE.caption, fontWeight: '600', letterSpacing: 0.4 },
-  chip: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  chip: { borderRadius: SHAPE.badge, borderCurve: 'continuous', paddingHorizontal: 8, paddingVertical: 3 },
   chipText: { fontSize: TYPE.caption, fontWeight: '600' },
-  title: { fontSize: TYPE.title, fontWeight: '700' },
+  title: { fontSize: TYPE.title1, fontWeight: '700' },
   section: { gap: 10 },
   description: { fontSize: TYPE.body, lineHeight: 26 },
-  locationCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: RADIUS.card, overflow: 'hidden' },
+  locationCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
   locationBody: { flexDirection: 'row', gap: 12, padding: 14, alignItems: 'flex-start' },
-  iconTile: { borderRadius: RADIUS.small, padding: 9 },
+  iconTile: { borderRadius: SHAPE.control, borderCurve: 'continuous', padding: 9 },
   mapButton: {
     minHeight: MIN_TOUCH,
     flexDirection: 'row',
@@ -189,8 +189,8 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   stats: { flexDirection: 'row', gap: 10 },
-  stat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: RADIUS.small, padding: 12 },
-  statValue: { fontSize: TYPE.headline, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  stat: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: SHAPE.control, borderCurve: 'continuous', padding: 12 },
+  statValue: { fontSize: TYPE.title3, fontWeight: '700', fontVariant: ['tabular-nums'] },
   statLabel: { fontSize: TYPE.caption },
   dates: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 16, gap: 10 },
 });

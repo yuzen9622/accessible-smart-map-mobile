@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { FacilityDetailRow } from '../hooks/useFacilityDetail';
@@ -84,8 +84,8 @@ export default function FacilityDetailPanel({ model }: FacilityDetailPanelProps)
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 32, gap: 16 },
   header: { gap: 4 },
-  eyebrow: { fontSize: TYPE.subhead, fontWeight: '500' },
-  title: { fontSize: TYPE.title, fontWeight: '700' },
+  eyebrow: { fontSize: TYPE.footnote, fontWeight: '600' },
+  title: { fontSize: TYPE.title1, fontWeight: '700' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   actionsLarge: { flexWrap: 'wrap' },
   primaryButton: {
@@ -96,27 +96,27 @@ const styles = StyleSheet.create({
     gap: 8,
     minHeight: 50,
     paddingHorizontal: 12,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
     backgroundColor: ACCENT_FILL,
   },
   primaryButtonLarge: { flexGrow: 0, flexBasis: '100%', paddingVertical: 10 },
-  primaryText: { color: ON_ACCENT_FILL, fontSize: 17, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
-  circleButton: { width: 50, height: 50, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
+  primaryText: { color: ON_ACCENT_FILL, fontSize: TYPE.body, fontWeight: '600', flexShrink: 1, textAlign: 'center' },
+  circleButton: { width: 50, height: 50, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6 },
-  card: { borderRadius: RADIUS.card, paddingHorizontal: 14 },
+  card: { borderRadius: SHAPE.card, borderCurve: 'continuous', paddingHorizontal: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingVertical: 10 },
-  rowLabel: { fontSize: TYPE.callout },
-  rowValue: { flex: 1, fontSize: TYPE.callout, textAlign: 'right' },
+  rowLabel: { fontSize: TYPE.subhead },
+  rowValue: { flex: 1, fontSize: TYPE.subhead, textAlign: 'right' },
   rowValueStrong: { fontWeight: '600' },
   feedback: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-  feedbackText: { flex: 1, minWidth: 160, fontSize: TYPE.callout, fontWeight: '600' },
+  feedbackText: { flex: 1, minWidth: 160, fontSize: TYPE.subhead, fontWeight: '600' },
   reportButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     minHeight: 44,
     paddingHorizontal: 16,
-    borderRadius: RADIUS.pill,
+    borderRadius: SHAPE.pill, borderCurve: 'continuous',
   },
-  reportText: { fontSize: TYPE.callout, fontWeight: '600' },
+  reportText: { fontSize: TYPE.subhead, fontWeight: '600' },
 });

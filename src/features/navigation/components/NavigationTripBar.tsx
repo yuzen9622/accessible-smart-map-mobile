@@ -5,7 +5,7 @@ import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { useRouteSession } from '@/features/route';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { DANGER_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { DANGER_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, TYPE, SHAPE } from '@/shared/theme';
 import { AnimatedNumberText, Icon } from '@/shared/ui';
 
 import { endNavigation } from '../controller/navigationSession';
@@ -141,11 +141,11 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   // AnimatedNumberText 是原生 view、沒有文字 baseline：改底部對齊，單位字再墊高到數字的 baseline
   remainRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
-  remain: { fontSize: 28, fontWeight: '800' },
-  unit: { fontSize: 15, fontWeight: '600', paddingBottom: 5 },
-  meta: { fontSize: 14 },
-  roundButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  viewModeText: { fontSize: 16, fontWeight: '700' },
-  endButton: { height: 48, borderRadius: 24, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
-  endText: { color: ON_ACCENT_FILL, fontSize: 17, fontWeight: '700' },
+  remain: { fontSize: TYPE.title1, fontWeight: '700' },
+  unit: { fontSize: TYPE.subhead, fontWeight: '600', paddingBottom: 5 },
+  meta: { fontSize: TYPE.subhead },
+  roundButton: { width: 48, height: 48, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  viewModeText: { fontSize: TYPE.callout, fontWeight: '700' },
+  endButton: { height: 48, borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
+  endText: { color: ON_ACCENT_FILL, fontSize: TYPE.body, fontWeight: '700' },
 });

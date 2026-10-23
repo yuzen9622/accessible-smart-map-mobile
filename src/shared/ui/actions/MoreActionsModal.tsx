@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, useSemanticColors, useThemeColors, SHAPE } from '@/shared/theme';
 import Icon from '../Icon';
 
 import type { MoreActionsButtonProps } from './MoreActionsButton.types';
@@ -65,12 +65,12 @@ export default function MoreActionsModal({ label, cancelLabel, actions, backgrou
 }
 
 const styles = StyleSheet.create({
-  button: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center' },
+  button: { width: 50, height: 50, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6 },
   backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.35)' },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 12, gap: 8 },
-  group: { borderRadius: RADIUS.card, overflow: 'hidden' },
-  title: { fontSize: TYPE.subhead, fontWeight: '600', textAlign: 'center', paddingVertical: 12, paddingHorizontal: 16 },
+  group: { borderRadius: SHAPE.card, borderCurve: 'continuous', overflow: 'hidden' },
+  title: { fontSize: TYPE.footnote, fontWeight: '600', textAlign: 'center', paddingVertical: 12, paddingHorizontal: 16 },
   row: { minHeight: MIN_TOUCH + 8, justifyContent: 'center', paddingHorizontal: 16, borderTopWidth: StyleSheet.hairlineWidth },
   rowText: { fontSize: TYPE.body, textAlign: 'center' },
   cancel: { minHeight: MIN_TOUCH + 8, justifyContent: 'center' },

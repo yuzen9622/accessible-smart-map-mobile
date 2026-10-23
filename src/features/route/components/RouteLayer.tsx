@@ -2,6 +2,8 @@ import { GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import type { Feature, Point } from 'geojson';
 
 import { ROUTE_DESTINATION_COLOR, buildRouteLayerData, type RoutePointProps } from '../domain/routeLayerData';
+import { revealRouteLines } from '../domain/routeReveal';
+import { useRouteReveal } from '../hooks/useRouteReveal';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import { WHITE } from '@/shared/theme';
 
@@ -24,7 +26,11 @@ export default function RouteLayer() {
   const waypoints = useRouteSessionStore((s) => s.routeWaypoints);
   const destination = useRouteSessionStore((s) => s.destination);
 
+  const reveal = useRouteReveal(route?.routeId ?? null);
   const data = buildRouteLayerData(route, waypoints);
+  // 繪出動畫期間只畫到進度位置；起點之外的點（轉乘、中繼、事故）等畫完再出現
+  const lines = revealRouteLines(data.lines, reveal);
+  const points = reveal >= 1 ? data.points : { ...data.points, features: data.points.features.filter((f) => f.properties.kind === 'origin') };
   if (!route && destination) {
     const pin: Feature<Point, RoutePointProps> = {
       type: 'Feature',
@@ -38,7 +44,7 @@ export default function RouteLayer() {
 
   return (
     <>
-      <GeoJSONSource id="route-lines" data={data.lines}>
+      <GeoJSONSource id="route-lines" data={lines}>
         <Layer
           id="route-line-casing"
           type="line"
@@ -81,7 +87,7 @@ export default function RouteLayer() {
           paint={{ 'line-color': ['get', 'color'], 'line-width': 6, 'line-opacity': 0.95, 'line-dasharray': [1, 2] }}
         />
       </GeoJSONSource>
-      <GeoJSONSource id="route-points" data={data.points}>
+      <GeoJSONSource id="route-points" data={points}>
         <Layer
           id="route-point-circles"
           type="circle"

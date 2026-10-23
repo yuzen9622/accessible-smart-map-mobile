@@ -3,7 +3,7 @@ import { Text } from '@/shared/ui/typography/Text';
 import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, WHITE, DANGER_FILL } from '@/shared/theme';
 import { EmptyState, Icon } from '@/shared/ui';
 
 import CategoryNameModal from './CategoryNameModal';
@@ -61,7 +61,7 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
               { borderColor: PLACE_BORDER_COLOR },
               filter.isSelected && { backgroundColor: PLACE_ACCENT_COLOR, borderColor: PLACE_ACCENT_COLOR },
             ]}>
-            <Text style={{ color: filter.isSelected ? '#FFFFFF' : colors.text, fontSize: 12, fontWeight: '500' }}>
+            <Text style={{ color: filter.isSelected ? WHITE : colors.text, fontSize: 12, fontWeight: '500' }}>
               {filter.label}
             </Text>
           </Pressable>
@@ -103,7 +103,7 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
               accessibilityLabel={item.removeAccessibilityLabel}
               onPress={item.onRemove}
               style={styles.removeButton}>
-              <Text style={{ color: '#C62828' }}>{model.unsaveLabel}</Text>
+              <Text style={{ color: DANGER_FILL }}>{model.unsaveLabel}</Text>
             </Pressable>
           </View>
         )}

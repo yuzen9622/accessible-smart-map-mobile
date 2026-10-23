@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, useThemeColors, SEGMENT_THUMB_DARK, WHITE, SHADOW_COLOR } from '@/shared/theme';
 import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
 
 import type { SegmentedControlProps } from './SegmentedControl.types';
@@ -23,7 +23,7 @@ export default function SegmentedControlBase<T extends string>({ label, options,
   const isDark = useColorScheme() === 'dark';
   const ios = variant === 'ios';
   const track = isDark ? 'rgba(118,118,128,0.24)' : 'rgba(120,120,128,0.12)';
-  const thumb = isDark ? '#636366' : '#FFFFFF';
+  const thumb = isDark ? SEGMENT_THUMB_DARK : WHITE;
 
   return (
     <View
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   // 40 + 軌道上下 padding 2 = 44pt 觸控高度（SDD §10）
   segment: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   thumb: {
-    shadowColor: '#000000',
+    shadowColor: SHADOW_COLOR,
     shadowOpacity: 0.12,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },

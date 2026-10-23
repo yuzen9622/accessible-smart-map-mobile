@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { DANGER_FILL } from '@/shared/theme';
+import { DANGER_FILL, SHADOW_COLOR, WHITE } from '@/shared/theme';
 
 import { selectSosInProgress, useSosStore } from '../store/sosStore';
 
@@ -38,13 +38,13 @@ const styles = StyleSheet.create({
     backgroundColor: DANGER_FILL,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: SHADOW_COLOR,
     shadowOpacity: 0.25,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 6,
   },
-  active: { borderWidth: 4, borderColor: '#FFFFFF' },
+  active: { borderWidth: 4, borderColor: WHITE },
   pressed: { opacity: 0.8 },
-  text: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', letterSpacing: 1 },
+  text: { color: WHITE, fontSize: 18, fontWeight: '800', letterSpacing: 1 },
 });

@@ -4,7 +4,7 @@ import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, WHITE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { filterIncidentsAlongRoute, formatIncidentEnd, isIncidentClosed } from '../domain/geo';
@@ -282,7 +282,7 @@ function TimelineRail({ leg, color }: { leg: RouteLeg; color: string }) {
   return (
     <View style={styles.rail} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
       <View style={[styles.legIcon, walk ? { backgroundColor: semantic.neutral.bg } : { backgroundColor: color }]}>
-        <Icon name={LEG_ICON[leg.type]} size={16} color={walk ? semantic.neutral.fg : '#FFFFFF'} />
+        <Icon name={LEG_ICON[leg.type]} size={16} color={walk ? semantic.neutral.fg : WHITE} />
       </View>
       {walk ? (
         // 絕對定位：點串本身很長，若參與排版會把整段撐高；只填滿內容決定的高度

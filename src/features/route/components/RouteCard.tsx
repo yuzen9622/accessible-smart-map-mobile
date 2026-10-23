@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, RADIUS, TYPE, useSemanticColors, useThemeColors, WHITE } from '@/shared/theme';
 import { useNow } from '@/shared/time';
 import { Icon, type IconName } from '@/shared/ui';
 
@@ -160,7 +160,7 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
                 {index > 0 ? <Icon name="chevronRight" size={14} color={colors.textSecondary} /> : null}
                 {segment.label ? (
                   <View style={[styles.legPill, { backgroundColor: LEG_LABEL_FILL[segment.type] }]}>
-                    <Icon name={LEG_ICON[segment.type]} size={13} color="#FFFFFF" />
+                    <Icon name={LEG_ICON[segment.type]} size={13} color={WHITE} />
                     <Text style={styles.legPillText} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
                       {segment.label}
                     </Text>
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
   legChainItem: { flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 4 },
   // minHeight 而非固定高度：字級放大時膠囊跟著長高，不截字
   legPill: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 24, paddingVertical: 2, borderRadius: 6, paddingHorizontal: 7, maxWidth: 140 },
-  legPillText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  legPillText: { color: WHITE, fontSize: 13, fontWeight: '700' },
   altBadge: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, paddingHorizontal: 5, minHeight: 20, justifyContent: 'center' },
   altBadgeText: { fontSize: TYPE.caption, fontWeight: '600', fontVariant: ['tabular-nums'] },
   boardingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

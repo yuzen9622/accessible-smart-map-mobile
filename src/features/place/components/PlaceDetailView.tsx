@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, useColorScheme, useWindowDimensions, View } from 'react-native';
 
 import { FACILITY_COLORS } from '@/features/map';
-import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, semanticColors, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { MAX_FONT_SCALE, MIN_TOUCH, RADIUS, TYPE, semanticColors, useSemanticColors, useThemeColors, WHITE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import CategoryNameModal from './CategoryNameModal';
@@ -331,7 +331,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
                 accessibilityLabel={[row.name, row.typeLabel, row.address, row.distanceText].filter(Boolean).join('，')}
                 style={styles.nearbyRow}>
                 <View style={[styles.nearbyIcon, { width: scaled(30), height: scaled(30), backgroundColor: nearbyKindStyle(row.kind).color }]}>
-                  <Icon name={nearbyKindStyle(row.kind).icon} size={scaled(16)} color="#FFFFFF" />
+                  <Icon name={nearbyKindStyle(row.kind).icon} size={scaled(16)} color={WHITE} />
                 </View>
                 {/* 分隔線從文字起點開始（iOS inset grouped 列表的慣例），不切過圖示 */}
                 <View style={[styles.nearbyText, index > 0 && rowDivider]}>

@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { Pressable, StyleSheet } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, DESTRUCTIVE_TEXT } from '@/shared/theme';
 
 import type { ButtonProps } from './Button.types';
 
@@ -22,7 +22,7 @@ export default function Button({
       : isDestructive
         ? colors.backgroundElement
         : colors.backgroundElement;
-  const textColor = variant === 'primary' ? colors.background : isDestructive ? '#D92D20' : colors.text;
+  const textColor = variant === 'primary' ? colors.background : isDestructive ? DESTRUCTIVE_TEXT : colors.text;
 
   return (
     <Pressable

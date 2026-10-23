@@ -3,7 +3,7 @@ import { Marker } from '@maplibre/maplibre-react-native';
 import { router } from 'expo-router';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, SHADOW_COLOR } from '@/shared/theme';
 
 import { FACILITY_COLORS } from '../domain/facilityStyle';
 import { formatDistance } from '../domain/parking';
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     paddingLeft: 3,
     paddingRight: 10,
     borderRadius: 15,
-    shadowColor: '#000000',
+    shadowColor: SHADOW_COLOR,
     shadowOpacity: 0.22,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },

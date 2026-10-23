@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, SHADOW_COLOR } from '@/shared/theme';
 
 import type { GlassCardProps } from './GlassCard.types';
 
@@ -13,7 +13,7 @@ export default function GlassCard({ children, style }: GlassCardProps) {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 20,
-    shadowColor: '#000000',
+    shadowColor: SHADOW_COLOR,
     shadowOpacity: 0.18,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },

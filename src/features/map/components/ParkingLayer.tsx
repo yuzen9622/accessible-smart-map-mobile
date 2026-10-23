@@ -3,8 +3,9 @@ import type { Feature, FeatureCollection, Point } from 'geojson';
 
 import { parkingItemLngLat } from '../domain/parking';
 import { useParkingStore } from '../store/parkingStore';
+import { FACILITY, WHITE } from '@/shared/theme';
 
-const PARKING_COLOR = '#3949AB';
+const PARKING_COLOR = FACILITY.parking.line;
 
 /** 附近無障礙停車（藍紫色 P）。資料由 useNearbyParking 依位置更新。 */
 export default function ParkingLayer() {
@@ -34,7 +35,7 @@ export default function ParkingLayer() {
           'circle-color': PARKING_COLOR,
           'circle-radius': 10,
           'circle-stroke-width': 2,
-          'circle-stroke-color': '#FFFFFF',
+          'circle-stroke-color': WHITE,
         }}
       />
       <Layer
@@ -42,7 +43,7 @@ export default function ParkingLayer() {
         type="symbol"
         minzoom={13}
         layout={{ 'text-field': 'P', 'text-font': ['Noto Sans Regular'], 'text-size': 12, 'text-allow-overlap': true }}
-        paint={{ 'text-color': '#FFFFFF' }}
+        paint={{ 'text-color': WHITE }}
       />
     </GeoJSONSource>
   );

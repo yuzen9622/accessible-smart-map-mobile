@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useAppTranslation } from '@/shared/i18n';
-import { RADIUS, SPACE, useThemeColors } from '@/shared/theme';
+import { RADIUS, SPACE, useThemeColors, SHADOW_COLOR } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
     paddingVertical: 6,
     paddingHorizontal: SPACE.md,
-    shadowColor: '#000000',
+    shadowColor: SHADOW_COLOR,
     shadowOpacity: 0.12,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },

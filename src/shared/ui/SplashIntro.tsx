@@ -14,9 +14,10 @@ import Animated, {
 import { useAppTranslation } from '@/shared/i18n';
 
 import { useSplashStore } from './splashStore';
+import { SPLASH_BG, BLACK, WHITE } from '@/shared/theme';
 
-const LIGHT_BG = '#3C70FC';
-const DARK_BG = '#000000';
+const LIGHT_BG = SPLASH_BG;
+const DARK_BG = BLACK;
 
 /**
  * 原生 Splash（靜態圖，技術上無法做動畫）之後接的短動畫過渡畫面：logo 淡入放大、App 標語淡入，
@@ -87,5 +88,5 @@ export default function SplashIntro() {
 const styles = StyleSheet.create({
   container: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', zIndex: 999 },
   logo: { width: 120, height: 120 },
-  tagline: { marginTop: 16, fontSize: 15, fontWeight: '600', color: '#FFFFFF', letterSpacing: 0.3 },
+  tagline: { marginTop: 16, fontSize: 15, fontWeight: '600', color: WHITE, letterSpacing: 0.3 },
 });

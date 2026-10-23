@@ -3,6 +3,7 @@ import type { Feature, Point } from 'geojson';
 
 import { ROUTE_DESTINATION_COLOR, buildRouteLayerData, type RoutePointProps } from '../domain/routeLayerData';
 import { useRouteSessionStore } from '../store/routeSessionStore';
+import { WHITE } from '@/shared/theme';
 
 /**
  * 路線圖層（SDD §4.4 RouteLayer）：選中路線的每段 leg 一條線，依 feature `kind` 分到不同 layer——
@@ -43,7 +44,7 @@ export default function RouteLayer() {
           type="line"
           filter={['match', ['get', 'kind'], ['transit', 'drive'], true, false]}
           layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-          paint={{ 'line-color': '#FFFFFF', 'line-width': 11, 'line-opacity': 0.9 }}
+          paint={{ 'line-color': WHITE, 'line-width': 11, 'line-opacity': 0.9 }}
         />
         <Layer
           id="route-line-walk"
@@ -89,7 +90,7 @@ export default function RouteLayer() {
               'match',
               ['get', 'kind'],
               ['origin', 'transfer'],
-              '#FFFFFF',
+              WHITE,
               ['get', 'color'],
             ],
             'circle-radius': [
@@ -105,7 +106,7 @@ export default function RouteLayer() {
               6,
               8,
             ],
-            'circle-stroke-color': ['match', ['get', 'kind'], ['origin', 'transfer'], ['get', 'color'], '#FFFFFF'],
+            'circle-stroke-color': ['match', ['get', 'kind'], ['origin', 'transfer'], ['get', 'color'], WHITE],
             'circle-stroke-width': ['match', ['get', 'kind'], ['origin', 'transfer'], 3.5, 2],
           }}
         />

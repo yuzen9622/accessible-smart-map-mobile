@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, SHADOW_COLOR, WHITE } from '@/shared/theme';
 import { AnimatedNumberText, GlassCard, Icon } from '@/shared/ui';
 
 import { localRerouteCoordinator } from '../controller/localRerouteCoordinator';
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 6,
-    shadowColor: '#000000',
+    shadowColor: SHADOW_COLOR,
     shadowOpacity: 0.2,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
@@ -387,5 +387,5 @@ const styles = StyleSheet.create({
   resumeBody: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 16 },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   primary: { minHeight: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  primaryText: { color: WHITE, fontSize: 15, fontWeight: '700' },
 });

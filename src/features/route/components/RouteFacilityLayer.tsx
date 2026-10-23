@@ -14,6 +14,7 @@ import { logger } from '@/shared/logger';
 import { filterPointsAlongRoute } from '../domain/geo';
 import type { LngLatTuple } from '../types/route';
 import { useRouteSessionStore } from '../store/routeSessionStore';
+import { WHITE } from '@/shared/theme';
 
 /** 與 `features/map` 的 `FacilityLayer` 共用同一組圖示資源；路線沿途圖層獨立疊圖，
  * source id 不與首頁常駐圖層的 `facilities` 衝突。 */
@@ -86,7 +87,7 @@ export default function RouteFacilityLayer() {
             'circle-color': FACILITY_CLUSTER_COLOR,
             'circle-radius': ['step', ['get', 'point_count'], 16, 50, 22, 200, 28],
             'circle-stroke-width': 2,
-            'circle-stroke-color': '#FFFFFF',
+            'circle-stroke-color': WHITE,
           }}
         />
         <Layer
@@ -99,7 +100,7 @@ export default function RouteFacilityLayer() {
             'text-size': 13,
             'text-allow-overlap': true,
           }}
-          paint={{ 'text-color': '#FFFFFF' }}
+          paint={{ 'text-color': WHITE }}
         />
         <Layer
           id="route-facility-points"
@@ -117,7 +118,7 @@ export default function RouteFacilityLayer() {
             ],
             'circle-radius': 14,
             'circle-stroke-width': 2,
-            'circle-stroke-color': '#FFFFFF',
+            'circle-stroke-color': WHITE,
           }}
         />
         <Layer

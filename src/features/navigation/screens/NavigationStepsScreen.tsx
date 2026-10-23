@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, ACCENT_FILL, semanticColors, WHITE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { endNavigation } from '../controller/navigationSession';
@@ -12,7 +12,7 @@ import { stepIcon } from '../domain/navStepIcon';
 import NavigationTripBar from '../components/NavigationTripBar';
 import { useNavStore } from '../store/navStore';
 
-const ACCENT = '#0065C8';
+const ACCENT = ACCENT_FILL;
 
 /**
  * `(sheet)/navigation` — 導航中的 sheet 內容（對齊 Google Maps）：最上方是收合列（剩餘時間＋語音／2D3D／結束），
@@ -52,7 +52,7 @@ export default function NavigationStepsScreen() {
         ) : null}
         {arrived || !isNavigating ? (
           <View style={styles.arrived}>
-            <Icon name="circleCheck" size={28} color="#1B7F3B" />
+            <Icon name="circleCheck" size={28} color={semanticColors(false).ok.fg} />
             <Text style={[styles.text, { color: colors.text }]}>{arrived ? t('arrived') : t('preparingNav')}</Text>
             {isNavigating ? (
               <Pressable accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.end}>
@@ -114,5 +114,5 @@ const styles = StyleSheet.create({
   meta: { fontSize: 12 },
   arrived: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, flexWrap: 'wrap' },
   end: { minHeight: 44, borderRadius: 22, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: ACCENT },
-  endText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  endText: { color: WHITE, fontSize: 15, fontWeight: '700' },
 });

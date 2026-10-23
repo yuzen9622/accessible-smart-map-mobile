@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, RADIUS, TYPE, useSemanticColors, useThemeColors, FACILITY } from '@/shared/theme';
 import { Icon, SegmentedControl, type IconName } from '@/shared/ui';
 
 import { FACILITY_COLORS } from '../domain/facilityStyle';
@@ -9,7 +9,7 @@ import type { NearbyRow } from '../hooks/useNearbyViewModel';
 import type { NearbyPanelProps } from './NearbyPanel.types';
 
 /** 與 `ParkingLayer` 的停車點同色。 */
-const PARKING_ICON_COLOR = '#3949AB';
+const PARKING_ICON_COLOR = FACILITY.parking.line;
 
 function rowIcon(category: NearbyRow['category']): { name: IconName; color: string } {
   if (category === 'parking') return { name: 'parking', color: PARKING_ICON_COLOR };

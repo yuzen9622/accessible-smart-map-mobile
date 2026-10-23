@@ -2,7 +2,7 @@ import { Text, TextInput } from '@/shared/ui/typography/Text';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { useFontScale } from '@/shared/preferences';
-import { ACCENT_FILL, RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, RADIUS, SPACE, TYPE, useSemanticColors, useThemeColors, WHITE, SHADOW_COLOR } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import type { ExplorePanelProps, ExploreRow } from './ExplorePanel.types';
@@ -204,7 +204,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                   onPress={action.onPress}
                   style={({ pressed }) => [styles.quickTile, { backgroundColor: colors.backgroundElement }, pressed && styles.pressed]}>
                   <View style={[styles.quickTileIcon, { backgroundColor: action.color }]}>
-                    <Icon name={action.iconName} size={20} color="#FFFFFF" />
+                    <Icon name={action.iconName} size={20} color={WHITE} />
                   </View>
                   <Text style={[styles.quickTileText, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
                     {action.label}
@@ -230,7 +230,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                         { backgroundColor: dot.color, borderColor: colors.backgroundElement },
                         index > 0 && styles.summaryDotOverlap,
                       ]}>
-                      <Icon name={dot.iconName} size={15} color="#FFFFFF" />
+                      <Icon name={dot.iconName} size={15} color={WHITE} />
                     </View>
                   ))}
                 </View>
@@ -288,7 +288,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
                     onPress={shortcut.onPress}
                     style={({ pressed }) => [styles.shortcut, pressed && styles.pressed]}>
                     <View style={[styles.shortcutIcon, { backgroundColor: shortcut.color }]}>
-                      <Icon name={shortcut.iconName} size={24} color="#FFFFFF" />
+                      <Icon name={shortcut.iconName} size={24} color={WHITE} />
                     </View>
                     <Text style={[styles.shortcutTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
                       {shortcut.title}
@@ -371,7 +371,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 
 const styles = StyleSheet.create({
   avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  avatarText: { color: WHITE, fontSize: 16, fontWeight: '700' },
   cancelButton: { minHeight: 36, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   cancelButtonText: { fontSize: 15, fontWeight: '600' },
   voiceButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
+    shadowColor: SHADOW_COLOR,
     shadowOpacity: 0.16,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: SPACE.sm,
     paddingHorizontal: 4,
-    shadowColor: '#000000',
+    shadowColor: SHADOW_COLOR,
     shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },

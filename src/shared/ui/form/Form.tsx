@@ -12,7 +12,7 @@ import {
   type TextInputProps,
 } from 'react-native';
 
-import { ACCENT_FILL, DANGER_FILL, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, DANGER_FILL, scaledSize, useSemanticColors, useThemeColors, WHITE } from '@/shared/theme';
 import { useFontScale } from '@/shared/preferences';
 
 /**
@@ -224,7 +224,7 @@ export function FormSegmented<T extends string>({
             accessibilityState={{ selected }}
             onPress={() => onChange(choice.value)}
             style={[styles.segment, { backgroundColor: selected ? ACCENT : colors.backgroundElement }]}>
-            <Text style={{ color: selected ? '#FFFFFF' : colors.text, fontSize: scaledSize(14, scale), fontWeight: selected ? '600' : '400' }}>
+            <Text style={{ color: selected ? WHITE : colors.text, fontSize: scaledSize(14, scale), fontWeight: selected ? '600' : '400' }}>
               {choice.label}
             </Text>
           </Pressable>
@@ -250,7 +250,7 @@ export function FormButton({
   const colors = useThemeColors();
   const scale = useFontScale();
   const background = variant === 'primary' ? ACCENT : variant === 'destructive' ? FORM_DESTRUCTIVE : colors.backgroundElement;
-  const foreground = variant === 'secondary' ? colors.text : '#FFFFFF';
+  const foreground = variant === 'secondary' ? colors.text : WHITE;
   return (
     <Pressable
       accessibilityRole="button"

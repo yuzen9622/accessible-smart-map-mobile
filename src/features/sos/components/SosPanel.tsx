@@ -4,18 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
-import {
-  DANGER_FILL,
-  MAX_FONT_SCALE,
-  MIN_TOUCH,
-  ON_ACCENT_FILL,
-  RADIUS,
-  SPACE,
-  TYPE,
-  scaledSize,
-  useSemanticColors,
-  useThemeColors,
-} from '@/shared/theme';
+import { DANGER_FILL, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, SPACE, TYPE, scaledSize, useSemanticColors, useThemeColors, DANGER_DEEP, WHITE } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import type { SosFlowModel } from '../hooks/useSosFlow';
@@ -33,8 +22,6 @@ import type { SosFlowModel } from '../hooks/useSosFlow';
  * 自己重複定義一份一樣的紅。
  */
 
-const DANGER_DEEP = '#8E0000';
-const WHITE = '#FFFFFF';
 /** SOS 主按鈕／倒數取消鈕的最小尺寸（SDD §10：緊急操作 ≥ 64pt，比一般按鈕的 `BUTTON_HEIGHT` 50pt 更大）。 */
 const BIG_TARGET = 64;
 

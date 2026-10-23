@@ -1,3 +1,4 @@
+import { AIR_QUALITY } from '@/shared/theme/palettes';
 /**
  * 出發前環境資訊（天氣＋空氣品質）：後端 `/api/v1/a11y/environment` 聚合 CWA 天氣與
  * 環境部 PM2.5，各來源各自降級（一個失敗不影響另一個）。像 Google 地圖左上角那張
@@ -78,9 +79,9 @@ export function parseEnvironment(data: unknown): EnvironmentInfo {
  * `EnvironmentChip` 跟 `EnvironmentDetailSheet` 共用同一份，分級顏色才會一致。
  * 沒有對應到（例如降級時缺資料）就用預設文字色，不特別上色。 */
 export const AIR_QUALITY_COLOR: Record<string, string> = {
-  良好: '#2B8A3E',
-  普通: '#E8A33D',
-  對敏感族群不健康: '#E8590C',
-  不健康: '#C92A2A',
-  非常不健康: '#862E2E',
+  良好: AIR_QUALITY.good,
+  普通: AIR_QUALITY.moderate,
+  對敏感族群不健康: AIR_QUALITY.sensitive,
+  不健康: AIR_QUALITY.unhealthy,
+  非常不健康: AIR_QUALITY.veryUnhealthy,
 };

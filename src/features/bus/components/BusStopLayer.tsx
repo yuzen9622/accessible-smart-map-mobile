@@ -2,15 +2,15 @@ import { GeoJSONSource, Layer, ViewAnnotation } from '@maplibre/maplibre-react-n
 import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 import { StyleSheet, View } from 'react-native';
 
-import { ACCENT_FILL, ON_ACCENT_FILL } from '@/shared/theme';
+import { ACCENT_FILL, ON_ACCENT_FILL, DANGER_FILL, MAP, WHITE, SHADOW_COLOR } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { useBusPanelStore, type PanelBus, type PanelStop } from '../store/busPanelStore';
 
 const STOP_COLOR = ACCENT_FILL;
-const SELECTED_COLOR = '#E53935';
+const SELECTED_COLOR = DANGER_FILL;
 /** 一般車的 marker：白底深色圖示（與站牌 2a 列表軸上的灰色公車同義）。 */
-const PLAIN_BUS_ICON = '#1F2937';
+const PLAIN_BUS_ICON = MAP.busPlainIcon;
 
 interface StopProps {
   id: string;
@@ -79,7 +79,7 @@ export default function BusStopLayer() {
             'circle-color': ['case', ['==', ['get', 'kind'], 1], SELECTED_COLOR, STOP_COLOR],
             'circle-radius': ['case', ['==', ['get', 'kind'], 1], 10, 6],
             'circle-stroke-width': 2,
-            'circle-stroke-color': '#FFFFFF',
+            'circle-stroke-color': WHITE,
           }}
         />
       </GeoJSONSource>
@@ -94,7 +94,7 @@ export default function BusStopLayer() {
             id="bus-route-line-casing"
             type="line"
             layout={{ 'line-join': 'round', 'line-cap': 'round' }}
-            paint={{ 'line-color': '#FFFFFF', 'line-width': 9 }}
+            paint={{ 'line-color': WHITE, 'line-width': 9 }}
           />
           <Layer
             id="bus-route-line-stroke"
@@ -109,10 +109,10 @@ export default function BusStopLayer() {
           id="bus-stops-circle"
           type="circle"
           paint={{
-            'circle-color': ['case', ['==', ['get', 'kind'], 0], '#FFFFFF', STOP_COLOR],
+            'circle-color': ['case', ['==', ['get', 'kind'], 0], WHITE, STOP_COLOR],
             'circle-radius': ['match', ['get', 'kind'], 2, 12, 1, 8, 6],
             'circle-stroke-width': ['match', ['get', 'kind'], 2, 4, 1, 3, 3],
-            'circle-stroke-color': ['case', ['==', ['get', 'kind'], 0], STOP_COLOR, '#FFFFFF'],
+            'circle-stroke-color': ['case', ['==', ['get', 'kind'], 0], STOP_COLOR, WHITE],
           }}
         />
       </GeoJSONSource>
@@ -131,12 +131,12 @@ const styles = StyleSheet.create({
     height: 30,
     paddingHorizontal: 7,
     borderRadius: 9,
-    shadowColor: '#000000',
+    shadowColor: SHADOW_COLOR,
     shadowOpacity: 0.2,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
   busAccessible: { backgroundColor: ACCENT_FILL },
-  busPlain: { backgroundColor: '#FFFFFF' },
+  busPlain: { backgroundColor: WHITE },
 });

@@ -1,7 +1,7 @@
 import { Text } from '@/shared/ui/typography/Text';
 import { StyleSheet, View } from 'react-native';
 
-import { TYPE, useSemanticColors } from '@/shared/theme';
+import { TYPE, useSemanticColors, WHITE } from '@/shared/theme';
 
 interface RouteBadgeProps {
   name: string;
@@ -18,7 +18,7 @@ export default function RouteBadge({ name, onAccent, small }: RouteBadgeProps) {
     <View
       importantForAccessibility="no-hide-descendants"
       style={[styles.badge, small && styles.badgeSmall, { backgroundColor: onAccent ? 'rgba(255,255,255,0.2)' : semantic.accentSoft }]}>
-      <Text style={[styles.text, small && styles.textSmall, { color: onAccent ? '#FFFFFF' : semantic.accent }]} numberOfLines={1}>
+      <Text style={[styles.text, small && styles.textSmall, { color: onAccent ? WHITE : semantic.accent }]} numberOfLines={1}>
         {name}
       </Text>
     </View>

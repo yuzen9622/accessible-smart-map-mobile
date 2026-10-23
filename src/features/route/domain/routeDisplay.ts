@@ -2,22 +2,22 @@
 // Web 把這些和型別放在同一檔；本 repo 型別放 `types/`、邏輯放 `domain/`，所以拆出來。
 // `formatDistance` 在 `shared/geo`（Phase 1 移植、Phase 2 提到共用層），這裡不重複。
 
-import { MODE } from '@/shared/theme/palettes';
+import { MODE, A11Y_SCORE, ROUTE_FEATURE, TRAFFIC } from '@/shared/theme/palettes';
 
 import type { A11yFeature, A11yLabel, DriveTrafficSegment, RouteLeg, TrafficLevel } from '../types/route';
 
 export function getA11yLabelColor(label: A11yLabel): string {
   switch (label) {
     case 'excellent':
-      return '#22c55e';
+      return A11Y_SCORE.excellent;
     case 'good':
-      return '#84cc16';
+      return A11Y_SCORE.good;
     case 'fair':
-      return '#eab308';
+      return A11Y_SCORE.fair;
     case 'poor':
-      return '#f97316';
+      return A11Y_SCORE.poor;
     case 'critical':
-      return '#ef4444';
+      return A11Y_SCORE.critical;
   }
 }
 
@@ -58,27 +58,27 @@ export function scoreToStars(score: number): number {
 // 後端只分類、不評好壞。地圖圖層與路線卡圖例共用這一份，避免兩邊對不上——
 // 圖例是唯一告訴使用者某個顏色代表什麼的地方。
 export const A11Y_FEATURE_COLOR: Record<A11yFeature, string> = {
-  stairs: '#dc2626',
-  crossing: '#f59e0b',
-  curb_ramp_crossing: '#16a34a',
-  ramp: '#16a34a',
-  elevator: '#2563eb',
-  escalator: '#2563eb',
-  moving_walkway: '#2563eb',
-  fare_gate: '#7c3aed',
-  exit_gate: '#7c3aed',
+  stairs: ROUTE_FEATURE.barrier,
+  crossing: ROUTE_FEATURE.crossing,
+  curb_ramp_crossing: ROUTE_FEATURE.ramp,
+  ramp: ROUTE_FEATURE.ramp,
+  elevator: ROUTE_FEATURE.lift,
+  escalator: ROUTE_FEATURE.lift,
+  moving_walkway: ROUTE_FEATURE.lift,
+  fare_gate: ROUTE_FEATURE.gate,
+  exit_gate: ROUTE_FEATURE.gate,
 };
 
 export const TRAFFIC_LEVEL_COLORS: Record<TrafficLevel, string> = {
-  light: '#22C55E',
-  moderate: '#F59E0B',
-  heavy: '#EF4444',
-  severe: '#991B1B',
-  closed: '#4B5563',
-  unknown: '#3B82F6',
+  light: TRAFFIC.light,
+  moderate: TRAFFIC.moderate,
+  heavy: TRAFFIC.heavy,
+  severe: TRAFFIC.severe,
+  closed: TRAFFIC.closed,
+  unknown: TRAFFIC.unknown,
 };
 
-export const TRAFFIC_BASE_COLOR = '#475569';
+export const TRAFFIC_BASE_COLOR = TRAFFIC.base;
 
 // "unknown" 不帶任何路況資訊，宣稱 unknown 的線段不得蓋掉底線、暗示這段路有量測過。
 const VALID_TRAFFIC_LEVELS = new Set<TrafficLevel>(['light', 'moderate', 'heavy', 'severe', 'closed']);

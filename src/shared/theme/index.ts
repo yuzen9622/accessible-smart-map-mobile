@@ -7,4 +7,4 @@ export {
 } from './resolve-theme-colors';
 export { useSemanticColors, useThemeColors, type UseThemeColorsOptions } from './use-theme-colors';
 export { ACCENT_FILL, BUTTON_HEIGHT, DANGER_FILL, ELEVATION, MAX_FONT_SCALE, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, SHAPE, SPACE, TEXT_STYLE, TYPE, semanticColors, type SemanticColors, type ToneColors } from './tokens';
-export { FACILITY, FEATURE, MODE, type DomainColor, type FacilityKey, type FeatureKey, type ModeKey } from './palettes';
+export * from './palettes';

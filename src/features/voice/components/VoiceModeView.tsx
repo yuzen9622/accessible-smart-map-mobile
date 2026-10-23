@@ -15,7 +15,7 @@ import { getAggregatedToolResults, openAiResult, ToolResultsBox, toolDoneLabel, 
 import { useAppTranslation } from '@/shared/i18n';
 import { useFontScale } from '@/shared/preferences';
 import { ensureAiDataConsent } from '@/shared/privacy';
-import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors } from '@/shared/theme';
+import { ACCENT_FILL, DANGER_FILL, MIN_TOUCH, ON_ACCENT_FILL, RADIUS, TYPE, scaledSize, useSemanticColors, useThemeColors, VOICE_ORB_EDGE, semanticColors } from '@/shared/theme';
 import { Icon, type IconName } from '@/shared/ui';
 
 import { dismissVoiceSession, endVoiceSession, startVoiceSession, retryRouteContextSync, resumeVoicePlayback, toggleVoiceMute } from '../controller/voiceController';
@@ -27,8 +27,8 @@ import VoiceWaveform from './VoiceWaveform';
 
 /** 音波中央與兩側的顏色：一律藍色系，深色模式改用亮藍、兩側往背景收。 */
 const WAVE_COLORS = {
-  light: { center: ACCENT_FILL, edge: '#A8CFF5' },
-  dark: { center: '#6BB2FF', edge: '#1F4A7A' },
+  light: { center: ACCENT_FILL, edge: VOICE_ORB_EDGE.light },
+  dark: { center: semanticColors(true).accent, edge: VOICE_ORB_EDGE.dark },
 } as const;
 const WAVE_HEIGHT = 128;
 /** 按下語音鈕後多久內掛載的才算「從按鈕進來」；過期的起點（例如當時連線沒成功）不重播飛入。 */

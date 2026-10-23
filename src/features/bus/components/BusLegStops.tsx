@@ -16,7 +16,7 @@ import {
   type LngLatTuple,
 } from '@/features/route/domain';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, LIVE_DOT } from '@/shared/theme';
 import { useNow } from '@/shared/time';
 import { Icon } from '@/shared/ui';
 
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   routeBadgeText: { color: BUS_ON_ACCENT_COLOR, fontSize: 13, fontWeight: '700' },
   wait: { fontSize: 13 },
   live: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: LIVE_DOT },
   liveText: { fontSize: 12 },
   plate: { fontSize: 12, fontWeight: '600', fontVariant: ['tabular-nums'] },
   endpoint: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 32 },

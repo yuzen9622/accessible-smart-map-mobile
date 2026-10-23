@@ -19,7 +19,7 @@ import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import { usePreferencesStore, type QuickActionKey } from '@/shared/preferences';
-import { FEATURE } from '@/shared/theme';
+import { FEATURE, SAVED_CATEGORY } from '@/shared/theme';
 import { useDictation, type DictationStatus } from '@/shared/speech';
 import type { IconName } from '@/shared/ui';
 
@@ -102,11 +102,11 @@ const SAVED_CATEGORY_ICON: Record<BuiltInSavedPlaceCategory, IconName> = {
  * 一樣是固定色票、不隨主題切換——圖示在色塊上要一眼辨識類別，深／淺色模式下都得是同一個顏色。
  * 自訂分類沒有預先指定的顏色，見 `customCategoryColor`（依名字算一個固定色）。 */
 const SAVED_CATEGORY_COLOR: Record<BuiltInSavedPlaceCategory, string> = {
-  favorite: '#D6336C',
-  food: '#E8590C',
-  transport: '#0C8599',
-  medical: '#E03131',
-  other: '#495057',
+  favorite: SAVED_CATEGORY.favorite,
+  food: SAVED_CATEGORY.food,
+  transport: SAVED_CATEGORY.transport,
+  medical: SAVED_CATEGORY.medical,
+  other: SAVED_CATEGORY.other,
 };
 
 /** 快速服務每格各自一色，不再全部套用同一個 accent 藍（使用者回饋 2026-10-11：太單調）。 */

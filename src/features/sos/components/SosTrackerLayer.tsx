@@ -2,8 +2,9 @@ import { GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import type { FeatureCollection, Point } from 'geojson';
 
 import { useSosTrackerStore } from '../controller/trackerController';
+import { DANGER_FILL, WHITE } from '@/shared/theme';
 
-const SOS_RED = '#C62828';
+const SOS_RED = DANGER_FILL;
 
 /** 求助者位置（SDD §4.4 `SosTrackerLayer`）：外圈半透明光暈＋實心點，取代 Web 的 React pulsing marker。 */
 export default function SosTrackerLayer() {
@@ -19,7 +20,7 @@ export default function SosTrackerLayer() {
       <Layer
         id="sos-tracker-point"
         type="circle"
-        paint={{ 'circle-color': SOS_RED, 'circle-radius': 10, 'circle-stroke-width': 3, 'circle-stroke-color': '#FFFFFF' }}
+        paint={{ 'circle-color': SOS_RED, 'circle-radius': 10, 'circle-stroke-width': 3, 'circle-stroke-color': WHITE }}
       />
     </GeoJSONSource>
   );

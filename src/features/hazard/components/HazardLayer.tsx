@@ -8,9 +8,10 @@ import { useUserLocationStore } from '@/features/map';
 import { refreshNearbyHazards, useHazardLayerStore } from '../controller/hazardLayerController';
 import { hazardExpired } from '../domain/review';
 import { reportLatLng, type HazardReport } from '../domain/types';
+import { HAZARD, MAP, WHITE } from '@/shared/theme';
 
 /** 顏色對齊 Web `HazardReportPanel` 的類型圖示（amber／orange／red）。 */
-export const HAZARD_COLORS = { obstacle: '#F59E0B', construction: '#F97316', data_error: '#DC2626' } as const;
+export const HAZARD_COLORS = { obstacle: HAZARD.obstacle, construction: HAZARD.construction, data_error: HAZARD.dataError } as const;
 
 function toCollection(reports: HazardReport[]): FeatureCollection<Point, { id: string; hazardType: string; verified: boolean }> {
   return {
@@ -60,14 +61,14 @@ export default function HazardLayer() {
           'circle-color': ['match', ['get', 'hazardType'], 'obstacle', HAZARD_COLORS.obstacle, 'construction', HAZARD_COLORS.construction, HAZARD_COLORS.data_error],
           'circle-radius': 9,
           'circle-stroke-width': ['case', ['get', 'verified'], 3, 2],
-          'circle-stroke-color': ['case', ['get', 'verified'], '#111111', '#FFFFFF'],
+          'circle-stroke-color': ['case', ['get', 'verified'], MAP.verifiedStroke, WHITE],
         }}
       />
       <Layer
         id="hazard-glyph"
         type="symbol"
         layout={{ 'text-field': '!', 'text-font': ['Noto Sans Regular'], 'text-size': 13, 'text-allow-overlap': true }}
-        paint={{ 'text-color': '#FFFFFF' }}
+        paint={{ 'text-color': WHITE }}
       />
     </GeoJSONSource>
   );

@@ -12,9 +12,10 @@ import {
   type DrawnPosition,
 } from '../domain';
 import { useBusStore } from '../store/busStore';
+import { MAP, WHITE } from '@/shared/theme';
 
-const ACCESSIBLE_COLOR = '#2563EB';
-const DEFAULT_COLOR = '#334155';
+const ACCESSIBLE_COLOR = MAP.busAccessible;
+const DEFAULT_COLOR = MAP.busDefault;
 /** 補間期間寫入 GeoJSON 的頻率上限（約 10 fps）。 */
 const MIN_FRAME_INTERVAL_MS = 100;
 
@@ -90,7 +91,7 @@ export default function LiveBusLayer() {
           'circle-color': ['case', ['==', ['get', 'accessible'], 1], ACCESSIBLE_COLOR, DEFAULT_COLOR],
           'circle-radius': 9,
           'circle-stroke-width': 2.5,
-          'circle-stroke-color': '#FFFFFF',
+          'circle-stroke-color': WHITE,
         }}
       />
       <Layer
@@ -103,7 +104,7 @@ export default function LiveBusLayer() {
           'text-offset': [0, 1.5],
           'text-allow-overlap': true,
         }}
-        paint={{ 'text-color': '#0F172A', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.5 }}
+        paint={{ 'text-color': MAP.label, 'text-halo-color': WHITE, 'text-halo-width': 1.5 }}
       />
     </GeoJSONSource>
   );

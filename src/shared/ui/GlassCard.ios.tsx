@@ -2,7 +2,7 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 
-import { useThemeColors } from '@/shared/theme';
+import { useThemeColors, SHADOW_COLOR } from '@/shared/theme';
 import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
 
 import type { GlassCardProps } from './GlassCard.types';
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: 22, overflow: 'hidden' },
   opaque: {
     overflow: 'visible',
-    shadowColor: '#000000',
+    shadowColor: SHADOW_COLOR,
     shadowOpacity: 0.18,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },

@@ -207,11 +207,19 @@ const ICONS: Record<IconName, LucideIcon> = {
  * （SDD §517：不得只靠圖示傳達資訊），所以包一層對輔助技術隱藏、
  * 不吃觸控的 `View`；意義由相鄰文字或外層元件的 `accessibilityLabel` 提供。
  */
-export default function Icon({ name, size = 18, color, strokeWidth = 2 }: IconProps) {
+/** 依尺寸換算視覺等粗的線寬：小圖示線加粗、大圖示線變細。 */
+function visualStroke(size: number): number {
+  if (size <= 14) return 2.25;
+  if (size <= 20) return 2;
+  if (size <= 24) return 1.85;
+  return 1.75;
+}
+
+export default function Icon({ name, size = 18, color, strokeWidth }: IconProps) {
   const Glyph = ICONS[name];
   return (
     <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none">
-      <Glyph size={size} color={color} strokeWidth={strokeWidth} />
+      <Glyph size={size} color={color} strokeWidth={strokeWidth ?? visualStroke(size)} />
     </View>
   );
 }

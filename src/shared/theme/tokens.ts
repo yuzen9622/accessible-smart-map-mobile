@@ -143,3 +143,32 @@ export const SPACE = {
 export const MIN_TOUCH = 44;
 /** 主要按鈕高度。 */
 export const BUTTON_HEIGHT = 50;
+
+/** iOS Text Styles 對齊的字級角色（pt，未乘使用者倍率）。舊 `TYPE` 遷移完成後移除。 */
+export const TEXT_STYLE = {
+  largeTitle: { fontSize: 34, fontWeight: '700' },
+  title1: { fontSize: 28, fontWeight: '700' },
+  title2: { fontSize: 22, fontWeight: '700' },
+  title3: { fontSize: 20, fontWeight: '600' },
+  headline: { fontSize: 17, fontWeight: '600' },
+  body: { fontSize: 17, fontWeight: '400' },
+  callout: { fontSize: 16, fontWeight: '400' },
+  subhead: { fontSize: 15, fontWeight: '400' },
+  footnote: { fontSize: 13, fontWeight: '400' },
+  caption: { fontSize: 12, fontWeight: '600' },
+} as const;
+
+/** 圓角階層（搭配 `borderCurve: 'continuous'`）。 */
+export const SHAPE = {
+  badge: 6,
+  control: 10,
+  card: 16,
+  floating: 22,
+  pill: 999,
+} as const;
+
+/** 陰影只有兩階；sheet 內的卡片不用陰影。 */
+export const ELEVATION = {
+  floating: '0 4px 12px rgba(0,0,0,0.16)',
+  raised: '0 1px 3px rgba(0,0,0,0.10)',
+} as const;

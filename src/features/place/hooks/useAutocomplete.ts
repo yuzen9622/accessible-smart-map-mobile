@@ -25,6 +25,7 @@ export function useAutocomplete(query: string, location?: { lat: number; lng: nu
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [completedQuery, setCompletedQuery] = useState('');
   const { i18n } = useAppTranslation();
   const lang = toApiLang(i18n.language);
   const [sessionToken, setSessionToken] = useState<string>(() => createSearchSessionToken());
@@ -46,6 +47,7 @@ export function useAutocomplete(query: string, location?: { lat: number; lng: nu
       void (async () => {
         if (!trimmed) {
           setSuggestions([]);
+          setCompletedQuery('');
           setLoading(false);
           setError(false);
           // 直接用 state setter（穩定），不透過 resetSession，effect 才不必依賴每次 render 的新函式
@@ -76,7 +78,10 @@ export function useAutocomplete(query: string, location?: { lat: number; lng: nu
             setError(true);
           }
         } finally {
-          if (!controller.signal.aborted) setLoading(false);
+          if (!controller.signal.aborted) {
+            setCompletedQuery(trimmed);
+            setLoading(false);
+          }
         }
       })();
     }, trimmed ? 400 : 0);
@@ -89,5 +94,14 @@ export function useAutocomplete(query: string, location?: { lat: number; lng: nu
 
   const retry = () => setAttempt((n) => n + 1);
 
-  return { suggestions, loading, error, retry, sessionToken, resetSession };
+  const trimmed = query.trim();
+  const current = completedQuery === trimmed;
+  return {
+    suggestions: current && trimmed ? suggestions : [],
+    loading: !!trimmed && (!current || loading),
+    error: !!trimmed && current && error,
+    retry,
+    sessionToken,
+    resetSession,
+  };
 }

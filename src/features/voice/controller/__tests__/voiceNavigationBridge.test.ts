@@ -63,6 +63,7 @@ jest.mock('@/features/ai', () => ({
 
 const uplink = {
   setNavigationRoute: jest.fn(),
+  startNavigation: jest.fn(),
   sendNavigationPosition: jest.fn(),
   cancelNavigation: jest.fn(),
   setMuted: jest.fn(),

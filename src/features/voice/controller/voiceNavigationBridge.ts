@@ -42,6 +42,7 @@ import { useVoiceStore } from '../store/voiceStore';
 
 export interface VoiceNavigationUplink {
   setNavigationRoute(routeToken: string | null): void;
+  startNavigation(routeToken: string, position?: VoiceNavigationPosition): void;
   sendNavigationPosition(position: VoiceNavigationPosition): void;
   cancelNavigation(): void;
   setMuted(muted: boolean): void;
@@ -56,6 +57,7 @@ let translate: Translate = (key) => key;
 let lastSent: LatLng | null = null;
 /** 後端以 `nav.stop(arrived)` 結束導航：離開導航時不再回送 `nav.cancel`。 */
 let serverStopped = false;
+let manualStartPending = false;
 let installed = false;
 
 function notice(message: string): void {
@@ -131,11 +133,13 @@ function handBackToLocal(muted = useVoiceStore.getState().isMuted): void {
   nav.setVoiceEnabled(!muted);
   nav.setVoiceTransit(null);
   nav.setNavigationSource('local');
+  manualStartPending = false;
   lastSent = null;
   serverStopped = false;
 }
 
 function startVoiceNavigation(event: Extract<VoiceNavigationEvent, { type: 'nav.start' }>): void {
+  manualStartPending = false;
   const nav = useNavStore.getState();
   const instructions = event.steps.map(toNavInstruction);
   const totalM = event.steps.reduce((sum, step) => sum + (step.distanceM ?? 0), 0);
@@ -158,7 +162,6 @@ function startVoiceNavigation(event: Extract<VoiceNavigationEvent, { type: 'nav.
       notificationBody: translate('nativeNavNotificationBody'),
     });
   }
-  // beginNavigation 會打開本機播報；語音助理自己會念，關掉以免重複
   useNavStore.getState().setVoiceEnabled(false);
   const position = useUserLocationStore.getState().position;
   if (position) {
@@ -294,6 +297,7 @@ function handleEvent(event: VoiceNavigationEvent): void {
       }
       return;
     case 'nav.error':
+      if (manualStartPending) handBackToLocal();
       notice(event.message);
       return;
   }
@@ -354,10 +358,23 @@ export function installVoiceNavigationBridge(target: VoiceNavigationUplink): voi
     );
     lastSent = null;
     serverStopped = false;
+    manualStartPending = false;
   });
 
   // 喇叭仲裁：語音擁有導航且語音通道活著時，本機 TTS 讓位；HUD 喇叭鈕改切語音助理靜音
   configureNavigationSpeechOwner({
+    prepareNavigation: () => {
+      const nav = useNavStore.getState();
+      const token = routeToken();
+      if (nav.navigationSource === 'voice' || !token || !uplink || !isVoiceSpeechChannelLive(uplink.getStatus())) return;
+      nav.setNavigationSource('voice');
+      nav.setVoiceEnabled(false);
+      manualStartPending = true;
+      serverStopped = false;
+      const position = useUserLocationStore.getState().position;
+      lastSent = position;
+      uplink.startNavigation(token, position ? positionPayload(position) : undefined);
+    },
     geminiOwnsSpeech: () => geminiOwnsNavigationSpeech(useNavStore.getState().navigationSource, useVoiceStore.getState().status.status),
     geminiMuted: () => useVoiceStore.getState().isMuted,
     subscribe: (onChange) => {

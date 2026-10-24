@@ -19,9 +19,7 @@ import { haptic } from '@/shared/haptics';
 export function beginNavigation(texts: BackgroundLocationTexts): void {
   if (!startNavigation()) return;
   haptic.commit();
-  // Web 預設不播報（瀏覽器要使用者手勢才能發聲）；原生沒有這個限制，導航一開始就播報，
-  // 使用者可在 HUD 關掉（差異記在 port-ledger）。
-  useNavStore.getState().setVoiceEnabled(true);
+  useNavStore.getState().setVoiceEnabled(useNavStore.getState().navigationSource !== 'voice');
   sheetNavigation.whenVisible(() => router.navigate('/navigation'));
   const run = async () => {
     try {

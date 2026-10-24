@@ -183,6 +183,7 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
   bindings = b;
   installVoiceNavigationBridge({
     setNavigationRoute: (token) => c.setNavigationRoute(token),
+    startNavigation: (token, position) => c.startNavigation(token, position),
     sendNavigationPosition: (position) => c.sendNavigationPosition(position),
     cancelNavigation: () => c.cancelNavigation(),
     setMuted: setVoiceMuted,

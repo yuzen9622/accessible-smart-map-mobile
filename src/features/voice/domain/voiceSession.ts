@@ -681,6 +681,14 @@ export class VoiceSessionController {
     }
   }
 
+  startNavigation(routeToken: string, position?: VoiceNavigationPosition): void {
+    this.routeToken = routeToken;
+    this.pendingNavigationRoute = false;
+    this.sendControl({ type: 'nav.setRoute', routeToken });
+    if (position) this.sendNavigationPosition(position);
+    this.sendControl({ type: 'nav.start' });
+  }
+
   sendNavigationPosition(position: VoiceNavigationPosition): void {
     this.sendControl({ type: 'nav.position', ...position });
   }
@@ -720,6 +728,7 @@ export class VoiceSessionController {
       | NavSetRouteMessage
       | NavPositionMessage
       | NavCancelMessage
+      | { type: 'nav.start' }
       | NavResumeMessage,
   ): void {
     if (!this.sessionActive || !this.socket) return;

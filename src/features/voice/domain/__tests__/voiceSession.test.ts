@@ -240,6 +240,45 @@ it('keeps consecutive tool results flowing while their own route updates await t
   expect(contexts()).toHaveLength(2);
 });
 
+describe('manual navigation start', () => {
+  it.each([false, true])('arms the pinned route before starting even while the model is speaking: %s', async (speaking) => {
+    const h = createHarness();
+    h.controller.start();
+    await bringToListening(h);
+    const socket = h.sockets[0];
+    if (speaking) socket.triggerMessage(new ArrayBuffer(4));
+    h.controller.setNavigationRoute('previous-selection');
+    socket.sent = [];
+    const position = { latitude: 25.05, longitude: 121.5, heading: 90 };
+    h.controller.startNavigation('pinned-token', position);
+    expect(socket.sent.map(message => typeof message === 'string' ? JSON.parse(message) as unknown : message)).toEqual([
+      { type: 'nav.setRoute', routeToken: 'pinned-token' },
+      { type: 'nav.position', ...position },
+      { type: 'nav.start' },
+    ]);
+    socket.sent = [];
+    socket.triggerMessage(JSON.stringify({ type: 'turn.complete' }));
+    h.playback.drain();
+    expect(socket.sent).toEqual([]);
+    h.controller.end();
+  });
+
+  it('can start without a GPS fix and does not send controls without a live session', async () => {
+    const h = createHarness();
+    h.controller.start();
+    const socket = h.sockets[0];
+    h.controller.startNavigation('before-ready');
+    expect(socket.sent).toEqual([]);
+    await bringToListening(h);
+    socket.sent = [];
+    h.controller.startNavigation('pinned-token');
+    expect(socket.sent.map(message => typeof message === 'string' ? JSON.parse(message) as unknown : message)).toEqual([
+      { type: 'nav.setRoute', routeToken: 'pinned-token' }, { type: 'nav.start' },
+    ]);
+    h.controller.end();
+  });
+});
+
 describe('server-requested farewell', () => {
   it('stops uplink, plays the farewell, and drains before a normal end', async () => {
     const h = createHarness();

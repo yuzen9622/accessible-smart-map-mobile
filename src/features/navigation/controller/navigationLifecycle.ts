@@ -2,6 +2,7 @@ import { getRouteSessionSnapshot, pinNavigationRoute, clearNavigationRoute } fro
 
 import { useNavStore } from '../store/navStore';
 import { localRerouteCoordinator } from './localRerouteCoordinator';
+import { getNavigationSpeechOwner } from './speechOwnerPort';
 
 /**
  * 移植自 Web `src/lib/navigation/navigationLifecycle.ts`（commit 5eadc71），順序逐行保留：
@@ -13,6 +14,7 @@ export function startNavigation(): boolean {
   const navigationId = getRouteSessionSnapshot().navigationRoute?.route.navigationId ?? null;
   nav.setNavigationIdentity(navigationId, getRouteSessionSnapshot().navigationRoute?.route.routeVersion ?? 0);
   localRerouteCoordinator.startSession(navigationId);
+  getNavigationSpeechOwner().prepareNavigation?.();
   nav.setIsNavigating(true);
   return true;
 }

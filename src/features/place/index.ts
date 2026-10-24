@@ -9,6 +9,8 @@ export { usePlaceDetail } from './hooks/usePlaceDetail';
 export { useReverseGeocode } from './hooks/useReverseGeocode';
 export { useReviews } from './hooks/useReviews';
 export { useAutocomplete } from './hooks/useAutocomplete';
+export { placeDisplayName } from './domain/searchHistory';
+export { placeKey } from './domain/placeKey';
 
 export { usePlaceUiStore } from './store/placeUiStore';
 export { useSavedPlacesStore } from './store/savedPlacesStore';

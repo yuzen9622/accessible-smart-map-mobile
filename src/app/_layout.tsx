@@ -145,6 +145,15 @@ function AppStack({ detents, initialDetentIndex, height, setSheetInset }: AppSta
         name="auth"
         options={{ presentation: 'modal', headerShown: true, headerLeft: () => <HeaderCloseButton /> }}
       />
+      <Stack.Screen
+        name="route-location-search"
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: [1],
+          sheetGrabberVisible: true,
+          headerShown: false,
+        }}
+      />
       <Stack.Screen name="settings" options={{ presentation: 'modal', headerShown: false }} />
       {/* 倒數與求救中不可滑動關閉（防誤觸，SDD §6.8）；畫面內有「關閉畫面（SOS 持續）」按鈕 */}
       <Stack.Screen name="sos" options={{ presentation: 'fullScreenModal', headerShown: false, gestureEnabled: !sosInProgress }} />

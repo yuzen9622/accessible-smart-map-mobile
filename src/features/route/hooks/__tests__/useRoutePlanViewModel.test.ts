@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { changeAppLanguage } from '@/shared/i18n';
 import { useRouteSessionStore } from '../../store/routeSessionStore';
 import { act, renderHook } from '@testing-library/react-native';
@@ -7,7 +8,7 @@ import { applyAiRoutePlan, endRouteSession } from '../../controller/routeSession
 import { useRoutePlanViewModel } from '../useRoutePlanViewModel';
 
 jest.mock('@/features/map', () => jest.requireActual('@/features/navigation/controller/testing/fakeMap').mapModule);
-jest.mock('expo-router', () => ({ router: { navigate: jest.fn() } }));
+jest.mock('expo-router', () => ({ router: { navigate: jest.fn(), push: jest.fn() } }));
 jest.mock('@/features/place', () => ({ useAutocomplete: () => ({ suggestions: [], loading: false, resetSession: jest.fn() }) }));
 jest.mock('@/features/onboarding', () => ({
   useOnboardingStore: (select: (state: unknown) => unknown) => select({ profile: { routeMode: 'normal', avoidStairs: false, requireElevator: false } }),
@@ -20,6 +21,12 @@ jest.mock('@/shared/i18n', () => ({
 jest.mock('../../api/route', () => ({ getAccessibleRoute: jest.fn() }));
 
 beforeEach(async () => { await changeAppLanguage('zh-TW'); endRouteSession(); jest.clearAllMocks(); });
+
+it.each(['origin', 'destination'] as const)('opens a separate search sheet for %s', async (field) => {
+  const { result } = await renderHook(() => useRoutePlanViewModel({}));
+  await act(() => result.current.onEdit(field));
+  expect(router.push).toHaveBeenCalledWith({ pathname: '/route-location-search', params: { field } });
+});
 
 it('stores locale in the result key but retains the selected route without automatic translation replanning', async () => {
   const plan = routePlanFixture();

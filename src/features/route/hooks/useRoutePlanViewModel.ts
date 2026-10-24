@@ -4,15 +4,11 @@ import { AccessibilityInfo } from 'react-native';
 
 import {
   PINNED_FACILITY_CATEGORIES,
-  SHEET_DETENTS,
-  sheetController,
   useUserLocationStore,
   type PinnedFacilityCategory,
 } from '@/features/map';
 import { useOnboardingStore } from '@/features/onboarding';
-import { resolveAutocompleteItem, useAutocomplete, type AutocompleteItem } from '@/features/place';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { logger } from '@/shared/logger';
 
 import { computeRoute, selectRouteAt } from '../controller/routeSessionPort';
 import { ROUTE_FAILURE_I18N } from '../domain/routeRequest';
@@ -36,13 +32,6 @@ const FACILITY_CATEGORY_LABEL_KEY: Record<PinnedFacilityCategory, string> = {
   ramp: 'a11yFeatureRamp',
 };
 
-export interface PlanSuggestion {
-  key: string;
-  title: string;
-  subtitle: string | null;
-  onPress: () => void;
-}
-
 export interface PlanOption<T extends string> {
   value: T;
   label: string;
@@ -57,11 +46,6 @@ export interface RoutePlanModel {
   originLabel: string;
   originIsMyLocation: boolean;
   destinationLabel: string | null;
-  editing: PlanField | null;
-  query: string;
-  suggestions: PlanSuggestion[];
-  suggestionsLoading: boolean;
-  resolving: boolean;
   travelModes: PlanOption<TravelMode>[];
   routeModes: PlanOption<RouteMode>[];
   /** 沿途無障礙設施篩選（使用者回饋 2026-10-15：圖示太多太亂，可以自己選要看哪些類別）。 */
@@ -79,11 +63,6 @@ export interface RoutePlanModel {
   onOpenRouteDetail: (index: number) => void;
   error: string | null;
   onEdit: (field: PlanField) => void;
-  onCancelEdit: () => void;
-  onQueryChange: (query: string) => void;
-  /** 輸入框取得焦點：sheet 展開到全高，鍵盤才不會蓋住輸入框與建議清單。 */
-  onInputFocus: () => void;
-  onUseMyLocation: () => void;
   /** 起點改回「目前位置」；跟終點一樣有清除按鈕（使用者回饋 2026-10-23，參考設計圖二：以前只有
    * 終點能清除，起點只能進編輯模式點「使用我的位置」，兩邊操作不一致）。 */
   onClearOrigin: () => void;
@@ -156,14 +135,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const computedFor = useRouteSessionStore((s) => s.computedFor);
   const selectedIndex = useRouteSessionStore((s) => s.selectRoute?.index ?? null);
 
-  const [editing, setEditing] = useState<PlanField | null>(null);
-  const [query, setQuery] = useState('');
-  const [resolving, setResolving] = useState(false);
   const [inputError, setInputError] = useState<string | null>(null);
-  const { suggestions, loading: suggestionsLoading, resetSession } = useAutocomplete(
-    editing ? query : '',
-    position ?? undefined,
-  );
 
   // 由地點詳情「規劃路線」帶入的目的地（只在參數改變時套用一次）。
   const destLat = parseCoord(params.destLat);
@@ -178,7 +150,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const travelMode = effectiveTravelMode(routeMode, storedTravelMode);
   const originIsMyLocation = origin === null;
   const hasOrigin = originIsMyLocation ? position !== null : true;
-  const canStart = hasOrigin && destination !== null && !isLoading && !resolving;
+  const canStart = hasOrigin && destination !== null && !isLoading;
   const requestInputs = {
     origin,
     destination,
@@ -202,36 +174,6 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const resultsFresh = requestKey !== null && (matchesComputed || aiRequestKey === requestKey) && computeRoutes !== null;
   // 每組條件只自動算一次：失敗時停在錯誤訊息＋重試鈕，不會一直重打 API
   const autoAttempted = useRef<string | null>(null);
-
-  const closeEditor = () => {
-    setEditing(null);
-    setQuery('');
-    resetSession();
-  };
-
-  const choose = async (item: AutocompleteItem) => {
-    const field = editing;
-    if (!field) return;
-    setResolving(true);
-    try {
-      const resolved = await resolveAutocompleteItem(item);
-      if (!resolved) {
-        setInputError(t(field === 'origin' ? 'selectOriginFromSuggestions' : 'selectDestinationFromSuggestions'));
-        return;
-      }
-      const store = useRouteSessionStore.getState();
-      const point = { lat: resolved.lat, lng: resolved.lng };
-      if (field === 'origin') store.setOrigin(point, resolved.name);
-      else store.setDestination(point, resolved.name);
-      setInputError(null);
-      closeEditor();
-    } catch (error) {
-      logger.warn('[route] resolve place failed', error);
-      setInputError(t('nativeRouteErrorFailed'));
-    } finally {
-      setResolving(false);
-    }
-  };
 
   /** 算路本身：只寫 route store（外部狀態），自動算路的 effect 也能安全呼叫。 */
   const runPlan = async (key: string | null) => {
@@ -270,8 +212,8 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     await runPlan(localizedRequestKey);
   };
 
-  // 起訖點與模式齊全、而且和現有結果對不上時自動算路（編輯起訖點途中不算）
-  const autoReady = !aiPlan && canStart && editing === null && !resultsFresh;
+  // 起訖點與模式齊全、而且和現有結果對不上時自動算路。
+  const autoReady = !aiPlan && canStart && !resultsFresh;
   const autoPlan = useEffectEvent(() => void runPlan(localizedRequestKey));
   useEffect(() => {
     if (!autoReady || autoAttempted.current === requestKey) return;
@@ -286,18 +228,6 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     originLabel: originIsMyLocation ? t('myLocation') : originName || t('origin'),
     originIsMyLocation,
     destinationLabel: destination ? destinationName || t('destination') : null,
-    editing,
-    query,
-    suggestions: editing
-      ? suggestions.map((item) => ({
-          key: item.id,
-          title: item.primaryText,
-          subtitle: item.secondaryText,
-          onPress: () => void choose(item),
-        }))
-      : [],
-    suggestionsLoading,
-    resolving,
     travelModes: TRAVEL_MODES.map((mode) => {
       const allowed = isTravelModeAllowed(routeMode, mode);
       const label = t(mode);
@@ -343,16 +273,8 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     },
     error: inputError ?? failureText,
     onEdit: (field) => {
-      setEditing(field);
-      setQuery('');
       setInputError(null);
-    },
-    onCancelEdit: closeEditor,
-    onQueryChange: setQuery,
-    onInputFocus: () => sheetController.raiseTo(SHEET_DETENTS.length - 1),
-    onUseMyLocation: () => {
-      useRouteSessionStore.getState().setOrigin(null);
-      closeEditor();
+      router.push({ pathname: '/route-location-search', params: { field } });
     },
     onClearOrigin: () => useRouteSessionStore.getState().setOrigin(null),
     onClearDestination: () => useRouteSessionStore.getState().setDestination(null),

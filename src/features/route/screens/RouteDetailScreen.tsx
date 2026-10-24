@@ -93,13 +93,15 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
                   </Text>
                   <View style={[styles.timelineLine, { backgroundColor: ROUTE_BORDER_COLOR }]} />
                 </View>
-                <LegDetail
-                  leg={leg}
-                  engine={route.engine}
-                  isFirst={legIndex === 0}
-                  isLast={legIndex === route.legs.length - 1}
-                  busStops={leg.type === 'BUS' && renderBusLeg ? renderBusLeg({ route, routeIndex, legIndex, leg }) : undefined}
-                />
+                <View style={styles.timelineContent}>
+                  <LegDetail
+                    leg={leg}
+                    engine={route.engine}
+                    isFirst={legIndex === 0}
+                    isLast={legIndex === route.legs.length - 1}
+                    busStops={leg.type === 'BUS' && renderBusLeg ? renderBusLeg({ route, routeIndex, legIndex, leg }) : undefined}
+                  />
+                </View>
               </View>
             ))}
             <View style={styles.timelineRow}>
@@ -159,8 +161,8 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
 
 const styles = StyleSheet.create({
   timelineRow: { flexDirection: 'row', gap: 10 },
-  // 固定寬度讓時鐘時間跟連接線對齊，不管文字多寬（"HH:mm" 都是 5 碼，但大字級要留餘裕）
-  timelineRail: { width: 44, alignItems: 'center', gap: 2 },
+  timelineContent: { flex: 1, minWidth: 0 },
+  timelineRail: { minWidth: 44, flexShrink: 0, alignItems: 'center', gap: 2 },
   clockLabel: { fontSize: TYPE.caption, fontWeight: '600', fontVariant: ['tabular-nums'] },
   // flex:1 讓連接線補滿這個 leg 卡片的高度，貼到下一個時鐘時間
   timelineLine: { flex: 1, width: 2, borderRadius: SHAPE.pill, borderCurve: 'continuous', minHeight: 12 },

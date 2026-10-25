@@ -9,7 +9,7 @@ import { HazardLayer } from '@/features/hazard';
 import { EnvironmentChip, MapScreen, useEnvironment } from '@/features/map';
 import { NavigationHUD, useNavStore, useNavigationEffects } from '@/features/navigation';
 import { needsOnboarding, useOnboardingStore } from '@/features/onboarding';
-import { PlacePinLayer } from '@/features/place';
+import { PlacePinLayer, ReturnToSearchButton } from '@/features/place';
 import { RouteFacilityLayer, RouteLayer, RouteSessionPill, useRouteSession } from '@/features/route';
 import { SosButton, SosTrackerLayer } from '@/features/sos';
 import { VoiceFloatingIndicator } from '@/features/voice';
@@ -95,6 +95,7 @@ export default function Index() {
           <View pointerEvents="box-none" style={[styles.sos, { top: isNavigating ? hudBannerHeight + 106 : insets.top + SOS_BUTTON.top }]}>
             <SosButton />
           </View>
+          {isNavigating ? null : <ReturnToSearchButton />}
         </>
       }
     />

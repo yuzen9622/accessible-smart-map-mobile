@@ -14,20 +14,28 @@ export function Form({ modifiers = [], ...props }: FormProps) {
   ] : modifiers} />;
 }
 
+/**
+ * 永遠走 `header`、不要把 `title` 原生 prop 傳給 `NativeSection`，兩種模式都一樣：原生
+ * `SectionView.swift` 的 `regularSection` 是 `if let title { … } else if let headerView,
+ * let footerView { … } else if let headerView { … } else { … }` 這種 `@ViewBuilder if/else`
+ * 鏈，`title`／`header` 哪個有值會決定走哪一條分支。高對比切換時這裡以前是「有 title 沒
+ * header」切到「沒 title 有 header」，等於每個 Section 同時換分支、整個 Form 被砍重建，
+ * 捲動位置就彈回最頂端（使用者回饋 2026-10-25 錄影）。固定都走 header，分支永遠一致，只是
+ * 換字的顏色。
+ */
 export function Section({ title, header, footer, modifiers = [], ...props }: SectionProps) {
   const highContrast = usePreferencesStore(s => s.highContrast);
   const colors = useThemeColors();
   const tones = useSemanticColors();
-  if (!highContrast) return <NativeSection {...props} title={title} header={header} footer={footer} modifiers={modifiers} />;
 
-  // Native section captions otherwise use a translucent secondary label, bypassing the App palette.
+  const captionColor = highContrast ? colors.textSecondary : ({ type: 'hierarchical', style: 'secondary' } as const);
   const caption = (content: ReactNode) => content == null ? undefined : (
-    <VStack alignment="leading" modifiers={[foregroundStyle(colors.textSecondary)]}>{content}</VStack>
+    <VStack alignment="leading" modifiers={[foregroundStyle(captionColor)]}>{content}</VStack>
   );
   return <NativeSection {...props}
     header={caption(header ?? (title ? <Text>{title}</Text> : undefined))}
     footer={caption(footer)}
-    modifiers={[listRowBackground(colors.background), listRowSeparatorTint(tones.separator), ...modifiers]}
+    modifiers={highContrast ? [listRowBackground(colors.background), listRowSeparatorTint(tones.separator), ...modifiers] : modifiers}
   />;
 }
 

@@ -1,5 +1,5 @@
 import { Text, TextInput } from '@/shared/ui/typography/Text';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, View } from 'react-native';
 
 import { MapLayersBar } from '@/features/map';
 import { ACCENT_FILL, SPACE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
@@ -105,7 +105,9 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
             onPress={model.account.onPress}
             hitSlop={6}
             style={[styles.avatar, { backgroundColor: model.account.initial ? ACCENT_FILL : colors.background }]}>
-            {model.account.initial ? (
+            {model.account.avatarUrl ? (
+              <Image source={{ uri: model.account.avatarUrl }} style={styles.avatarImage} />
+            ) : model.account.initial ? (
               <Text style={styles.avatarText}>{model.account.initial}</Text>
             ) : (
               <Icon name="user" size={ICON_SIZE.control} color={colors.textSecondary} />
@@ -374,12 +376,16 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 }
 
 const styles = StyleSheet.create({
-  avatar: { width: 36, height: 36, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 36, height: 36, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImage: { width: 36, height: 36 },
   avatarText: { color: WHITE, fontSize: TYPE.callout, fontWeight: '700' },
   cancelButton: { minHeight: 36, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   cancelButtonText: { fontSize: TYPE.subhead, fontWeight: '600' },
   voiceButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  content: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.sm, paddingBottom: 32, gap: 18 },
+  // paddingTop 留給原生 sheet 把手（sheetGrabberVisible）的淨空間，避免第一排的設施篩選膠囊
+  // （MapLayersBar）在 peek 高度時被把手蓋到／貼太近（使用者回饋 2026-10-25：把手摸到廁所篩選鈕）。
+  // 24（SPACE.xl）試過仍不夠（使用者回饋：把手位置過低，蓋到搜尋框與快速服務列），加大到 44。
+  content: { paddingHorizontal: SPACE.lg, paddingTop: 44, paddingBottom: 32, gap: 18 },
   flex: { flex: 1 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
   addShortcutButton: { minWidth: 32, minHeight: 32, alignItems: 'center', justifyContent: 'center' },

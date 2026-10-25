@@ -9,6 +9,7 @@ const mockPermission = jest.fn();
 jest.mock('@/features/auth', () => ({
   useAuthStore: jest.requireActual('zustand').create(() => ({})),
   selectIsLoggedIn: (s: { user: unknown; session?: { accessToken: string } }) => Boolean(s.user && s.session?.accessToken),
+  useAvatarUpload: () => ({ uploading: false, pickAndUpload: async () => 'cancelled' as const }),
 }));
 jest.mock('@/features/notifications', () => ({
   syncPushToken: () => mockSync(), requestPushPermission: () => mockPermission(),

@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useRef } from 'react';
 import { AccessibilityInfo, Alert, Linking, Platform } from 'react-native';
 
-import { runAccountDeletion, selectIsLoggedIn, signOut, useAuthStore } from '@/features/auth';
+import { runAccountDeletion, selectIsLoggedIn, signOut, useAuthStore, useAvatarUpload } from '@/features/auth';
 import { PINNED_FACILITY_CATEGORIES, useFacilityStore, type PinnedFacilityCategory } from '@/features/map';
 import { requestPushPermission, syncPushToken, usePushStatus } from '@/features/notifications';
 import { useOnboardingStore } from '@/features/onboarding';
@@ -46,6 +46,7 @@ export function useSettingsViewModel() {
   const { t } = useAppTranslation();
   const loggedIn = useAuthStore(selectIsLoggedIn);
   const user = useAuthStore((s) => s.user);
+  const avatarUpload = useAvatarUpload();
   const prefs = usePreferencesStore();
   const pushStatus = usePushStatus((s) => s.status);
   const notificationAttempt = useRef(0);
@@ -229,6 +230,10 @@ export function useSettingsViewModel() {
           email: user.email,
           lineLinked: Boolean(user.lineUserId),
           hasPassword: user.authProviders.includes('local'),
+          avatarUrl: user.avatar ?? null,
+          avatarLabel: t('nativeChangeAvatar'),
+          avatarUploading: avatarUpload.uploading,
+          onChangeAvatar: () => void avatarUpload.pickAndUpload(),
         }
       : null,
     openLogin: () => router.navigate('/auth'),
@@ -277,8 +282,13 @@ export function useSettingsViewModel() {
     openBlocks: requireLogin(() => router.navigate('/settings/blocked-users')),
     openReports: requireLogin(() => router.navigate('/settings/reports')),
     openData: () => router.navigate('/settings/data'),
-    // 清掉完成旗標後，地圖主畫面（`app/index.tsx`）的 effect 會自動開 onboarding。
-    resetGuides: () => useOnboardingStore.getState().resetGuides(),
+    // 先關掉設定 modal 再清旗標：地圖主畫面（`app/index.tsx`）的 effect 會自動開 onboarding，
+    // 設定 modal 沒先關掉的話，fullScreenModal 的引導就會疊在設定上面關不掉
+    // （使用者回饋 2026-10-25）。
+    resetGuides: () => {
+      router.back();
+      useOnboardingStore.getState().resetGuides();
+    },
     version: Constants.expoConfig?.version ?? '',
     legalLinks: legalLinks(t),
   };

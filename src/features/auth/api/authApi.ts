@@ -1,3 +1,5 @@
+import { File } from 'expo-file-system';
+
 import { ApiError, authenticatedRequest, fetchRequest, type ApiResponse } from '@/shared/api';
 
 import { refreshAccessToken } from '../domain/authRefresh';
@@ -209,6 +211,29 @@ function isLineLinkCode(value: unknown): value is LineLinkCodeResult {
 export async function getLineLinkCode(): Promise<LineLinkCodeResult | null> {
   const res = await authenticatedRequest(`${USER}/line-link-code`, { method: 'POST' });
   return isSuccess(res) && isLineLinkCode(res.data) ? res.data : null;
+}
+
+export interface UploadAvatarResult {
+  avatarUrl: string;
+}
+
+/**
+ * TODO(Avatar API)：後端目前沒有「更新頭像」的端點——`UserDTO.avatar` 欄位已經存在（型別裡有，
+ * 但沒有任何寫入路徑），`/api/v1/user` 下只有 `GET info`／`POST auth/password`／`DELETE`
+ * （2026-10-25 已確認過整個路由沒有 avatar 相關端點）。這裡先假設
+ * `PATCH /api/v1/user/avatar`（multipart，欄位名 `avatar`，成功回傳 `{ avatarUrl }`），
+ * 呼叫端（`useAvatarUpload`）已經把「選圖→裁切→上傳→套用」整條流程接好，上傳失敗時仍會套用本機
+ * 預覽圖，不會卡住 UI。拿到真正的 endpoint／回應格式後，只要改這個函式本身即可，不用動呼叫端。
+ */
+export async function uploadAvatar(photo: { uri: string }): Promise<UploadAvatarResult> {
+  const form = new FormData();
+  // Expo 57 的 fetch 不接受 RN 的 URI 描述物件；File 提供原始 bytes（同 hazardApi 的照片上傳）。
+  form.append('avatar', new File(photo.uri));
+  const res = await authenticatedRequest(`${USER}/avatar`, { method: 'PATCH', body: form });
+  if (!isSuccess(res) || !isRecord(res.data) || typeof res.data.avatarUrl !== 'string') {
+    throw new ApiError(res.message, res.code);
+  }
+  return { avatarUrl: res.data.avatarUrl };
 }
 
 export type DeleteAccountResult =

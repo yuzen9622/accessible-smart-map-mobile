@@ -3,6 +3,7 @@ export { default as ChangePasswordScreen } from './screens/ChangePasswordScreen'
 export { default as LineBindScreen } from './screens/LineBindScreen';
 
 export { useAuthBootstrap } from './hooks/useAuthBootstrap';
+export { useAvatarUpload } from './hooks/useAvatarUpload';
 export {
   onLogout,
   restoreSession,

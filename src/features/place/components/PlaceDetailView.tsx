@@ -8,7 +8,6 @@ import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, semanticColors, useSemanticColors, use
 import { Icon, type IconName } from '@/shared/ui';
 
 import CategoryNameModal from './CategoryNameModal';
-import MoreActionsButton from './MoreActionsButton';
 import type { PlaceDetailBadge, PlaceDetailNearbyRow, PlaceDetailViewProps } from './PlaceDetailView.types';
 import {
   PLACE_ACCENT_COLOR,
@@ -198,19 +197,15 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
           </Text>
         </View>
         <View style={styles.actionColumn}>
-        <MoreActionsButton
-          label={model.moreLabel}
-          cancelLabel={model.cancelLabel}
-          backgroundColor={circleSurface}
-          color={accentText}
-          actions={[
-            { label: model.recenterLabel, onPress: model.onRecenter },
-            { label: model.copyLabel, onPress: model.onCopy },
-            ...model.links,
-          ]}
-        />
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={model.cctvLabel}
+            onPress={model.onOpenCctv}
+            style={[styles.circleButton, { backgroundColor: circleSurface }]}>
+            <Icon name="camera" size={ICON_SIZE.control} color={accentText} />
+          </PressableScale>
           <Text importantForAccessibility="no" maxFontSizeMultiplier={MAX_FONT_SCALE.label} numberOfLines={1} style={[styles.actionLabel, { color: colors.textSecondary }]}>
-            {model.moreLabel}
+            {model.cctvLabel}
           </Text>
         </View>
       </View>

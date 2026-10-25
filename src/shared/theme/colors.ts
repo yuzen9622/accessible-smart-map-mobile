@@ -23,7 +23,9 @@ export const Colors = {
     text: '#FFFFFF',
     textSecondary: '#B0B4BA',
     background: '#000000',
-    backgroundElement: '#212225',
+    // 比純黑 `background` 明顯拉開一階（原 #212225 太接近黑，膠囊／搜尋框／卡片在
+    // sheet 上幾乎融成一片，邊界難辨——使用者回饋 2026-10-24 錄影：深色模式太黑沒層次）。
+    backgroundElement: '#2C2C2E',
   },
   'light-hc': {
     text: '#000000',

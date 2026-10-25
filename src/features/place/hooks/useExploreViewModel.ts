@@ -178,8 +178,8 @@ export interface ExploreViewModel {
   /** 沒有定位或設施未載入時為 null */
   nearbySummary: ExploreNearbySummary | null;
   quickActions: ExploreQuickAction[];
-  /** 搜尋框右側的帳號／設定按鈕（Apple 地圖的頭像位置）；已登入顯示名字首字 */
-  account: { label: string; initial: string | null; onPress: () => void };
+  /** 搜尋框右側的帳號／設定按鈕（Apple 地圖的頭像位置）；已登入顯示名字首字，有自訂頭像時顯示圖片 */
+  account: { label: string; initial: string | null; avatarUrl: string | null; onPress: () => void };
   /** 搜尋框的語音輸入：原地辨識、講完直接把文字填進搜尋框觸發搜尋，不開啟任何對話 UI
    * （測試人員回饋 2026-10-11：一開始接去 AI 聊天頁是誤解，使用者要的是像 Google 地圖那種
    * 「按麥克風→講話→文字自動出現在搜尋框」）。見 `@/shared/speech` 的 `useDictation`。 */
@@ -211,6 +211,7 @@ export function useExploreViewModel(): ExploreViewModel {
   const { t, i18n } = useAppTranslation();
   const loggedIn = useAuthStore(selectIsLoggedIn);
   const userName = useAuthStore((s) => (loggedIn ? (s.user?.name ?? null) : null));
+  const avatarUrl = useAuthStore((s) => (loggedIn ? (s.user?.avatar ?? null) : null));
   const [query, setQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   // 常去地點分類複選；空陣列＝不篩選、全部顯示（預設）。
@@ -520,6 +521,7 @@ export function useExploreViewModel(): ExploreViewModel {
     account: {
       label: userName ? `${t('settingTitle')}，${userName}` : t('settingTitle'),
       initial: userName ? userName.trim().slice(0, 1).toUpperCase() : null,
+      avatarUrl,
       onPress: () => router.navigate('/settings'),
     },
     voiceInput: {

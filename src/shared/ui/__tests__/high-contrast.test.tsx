@@ -54,7 +54,8 @@ it.each(['light', 'dark'] as const)('%s: the settings switch updates native form
   expect(view.getByTestId('Form').props.modifiers).not.toEqual(initialFormModifiers);
   expect(JSON.stringify(view.getByTestId('Form').props.modifiers)).toContain(Colors[scheme === 'dark' ? 'dark-hc' : 'light-hc'].backgroundElement);
   await fireEvent(view.getAllByTestId('Toggle')[0], 'isOnChange', false);
-  expect(view.getByTestId('Host').props.seedColor).toBeUndefined();
+  // seedColor 固定給色（見 PreferenceHost.ios.tsx），不可變回 undefined：那個分支切換才是彈回頂端的元凶。
+  expect(view.getByTestId('Host').props.seedColor).toBe(semanticColors(scheme === 'dark', false).accent);
   expect(view.getByTestId('Form').props.modifiers).toEqual(initialFormModifiers);
 });
 

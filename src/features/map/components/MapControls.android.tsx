@@ -16,7 +16,7 @@ export default function MapControls({ actions }: MapControlsProps) {
           accessibilityRole="button"
           accessibilityLabel={action.label}
           onPress={action.onPress}
-          style={[styles.button, { backgroundColor: colors.backgroundElement }]}>
+          style={[styles.button, { backgroundColor: colors.backgroundElevated, borderColor: colors.elevatedBorder }]}>
           <Text style={[styles.text, { color: colors.text }]}>{action.shortLabel}</Text>
         </PressableScale>
       ))}
@@ -30,6 +30,7 @@ const styles = StyleSheet.create({
     minWidth: 48,
     minHeight: 48,
     borderRadius: SHAPE.pill, borderCurve: 'continuous',
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
     boxShadow: ELEVATION.floating,

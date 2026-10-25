@@ -24,7 +24,7 @@ import ArrowUp from 'lucide-react-native/icons/arrow-up';
 import ArrowUpDown from 'lucide-react-native/icons/arrow-up-down';
 import ArrowUpLeft from 'lucide-react-native/icons/arrow-up-left';
 import ArrowUpRight from 'lucide-react-native/icons/arrow-up-right';
-import Scooter from 'lucide-react-native/icons/scooter';
+import Motorbike from 'lucide-react-native/icons/motorbike';
 import Bus from 'lucide-react-native/icons/bus';
 import Car from 'lucide-react-native/icons/car';
 import CornerUpLeft from 'lucide-react-native/icons/corner-up-left';
@@ -131,7 +131,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   arrowUpRight: ArrowUpRight,
   // 全專案這個 key 一律拿來畫「機車」（無障礙模式、交通方式、導航轉彎圖示），沒有真的腳踏車用途；
   // 原本接 Lucide 的 Bike（腳踏車），圖示跟語意對不上（使用者回饋 2026-10-23：icon 是腳踏車吧）。
-  bike: Scooter,
+  bike: Motorbike,
   bus: Bus,
   car: Car,
   cornerUpLeft: CornerUpLeft,

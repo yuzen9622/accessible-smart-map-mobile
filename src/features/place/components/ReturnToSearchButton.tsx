@@ -1,28 +1,57 @@
-import { StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Animated, StyleSheet } from 'react-native';
 
-import { boundsContain, mapCamera, useMapUiStore } from '@/features/map';
+import { mapCamera, useMapUiStore } from '@/features/map';
+import { motionDuration } from '@/shared/accessibility';
+import { haversineMeters, lngLatToLatLng } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 import { ACCENT_FILL, ELEVATION, ICON_SIZE, ON_ACCENT_FILL, SHAPE, SPACE, TYPE } from '@/shared/theme';
+import { MOTION } from '@/shared/theme/motion';
 import { Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 import PressableScale from '@/shared/ui/PressableScale';
 
 import { usePlaceUiStore } from '../store/placeUiStore';
 
+/** 中心點離目標 pin 超過這個距離（公尺）才算「飛出去了」，顯示按鈕。 */
+const RETURN_BUTTON_DISTANCE_THRESHOLD_M = 50;
+
 /**
- * 「回到搜尋點」浮動鈕：使用者把地圖滑開、目前選定的搜尋 pin 離開可視範圍時才出現
- * （`onRegionDidChange` 更新 `mapUiStore.bounds`，跟 pin 座標比對）。按下後 `flyTo` 平滑移回，
- * 移動完成後 `onRegionDidChange` 重新算出 pin 又在範圍內，按鈕自己消失，不需要額外的
- * 「到了就隱藏」狀態。懸浮在首頁 sheet 的原生把手正上方，位置跟著 `sheetInset` 升降
- * （使用者回饋 2026-10-25）。
+ * 「回到搜尋點」浮動鈕：只在「使用者自己拖拽地圖」且「離目標 pin 超過門檻距離」時才出現
+ * （使用者回饋 2026-10-25：剛搜尋完、程式自動把相機飛過去時按鈕也冒出來了——那是
+ * `mapCamera.flyTo` 的自動置中，不是使用者手勢，不該算數）。`mapUiStore` 的
+ * `lastRegionChangeWasUserInteraction` 由 `MapScreen` 的 `onRegionDidChange` 依原生事件的
+ * `userInteraction` 旗標更新，直接拿來當「現在算不算使用者拖開」的唯一依據，不用另外存一份
+ * local state 去同步：選到新地點時 `usePlaceDetailViewModel` 會呼叫 `mapCamera.flyTo` 把相機
+ * 飛過去，那一次 `onRegionDidChange` 的 `userInteraction` 本來就是 false，旗標自然歸零；按下
+ * 這顆按鈕的 `flyTo` 也一樣，不用手動重置。
+ *
+ * 位置跟著 `sheetInset`（sheet 目前高度）用 `Animated.Value` 平滑過渡，不是直接套用
+ * 新數字：sheet 的偵測點（detent）變化是原生事件、沒有逐幀的拖曳進度可以綁定，只能在
+ * 偵測點改變的瞬間把按鈕位置「動畫」過去，取代直接套用新 bottom 值的瞬間跳動／摔落
+ * （使用者回饋：按鈕位置沒有隨 Sheet 動態懸浮，直接摔落並與把手重疊）。
  */
 export default function ReturnToSearchButton() {
   const { t } = useAppTranslation();
   const selectedPlace = usePlaceUiStore((state) => state.selectedPlace);
-  const bounds = useMapUiStore((state) => state.bounds);
+  const center = useMapUiStore((state) => state.center);
+  const userInteraction = useMapUiStore((state) => state.lastRegionChangeWasUserInteraction);
   const sheetInset = useMapUiStore((state) => state.sheetInset);
 
-  if (!selectedPlace || !bounds || boundsContain(bounds, selectedPlace.position)) return null;
+  const [insetAnim] = useState(() => new Animated.Value(sheetInset));
+  useEffect(() => {
+    Animated.timing(insetAnim, {
+      toValue: sheetInset,
+      duration: motionDuration(MOTION.move.duration),
+      useNativeDriver: true,
+    }).start();
+  }, [sheetInset, insetAnim]);
+
+  const centerLatLng = center ? lngLatToLatLng(center) : null;
+  const distance = selectedPlace && centerLatLng ? haversineMeters(centerLatLng, selectedPlace.position) : 0;
+  const visible = Boolean(selectedPlace && centerLatLng && userInteraction && distance > RETURN_BUTTON_DISTANCE_THRESHOLD_M);
+
+  if (!visible || !selectedPlace) return null;
 
   const handlePress = () => {
     const { lat, lng } = selectedPlace.position;
@@ -30,21 +59,27 @@ export default function ReturnToSearchButton() {
   };
 
   return (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={t('nativeReturnToSearchPoint')}
-      onPress={handlePress}
-      style={[styles.button, { bottom: sheetInset + SPACE.md }]}>
-      <Icon name="mapPinned" size={ICON_SIZE.control} color={ON_ACCENT_FILL} />
-      <Text style={styles.label}>{t('nativeReturnToSearchPoint')}</Text>
-    </PressableScale>
+    <Animated.View
+      pointerEvents="box-none"
+      style={[styles.wrap, { transform: [{ translateY: Animated.multiply(insetAnim, -1) }] }]}>
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={t('nativeReturnToSearchPoint')}
+        onPress={handlePress}
+        style={styles.button}>
+        <Icon name="mapPinned" size={ICON_SIZE.control} color={ON_ACCENT_FILL} />
+        <Text style={styles.label}>{t('nativeReturnToSearchPoint')}</Text>
+      </PressableScale>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
+  // 外層只管位置／動畫；內層的 PressableScale 管外觀，避免把 Animated 的插值直接餵給
+  // 非 Animated 包裝的元件（RN 的 transform 型別需要具體數字，PressableScale 本身不是
+  // `Animated.createAnimatedComponent` 包出來的）。
+  wrap: { position: 'absolute', bottom: SPACE.md, alignSelf: 'center' },
   button: {
-    position: 'absolute',
-    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACE.xs,

@@ -90,7 +90,6 @@ export default function MapScreen({
   const permission = useUserLocationStore((state) => state.permission);
   const setPermission = useUserLocationStore((state) => state.setPermission);
   const setPosition = useUserLocationStore((state) => state.setPosition);
-  const position = useUserLocationStore((state) => state.position);
   const follow = useMapUiStore((state) => state.follow);
   const sheetInset = useMapUiStore((state) => state.sheetInset);
   const showParking = useFacilityStore((state) => state.showParking);
@@ -110,10 +109,19 @@ export default function MapScreen({
   useLocationTracking();
   useFacilitiesLoader();
 
-  // 冷啟動第一個真實 GPS fix：置中一次；深層連結或使用者已移動相機時不搶
+  // 冷啟動第一個真實 GPS fix：置中一次；深層連結或使用者已移動相機時不搶。
+  // 不要用 `useUserLocationStore((s) => s.position)` 訂閱：GPS 每秒／每移動 2 公尺更新一次，
+  // 若當成 render 依賴，MapScreen（連同所有設施圖層／pill）就會跟著重新 render，疊加拖曳手勢
+  // 本身的負擔，造成滑動地圖時卡頓（使用者回饋 2026-10-25）。改用 store 自己的 `subscribe`，
+  // 在 React render 循環之外監看，拿到第一個位置、`autoCenterOnce` 內部自己的 `claimed`
+  // 旗標處理「只置中一次」後就不用再管了。
   useEffect(() => {
-    if (position) mapCamera.autoCenterOnce([position.lng, position.lat], LOCATED_ZOOM);
-  }, [position]);
+    const current = useUserLocationStore.getState().position;
+    if (current) mapCamera.autoCenterOnce([current.lng, current.lat], LOCATED_ZOOM);
+    return useUserLocationStore.subscribe((state) => {
+      if (state.position) mapCamera.autoCenterOnce([state.position.lng, state.position.lat], LOCATED_ZOOM);
+    });
+  }, []);
 
   // 常駐 sheet：地圖一露出（上面沒有 sheet）就把首頁 sheet 帶出來。用 focus 而非只在掛載時推一次：
   // 萬一 sheet 被關掉也會自動補回；深層連結已帶 sheet 路由時地圖不在最上層，不會重複推。
@@ -141,8 +149,13 @@ export default function MapScreen({
       const status = await port.requestForegroundPermission();
       setPermission(status);
       if (status !== 'granted') return;
-      // 一律拿一次即時 GPS fix，不要沿用 store 裡可能已經過期的 position，
-      // 避免地圖被滑開後按「回到目前位置」卻飛到舊的定位點（使用者回饋 2026-10-25）。
+      // 按下去先用 store 裡現有的位置立刻飛一次：使用者要馬上看到反應，不能整個等一輪新的
+      // GPS fix（可能要 1～3 秒）才開始動，不然會感覺像按了沒反應（使用者回饋 2026-10-25：
+      // 定位按鈕回應慢）。`useLocationTracking` 本來就以 1Hz／2 公尺持續更新這個 store，通常
+      // 夠新。等真正拿到新的高精度定位後再飛一次修正——兩次都是同一個 `flyTo`，第二次若
+      // 位置幾乎沒變就只是極小幅調整，不會又跳回「舊位置」（原本這段要解決的問題）。
+      const cached = useUserLocationStore.getState().position;
+      if (cached) mapCamera.flyTo([cached.lng, cached.lat], LOCATED_ZOOM);
       const current = await port.getCurrent({ accuracy: 'high' });
       setPosition(current);
       mapCamera.flyTo([current.lng, current.lat], LOCATED_ZOOM);
@@ -194,8 +207,9 @@ export default function MapScreen({
         onRegionDidChange={(event) => {
           panStart.current = null;
           fadeControls(1);
-          useMapUiStore.getState().setZoom(event.nativeEvent.zoom);
-          useMapUiStore.getState().setBounds(event.nativeEvent.bounds);
+          const { zoom, bounds, center, userInteraction } = event.nativeEvent;
+          useMapUiStore.getState().setZoom(zoom);
+          useMapUiStore.getState().setRegion(bounds, center, userInteraction);
         }}
         onPress={(event) => {
           if (navigationMode) return;

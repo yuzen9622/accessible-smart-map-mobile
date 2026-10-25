@@ -6,6 +6,7 @@ import { applyDefaultFacilityCategories, useUserLocationStore } from '@/features
 import { useAppTranslation } from '@/shared/i18n';
 import { getLocationPort } from '@/shared/location';
 import { logger } from '@/shared/logger';
+import { useCloseScreen } from '@/shared/navigation';
 import { FONT_SCALE, usePreferencesStore, type FontSizeLevel } from '@/shared/preferences';
 
 import {
@@ -62,6 +63,7 @@ export interface SituationOption {
  */
 export function useOnboardingFlow() {
   const { t } = useAppTranslation();
+  const closeScreen = useCloseScreen();
   const [stepIndex, setStepIndex] = useState(0);
   const [locationState, setLocationState] = useState<LocationRequestState>('idle');
 
@@ -89,7 +91,7 @@ export function useOnboardingFlow() {
     // 不需要另外有人監看 store 再幫忙關閉（對齊 Web 版 OnboardingHost 靠 record 觸發卸載
     // 的邏輯，只是本 App 用 router 取代條件渲染）。
     skipOnboarding();
-    router.dismissAll();
+    closeScreen();
   };
 
   /**
@@ -102,16 +104,19 @@ export function useOnboardingFlow() {
   };
 
   /**
-   * 退回根畫面而不是只 `goBack()` 一層：引導有可能是從「設定」開（`resetGuides` 先關掉設定
-   * sheet 才清旗標），但使用者也可能在引導途中又疊開別的 modal。只退一層在「最後一步直接觸發
-   * 附近設施／規劃路線」時會讓新 sheet 疊在還沒真正關掉的設定 sheet 上面（使用者回饋
-   * 2026-10-25：從設定開引導，最後一步開功能，新 sheet 疊在設定上面）。`dismissAll()` 把整個
-   * root stack 收回第一個畫面（`index`），乾淨狀態下再視需要開下一個 sheet，不會疊。
+   * 單純退一層（這個畫面是 modal，關掉自己即可）。曾經改成 `router.dismissAll()`
+   * 想順便解決「從設定開引導、最後一步直接開功能時疊在設定上面」的問題，結果整個「略過」／
+   * 「直接開始使用」變成按了沒反應（使用者回饋 2026-10-25）：首頁常駐 sheet
+   * （`(sheet)` route，見 `app/_layout.tsx`）的 `beforeRemove` 對任何移除動作一律
+   * `preventDefault()`，`dismissAll()` 底層是 `POP_TO_TOP`，要把整個 stack 收回 `index`
+   * 一定會連 sheet 一起移除，直接被這個守衛擋下、整個動作變成無效操作。改回只退自己這一層：
+   * 不會碰到 sheet，不會觸發守衛。「設定 sheet 還開著」的情況已經在 `resetGuides`
+   * （`useSettingsViewModel.ts`）那邊用 `router.back()` 先關掉，不需要這裡再兜底。
    */
   const finish = () => {
     applyDefaultFilter();
     completeOnboarding();
-    router.dismissAll();
+    closeScreen();
   };
 
   /** 完成引導並直接打開附近設施清單（Web DoneStep 的「找附近的無障礙廁所」）。 */

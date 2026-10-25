@@ -24,7 +24,7 @@ export default function MapControls({ actions }: MapControlsProps) {
               onPress={action.onPress}
               modifiers={[
                 labelStyle('iconOnly'), buttonStyle(highContrast ? 'plain' : 'glass'), controlSize('large'),
-                ...(highContrast ? [frame({ width: 48, height: 48 }), foregroundStyle(colors.text), background(colors.background, shapes.circle())] : []),
+                ...(highContrast ? [frame({ width: 48, height: 48 }), foregroundStyle(colors.text), background(colors.backgroundElevated, shapes.circle())] : []),
               ]}
             />
           ))}

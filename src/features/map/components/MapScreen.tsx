@@ -89,6 +89,7 @@ export default function MapScreen({
   const toggle3d = useMapUiStore((state) => state.toggle3d);
   const permission = useUserLocationStore((state) => state.permission);
   const setPermission = useUserLocationStore((state) => state.setPermission);
+  const setPosition = useUserLocationStore((state) => state.setPosition);
   const position = useUserLocationStore((state) => state.position);
   const follow = useMapUiStore((state) => state.follow);
   const sheetInset = useMapUiStore((state) => state.sheetInset);
@@ -140,7 +141,10 @@ export default function MapScreen({
       const status = await port.requestForegroundPermission();
       setPermission(status);
       if (status !== 'granted') return;
-      const current = position ?? (await port.getCurrent({ accuracy: 'high' }));
+      // 一律拿一次即時 GPS fix，不要沿用 store 裡可能已經過期的 position，
+      // 避免地圖被滑開後按「回到目前位置」卻飛到舊的定位點（使用者回饋 2026-10-25）。
+      const current = await port.getCurrent({ accuracy: 'high' });
+      setPosition(current);
       mapCamera.flyTo([current.lng, current.lat], LOCATED_ZOOM);
     } catch (error) {
       logger.warn('[map] locate failed', error);
@@ -191,6 +195,7 @@ export default function MapScreen({
           panStart.current = null;
           fadeControls(1);
           useMapUiStore.getState().setZoom(event.nativeEvent.zoom);
+          useMapUiStore.getState().setBounds(event.nativeEvent.bounds);
         }}
         onPress={(event) => {
           if (navigationMode) return;

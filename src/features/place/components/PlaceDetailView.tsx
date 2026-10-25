@@ -8,7 +8,6 @@ import { MAX_FONT_SCALE, MIN_TOUCH, TYPE, semanticColors, useSemanticColors, use
 import { Icon, type IconName } from '@/shared/ui';
 
 import CategoryNameModal from './CategoryNameModal';
-import MoreActionsButton from './MoreActionsButton';
 import type { PlaceDetailBadge, PlaceDetailNearbyRow, PlaceDetailViewProps } from './PlaceDetailView.types';
 import {
   PLACE_ACCENT_COLOR,
@@ -187,17 +186,13 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
           <Icon name={model.saved ? 'bookmarkFilled' : 'bookmark'} size={ICON_SIZE.control} color={accentText} />
         </PressableScale>
         <ShareButton url={model.shareUrl} title={model.title} label={model.shareLabel} onShare={model.onShare} />
-        <MoreActionsButton
-          label={model.moreLabel}
-          cancelLabel={model.cancelLabel}
-          backgroundColor={circleSurface}
-          color={accentText}
-          actions={[
-            { label: model.recenterLabel, onPress: model.onRecenter },
-            { label: model.copyLabel, onPress: model.onCopy },
-            ...model.links,
-          ]}
-        />
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={model.cctvLabel}
+          onPress={model.onOpenCctv}
+          style={[styles.circleButton, { backgroundColor: circleSurface }]}>
+          <Icon name="camera" size={ICON_SIZE.control} color={accentText} />
+        </PressableScale>
       </View>
 
       {model.categories ? (

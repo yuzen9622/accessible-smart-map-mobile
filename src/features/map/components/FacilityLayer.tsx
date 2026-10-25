@@ -1,6 +1,6 @@
 import { GeoJSONSource, Images, Layer, type GeoJSONSourceRef } from '@maplibre/maplibre-react-native';
 import { router, usePathname } from 'expo-router';
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 
 import { mapCamera } from '../controller/mapCamera';
 import { toFacilityCollection } from '../domain/facilities';
@@ -20,8 +20,11 @@ const FACILITY_ICONS = {
 
 /**
  * 無障礙設施圖層：原生 GeoJSONSource cluster（ADR-04）。
- * GeoJSONSource 每次 render 都會 JSON.stringify(data)，所以 collection 只在設施或選取類別變動時重建
- * （React Compiler 依 facilities／selected 自動 memo）。
+ * GeoJSONSource 每次 render 都會 JSON.stringify(data)，所以用 `useMemo` 把 collection 鎖在
+ * facilities／selected／pillIds 真的變動時才重建，不要單純交給 React Compiler 自動 memo：
+ * `data` 參照一換，原生就會整個重新索引／重新 cluster，拖曳地圖時若剛好有無關的 re-render
+ * （例如 GPS 位置更新、首頁 pill 清單重算）重建了這個物件，點位會跟著瞬間跳位
+ * （使用者回饋：拖曳地圖時 marker 位置跳躍／瞬移）。
  */
 export default function FacilityLayer() {
   const facilities = useFacilityStore((state) => state.facilities);
@@ -29,13 +32,18 @@ export default function FacilityLayer() {
   const sourceRef = useRef<GeoJSONSourceRef>(null);
   const pathname = usePathname();
   // 首頁已用距離 pill 標出的最近設施，不再畫圓點（見 FacilityPills）
-  const pillIds = new Set(useFacilityPills().map((pill) => pill.id));
+  const pills = useFacilityPills();
+  // 用排序後的 id 字串當 key：pill 陣列每次 render 都是新參照，但「哪些 id 在內」沒變時這組字串不變。
+  const pillIdsKey = pills.map((pill) => pill.id).sort().join(',');
+  const collection = useMemo(() => {
+    const pillIds = new Set(pillIdsKey ? pillIdsKey.split(',') : []);
+    return toFacilityCollection(
+      pillIds.size > 0 ? facilities?.filter((facility) => !pillIds.has(facility.id)) ?? [] : (facilities ?? []),
+      new Set(selected),
+    );
+  }, [facilities, selected, pillIdsKey]);
 
   if (!facilities || selected.length === 0) return null;
-  const collection = toFacilityCollection(
-    pillIds.size > 0 ? facilities.filter((facility) => !pillIds.has(facility.id)) : facilities,
-    new Set(selected),
-  );
 
   const handleClusterPress = async (clusterId: number, center: [number, number]) => {
     try {

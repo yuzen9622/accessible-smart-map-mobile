@@ -22,6 +22,11 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
                 <Text modifiers={secondary}>{model.account.email}</Text>
               </LabeledContent>
               <Button
+                label={model.account.avatarUploading ? t('nativeAvatarUploading') : model.account.avatarLabel}
+                modifiers={model.account.avatarUploading ? [disabled(true)] : []}
+                onPress={model.account.onChangeAvatar}
+              />
+              <Button
                 label={model.account.hasPassword ? t('nativeSecurityChangeTitle') : t('nativeSecurityAddTitle')}
                 onPress={model.openSecurity}
               />

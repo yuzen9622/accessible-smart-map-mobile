@@ -1,7 +1,6 @@
-import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Alert, Linking, Share } from 'react-native';
+import { useEffect } from 'react';
+import { Alert, Share } from 'react-native';
 
 import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { mapCamera } from '@/features/map';
@@ -10,7 +9,6 @@ import * as mapFeature from '@/features/map';
 import { getAppConfig } from '@/shared/config';
 import { haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
-import { logger } from '@/shared/logger';
 
 import { buildAccessibilityChecklist, type ChecklistItem } from '../domain/accessibilityChecklist';
 import { nearbyFacilityRows, type NearbyFacilityRow } from '../domain/nearbyFacilityRows';
@@ -49,11 +47,6 @@ export interface PlaceDetailCategoryOption {
   label: string;
   isSelected: boolean;
   onSelect: () => void;
-}
-
-export interface PlaceDetailLinkRow {
-  label: string;
-  onPress: () => void;
 }
 
 export type PlaceDetailBadge = PlaceBadge;
@@ -106,12 +99,9 @@ export interface PlaceDetailModel {
   shareLabel: string;
   /** iOS ShareLink 直接分享這個網址 */
   shareUrl: string;
-  copyLabel: string;
-  copied: boolean;
   onPlanRoute: () => void;
   onToggleSave: () => void;
   onShare: () => void;
-  onCopy: () => void;
   categories: PlaceDetailCategoryOption[] | null;
   /** 「+ 新增分類」：只有已收藏才顯示，跟 `categories` 並列一排 chip。 */
   addCategoryLabel: string;
@@ -126,14 +116,10 @@ export interface PlaceDetailModel {
   checklistSupplementLabel: string;
   /** 回報這個地點的現場狀況（障礙、施工、資料錯誤）：開危險通報並帶入地點座標 */
   placeReport: { title: string; subtitle: string; accessibilityLabel: string; onPress: () => void };
-  /** 「⋯」選單（回到此地點、複製連結） */
-  moreLabel: string;
-  cancelLabel: string;
-  links: PlaceDetailLinkRow[];
   reviews: PlaceDetailReviewsModel | null;
-  /** 次要動作：把相機帶回該地點 */
-  recenterLabel: string;
-  onRecenter: () => void;
+  /** 監視器／路口 CCTV（取代原本的「⋯」更多選項按鈕：重新置中、複製連結、在 Google 地圖查看）。 */
+  cctvLabel: string;
+  onOpenCctv: () => void;
   infoLabel: string;
   /** coordinate 地點為 [] */
   badges: PlaceDetailBadge[];
@@ -153,7 +139,6 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   const { t, i18n } = useAppTranslation();
   const loggedIn = useAuthStore(selectIsLoggedIn);
   const userId = useAuthStore((s) => s.user?._id ?? null);
-  const [copied, setCopied] = useState(false);
   const savedPlaces = useSavedPlacesStore((state) => state.savedPlaces);
   const savedPlaceCategories = useSavedPlacesStore((state) => state.savedPlaceCategories);
   const customCategories = useSavedPlacesStore((state) => state.customCategories);
@@ -206,19 +191,6 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     void run();
   };
 
-  const handleCopy = () => {
-    const run = async () => {
-      try {
-        await Clipboard.setStringAsync(shareUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      } catch (error) {
-        logger.warn('[place] copy failed', error);
-      }
-    };
-    void run();
-  };
-
   // 對齊 Web `PlaceContent.tsx` 的「規劃路線」：把這個地點設為目的地並打開規劃面板。
   // 只經路由參數傳遞，place 不 import route feature（sheet 路由是兩者之間唯一的介面）。
   const handlePlanRoute = () => {
@@ -234,8 +206,10 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     });
   };
 
-  const handleRecenter = () => {
-    mapCamera.flyTo([entry.position.lng, entry.position.lat], 17);
+  // 取代原本「⋯」選單的重新置中／複製連結／在 Google 地圖查看：單一「監視器」按鈕，
+  // 帶座標開附近路口 CCTV 清單（使用者回饋 2026-10-25）。
+  const handleOpenCctv = () => {
+    router.navigate({ pathname: '/cctv/[coords]', params: { coords: `${lat},${lng}` } });
   };
 
   const categories: PlaceDetailCategoryOption[] | null = saved
@@ -252,23 +226,6 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     addCustomCategory(name);
     setSavedPlaceCategory(entry, name.trim());
   };
-
-  const links: PlaceDetailLinkRow[] = [];
-  if (place?.externalLinks.osm) {
-    const osmUrl = place.externalLinks.osm;
-    links.push({ label: t('viewOnOSM'), onPress: () => void Linking.openURL(osmUrl) });
-  }
-  const googlePlaceId = place?.source === 'google' && place.id.startsWith('google:')
-    ? place.id.slice('google:'.length)
-    : null;
-  // Use the selected identity with Google's cross-platform URL contract for native app handoff.
-  const googleQuery = [place?.name, place?.fullAddress].filter(Boolean).join(' ') || `${lat},${lng}`;
-  const googleUrl = googlePlaceId
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(googleQuery)}&query_place_id=${encodeURIComponent(googlePlaceId)}`
-    : place?.externalLinks.google;
-  if (googleUrl) {
-    links.push({ label: t('viewOnGoogleMaps'), onPress: () => void Linking.openURL(googleUrl) });
-  }
 
   const reviewKey = place?.reviewKey ?? null;
   const ownReview = userId ? (reviews.reviews.find((r) => r.userId === userId) ?? null) : null;
@@ -361,12 +318,9 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     planRouteLabel: t('planRoute'),
     shareLabel: t('nativeShare'),
     shareUrl,
-    copyLabel: copied ? t('nativeCopied') : t('copyLink'),
-    copied,
     onPlanRoute: handlePlanRoute,
     onToggleSave: handleToggleSave,
     onShare: handleShare,
-    onCopy: handleCopy,
     categories,
     addCategoryLabel: t('nativeSavedCategoryAdd'),
     newCategoryTitle: t('nativeSavedCategoryNewTitle'),
@@ -383,12 +337,9 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
       accessibilityLabel: t('nativeFacilityReportLabel', { name: title }),
       onPress: handleReport,
     },
-    moreLabel: t('nativePlaceMoreActions'),
-    cancelLabel: t('cancel'),
-    links,
     reviews: reviewsModel,
-    recenterLabel: t('recenter'),
-    onRecenter: handleRecenter,
+    cctvLabel: t('nativePlaceCctv'),
+    onOpenCctv: handleOpenCctv,
     infoLabel: t('placeInfoLabel'),
     badges: buildPlaceBadges(place, t),
     nearbyTitle: t('nearbyA11y'),

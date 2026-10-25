@@ -6,7 +6,6 @@ import { applyDefaultFacilityCategories, useUserLocationStore } from '@/features
 import { useAppTranslation } from '@/shared/i18n';
 import { getLocationPort } from '@/shared/location';
 import { logger } from '@/shared/logger';
-import { useCloseScreen } from '@/shared/navigation';
 import { FONT_SCALE, usePreferencesStore, type FontSizeLevel } from '@/shared/preferences';
 
 import {
@@ -63,7 +62,6 @@ export interface SituationOption {
  */
 export function useOnboardingFlow() {
   const { t } = useAppTranslation();
-  const closeScreen = useCloseScreen();
   const [stepIndex, setStepIndex] = useState(0);
   const [locationState, setLocationState] = useState<LocationRequestState>('idle');
 
@@ -91,7 +89,7 @@ export function useOnboardingFlow() {
     // 不需要另外有人監看 store 再幫忙關閉（對齊 Web 版 OnboardingHost 靠 record 觸發卸載
     // 的邏輯，只是本 App 用 router 取代條件渲染）。
     skipOnboarding();
-    closeScreen();
+    router.dismissAll();
   };
 
   /**
@@ -103,10 +101,17 @@ export function useOnboardingFlow() {
     applyDefaultFacilityCategories(defaultFacilityCategories(situations));
   };
 
+  /**
+   * 退回根畫面而不是只 `goBack()` 一層：引導有可能是從「設定」開（`resetGuides` 先關掉設定
+   * sheet 才清旗標），但使用者也可能在引導途中又疊開別的 modal。只退一層在「最後一步直接觸發
+   * 附近設施／規劃路線」時會讓新 sheet 疊在還沒真正關掉的設定 sheet 上面（使用者回饋
+   * 2026-10-25：從設定開引導，最後一步開功能，新 sheet 疊在設定上面）。`dismissAll()` 把整個
+   * root stack 收回第一個畫面（`index`），乾淨狀態下再視需要開下一個 sheet，不會疊。
+   */
   const finish = () => {
     applyDefaultFilter();
     completeOnboarding();
-    closeScreen();
+    router.dismissAll();
   };
 
   /** 完成引導並直接打開附近設施清單（Web DoneStep 的「找附近的無障礙廁所」）。 */

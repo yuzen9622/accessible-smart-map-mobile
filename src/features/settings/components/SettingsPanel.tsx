@@ -12,6 +12,10 @@ export default function SettingsPanel({ model }: SettingsPanelProps) {
           <>
             <FormRow label={model.account.name} value={model.account.email} />
             <FormRow
+              label={model.account.avatarUploading ? t('nativeAvatarUploading') : model.account.avatarLabel}
+              onPress={model.account.avatarUploading ? undefined : model.account.onChangeAvatar}
+            />
+            <FormRow
               label={model.account.hasPassword ? t('nativeSecurityChangeTitle') : t('nativeSecurityAddTitle')}
               onPress={model.openSecurity}
             />

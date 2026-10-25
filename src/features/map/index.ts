@@ -31,6 +31,7 @@ export { FACILITY_CLUSTER_COLOR, FACILITY_COLORS } from './domain/facilityStyle'
 export { useEnvironment } from './hooks/useEnvironment';
 export { default as EnvironmentChip } from './components/EnvironmentChip';
 export { formatDistance } from './domain/parking';
+export { boundsContain } from './domain/bounds';
 export { clearLastUserLocation, hasLastUserLocation } from './store/lastLocation';
 export { default as MapLayersBar } from './components/MapLayersBar';
 export type { MapLayersBarNeedsPill, MapLayersBarProps, MapLayersBarToggle } from './components/MapLayersBar.types';

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { createPersistStorage } from '@/shared/storage';
+import type { LngLatBounds } from '@maplibre/maplibre-react-native';
 
 /** 原生追蹤模式（maplibre Camera `trackUserLocation`）：導航時由 navigation 經 `mapCamera.follow` 開啟。 */
 export type MapFollowMode = 'heading' | 'course';
@@ -21,6 +22,8 @@ interface MapUiState {
   sheetDetentIndex: number;
   /** 地圖目前縮放等級（相機停下時更新，非持久化）；距離 pill 標記依此決定是否顯示。 */
   zoom: number;
+  /** 地圖目前可視範圍（相機停下時更新，非持久化）；「回到搜尋點」浮動鈕依此判斷目標 pin 是否還在畫面內。 */
+  bounds: LngLatBounds | null;
   /** 相機正在跟隨使用者（非持久化）。 */
   follow: MapFollowState | null;
   /** 使用者拖曳地圖打斷了跟隨（native 追蹤自動解除）；由呼叫端決定是否顯示「回到導航」。 */
@@ -29,6 +32,7 @@ interface MapUiState {
   setSheetInset: (inset: number) => void;
   setSheetDetentIndex: (index: number) => void;
   setZoom: (zoom: number) => void;
+  setBounds: (bounds: LngLatBounds) => void;
   setFollow: (follow: MapFollowState | null) => void;
   setFollowInterrupted: (interrupted: boolean) => void;
 }
@@ -40,12 +44,14 @@ export const useMapUiStore = create<MapUiState>()(
       sheetInset: 0,
       sheetDetentIndex: 0,
       zoom: 0,
+      bounds: null,
       follow: null,
       followInterrupted: false,
       toggle3d: () => set((state) => ({ is3d: !state.is3d })),
       setSheetInset: (sheetInset) => set({ sheetInset }),
       setSheetDetentIndex: (sheetDetentIndex) => set({ sheetDetentIndex }),
       setZoom: (zoom) => set({ zoom }),
+      setBounds: (bounds) => set({ bounds }),
       setFollow: (follow) => set({ follow, followInterrupted: false }),
       setFollowInterrupted: (followInterrupted) => set({ followInterrupted }),
     }),

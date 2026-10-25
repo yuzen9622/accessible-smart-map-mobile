@@ -17,7 +17,7 @@ const model: ExploreViewModel = {
     { key: 'assistant', label: 'Assistant', iconName: 'sparkles', color: '#7048E8', onPress: jest.fn() },
     { key: 'bus', label: 'Bus', iconName: 'bus', color: '#0F9960', onPress: noop },
   ],
-  account: { label: 'Settings', initial: null, onPress: noop },
+  account: { label: 'Settings', initial: null, avatarUrl: null, onPress: noop },
   voiceInput: { status: 'idle', label: 'Voice conversation', accessibilityLabel: 'Voice conversation', onToggle: noop },
   labels: {
     searchPlaceholder: 'Search', nearbyA11y: 'Nearby', savedPlaces: 'Saved', searchHistory: 'History',

@@ -8,6 +8,14 @@ import type { EnvironmentInfo } from '../domain/environment';
 
 jest.mock('expo-router', () => ({ router: { navigate: jest.fn() } }));
 jest.mock('@/shared/i18n', () => ({ useAppTranslation: () => ({ t: (key: string) => key }) }));
+// Mock only the SwiftUI rendering boundary; keep the surface, icons and store real.
+jest.mock('@expo/ui/swift-ui', () => {
+  const React = jest.requireActual('react');
+  const { View } = jest.requireActual('react-native');
+  return Object.fromEntries(['Host', 'HStack', 'RNHostView'].map(name => [name,
+    ({ children, ...props }: { children?: React.ReactNode }) => React.createElement(View, { ...props, testID: name }, children),
+  ]));
+});
 jest.mock('expo-glass-effect', () => {
   const React = jest.requireActual('react');
   const { View } = jest.requireActual('react-native');

@@ -7,6 +7,7 @@ import {
   prepareBasemapStyle,
   type MapTheme,
 } from '../domain/basemap';
+import { ensurePoiLayers } from '../domain/basemapPoi';
 import type { AppLanguage } from '@/shared/i18n';
 
 /** 取回 OpenFreeMap style（外部圖磚服務，非本專案 API，所以不走 shared/api）。 */
@@ -19,5 +20,5 @@ export async function fetchBasemapStyle(
   if (!response.ok) throw new Error(`basemap style HTTP ${response.status}`);
   const json: unknown = await response.json();
   if (!isStyleSpecification(json)) throw new Error('basemap style JSON 格式不符');
-  return applyLabelLanguage(prepareBasemapStyle(json), language);
+  return applyLabelLanguage(ensurePoiLayers(prepareBasemapStyle(json), theme), language);
 }

@@ -1,9 +1,10 @@
-import { Camera, Layer, Map, NativeUserLocation } from '@maplibre/maplibre-react-native';
+import { Camera, Layer, Map, NativeUserLocation, type MapRef, type PressEvent } from '@maplibre/maplibre-react-native';
 import { router, useIsFocused, usePathname } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Keyboard, StyleSheet, View, useColorScheme } from 'react-native';
+import { Animated, Keyboard, StyleSheet, View, useColorScheme, type NativeSyntheticEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { haptic } from '@/shared/haptics';
 import { useAppTranslation } from '@/shared/i18n';
 import { getLocationPort } from '@/shared/location';
 import { logger } from '@/shared/logger';
@@ -20,6 +21,7 @@ import {
   buildingExtrusionPaint,
   type MapTheme,
 } from '../domain/basemap';
+import { BASEMAP_POI_LAYER_IDS, POI_HIT_SLOP, pickPoiHit } from '../domain/basemapPoi';
 import {
   LAST_USER_LOCATION_KEY,
   LOCATED_ZOOM,
@@ -98,6 +100,7 @@ export default function MapScreen({
     resolveInitialCamera(readJson(appStorage, LAST_USER_LOCATION_KEY, isLatLng, null)),
   );
   const pathname = usePathname();
+  const mapRef = useRef<MapRef>(null);
   // 一次拖曳手勢的起點；拖得夠遠就把 sheet 收到最小（每個手勢只收一次）
   const panStart = useRef<{ sample: ViewportSample; collapsed: boolean } | null>(null);
   // 使用者正在拖曳／縮放地圖時，淡出非必要的浮動控制（篩選 chips、定位/3D/篩選鈕），
@@ -164,6 +167,41 @@ export default function MapScreen({
     }
   };
 
+  // 已在看地點／設施詳情時換成新的點（像 Apple 地圖換卡片），不要一路疊頁面
+  const openPlaceSheet = (
+    target:
+      | { pathname: '/place/[id]'; params: { id: string } }
+      | { pathname: '/loc/[coords]'; params: { coords: string } },
+  ) => {
+    if (isPlaceDetailPath(pathname)) router.replace(target);
+    else router.navigate(target);
+  };
+
+  // 單點只開底圖上「目前畫出來」的店家／景點 POI；空白處、道路、建物不反應（點到設施時 FacilityLayer
+  // 已 stopPropagation）。任意位置改由長按開座標面板。
+  const handlePress = async (event: NativeSyntheticEvent<PressEvent>) => {
+    if (navigationMode) return;
+    const { point, lngLat } = event.nativeEvent;
+    const [x, y] = point;
+    try {
+      const features = await mapRef.current?.queryRenderedFeatures(
+        [
+          [x - POI_HIT_SLOP, y - POI_HIT_SLOP],
+          [x + POI_HIT_SLOP, y + POI_HIT_SLOP],
+        ],
+        { layers: [...BASEMAP_POI_LAYER_IDS] },
+      );
+      const hit = pickPoiHit(features ?? [], { lng: lngLat[0], lat: lngLat[1] });      if (!hit) return;
+      if (hit.placeId) {
+        openPlaceSheet({ pathname: '/place/[id]', params: { id: hit.placeId } });
+      } else {
+        openPlaceSheet({ pathname: '/loc/[coords]', params: { coords: `${hit.position.lat},${hit.position.lng}` } });
+      }
+    } catch (error) {
+      logger.warn('[map] POI query failed', error);
+    }
+  };
+
   if (basemap.status === 'loading') {
     return <LoadingState />;
   }
@@ -180,6 +218,7 @@ export default function MapScreen({
   return (
     <View style={styles.container}>
       <Map
+        ref={mapRef}
         style={styles.map}
         mapStyle={basemap.style}
         logo={false}
@@ -211,14 +250,13 @@ export default function MapScreen({
           useMapUiStore.getState().setZoom(zoom);
           useMapUiStore.getState().setRegion(bounds, center, userInteraction);
         }}
-        onPress={(event) => {
+        onPress={(event) => void handlePress(event)}
+        onLongPress={(event) => {
           if (navigationMode) return;
-          // 點地圖空白處：以座標開地點面板（反查地址）；點到設施時 FacilityLayer 已 stopPropagation
+          // 長按任意處：以座標開地點面板（反查地址），同 Apple／Google 地圖的「放置大頭針」
+          haptic.select();
           const [lng, lat] = event.nativeEvent.lngLat;
-          const target = { pathname: '/loc/[coords]', params: { coords: `${lat},${lng}` } } as const;
-          // 已在看地點／設施詳情時換成新的點（像 Apple 地圖換卡片），不要一路疊頁面
-          if (isPlaceDetailPath(pathname)) router.replace(target);
-          else router.navigate(target);
+          openPlaceSheet({ pathname: '/loc/[coords]', params: { coords: `${lat},${lng}` } });
         }}>
         <Camera
           ref={registerMapCamera}

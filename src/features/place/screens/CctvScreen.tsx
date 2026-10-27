@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { FlatList, Image, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
+import { FlatList, Pressable, StyleSheet } from 'react-native';
 import { Text } from '@/shared/ui/typography/Text';
 
 import { useAppTranslation } from '@/shared/i18n';
@@ -8,14 +9,16 @@ import { SHAPE, TYPE, useThemeColors } from '@/shared/theme';
 import { EmptyState, ErrorState, HeaderCloseButton, LoadingState } from '@/shared/ui';
 
 import { fetchNearbyCctv, type CctvCamera } from '../api/cctvApi';
+import { CctvLiveImage } from '../components/CctvLiveImage';
 import { formatDistance } from '@/features/map';
 
 type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; cameras: CctvCamera[] };
 
 /**
  * `(sheet)/cctv/[coords]` — 地點詳情「監視器」按鈕的去處：依座標查附近路口 CCTV。
- * `fetchNearbyCctv` 目前固定回空陣列（後端 API 尚未對接，見 `api/cctvApi.ts` 的 TODO），
- * 畫面先做好載入／錯誤／空清單三態，接上真正 API 後不用改這個檔案。
+ * 資料來自後端 `GET /a11y/cctv`（`api/cctvApi.ts`）：載入／錯誤／空清單三態；
+ * 預設顯示快照（來源的快照可能是舊圖）；點有串流的卡片就地播放即時影像，同一時間只播一支，
+ * 再點一次或點別支就停止，避免多條串流同時吃流量。沒有串流的卡片只顯示快照。
  */
 export default function CctvScreen() {
   const { coords } = useLocalSearchParams<{ coords: string }>();
@@ -28,6 +31,7 @@ export default function CctvScreen() {
   const validCoords = Number.isFinite(lat) && Number.isFinite(lng);
 
   const [state, setState] = useState<LoadState>({ status: 'loading' });
+  const [liveId, setLiveId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!validCoords) return;
@@ -58,17 +62,28 @@ export default function CctvScreen() {
           style={{ backgroundColor: colors.background }}
           contentContainerStyle={styles.list}
           data={state.cameras}
+          extraData={liveId}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <View style={[styles.card, { backgroundColor: colors.backgroundElement }]}>
-              <Image source={{ uri: item.imageUrl }} style={styles.thumbnail} />
+            <Pressable
+              style={[styles.card, { backgroundColor: colors.backgroundElement }]}
+              disabled={!item.streamUrl}
+              accessibilityRole={item.streamUrl ? 'button' : 'image'}
+              accessibilityLabel={item.name}
+              accessibilityHint={item.streamUrl ? t(liveId === item.id ? 'cctvStopLiveHint' : 'cctvPlayLiveHint') : undefined}
+              onPress={() => setLiveId((current) => (current === item.id ? null : item.id))}>
+              {item.streamUrl && liveId === item.id ? (
+                <CctvLiveImage key={item.streamUrl} streamUrl={item.streamUrl} posterUrl={item.imageUrl} />
+              ) : (
+                <Image source={{ uri: item.imageUrl }} style={styles.thumbnail} contentFit="cover" />
+              )}
               <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
                 {item.name}
               </Text>
               {item.distanceMeters !== undefined ? (
                 <Text style={[styles.distance, { color: colors.textSecondary }]}>{formatDistance(item.distanceMeters)}</Text>
               ) : null}
-            </View>
+            </Pressable>
           )}
         />
       )}

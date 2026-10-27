@@ -3,15 +3,15 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { usePlaceUiStore } from '../store/placeUiStore';
-import { MAP, ELEVATION } from '@/shared/theme';
+import { MAP } from '@/shared/theme';
 
 // Google Maps 風格的圖釘：紅色水滴＋深紅圓心，尖端（底部中央）對準座標。
 const PIN_WIDTH = 30;
-const PIN_HEIGHT = 48;
+const PIN_HEIGHT = 40;
 const PIN_BODY = MAP.pinBody;
 const PIN_BORDER = MAP.pinBorder;
 const PIN_CORE = MAP.pinCore;
-const PIN_PATH = 'M13.5 0C6.04 0 0 6.04 0 13.5 0 23.6 13.5 43 13.5 43S27 23.6 27 13.5C27 6.04 20.96 0 13.5 0Z';
+const PIN_PATH = 'M13.5 0C6.04 0 0 6.04 0 13.5 0 21.5 13.5 36 13.5 36S27 21.5 27 13.5C27 6.04 20.96 0 13.5 0Z';
 
 /**
  * 選定地點／搜尋結果的地圖 pin（SDD §4.4 `SearchPinLayer`）：`Marker` 內放自繪 SVG 圖釘，
@@ -25,7 +25,7 @@ export default function PlacePinLayer() {
   return (
     <Marker id="place-pin" lngLat={[lng, lat]} anchor="bottom">
       <View style={styles.pin} pointerEvents="none">
-        <Svg width={PIN_WIDTH} height={PIN_HEIGHT} viewBox="-1.5 -1.5 30 46.5">
+        <Svg width={PIN_WIDTH} height={PIN_HEIGHT} viewBox="-1.5 -1.5 30 39.5">
           <Path d={PIN_PATH} fill={PIN_BODY} stroke={PIN_BORDER} strokeWidth={1} />
           <Circle cx={13.5} cy={13.5} r={5.5} fill={PIN_CORE} />
         </Svg>
@@ -38,6 +38,5 @@ const styles = StyleSheet.create({
   pin: {
     width: PIN_WIDTH,
     height: PIN_HEIGHT,
-    boxShadow: ELEVATION.raised,
   },
 });

@@ -60,6 +60,7 @@ export default function CctvScreen() {
       ) : (
         <FlatList
           style={{ backgroundColor: colors.background }}
+          contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.list}
           data={state.cameras}
           extraData={liveId}

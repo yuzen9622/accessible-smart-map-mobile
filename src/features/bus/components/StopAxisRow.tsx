@@ -91,7 +91,8 @@ const AXIS_WIDTH = 32;
 
 const styles = StyleSheet.create({
   wrap: { borderRadius: SHAPE.control, borderCurve: 'continuous' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingRight: 10 },
+  // 圓角與選中底色同形：按下的底色不會變成卡片裡的直角方塊
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingRight: 10, borderRadius: SHAPE.control, borderCurve: 'continuous' },
   axis: { width: AXIS_WIDTH, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
   lineTop: { position: 'absolute', top: 0, bottom: '50%', width: 3 },
   lineBottom: { position: 'absolute', top: '50%', bottom: 0, width: 3 },

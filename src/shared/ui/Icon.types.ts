@@ -96,6 +96,13 @@ export type IconName =
   | 'bedDouble'
   | 'thermometer'
   | 'cuboid'
+  | 'sun'
+  | 'cloud'
+  | 'cloudRain'
+  | 'cloudLightning'
+  | 'cloudSnow'
+  | 'cloudFog'
+  | 'cloudHail'
   | 'cloudSun'
   | 'droplets';
 

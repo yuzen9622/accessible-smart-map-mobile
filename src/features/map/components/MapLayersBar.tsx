@@ -68,6 +68,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACE.md,
     borderRadius: SHAPE.pill, borderCurve: 'continuous',
   },
-  glass: { borderRadius: SHAPE.pill },
+  glass: { borderRadius: SHAPE.pill, boxShadow: 'none' },
   label: { fontSize: TYPE.subhead, fontWeight: '600' },
 });

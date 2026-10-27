@@ -96,6 +96,13 @@ import Fuel from 'lucide-react-native/icons/fuel';
 import BedDouble from 'lucide-react-native/icons/bed-double';
 import Thermometer from 'lucide-react-native/icons/thermometer';
 import Cuboid from 'lucide-react-native/icons/cuboid';
+import Sun from 'lucide-react-native/icons/sun';
+import Cloud from 'lucide-react-native/icons/cloud';
+import CloudRain from 'lucide-react-native/icons/cloud-rain';
+import CloudLightning from 'lucide-react-native/icons/cloud-lightning';
+import CloudSnow from 'lucide-react-native/icons/cloud-snow';
+import CloudFog from 'lucide-react-native/icons/cloud-fog';
+import CloudHail from 'lucide-react-native/icons/cloud-hail';
 import CloudSun from 'lucide-react-native/icons/cloud-sun';
 import Droplets from 'lucide-react-native/icons/droplets';
 import { View } from 'react-native';
@@ -202,6 +209,13 @@ const ICONS: Record<IconName, LucideIcon> = {
   bedDouble: BedDouble,
   thermometer: Thermometer,
   cuboid: Cuboid,
+  sun: Sun,
+  cloud: Cloud,
+  cloudRain: CloudRain,
+  cloudLightning: CloudLightning,
+  cloudSnow: CloudSnow,
+  cloudFog: CloudFog,
+  cloudHail: CloudHail,
   cloudSun: CloudSun,
   droplets: Droplets,
 };
@@ -222,7 +236,7 @@ function visualStroke(size: number): number {
 export default function Icon({ name, size = 18, color }: IconProps) {
   const Glyph = ICONS[name];
   return (
-    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none">
+    <View testID={`icon-${name}`} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none">
       <Glyph size={size} color={color} strokeWidth={visualStroke(size)} />
     </View>
   );

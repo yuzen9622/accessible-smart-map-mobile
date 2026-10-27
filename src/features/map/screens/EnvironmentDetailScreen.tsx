@@ -6,6 +6,7 @@ import { Icon } from '@/shared/ui';
 import { Text } from '@/shared/ui/typography/Text';
 
 import { AIR_QUALITY_COLOR } from '../domain/environment';
+import { weatherIcon } from '../domain/weatherIcon';
 import { useEnvironmentStore } from '../store/environmentStore';
 
 /**
@@ -29,15 +30,18 @@ export default function EnvironmentDetailScreen() {
 
   if (!info) return null;
   const { weather, airQuality } = info;
+  const conditionIcon = weatherIcon(weather.condition);
   const qualityColor = airQuality.quality ? AIR_QUALITY_COLOR[airQuality.quality] : undefined;
 
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.content}>
       {weather.status === 'ok' ? (
         <View style={styles.heroRow}>
-          <View style={[styles.heroIcon, { backgroundColor: tones.accentSoft }]}>
-            <Icon name="cloudSun" size={ICON_SIZE.hero} color={tones.accent} />
-          </View>
+          {conditionIcon ? (
+            <View style={[styles.heroIcon, { backgroundColor: tones.accentSoft }]}>
+              <Icon name={conditionIcon} size={ICON_SIZE.hero} color={tones.accent} />
+            </View>
+          ) : null}
           <View style={styles.flex}>
             {weather.temperature !== null ? (
               <Text style={[styles.heroTemp, { color: colors.text }]}>{Math.round(weather.temperature)}°</Text>

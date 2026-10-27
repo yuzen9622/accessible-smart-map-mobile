@@ -136,13 +136,20 @@ export function useNavigationEffects(): void {
     });
     const unsubscribeNav = useNavStore.subscribe((state, prev) => {
       const stepChanged = state.currentStepIndex !== prev.currentStepIndex || state.instructions !== prev.instructions;
-      if (following && (stepChanged || state.viewMode !== prev.viewMode)) {
+      const viewModeChanged = state.viewMode !== prev.viewMode;
+      if (following && (stepChanged || viewModeChanged)) {
         // 換到開車／步行段或切 2D/3D：更新跟隨模式、縮放與俯角
         const params = navFollowParams(state.instructions, state.currentStepIndex, firstLegType, state.viewMode);
         const current = useMapUiStore.getState().follow;
         if (!current || current.mode !== params.mode || current.zoom !== params.zoom || current.pitch !== params.pitch) {
           mapCamera.follow(params.mode, params.zoom, params.pitch);
         }
+      }
+      if (!following && viewModeChanged) {
+        // 拖曳暫停跟隨或預覽路線時，仍可切換俯角，保留使用者目前瀏覽的位置。
+        void mapCamera.setPitch(navPitch(state.viewMode)).catch((error) => {
+          logger.warn('[navigation] setPitch failed', error);
+        });
       }
       if (!following && stepChanged && !state.followPaused) previewStep();
       if (!state.followPaused && prev.followPaused) {

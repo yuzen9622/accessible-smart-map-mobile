@@ -8,7 +8,7 @@ import { mapCamera, useUserLocationStore } from '@/features/map';
 import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 import { TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
-import { Icon, SegmentedControl } from '@/shared/ui';
+import { Icon, SegmentedControl, SwipePager } from '@/shared/ui';
 
 import { etaDisplay } from '../components/etaDisplay';
 import NextAccessibleCard from '../components/NextAccessibleCard';
@@ -34,6 +34,8 @@ const STOP_ZOOM = 17;
 const STOP_ID = 'focused-stop';
 
 type BoardFilter = 'accessible' | 'all';
+
+const FILTERS: readonly BoardFilter[] = ['accessible', 'all'];
 
 function arrivalKey(a: StopArrival): string {
   return `${a.routeName}:${a.subRouteUid ?? ''}:${a.direction}`;
@@ -86,7 +88,8 @@ export default function BusStopScreen() {
   const missing = routesWithoutArrivals(routes, sorted);
   const accessibleCount = sorted.filter(isAccessibleArrival).length;
   const filter: BoardFilter = picked ?? (accessibleCount > 0 ? 'accessible' : 'all');
-  const listed = sorted.filter((a) => a !== featured && (filter === 'all' || isAccessibleArrival(a)));
+  // 兩頁同時渲染（滑動時相鄰頁跟著出現），各頁自己篩選。
+  const listedFor = (f: BoardFilter) => sorted.filter((a) => a !== featured && (f === 'all' || isAccessibleArrival(a)));
 
   // 只有去程／返程才有「往終點」；迴圈、循環線、方向未知不套終點（255 更不能當成有方向）。
   const headsignText = (a: StopArrival) => {
@@ -119,7 +122,9 @@ export default function BusStopScreen() {
       ? t('nativeBusStopDistance', { distance: formatDistance(haversineMeters(userPosition, stopPosition)) })
       : null;
   const subtitle = [busCityLabel(city), distanceText].filter(Boolean).join(' · ');
-  const separator = (index: number) => index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: semantic.separator };
+  // 列本身滿版（按下的底色貼齊兩側），分隔線仍內縮對齊文字。
+  const separator = (index: number) =>
+    index > 0 ? <View style={[styles.separator, { backgroundColor: semantic.separator }]} /> : null;
 
   const renderFeatured = (a: StopArrival) => {
     const eta = etaDisplay(t, a);
@@ -155,7 +160,8 @@ export default function BusStopScreen() {
         accessibilityRole="button"
         accessibilityLabel={accessible ? `${label}，${accessText(a)}` : label}
         onPress={() => openRoute(a)}
-        style={[styles.row, separator(index)]}>
+        style={styles.row}>
+        {separator(index)}
         <RouteBadge name={busName(a.routeDisplayName, a.routeName)} />
         <View style={styles.rowTexts}>
           <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
@@ -188,7 +194,8 @@ export default function BusStopScreen() {
       accessibilityRole="button"
       accessibilityLabel={note ? `${routeName}，${note}` : t('nativeBusStopRouteRowLabel', { route: routeName, stop: stopName })}
       onPress={() => openRouteByName(routeName)}
-      style={[styles.row, separator(index)]}>
+      style={styles.row}>
+      {separator(index)}
       <RouteBadge name={routeName} />
       <View style={styles.rowTexts} />
       {note ? <Text style={[styles.rowStatus, { color: colors.textSecondary }]}>{note}</Text> : null}
@@ -250,14 +257,26 @@ export default function BusStopScreen() {
           onSelect={setPicked}
         />
 
-        {filter === 'accessible' && accessibleCount === 0 ? (
-          <Text style={[styles.message, { color: colors.textSecondary }]}>{t('nativeBusNoAccessibleRoutes')}</Text>
-        ) : (
-          <View>
-            {listed.map(renderRow)}
-            {filter === 'all' ? missing.map((routeName, i) => renderNameRow(routeName, listed.length + i, t('nativeBusNoDataShort'))) : null}
-          </View>
-        )}
+        <SwipePager
+          index={FILTERS.indexOf(filter)}
+          pages={FILTERS.map((f) => {
+            const listed = listedFor(f);
+            return (
+              <View key={f} style={styles.page}>
+                {f === 'accessible' && accessibleCount === 0 ? (
+                  <Text style={[styles.message, { color: colors.textSecondary }]}>{t('nativeBusNoAccessibleRoutes')}</Text>
+                ) : (
+                  <>
+                    {listed.map(renderRow)}
+                    {f === 'all' ? missing.map((routeName, i) => renderNameRow(routeName, listed.length + i, t('nativeBusNoDataShort'))) : null}
+                  </>
+                )}
+              </View>
+            );
+          })}
+          onIndexChange={(i) => setPicked(FILTERS[i] ?? 'all')}
+          style={styles.pages}
+        />
 
         <View style={styles.footer}>
           <Icon name="refresh" size={ICON_SIZE.caption} color={colors.textSecondary} />
@@ -292,7 +311,10 @@ export default function BusStopScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 14 },
+  content: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 14 },
+  // 滿版到 sheet 兩側（每頁自己留邊距），並撐滿剩下的高度：列表很短時空白處也能左右滑
+  pages: { flexGrow: 1, marginHorizontal: -16 },
+  page: { paddingHorizontal: 16 },
   header: { gap: 4 },
   title: { fontSize: TYPE.title1, fontWeight: '700' },
   subtitle: { fontSize: TYPE.subhead },
@@ -301,7 +323,8 @@ const styles = StyleSheet.create({
   message: { fontSize: TYPE.subhead, textAlign: 'center', paddingVertical: 8 },
   noteCard: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: SHAPE.card, borderCurve: 'continuous' },
   noteText: { flex: 1, fontSize: TYPE.subhead },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10, marginHorizontal: -16, paddingHorizontal: 16 },
+  separator: { position: 'absolute', top: 0, left: 16, right: 16, height: StyleSheet.hairlineWidth },
   rowTexts: { flex: 1, gap: 2 },
   rowTitle: { fontSize: TYPE.body, fontWeight: '600' },
   accessTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },

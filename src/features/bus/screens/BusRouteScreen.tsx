@@ -7,7 +7,7 @@ import { mapCamera, useMapUiStore } from '@/features/map';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 import { TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
-import { Icon, SegmentedControl } from '@/shared/ui';
+import { Icon, SegmentedControl, SwipePager } from '@/shared/ui';
 
 import { busName, badgePillTone, badgeText } from '../components/busText';
 import EtaPill from '../components/EtaPill';
@@ -293,6 +293,11 @@ export default function BusRouteScreen() {
   const fitKey = readyKey === null || selectedStopId !== null || !focused ? null : `${readyKey}:${sheetInset}`;
   useFitCamera(fitKey, stops, fitFrom, fitTo);
 
+  const selectDirection = (key: string) => {
+    setPicked({ context: selectionContext, key });
+    selectStop(null);
+  };
+
   const onSelectStop = (stop: RouteDetailStop) => {
     selectStop(stopId(stop.seq, stop.name));
     mapCamera.flyTo([stop.lng, stop.lat], STOP_ZOOM);
@@ -344,6 +349,79 @@ export default function BusRouteScreen() {
     );
   };
 
+  // 每個方向一頁、同時渲染（滑動時相鄰方向跟著出現）。即時車輛、選站、下車站只屬於目前方向；
+  // 其他方向也先依「你的站」收合，滑到定位時版面不跳。
+  const renderDirectionPage = (option: DirectionOption) => {
+    const active = option.key === selectedKey;
+    const pageStops = active ? stops : stopsOfOption(directions, option.index);
+    if (pageStops.length === 0) {
+      return (
+        <View style={[styles.page, styles.message]}>
+          <Text style={[styles.messageText, { color: colors.textSecondary }]}>{t('nativeBusNoStops')}</Text>
+        </View>
+      );
+    }
+    const pageMatch = active
+      ? match
+      : myStopName
+        ? matchStopInRoute(directions.filter((_, i) => i === option.index), myStopName, stopPosition)
+        : null;
+    const collapsed = active ? collapsedCount : expandedFor === option.key ? 0 : Math.max(0, (pageMatch?.index ?? 0) - 1);
+    return (
+      <View style={styles.page}>
+        {collapsed > 0 ? (
+          <PressableScale accessibilityRole="button" onPress={() => setExpandedFor(option.key)} style={styles.earlier}>
+            <Icon name="chevronUp" size={ICON_SIZE.body} color={semantic.accent} />
+            <Text style={[styles.earlierText, { color: semantic.accent }]}>
+              {t('nativeBusShowEarlierStops', { count: collapsed })}
+            </Text>
+          </PressableScale>
+        ) : null}
+        {pageStops.map((stop, index) => {
+          if (index < collapsed) return null;
+          const badge = resolveStopBadge(stop);
+          const etaText = badgeText(t, badge);
+          const busHere = active ? placed.filter((b) => b.index === index) : [];
+          const bus = busHere.length === 0 ? null : busHere.some((b) => b.accessible);
+          const mine = pageMatch?.index === index;
+          const isSelected = active && selectedStopId === stopId(stop.seq, stop.name);
+          const isAlight = active && alightSeq === stop.seq;
+          const canAlight = active && trackMatch !== null && index > trackMatch.index;
+          const busSpoken = bus === null ? '' : `，${bus ? t('nativeBusOnAxisAccessible') : t('nativeBusOnAxis')}`;
+          return (
+            <StopAxisRow
+              key={stopId(stop.seq, stop.name)}
+              name={busName(stop.displayName, stop.name)}
+              note={mine ? t('nativeBusYouAreHere') : undefined}
+              tag={isAlight ? t('nativeBusAlight') : mine ? t('nativeBusBoard') : undefined}
+              first={index === 0 || index === collapsed}
+              last={index === pageStops.length - 1}
+              mine={mine}
+              selected={isSelected && !mine}
+              bus={bus}
+              trailing={<EtaPill text={etaText} tone={badgePillTone(badge)} />}
+              accessibilityLabel={`${t('nativeBusStopEtaRowLabel', { seq: stop.seq, name: busName(stop.displayName, stop.name), eta: etaText })}${mine ? `，${t('nativeBusYouAreHere')}` : ''}${busSpoken}`}
+              onPress={() => (active ? onSelectStop(stop) : selectDirection(option.key))}
+              footer={
+                isSelected && canAlight ? (
+                  <PressableScale
+                    accessibilityRole="button"
+                    onPress={() => setAlight(isAlight ? null : { key: selectedKey, seq: stop.seq })}
+                    style={[styles.alightButton, { borderColor: semantic.accent }]}>
+                    <Icon name="flag" size={ICON_SIZE.caption} color={semantic.accent} />
+                    <Text style={[styles.alightText, { color: semantic.accent }]}>
+                      {isAlight ? t('nativeBusClearAlight') : t('nativeBusSetAlight')}
+                    </Text>
+                  </PressableScale>
+                ) : undefined
+              }
+            />
+          );
+        })}
+      </View>
+    );
+  };
+
   useRoutePanelStops(directions, selectedIndex);
 
   return (
@@ -385,71 +463,17 @@ export default function BusRouteScreen() {
             <SegmentedControl
               label={t('nativeBusDirectionLabel')}
               options={segmentOptions}
-              onSelect={(value) => {
-                setPicked({ context: selectionContext, key: value });
-                selectStop(null);
-              }}
+              onSelect={selectDirection}
             />
-            {stops.length === 0 ? (
-              <View style={styles.message}>
-                <Text style={[styles.messageText, { color: colors.textSecondary }]}>{t('nativeBusNoStops')}</Text>
-              </View>
-            ) : (
-              <View>
-                {collapsedCount > 0 ? (
-                  <PressableScale
-                    accessibilityRole="button"
-                    onPress={() => setExpandedFor(selectedKey)}
-                    style={styles.earlier}>
-                    <Icon name="chevronUp" size={ICON_SIZE.body} color={semantic.accent} />
-                    <Text style={[styles.earlierText, { color: semantic.accent }]}>
-                      {t('nativeBusShowEarlierStops', { count: collapsedCount })}
-                    </Text>
-                  </PressableScale>
-                ) : null}
-                {stops.map((stop, index) => {
-                  if (index < collapsedCount) return null;
-                  const badge = resolveStopBadge(stop);
-                  const etaText = badgeText(t, badge);
-                  const busHere = placed.filter((b) => b.index === index);
-                  const bus = busHere.length === 0 ? null : busHere.some((b) => b.accessible);
-                  const mine = match?.index === index;
-                  const isSelected = selectedStopId === stopId(stop.seq, stop.name);
-                  const isAlight = alightSeq === stop.seq;
-                  const canAlight = trackMatch !== null && index > trackMatch.index;
-                  const busSpoken = bus === null ? '' : `，${bus ? t('nativeBusOnAxisAccessible') : t('nativeBusOnAxis')}`;
-                  return (
-                    <StopAxisRow
-                      key={stopId(stop.seq, stop.name)}
-                      name={busName(stop.displayName, stop.name)}
-                      note={mine ? t('nativeBusYouAreHere') : undefined}
-                      tag={isAlight ? t('nativeBusAlight') : mine ? t('nativeBusBoard') : undefined}
-                      first={index === 0 || index === collapsedCount}
-                      last={index === stops.length - 1}
-                      mine={mine}
-                      selected={isSelected && !mine}
-                      bus={bus}
-                      trailing={<EtaPill text={etaText} tone={badgePillTone(badge)} />}
-                      accessibilityLabel={`${t('nativeBusStopEtaRowLabel', { seq: stop.seq, name: busName(stop.displayName, stop.name), eta: etaText })}${mine ? `，${t('nativeBusYouAreHere')}` : ''}${busSpoken}`}
-                      onPress={() => onSelectStop(stop)}
-                      footer={
-                        isSelected && canAlight ? (
-                          <PressableScale
-                            accessibilityRole="button"
-                            onPress={() => setAlight(isAlight ? null : { key: selectedKey, seq: stop.seq })}
-                            style={[styles.alightButton, { borderColor: semantic.accent }]}>
-                            <Icon name="flag" size={ICON_SIZE.caption} color={semantic.accent} />
-                            <Text style={[styles.alightText, { color: semantic.accent }]}>
-                              {isAlight ? t('nativeBusClearAlight') : t('nativeBusSetAlight')}
-                            </Text>
-                          </PressableScale>
-                        ) : undefined
-                      }
-                    />
-                  );
-                })}
-              </View>
-            )}
+            <SwipePager
+              index={options.findIndex((o) => o.key === selectedKey)}
+              pages={options.map(renderDirectionPage)}
+              onIndexChange={(i) => {
+                const option = options[i];
+                if (option) selectDirection(option.key);
+              }}
+              style={styles.pages}
+            />
           </>
         )}
       </ScrollView>
@@ -458,7 +482,10 @@ export default function BusRouteScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 14 },
+  content: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 14 },
+  // 滿版到 sheet 兩側（每頁自己留邊距），並撐滿剩下的高度：站序很短時空白處也能左右滑
+  pages: { flexGrow: 1, marginHorizontal: -16 },
+  page: { paddingHorizontal: 16 },
   header: { gap: 6 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: { flex: 1, fontSize: TYPE.title3, fontWeight: '700' },

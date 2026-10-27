@@ -8,7 +8,7 @@ import { SHEET_DETENTS, sheetController, useUserLocationStore } from '@/features
 import { formatDistance } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
 import { SPACE, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
-import { Icon, SegmentedControl } from '@/shared/ui';
+import { Icon, SegmentedControl, SwipePager } from '@/shared/ui';
 
 import RouteBadge from '../components/RouteBadge';
 import { groupByCity, type BusSearchResult, type BusStopSearchResult } from '../domain';
@@ -23,6 +23,8 @@ function toPanelStops(stops: BusStopSearchResult[]): PanelStop[] {
 
 /** 站牌列只露出前幾條路線，其餘收成「+N」——大站牌有近 40 條路線，全列出來會把一列撐成一整面。 */
 const STOP_ROUTE_PREVIEW = 4;
+
+const MODES: readonly BusSearchMode[] = ['route', 'stop'];
 
 /**
  * 公車面板：找路線／找站牌；沒輸入關鍵字時顯示附近站牌。
@@ -67,8 +69,9 @@ export default function BusPanelScreen() {
       },
     });
 
+  // 列本身滿版（按下的底色貼齊兩側），分隔線仍內縮對齊文字。
   const separator = (index: number) =>
-    index > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: semantic.separator } : null;
+    index > 0 ? <View style={[styles.separator, { backgroundColor: semantic.separator }]} /> : null;
 
   const renderStopGroups = (stops: BusStopSearchResult[]) =>
     groupByCity(stops).map((group) => (
@@ -92,7 +95,8 @@ export default function BusPanelScreen() {
                   count: stop.routes.length,
                 })}
                 onPress={() => openStop(stop)}
-                style={[styles.row, separator(index)]}>
+                style={styles.row}>
+                {separator(index)}
                 <View style={[styles.iconCircle, { backgroundColor: semantic.accentSoft }]}>
                   <Icon name="bus" size={ICON_SIZE.body} color={semantic.accent} />
                 </View>
@@ -143,7 +147,8 @@ export default function BusPanelScreen() {
                   params: { routeName: route.routeName, city: route.city, departure: route.departure, destination: route.destination },
                 })
               }
-              style={[styles.row, separator(index)]}>
+              style={styles.row}>
+              {separator(index)}
               <RouteBadge name={busName(route.routeDisplayName, route.routeName)} />
               <View style={styles.rowTexts}>
                 {busName(route.departureDisplayName, route.departure) || busName(route.destinationDisplayName, route.destination) ? (
@@ -159,7 +164,7 @@ export default function BusPanelScreen() {
       </View>
     ));
 
-  const renderBody = () => {
+  const renderBody = (pageMode: BusSearchMode) => {
     if (!searching) {
       if (!position) return <Message text={t('nativeBusNearbyNoLocation')} color={colors.textSecondary} />;
       return (
@@ -179,7 +184,8 @@ export default function BusPanelScreen() {
         </View>
       );
     }
-    if (search.loading) return <Loading label={t('loading')} color={colors.textSecondary} />;
+    // 另一頁的結果還沒查（搜尋一次只查目前分段）：滑過去時先顯示讀取中。
+    if (search.mode !== pageMode || search.loading) return <Loading label={t('loading')} color={colors.textSecondary} />;
     if (search.error) return <Message text={errorText(search.error)} color={colors.textSecondary} />;
     if (search.results.length === 0) return <Message text={t('nativeNoSearchResults')} color={colors.textSecondary} />;
     return (
@@ -224,7 +230,12 @@ export default function BusPanelScreen() {
             style={[styles.input, { color: colors.text }]}
           />
         </View>
-        {renderBody()}
+        <SwipePager
+          index={MODES.indexOf(mode)}
+          pages={MODES.map((m) => <View key={m} style={styles.page}>{renderBody(m)}</View>)}
+          onIndexChange={(i) => setMode(MODES[i] ?? 'route')}
+          style={styles.pages}
+        />
       </ScrollView>
     </>
   );
@@ -249,14 +260,18 @@ function Message({ text, color }: { text: string; color: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 14 },
+  content: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32, gap: 14 },
+  // 滿版到 sheet 兩側（每頁自己留邊距），並撐滿剩下的高度：結果很少時空白處也能左右滑
+  pages: { flexGrow: 1, marginHorizontal: -16 },
+  page: { paddingHorizontal: 16 },
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm, minHeight: 48, paddingHorizontal: 14, borderRadius: SHAPE.pill, borderCurve: 'continuous' },
   input: { flex: 1, fontSize: TYPE.body, paddingVertical: 10 },
   section: { gap: 12 },
   sectionTitle: { fontSize: TYPE.title3, fontWeight: '700' },
   group: { gap: 4 },
   groupTitle: { fontSize: TYPE.footnote, fontWeight: '600' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10, marginHorizontal: -16, paddingHorizontal: 16 },
+  separator: { position: 'absolute', top: 0, left: 16, right: 16, height: StyleSheet.hairlineWidth },
   iconCircle: { width: 34, height: 34, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
   rowTexts: { flex: 1, gap: 6 },
   rowTitle: { fontSize: TYPE.body, fontWeight: '600' },

@@ -15,6 +15,7 @@ import { ensureAiDataConsent } from '@/shared/privacy';
 import { createHazardReport, uncertainReportId } from '../api/hazardApi';
 import { pickHazardPhoto, type HazardPhoto } from '../controller/photoPicker';
 import { HAZARD_TYPE_LABEL_KEY, SEVERITY_LABEL_KEY, submitErrorKey } from '../domain/hazardErrors';
+import { validateHazardPhotoAge } from '../domain/hazardPhotoAge';
 import { HAZARD_SEVERITIES, HAZARD_TYPES, type HazardReport, type HazardSeverity, type HazardType } from '../domain/types';
 import { refreshNearbyHazards } from '../controller/hazardLayerController';
 import { hazardResubmitPreset } from '../domain/review';
@@ -94,7 +95,7 @@ export function useHazardReport(params: HazardReportParams) {
             { text: t('nativeOpenSettings'), onPress: () => void Linking.openSettings() },
           ]);
         } else if (result.kind === 'invalid') {
-          Alert.alert(t(result.error === 'IMAGE_TOO_LARGE' ? 'imageTooLarge' : 'invalidImageType'));
+          Alert.alert(t(submitErrorKey(result.error, undefined)));
         }
       } catch (error) {
         logger.warn('[hazard] pick photo failed', error);
@@ -112,6 +113,11 @@ export function useHazardReport(params: HazardReportParams) {
     }
     if (!photo) {
       Alert.alert(t('photoRequired'));
+      return;
+    }
+    const ageValidation = validateHazardPhotoAge(photo.capturedAt, Date.now());
+    if (!ageValidation.valid) {
+      Alert.alert(t(submitErrorKey(ageValidation.error, undefined)));
       return;
     }
     setSubmitting(true);

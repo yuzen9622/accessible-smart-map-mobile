@@ -9,6 +9,7 @@ export function submitErrorKey(reason: string | undefined, code: number | undefi
     case 'PHOTO_REQUIRED':
       return 'photoRequired';
     case 'INVALID_PHOTO_TYPE':
+    case 'INVALID_IMAGE_TYPE':
       return 'invalidImageType';
     case 'PHOTO_TOO_LARGE':
     case 'IMAGE_TOO_LARGE':
@@ -20,7 +21,12 @@ export function submitErrorKey(reason: string | undefined, code: number | undefi
     case 'REPORT_COMMIT_UNCERTAIN':
       return 'hazardReviewUncertain';
     case 'EXIF_TOO_OLD':
+    case 'PHOTO_TOO_OLD':
       return 'exifTooOld';
+    case 'PHOTO_TIME_UNAVAILABLE':
+      return 'nativeHazardPhotoTimeUnavailable';
+    case 'PHOTO_TIME_INVALID':
+      return 'nativeHazardPhotoTimeInvalid';
     case 'EXIF_GPS_MISMATCH':
       return 'exifGpsMismatch';
     case 'RATE_LIMITED':

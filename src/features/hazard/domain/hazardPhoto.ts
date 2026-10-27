@@ -19,8 +19,8 @@ export function validateHazardPhoto(file: { size: number; type: string }): Photo
 
 /**
  * 原生新增：選好的照片要不要先轉成 JPEG 壓縮。原圖（iPhone 預設 HEIC）通常 < 5MB 且帶 EXIF 拍攝時間，
- * 後端用它擋掉舊照片（EXIF_TOO_OLD，10 分鐘）——所以能原樣上傳就原樣上傳；只有超過 5MB、或類型不在
- * 白名單（例如 GIF）時才轉檔（轉檔會失去 EXIF，後端對沒有 EXIF 的照片放行，仍有 AI 影像驗證）。
+ * 能原樣上傳就原樣上傳；只有超過 5MB、或類型不在白名單（例如 GIF）時才轉檔。
+ * 轉檔會失去 EXIF，因此 picker 先驗證拍攝時間並保存在照片狀態，送出時再檢查 10 分鐘期限。
  */
 export function needsTranscode(file: { size: number | null; type: string | null }): boolean {
   if (!file.type || !ALLOWED_REPORT_PHOTO_TYPES.includes(file.type)) return true;

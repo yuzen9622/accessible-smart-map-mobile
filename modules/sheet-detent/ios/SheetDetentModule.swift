@@ -26,6 +26,9 @@ public class SheetDetentModule: Module {
       Prop("gap") { (view, gap: Double?) in
         view.gap = CGFloat(gap ?? 4)
       }
+      Prop("maxRise") { (view, maxRise: Double?) in
+        view.maxRise = maxRise.map { CGFloat($0) }
+      }
     }
   }
 

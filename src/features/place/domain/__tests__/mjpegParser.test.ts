@@ -64,6 +64,46 @@ describe('createMjpegParser', () => {
   });
 });
 
+/** 組一張結構合法的 JPEG：APP1 內含假的 FFD9（EXIF 縮圖）、SOS 熵編碼資料含 FF00 與 FFD0。 */
+function makeJpeg(seed: number): Uint8Array {
+  const app1Body = [0x45, 0x78, 0xff, 0xd9, 0xff, 0xd8, seed];
+  const app1 = [0xff, 0xe1, 0x00, app1Body.length + 2, ...app1Body];
+  const sosHeader = [0xff, 0xda, 0x00, 0x08, 1, 1, 0x00, 0, 63, 0];
+  const entropy = [seed, 0xff, 0x00, 0x12, 0xff, 0xd0, 0x34, 0xff, 0x00, seed];
+  return Uint8Array.from([0xff, 0xd8, ...app1, ...sosHeader, ...entropy, 0xff, 0xd9]);
+}
+
+describe('createMjpegParser with bare JPEGs (iOS strips multipart headers)', () => {
+  const a = makeJpeg(1);
+  const b = makeJpeg(2);
+
+  it('splits back-to-back JPEGs, ignoring FFD9 inside EXIF and entropy-coded data', () => {
+    expect(createMjpegParser().feed(concat(a, b))).toEqual([a, b]);
+  });
+
+  it('reassembles across arbitrary chunk boundaries', () => {
+    const stream = concat(a, b, a);
+    const parser = createMjpegParser();
+    const frames: Uint8Array[] = [];
+    for (let i = 0; i < stream.length; i += 3) frames.push(...parser.feed(stream.subarray(i, i + 3)));
+    expect(frames).toEqual([a, b, a]);
+  });
+
+  it('tolerates CRLF between frames (Axis counts it in Content-Length)', () => {
+    const crlf = encoder.encode('\r\n');
+    expect(createMjpegParser().feed(concat(a, crlf, b, crlf))).toEqual([a, b]);
+  });
+
+  it('can mix raw multipart parts and bare JPEGs', () => {
+    expect(createMjpegParser().feed(concat(part('--b', a), b))).toEqual([a, b]);
+  });
+
+  it('rejects a corrupt segment structure', () => {
+    const bad = Uint8Array.from([0xff, 0xd8, 0x12, 0x34, 0x56]);
+    expect(() => createMjpegParser().feed(bad)).toThrow(MjpegFormatError);
+  });
+});
+
 describe('bytesToBase64', () => {
   it.each(['', 'f', 'fo', 'foo', 'foob', 'fooba', 'foobar'])('matches the reference encoding for %j', (text) => {
     expect(bytesToBase64(encoder.encode(text))).toBe(Buffer.from(text).toString('base64'));

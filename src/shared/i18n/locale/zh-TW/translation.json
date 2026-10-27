@@ -1241,7 +1241,7 @@
   "nativeBusAtYourStop": "已到你這站",
   "nativeBusMinuteUnit": "分",
   "nativeBusFilterLabel": "路線篩選",
-  "nativeBusFilterAccessible": "無障礙車 {{count}}",
+  "nativeBusFilterAccessible": "無障礙公車 {{count}}",
   "nativeBusFilterAll": "全部路線 {{count}}",
   "nativeBusNoAccessibleSoon": "目前沒有查到即將到站的無障礙公車",
   "nativeBusNoAccessibleRoutes": "目前沒有路線的下一班是無障礙車",

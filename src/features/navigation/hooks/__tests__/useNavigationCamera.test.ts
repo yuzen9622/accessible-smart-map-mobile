@@ -109,12 +109,12 @@ it('changes pitch in route preview before GPS is near the route', async () => {
   expect(useMapUiStore.getState().follow).toBeNull();
 });
 
-it('keeps updating the tracked camera while following', async () => {
+it('leaves the camera to native tracking while following', async () => {
   await renderHook(useNavigationEffects);
-  camera.setStop.mockClear();
+  expect(useMapUiStore.getState().follow).not.toBeNull();
 
   await act(() => useNavStore.getState().setViewMode('2d'));
-  expect(useMapUiStore.getState().follow?.pitch).toBe(0);
-  expect(camera.setStop).toHaveBeenCalledTimes(1);
-  expect(camera.setStop).toHaveBeenLastCalledWith({ pitch: 0, duration: 400, easing: 'ease' });
+  await act(() => useNavStore.getState().setViewMode('3d'));
+  expect(useMapUiStore.getState().follow?.pitch).toBe(NAV_PITCH);
+  for (const command of Object.values(camera)) expect(command).not.toHaveBeenCalled();
 });

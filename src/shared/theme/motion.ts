@@ -13,7 +13,5 @@ export const MOTION = {
   snap: { duration: 300, dampingRatio: 0.8, reduceMotion: ReduceMotion.System },
 } as const;
 
-/** 地圖鏡頭時長（ms）。 */
-export const CAMERA_EASE_MS = 600;
 /** 即時脈動、思考中的循環週期（ms）。 */
 export const AMBIENT_MS = 1600;

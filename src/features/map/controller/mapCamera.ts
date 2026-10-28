@@ -63,10 +63,6 @@ export const mapCamera = {
   follow(mode: MapFollowMode, zoom: number, pitch: number): void {
     claimed = true;
     useMapUiStore.getState().setFollow({ mode, zoom, pitch });
-    // `trackUserLocation` 原生跟隨啟動後，<Camera> 宣告式的 `pitch` prop 不會每次都被套用
-    // （原生追蹤接管了相機、只處理中心點與朝向）：導航中切 2D/3D 看起來完全沒反應
-    // （使用者回饋）。額外用 `setStop` 直接命令相機轉俯角，不等 prop diff。
-    void camera?.setStop({ pitch, duration: motionDuration(400), easing: 'ease' });
   },
   /** 結束跟隨：恢復使用者自己的 2D/3D 俯角並轉回正北（導航的 60° 俯角與航向不留在一般瀏覽）。 */
   stopFollow(): void {

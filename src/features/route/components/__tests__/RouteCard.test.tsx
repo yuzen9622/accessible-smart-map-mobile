@@ -48,3 +48,17 @@ it('uses a neutral icon for legacy, unknown-code and mismatched details without 
     expect(within(row).queryByText('icon:check')).toBeNull();
   }
 });
+
+it('reads the localized leg summary to screen readers, never the backend route name', async () => {
+  const route = makeRoute();
+  route.routeName = '板南線 → 淡水信義線';
+  route.legs = [{
+    type: 'METRO', railSystem: 'TRTC', lineId: 'BL', lineKey: 'TRTC_BL', lineUid: 'TRTC_BL_BL-1_1', lineName: '板南線',
+    departureStation: '市政府', arrivalStation: '台北車站', departureStationUid: 'TRTC_BL18', arrivalStationUid: 'TRTC_BL12',
+    direction: 1, stopsCount: 6, rideMinutes: 10, waitInfo: { time: 0, source: 'schedule' }, estimatedWaitMinutes: 0,
+    polyline: [], departureStationA11y: [], arrivalStationA11y: [], facilityHighlights: [],
+  }];
+  await renderCard(route);
+  const card = screen.getByLabelText(/Bannan Line/);
+  expect(card.props.accessibilityLabel).not.toContain('板南線 → 淡水信義線');
+});

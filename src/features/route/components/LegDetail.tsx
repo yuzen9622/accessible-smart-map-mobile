@@ -13,6 +13,7 @@ import {
   driveLegMinutes,
   gradeSlope,
   localizedDuration,
+  metroLineLabel,
   gradeUnconfirmedCrossings,
   gradeWidth,
   shouldAppendExitNumber,
@@ -55,8 +56,12 @@ function legTitle(leg: RouteLeg, t: Translate): string {
       return t('walk');
     case 'BUS':
       return nonEmptyName(leg.routeDisplayName, nonEmptyName(leg.subRouteName, leg.routeName));
-    case 'METRO':
-      return nonEmptyName(leg.routeDisplayName, leg.lineName);
+    case 'METRO': {
+      const line = metroLineLabel(leg, nonEmptyName(leg.routeDisplayName, leg.lineName), t);
+      // 只用選中班次的終點；沒有就只顯示線名，不拿下車站補。
+      const terminal = leg.terminalStation?.trim() ? nonEmptyName(leg.terminalDisplayName, leg.terminalStation) : '';
+      return terminal ? t('metroLineToward', { line, terminal }) : line;
+    }
     case 'THSR':
       return `${nonEmptyName(leg.routeDisplayName, t('thsr'))} ${leg.trainNo}`;
     case 'TRA':

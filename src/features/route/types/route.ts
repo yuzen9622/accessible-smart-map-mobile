@@ -295,12 +295,20 @@ export interface MetroLeg extends LegSourceNames {
   type: 'METRO';
   railSystem: string;
   lineId: string;
+  /** 線別標籤：顯示用 i18n `metroLines.<lineKey>`，不要直接顯示 `lineName`。 */
+  lineKey?: string;
+  /** 中文線名正名；沒有 lineKey 時才拿來當顯示的退路。 */
   lineName: string;
   lineUid: string;
   departureStation: string;
   arrivalStation: string;
   departureStationUid: string;
   arrivalStationUid: string;
+  /** 規劃選中班次的終點站（往…）；`arrivalStation` 才是旅客下車站。 */
+  terminalStation?: string;
+  terminalStationUid?: string;
+  terminalNameEn?: string;
+  terminalDisplayName?: string;
   direction: 0 | 1;
   stopsCount: number;
   rideMinutes: number;

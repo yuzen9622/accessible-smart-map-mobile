@@ -91,8 +91,8 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
   const stars = score === null ? null : scoreToStars(score);
   const starText = stars === null ? null : t(`starLabel${stars}`);
   const confidenceKey = getConfidenceLabelKey(route.dataConfidence);
-  const chain = legChainSegments(presentation.legs);
-  const timeline = legTimelineSegments(presentation.legs);
+  const chain = legChainSegments(presentation.legs, translate);
+  const timeline = legTimelineSegments(presentation.legs, translate);
   const alternatives = [...new Set(chain.flatMap((segment) => segment.alternatives ?? []))];
   // 先依原始 index 配對，再排序整組；未知／舊字串不推定為成功。
   const ordered = orderRouteHighlights(route.accessibilityHighlights, route.accessibilityHighlightDetails);
@@ -108,8 +108,8 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
   ].filter(Boolean);
   const canNavigate = canNavigateRoute(route);
 
+  // 不用後端的 route.routeName（中文串接字），讀屏以 legs 本地化的 summary 為準。
   const a11ySummary = [
-    route.routeName,
     duration,
     departClock && arriveText ? t('nativeRouteJourneyA11y', { from: departClock, to: arriveText }) : null,
     summary,

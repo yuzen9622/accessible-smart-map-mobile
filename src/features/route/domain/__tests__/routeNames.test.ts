@@ -1,4 +1,4 @@
-import { legChainSegments, routeSummary, walkStepText } from '../routeCard';
+import { legChainSegments, legTimelineSegments, routeSummary, walkStepText } from '../routeCard';
 import { presentRouteNames, recordRouteNameLanguage, walkStreetNames } from '../routeNames';
 import type { AccessibleRoute, BusLeg, MetroLeg, TraLeg, WalkLeg, WalkStep } from '../../types/route';
 
@@ -104,4 +104,27 @@ it('keeps canonical text without source English and supports English-only names'
   const english = presentRouteNames(original, 'en');
   expect(english.legs[0]).toMatchObject({ routeName: '', routeDisplayName: 'English-only' });
   expect(english.legs[1]).toMatchObject({ lineName: '板南線', routeDisplayName: '板南線' });
+});
+
+it('localizes the metro trip terminal only when the trip has one', () => {
+  const withTerminal: MetroLeg = { ...metro, terminalStation: '頂埔', terminalNameEn: 'Dingpu', terminalDisplayName: '頂埔' };
+  const original: AccessibleRoute = { ...route(), legs: [withTerminal, { ...metro }] };
+  recordRouteNameLanguage(original, 'zh-TW');
+  const en = presentRouteNames(original, 'en');
+  const zh = presentRouteNames(original, 'zh-TW');
+  expect(en.legs[0]).toMatchObject({ terminalStation: '頂埔', terminalDisplayName: 'Dingpu', arrivalStation: '乙' });
+  expect(zh.legs[0]).toMatchObject({ terminalDisplayName: '頂埔' });
+  expect(en.legs[1]).not.toHaveProperty('terminalDisplayName');
+  expect(en.legs[1]).not.toHaveProperty('terminalStation');
+});
+
+it('summary, chain and timeline translate the metro line label and fall back without one', () => {
+  const t = (key: string, options?: Record<string, unknown>) =>
+    key === 'metroLines.TRTC_BL' ? 'Bannan Line' : String(options?.defaultValue ?? key);
+  const labelled: MetroLeg = { ...metro, lineKey: 'TRTC_BL', routeDisplayName: '板南線' };
+  expect(routeSummary([labelled], t)).toBe('Bannan Line');
+  expect(legChainSegments([labelled], t).map((item) => item.label)).toEqual(['Bannan Line']);
+  expect(legTimelineSegments([labelled], t).map((item) => item.label)).toEqual(['Bannan Line']);
+  expect(routeSummary([{ ...labelled, lineKey: 'UNKNOWN' }], t)).toBe('板南線');
+  expect(legChainSegments([labelled]).map((item) => item.label)).toEqual(['板南線']);
 });

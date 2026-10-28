@@ -8,6 +8,7 @@ import { nonEmptyName } from './routeNames';
 import type {
   A11yFeature,
   AccessibleRoute,
+  MetroLeg,
   RouteLeg,
   SlimOsmA11y,
   WalkAbsoluteDirection,
@@ -104,7 +105,7 @@ export function routeSummary(legs: readonly RouteLeg[], t: Translate): string {
         case 'BUS':
           return nonEmptyName(leg.routeDisplayName, leg.routeName);
         case 'METRO':
-          return nonEmptyName(leg.routeDisplayName, leg.lineName);
+          return metroLineLabel(leg, nonEmptyName(leg.routeDisplayName, leg.lineName), t);
         case 'THSR':
           return `${nonEmptyName(leg.routeDisplayName, t('thsr'))} ${leg.trainNo}`;
         case 'TRA':
@@ -250,6 +251,13 @@ export function walkA11yMetrics(leg: WalkLeg): WalkA11yMetrics | null {
 }
 
 /**
+ * 捷運線名：有後端的線別標籤就用 i18n 翻譯（中／英文由介面語言決定），沒有或翻譯表沒收錄才退回 `fallback`。
+ */
+export function metroLineLabel(leg: MetroLeg, fallback: string, t?: Translate): string {
+  return leg.lineKey && t ? t(`metroLines.${leg.lineKey}`, { defaultValue: fallback }) : fallback;
+}
+
+/**
  * 捷運膠囊的短名。後端的 `lineName` 常是「南港展覽館－亞東醫院」這種起訖站串，膠囊只剩「南港展覽館－亞東…」；
  * 起訖站串時：臺北捷運先換成大家認得的線名（BL → 板南線），其他短 `lineId` 直接用，都沒有就只留第一個站名。
  */
@@ -290,7 +298,7 @@ export interface LegChainSegment {
  * 路線卡的運具串。連續的步行合併成一段（後端常把一次步行切成好幾個 WALK leg，卡片上就變成三個一樣的腳印），
  * 大眾運輸帶上路線號，讓「步行 › 🚌 28 › 步行」一眼看得出要搭什麼。
  */
-export function legChainSegments(legs: readonly RouteLeg[]): LegChainSegment[] {
+export function legChainSegments(legs: readonly RouteLeg[], t?: Translate): LegChainSegment[] {
   const out: LegChainSegment[] = [];
   for (const leg of legs) {
     if (leg.type === 'WALK' && out.at(-1)?.type === 'WALK') continue;
@@ -301,7 +309,7 @@ export function legChainSegments(legs: readonly RouteLeg[]): LegChainSegment[] {
         break;
       }
       case 'METRO':
-        out.push({ type: leg.type, label: nonEmptyName(leg.routeDisplayName, shortMetroLabel(leg.lineName, leg.lineId, leg.railSystem)) });
+        out.push({ type: leg.type, label: metroLineLabel(leg, nonEmptyName(leg.routeDisplayName, shortMetroLabel(leg.lineName, leg.lineId, leg.railSystem)), t) });
         break;
       case 'THSR':
       case 'TRA':
@@ -328,7 +336,7 @@ export interface LegTimelineSegment {
  * 但多帶每段的時間（與步行的距離），不是只有圖示／路線號（使用者回饋 2026-10-23：規劃結果希望能看到
  * 每段花多久，不是只有終點總覽）。
  */
-export function legTimelineSegments(legs: readonly RouteLeg[]): LegTimelineSegment[] {
+export function legTimelineSegments(legs: readonly RouteLeg[], t?: Translate): LegTimelineSegment[] {
   const out: LegTimelineSegment[] = [];
   for (const leg of legs) {
     if (leg.type === 'WALK') {
@@ -348,7 +356,7 @@ export function legTimelineSegments(legs: readonly RouteLeg[]): LegTimelineSegme
       case 'METRO':
         out.push({
           type: leg.type,
-          label: nonEmptyName(leg.routeDisplayName, shortMetroLabel(leg.lineName, leg.lineId, leg.railSystem)),
+          label: metroLineLabel(leg, nonEmptyName(leg.routeDisplayName, shortMetroLabel(leg.lineName, leg.lineId, leg.railSystem)), t),
           durationMinutes: Math.round(leg.rideMinutes),
         });
         break;

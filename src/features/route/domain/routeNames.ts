@@ -50,6 +50,10 @@ export function presentRouteLegNames(leg: RouteLeg, language: RouteLanguage,
       : { ...leg, ...names, intermediateStops,
           departureStationA11y: facilityNames(leg.departureStationA11y, language, requestLanguage),
           arrivalStationA11y: facilityNames(leg.arrivalStationA11y, language, requestLanguage) };
+    if (result.type === 'METRO' && result.terminalStation?.trim()) {
+      result.terminalDisplayName = sourceName(result.terminalStation, result.terminalNameEn,
+        result.terminalDisplayName, language, requestLanguage);
+    }
   }
   return result;
 }

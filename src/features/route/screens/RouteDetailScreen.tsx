@@ -4,7 +4,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { useAppTranslation } from '@/shared/i18n';
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { useSemanticColors, useThemeColors, ICON_SIZE, SHAPE, TYPE, WHITE } from '@/shared/theme';
 import { EmptyState, Icon } from '@/shared/ui';
 
@@ -14,6 +14,8 @@ import { ROUTE_DESTINATION_COLOR } from '../domain/routeLayerData';
 import { ROUTE_BORDER_COLOR, ROUTE_ON_ACCENT_COLOR, routeStyles } from '../components/palette';
 import { computeLegClock, nowClockMinutes } from '../domain/legClock';
 import { formatDuration } from '../domain/routeDisplay';
+import { routeSummary, type Translate } from '../domain/routeCard';
+import { presentRouteNames } from '../domain/routeNames';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import type { AccessibleRoute, BusLeg } from '../types/route';
 import PressableScale from '@/shared/ui/PressableScale';
@@ -76,7 +78,7 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
           <RouteSafetyNotice />
           {renderExplanation ? renderExplanation(route) : null}
           <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.text }]}>
-            {route.routeName}
+            {routeSummary(presentRouteNames(route, getAppLanguage()).legs, t as Translate) || t('walk')}
           </Text>
           {/* 每段左側貼時鐘時間＋連接線，最後接目的地旗標列；大眾運輸 leg 的時間是後端給的真實時刻，
               步行／開車是用估計分鐘數往下推算（`computeLegClock`），不是即時追蹤。 */}

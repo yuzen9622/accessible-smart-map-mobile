@@ -1,17 +1,31 @@
 import { Button as NativeButton, Form as NativeForm, Section as NativeSection, Text, VStack, type FormProps, type SectionProps } from '@expo/ui/swift-ui';
-import { background, bold, foregroundStyle, listRowBackground, listRowSeparatorTint, scrollContentBackground, tint } from '@expo/ui/swift-ui/modifiers';
+import { Animation, animation, background, foregroundStyle, listRowBackground, listRowSeparatorTint, scrollContentBackground, tint } from '@expo/ui/swift-ui/modifiers';
 import type { ComponentProps, ReactNode } from 'react';
+import { PlatformColor } from 'react-native';
+
+import { boldActive } from '../../../../modules/swiftui-modifiers';
 
 import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
 import { useSemanticColors, useThemeColors } from '@/shared/theme';
 
-/** Keep SwiftUI's native form behavior; opt into the App palette only in high contrast. */
+/**
+ * Keep SwiftUI's native form behavior; opt into the App palette only in high contrast.
+ *
+ * 這個檔案的 modifier 陣列在兩種模式下都要「同樣長度、同樣種類、同樣順序」，只換參數值：
+ * @expo/ui 用 `AnyView` 一層層串 modifier，陣列結構一變底層型別就變，SwiftUI 會把整個 Form
+ * 砍掉重建，高對比切換時顏色直接跳換、Toggle 動畫被截斷（使用者回饋 2026-10-28 錄影）。
+ * 一般模式改用系統語意色重現原生外觀；`animation` 讓換色在同一棵樹上淡入。
+ */
 export function Form({ modifiers = [], ...props }: FormProps) {
   const highContrast = usePreferencesStore(s => s.highContrast);
   const colors = useThemeColors();
-  return <NativeForm {...props} modifiers={highContrast ? [
-    scrollContentBackground('hidden'), background(colors.backgroundElement), bold(), ...modifiers,
-  ] : modifiers} />;
+  return <NativeForm {...props} modifiers={[
+    scrollContentBackground('hidden'),
+    background(highContrast ? colors.backgroundElement : PlatformColor('systemGroupedBackground')),
+    boldActive(highContrast),
+    animation(Animation.default, highContrast),
+    ...modifiers,
+  ]} />;
 }
 
 /**
@@ -35,7 +49,11 @@ export function Section({ title, header, footer, modifiers = [], ...props }: Sec
   return <NativeSection {...props}
     header={caption(header ?? (title ? <Text>{title}</Text> : undefined))}
     footer={caption(footer)}
-    modifiers={highContrast ? [listRowBackground(colors.background), listRowSeparatorTint(tones.separator), ...modifiers] : modifiers}
+    modifiers={[
+      listRowBackground(highContrast ? colors.background : PlatformColor('secondarySystemGroupedBackground')),
+      listRowSeparatorTint(highContrast ? tones.separator : PlatformColor('separator')),
+      ...modifiers,
+    ]}
   />;
 }
 
@@ -50,6 +68,7 @@ export function useSecondaryForeground() {
 export function Button({ modifiers = [], ...props }: ComponentProps<typeof NativeButton>) {
   const highContrast = usePreferencesStore(s => s.highContrast);
   const tones = useSemanticColors();
-  return <NativeButton {...props} modifiers={highContrast && props.role === 'destructive'
-    ? [...modifiers, tint(tones.danger.fg), foregroundStyle(tones.danger.fg)] : modifiers} />;
+  if (props.role !== 'destructive') return <NativeButton {...props} modifiers={modifiers} />;
+  const danger = highContrast ? tones.danger.fg : PlatformColor('systemRed');
+  return <NativeButton {...props} modifiers={[...modifiers, tint(danger), foregroundStyle(danger)]} />;
 }

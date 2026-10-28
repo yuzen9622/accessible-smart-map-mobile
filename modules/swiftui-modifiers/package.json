@@ -1,0 +1,10 @@
+{
+  "name": "swiftui-modifiers",
+  "version": "0.1.0",
+  "description": "App-specific SwiftUI modifiers registered into @expo/ui's ViewModifierRegistry.",
+  "main": "index.ts",
+  "license": "UNLICENSED",
+  "author": "accessible-smart-map-mobile",
+  "homepage": "https://map.yuzen.dev/",
+  "private": true
+}

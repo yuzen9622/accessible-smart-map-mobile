@@ -123,3 +123,17 @@ describe('bus departure candidates on the route card', () => {
     expect(localizedDuration(65, t)).toBe('nativeRouteHoursMinutes:{"hours":1,"minutes":5}');
   });
 });
+
+describe('metro line labels on segments', () => {
+  const metro = { type: 'METRO', railSystem: 'TRTC', lineId: 'Y', lineKey: 'NTMC_Y', lineName: '環狀線', lineUid: 'NTMC_Y_1', departureStation: 'A', arrivalStation: 'B', departureStationUid: 'a', arrivalStationUid: 'b', direction: 0, stopsCount: 3, rideMinutes: 6, waitInfo: { time: null, source: 'unavailable' }, estimatedWaitMinutes: 0, polyline: [], departureStationA11y: [], arrivalStationA11y: [], facilityHighlights: [] } as RouteLeg;
+
+  it('carries the metro lineKey so the pill and timeline can take the line colour', () => {
+    expect(legChainSegments([metro]).at(0)?.lineKey).toBe('NTMC_Y');
+    expect(legTimelineSegments([metro]).at(0)?.lineKey).toBe('NTMC_Y');
+  });
+
+  it('adds no lineKey to other modes', () => {
+    expect(legChainSegments([bus]).at(0)).not.toHaveProperty('lineKey');
+    expect(legTimelineSegments([bus]).at(0)).not.toHaveProperty('lineKey');
+  });
+});

@@ -14,7 +14,7 @@ import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 import type { LatLng } from '@/shared/geo';
 
 import { filterIncidentsAlongRoute, isIncidentClosed } from './geo';
-import { A11Y_FEATURE_COLOR, TRAFFIC_LEVEL_COLORS, getLegColor, visibleTrafficSegments } from './routeDisplay';
+import { A11Y_FEATURE_COLOR, TRAFFIC_LEVEL_COLORS, getLegColor, legEdgeColor, visibleTrafficSegments } from './routeDisplay';
 import type { AccessibleRoute, LngLatTuple } from '../types/route';
 import { ROUTE_MARKER } from '@/shared/theme/palettes';
 
@@ -24,6 +24,8 @@ export interface RouteLineProps {
   id: string;
   kind: RouteLineKind;
   color: string;
+  /** 捷運線色表內的線：外框色（淺線色＝深框）。沒有就用預設白框。 */
+  casing?: string;
   /** 疊放順序：底線 0、疊色 1（line-sort-key）。 */
   order: number;
 }
@@ -34,6 +36,8 @@ export interface RoutePointProps {
   id: string;
   kind: RoutePointKind;
   color: string;
+  /** 轉乘點：捷運線色表內的線改成線色實心、`casing` 外框；沒有就維持白心、線色外框。 */
+  casing?: string;
   /** 事故標題等可讀文字；地圖點擊時使用。 */
   label?: string;
 }
@@ -69,9 +73,10 @@ export function buildRouteLayerData(route: AccessibleRoute | null, waypoints: re
   route.legs.forEach((leg, legIndex) => {
     const coords = (leg.polyline ?? []).filter(isFiniteTuple);
     const base = `leg-${legIndex}`;
+    const casing = legEdgeColor(leg);
     if (coords.length >= 2) {
       const kind: RouteLineKind = leg.type === 'WALK' ? 'walk' : leg.type === 'DRIVE' || leg.type === 'MOTORCYCLE' ? 'drive' : 'transit';
-      lines.push(line(base, coords, { kind, color: getLegColor(leg), order: 0 }));
+      lines.push(line(base, coords, { kind, color: getLegColor(leg), ...(casing ? { casing } : {}), order: 0 }));
     }
 
     if (leg.type === 'WALK' && leg.a11ySegments) {
@@ -126,7 +131,7 @@ export function buildRouteLayerData(route: AccessibleRoute | null, waypoints: re
 
     const previous = route.legs[legIndex - 1];
     if (legIndex > 0 && previous && previous.type !== leg.type && coords[0]) {
-      points.push(point(`${base}-transfer`, coords[0], { kind: 'transfer', color: getLegColor(leg) }));
+      points.push(point(`${base}-transfer`, coords[0], { kind: 'transfer', color: getLegColor(leg), ...(casing ? { casing } : {}) }));
     }
   });
 

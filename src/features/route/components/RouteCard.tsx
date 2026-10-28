@@ -5,7 +5,7 @@ import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE, ICON_SIZE } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { useNow } from '@/shared/time';
 import { Icon } from '@/shared/ui';
 
@@ -23,7 +23,7 @@ import {
   type FirstBoarding,
   type Translate,
 } from '../domain/routeCard';
-import { LEG_ICON, LEG_LABEL_FILL, scoreToStars } from '../domain/routeDisplay';
+import { LEG_ICON, legBadgeColors, scoreToStars } from '../domain/routeDisplay';
 import { presentRouteNames } from '../domain/routeNames';
 import { orderRouteHighlights } from '../domain/routeMessages';
 import type { AccessibleRoute } from '../types/route';
@@ -150,13 +150,15 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
         {/* 運具串：步行 › 🚌 5 +4 › 步行（連續步行合併，大眾運輸帶路線號；+N＝同站也能搭的其他路線） */}
         {chain.some((segment) => segment.type !== 'WALK') ? (
           <View style={styles.legChain} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-            {chain.map((segment, index) => (
+            {chain.map((segment, index) => {
+              const badge = legBadgeColors(segment.type, segment.lineKey);
+              return (
               <View key={`${segment.type}-${index}`} style={styles.legChainItem}>
                 {index > 0 ? <Icon name="chevronRight" size={ICON_SIZE.caption} color={colors.textSecondary} /> : null}
                 {segment.label ? (
-                  <View style={[styles.legPill, { backgroundColor: LEG_LABEL_FILL[segment.type] }]}>
-                    <Icon name={LEG_ICON[segment.type]} size={ICON_SIZE.caption} color={WHITE} />
-                    <Text style={styles.legPillText} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
+                  <View style={[styles.legPill, { backgroundColor: badge.fill }]}>
+                    <Icon name={LEG_ICON[segment.type]} size={ICON_SIZE.caption} color={badge.fg} />
+                    <Text style={[styles.legPillText, { color: badge.fg }]} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE.label}>
                       {segment.label}
                     </Text>
                   </View>
@@ -171,7 +173,8 @@ export default function RouteCard({ route, selected, onSelect, onOpenDetail, onS
                   </View>
                 ) : null}
               </View>
-            ))}
+              );
+            })}
           </View>
         ) : null}
 
@@ -341,7 +344,7 @@ const styles = StyleSheet.create({
   legChainItem: { flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 4 },
   // minHeight 而非固定高度：字級放大時膠囊跟著長高，不截字
   legPill: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 24, paddingVertical: 2, borderRadius: SHAPE.badge, borderCurve: 'continuous', paddingHorizontal: 7, maxWidth: 140 },
-  legPillText: { color: WHITE, fontSize: TYPE.footnote, fontWeight: '700' },
+  legPillText: { fontSize: TYPE.footnote, fontWeight: '700' },
   altBadge: { borderWidth: StyleSheet.hairlineWidth, borderRadius: SHAPE.badge, borderCurve: 'continuous', paddingHorizontal: 5, minHeight: 20, justifyContent: 'center' },
   altBadgeText: { fontSize: TYPE.caption, fontWeight: '600', fontVariant: ['tabular-nums'] },
   boardingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

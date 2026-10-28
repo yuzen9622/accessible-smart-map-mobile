@@ -5,7 +5,7 @@ import LegDetail from '../LegDetail';
 
 jest.mock('@/shared/ui', () => {
   const { Text } = jest.requireActual('react-native');
-  return { Icon: ({ name }: { name: string }) => <Text>{`icon:${name}`}</Text> };
+  return { Icon: ({ name, color }: { name: string; color?: string }) => <Text style={{ color }}>{`icon:${name}`}</Text> };
 });
 
 const metro = (patch: Partial<MetroLeg> = {}): MetroLeg => ({
@@ -30,4 +30,18 @@ it('shows only the line name when the trip terminal is unknown, never the alight
 it('renders the line from its backend label in the UI language, not the source line name', async () => {
   await render(<LegDetail leg={metro({ lineKey: 'TRTC_R_R-3', lineName: '新北投支線', terminalStation: '北投', terminalNameEn: 'Beitou' })} />);
   expect(screen.getByRole('header')).toHaveTextContent('Xinbeitou Branch Line · toward Beitou');
+});
+
+it('draws the Circular Line rail icon in its yellow with dark ink', async () => {
+  await render(<LegDetail leg={metro({ lineKey: 'NTMC_Y', lineName: '環狀線' })} />);
+  const icon = screen.getByText('icon:tramFront', { includeHiddenElements: true });
+  expect(icon).toHaveStyle({ color: '#1A1A1A' });
+  expect(icon.parent).toHaveStyle({ backgroundColor: '#FFDB00' });
+});
+
+it('keeps the generic metro rail icon for a line without a colour', async () => {
+  await render(<LegDetail leg={metro({ lineKey: 'KRTC_R' })} />);
+  const icon = screen.getByText('icon:tramFront', { includeHiddenElements: true });
+  expect(icon).toHaveStyle({ color: '#FFFFFF' });
+  expect(icon.parent).toHaveStyle({ backgroundColor: '#0C8599' });
 });

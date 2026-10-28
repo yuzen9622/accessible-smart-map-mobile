@@ -292,6 +292,8 @@ export interface LegChainSegment {
   label?: string;
   /** 公車：同一組上下車站也能搭的其他路線（候選班次去重，不含規劃的那條）。 */
   alternatives?: string[];
+  /** 捷運：線別標籤，膠囊依它取官方線色。 */
+  lineKey?: string;
 }
 
 /**
@@ -309,7 +311,11 @@ export function legChainSegments(legs: readonly RouteLeg[], t?: Translate): LegC
         break;
       }
       case 'METRO':
-        out.push({ type: leg.type, label: metroLineLabel(leg, nonEmptyName(leg.routeDisplayName, shortMetroLabel(leg.lineName, leg.lineId, leg.railSystem)), t) });
+        out.push({
+          type: leg.type,
+          label: metroLineLabel(leg, nonEmptyName(leg.routeDisplayName, shortMetroLabel(leg.lineName, leg.lineId, leg.railSystem)), t),
+          ...(leg.lineKey ? { lineKey: leg.lineKey } : {}),
+        });
         break;
       case 'THSR':
       case 'TRA':
@@ -327,6 +333,8 @@ export interface LegTimelineSegment {
   /** 運具上要印的短標籤：公車路線號、捷運線名、火車車次；步行與開車沒有。 */
   label?: string;
   durationMinutes: number;
+  /** 捷運：線別標籤，圖示底板依它取官方線色。 */
+  lineKey?: string;
   /** 只有步行段才有距離（給「步行 350 m」這種附註）。 */
   distanceM?: number;
 }
@@ -358,6 +366,7 @@ export function legTimelineSegments(legs: readonly RouteLeg[], t?: Translate): L
           type: leg.type,
           label: metroLineLabel(leg, nonEmptyName(leg.routeDisplayName, shortMetroLabel(leg.lineName, leg.lineId, leg.railSystem)), t),
           durationMinutes: Math.round(leg.rideMinutes),
+          ...(leg.lineKey ? { lineKey: leg.lineKey } : {}),
         });
         break;
       case 'THSR':

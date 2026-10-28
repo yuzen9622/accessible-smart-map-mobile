@@ -62,3 +62,25 @@ it('reads the localized leg summary to screen readers, never the backend route n
   const card = screen.getByLabelText(/Bannan Line/);
   expect(card.props.accessibilityLabel).not.toContain('板南線 → 淡水信義線');
 });
+
+it.each([
+  ['NTMC_Y', 'Circular Line', '#FFDB00', '#1A1A1A'],
+  ['TRTC_R', 'Tamsui-Xinyi Line', '#E3002C', '#FFFFFF'],
+])('paints the %s pill and timeline icon in the line colour with readable ink', async (lineKey, label, fill, ink) => {
+  const route = makeRoute();
+  route.legs = [{
+    type: 'METRO', railSystem: 'TRTC', lineId: 'X', lineKey, lineUid: 'X_1', lineName: 'x',
+    departureStation: 'A', arrivalStation: 'B', departureStationUid: 'a', arrivalStationUid: 'b',
+    direction: 1, stopsCount: 3, rideMinutes: 6, waitInfo: { time: 0, source: 'schedule' }, estimatedWaitMinutes: 0,
+    polyline: [], departureStationA11y: [], arrivalStationA11y: [], facilityHighlights: [],
+  }];
+  await renderCard(route);
+  const pillText = screen.getAllByText(label, { includeHiddenElements: true }).find((node) => node.parent?.props.style);
+  const icons = screen.getAllByText('icon:tramFront', { includeHiddenElements: true });
+  expect(icons.length).toBeGreaterThanOrEqual(2);
+  for (const icon of icons) {
+    expect(icon).toHaveStyle({ color: ink });
+    expect(icon.parent).toHaveStyle({ backgroundColor: fill });
+  }
+  expect(pillText).toHaveStyle({ color: ink });
+});

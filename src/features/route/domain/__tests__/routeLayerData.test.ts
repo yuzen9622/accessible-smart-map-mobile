@@ -2,7 +2,7 @@
 // Web 斷言 renderToStaticMarkup 產生的 Polyline／Marker id；原生改斷言 GeoJSON feature。
 import { buildRouteLayerData } from '../routeLayerData';
 import { TRAFFIC_BASE_COLOR, TRAFFIC_LEVEL_COLORS } from '../routeDisplay';
-import type { AccessibleRoute, DriveLeg, LngLatTuple, WalkLeg } from '../../types/route';
+import type { AccessibleRoute, DriveLeg, LngLatTuple, MetroLeg, WalkLeg } from '../../types/route';
 
 const DRIVE_POLYLINE: LngLatTuple[] = [
   [121.5, 25.03],
@@ -144,5 +144,31 @@ describe('buildRouteLayerData', () => {
     expect(data.points.features.find((f) => f.properties.kind === 'origin')?.geometry.coordinates).toEqual([121.49, 25.02]);
     expect(data.points.features.find((f) => f.properties.kind === 'destination')?.geometry.coordinates).toEqual([121.52, 25.034]);
     expect(data.lines.features.map((f) => f.properties.kind)).toEqual(['walk', 'a11y', 'drive']);
+  });
+});
+
+describe('metro line casing', () => {
+  const walkLeg: WalkLeg = {
+    type: 'WALK', from: 'A', to: 'B', distanceM: 100, minutesEst: 2,
+    polyline: [[121.49, 25.02], [121.5, 25.03]], a11yFacilities: [],
+  };
+  const metroLeg = (lineKey?: string): MetroLeg => ({
+    type: 'METRO', railSystem: 'NTMC', lineId: 'Y', ...(lineKey ? { lineKey } : {}), lineName: '環狀線', lineUid: 'NTMC_Y_1',
+    departureStation: 'A', arrivalStation: 'B', departureStationUid: 'a', arrivalStationUid: 'b', direction: 0, stopsCount: 3,
+    rideMinutes: 6, waitInfo: { time: null, source: 'unavailable' }, estimatedWaitMinutes: 0,
+    polyline: [[121.5, 25.03], [121.51, 25.04]], departureStationA11y: [], arrivalStationA11y: [], facilityHighlights: [],
+  });
+  const build = (leg: MetroLeg) => buildRouteLayerData({ ...driveRoute(), legs: [walkLeg, leg] });
+
+  it('gives a coloured metro line and its transfer point a casing in the line ink', () => {
+    const data = build(metroLeg('NTMC_Y'));
+    expect(data.lines.features.find((f) => f.properties.id === 'leg-1')?.properties).toMatchObject({ color: '#FFDB00', casing: '#1A1A1A' });
+    expect(data.points.features.find((f) => f.properties.kind === 'transfer')?.properties).toMatchObject({ color: '#FFDB00', casing: '#1A1A1A' });
+  });
+
+  it('adds no casing to a line without a colour', () => {
+    const data = build(metroLeg());
+    expect(data.lines.features.find((f) => f.properties.id === 'leg-1')?.properties).not.toHaveProperty('casing');
+    expect(data.points.features.find((f) => f.properties.kind === 'transfer')?.properties).not.toHaveProperty('casing');
   });
 });

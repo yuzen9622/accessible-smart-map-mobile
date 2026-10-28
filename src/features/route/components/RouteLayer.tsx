@@ -1,3 +1,4 @@
+import type { CircleLayerSpecification, LineLayerSpecification } from '@maplibre/maplibre-react-native';
 import { GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import type { Feature, Point } from 'geojson';
 
@@ -14,6 +15,38 @@ import { WHITE } from '@/shared/theme';
  *
  * 只有目的地、還沒算出路線時也畫目的地 pin（對齊 `hasRouteSession` 的定義：它也需要 pill 當出口）。
  */
+/** 大眾運輸／開車線的外框：捷運線色表內的淺色線（環狀線黃…）是深框，其餘白框。 */
+export const ROUTE_CASING_PAINT: LineLayerSpecification['paint'] = {
+  'line-color': ['coalesce', ['get', 'casing'], WHITE],
+  'line-width': 11,
+  'line-opacity': 0.9,
+};
+
+/**
+ * 點的填色與外框。轉乘點預設白心、線色外框；捷運線色表內的線（feature 帶 `casing`）改線色實心、`casing` 外框，
+ * 黃線才不會變成白底上看不見的黃圈。起點維持白心、線色外框，其餘點線色實心、白框。
+ */
+export const ROUTE_POINT_COLOR_PAINT: Pick<NonNullable<CircleLayerSpecification['paint']>, 'circle-color' | 'circle-stroke-color'> = {
+  'circle-color': [
+    'match',
+    ['get', 'kind'],
+    'origin',
+    WHITE,
+    'transfer',
+    ['case', ['has', 'casing'], ['get', 'color'], WHITE],
+    ['get', 'color'],
+  ],
+  'circle-stroke-color': [
+    'match',
+    ['get', 'kind'],
+    'origin',
+    ['get', 'color'],
+    'transfer',
+    ['coalesce', ['get', 'casing'], ['get', 'color']],
+    WHITE,
+  ],
+};
+
 export default function RouteLayer() {
   const selected = useRouteSessionStore((s) => s.selectRoute?.route ?? null);
   const preview = useRouteSessionStore((s) => s.legGeometryPreview);
@@ -50,7 +83,7 @@ export default function RouteLayer() {
           type="line"
           filter={['match', ['get', 'kind'], ['transit', 'drive'], true, false]}
           layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-          paint={{ 'line-color': WHITE, 'line-width': 11, 'line-opacity': 0.9 }}
+          paint={ROUTE_CASING_PAINT}
         />
         <Layer
           id="route-line-walk"
@@ -92,13 +125,7 @@ export default function RouteLayer() {
           id="route-point-circles"
           type="circle"
           paint={{
-            'circle-color': [
-              'match',
-              ['get', 'kind'],
-              ['origin', 'transfer'],
-              WHITE,
-              ['get', 'color'],
-            ],
+            ...ROUTE_POINT_COLOR_PAINT,
             'circle-radius': [
               'match',
               ['get', 'kind'],
@@ -112,7 +139,6 @@ export default function RouteLayer() {
               6,
               8,
             ],
-            'circle-stroke-color': ['match', ['get', 'kind'], ['origin', 'transfer'], ['get', 'color'], WHITE],
             'circle-stroke-width': ['match', ['get', 'kind'], ['origin', 'transfer'], 3.5, 2],
           }}
         />

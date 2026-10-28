@@ -2,10 +2,11 @@
 // Web 把這些和型別放在同一檔；本 repo 型別放 `types/`、邏輯放 `domain/`，所以拆出來。
 // `formatDistance` 在 `shared/geo`（Phase 1 移植、Phase 2 提到共用層），這裡不重複。
 
-import { MODE, A11Y_SCORE, ROUTE_FEATURE, TRAFFIC } from '@/shared/theme/palettes';
+import { MODE, A11Y_SCORE, ROUTE_FEATURE, TRAFFIC, WHITE } from '@/shared/theme/palettes';
 import type { IconName } from '@/shared/ui/Icon.types';
 
 import type { A11yFeature, A11yLabel, DriveTrafficSegment, RouteLeg, TrafficLevel } from '../types/route';
+import { metroLineColors, type MetroLineColors } from './metroLineColors';
 
 export function getA11yLabelColor(label: A11yLabel): string {
   switch (label) {
@@ -113,8 +114,21 @@ const LEG_COLORS: Record<RouteLeg['type'], string> = {
   MOTORCYCLE: MODE.scooter.line,
 };
 
+function legLineColors(leg: RouteLeg): MetroLineColors | null {
+  return leg.type === 'METRO' ? metroLineColors(leg.type, leg.lineKey) : null;
+}
+
 export function getLegColor(leg: RouteLeg): string {
-  return LEG_COLORS[leg.type] ?? LEG_COLORS.BUS;
+  return legLineColors(leg)?.fill ?? LEG_COLORS[leg.type] ?? LEG_COLORS.BUS;
+}
+
+/**
+ * 淺色線（環狀線黃、文湖線棕…）在白底地圖／卡片上看不清楚，要加一圈外框；外框色就是線色上的字色，
+ * 深色模式下深線色加白框、淺色模式下淺線色加深框，兩種主題都至少 3:1（`metroLineColors.test.ts` 逐面實測）。
+ * 不在線色表內的運具沒有外框，維持原樣。
+ */
+export function legEdgeColor(leg: RouteLeg): string | undefined {
+  return legLineColors(leg)?.fg;
 }
 
 /**
@@ -130,6 +144,16 @@ export const LEG_LABEL_FILL: Record<RouteLeg['type'], string> = {
   DRIVE: MODE.car.text,
   MOTORCYCLE: MODE.scooter.text,
 };
+
+/** 運具膠囊的底色與字色：捷運線在線色表內就用官方線色＋可讀字色，其餘是 `LEG_LABEL_FILL` 配白字。 */
+export function legBadgeColors(type: RouteLeg['type'], lineKey?: string): MetroLineColors {
+  return metroLineColors(type, lineKey) ?? { fill: LEG_LABEL_FILL[type], fg: WHITE };
+}
+
+/** 路線詳情時間軸的圓形圖示：線色表內用官方線色＋可讀字色，其餘維持原本的地圖線色配白圖示。 */
+export function legRailIconColors(leg: RouteLeg): MetroLineColors {
+  return legLineColors(leg) ?? { fill: getLegColor(leg), fg: WHITE };
+}
 
 /** 運具圖示；搬到 domain 而不是放元件檔，是因為 `RouteCard` 跟 `RouteLegTimeline` 互相用得到對方
  * 的其他東西，兩邊都從元件檔匯入會形成 require cycle（Metro 的實際警告：RouteCard → RouteLegTimeline

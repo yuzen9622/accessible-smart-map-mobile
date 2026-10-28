@@ -3,6 +3,7 @@
  * 狀態色（ok／warn／danger）屬於 `tokens.ts` 的語意層，不在這裡。
  * `line` 用於地圖線與底板，`text` 是對白底 ≥ 4.5:1 的文字色。
  */
+import { contrastRatio } from './contrast';
 import { ACCENT_FILL } from './tokens';
 
 export interface DomainColor {
@@ -45,6 +46,34 @@ export type FeatureKey = keyof typeof FEATURE;
 
 export const WHITE = '#FFFFFF';
 export const BLACK = '#000000';
+/** 淺色線色（環狀線黃等）上的深色字與外框：白字對比不足時用它。 */
+export const INK_DARK = '#1A1A1A';
+
+/**
+ * 捷運各線代表色，key 是後端 `MetroLeg.lineKey`。來源（2026-10-28）：zh.wikipedia Template:台北捷運色彩；
+ * 三鶯、淡海、安坑取自 Module:Adjacent stations/新北捷運。不在表內的線沿用 `MODE.metro`。
+ */
+export const METRO_LINE_FILL: Readonly<Record<string, string>> = {
+  TRTC_BR: '#C48C31',
+  TRTC_R: '#E3002C',
+  TRTC_G: '#008659',
+  TRTC_O: '#F8B61C',
+  TRTC_BL: '#0070BD',
+  'TRTC_R_R-3': '#FD92A3',
+  'TRTC_G_G-3': '#CFDB00',
+  TRTCMG_MK: '#00AFE2',
+  NTMC_Y: '#FFDB00',
+  NTMC_LB: '#79BCE8',
+  NTDLRT_V: '#E5554F',
+  'NTDLRT_V_V-1': '#E5554F',
+  'NTDLRT_V_V-2': '#E5554F',
+  NTALRT_K: '#C3B091',
+};
+
+/** 線色上的文字／圖示色：白或 `INK_DARK`，取對比高者（也當淺色線在白底上的外框色）。 */
+export const METRO_LINE_INK: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(METRO_LINE_FILL).map(([key, fill]) => [key, contrastRatio(WHITE, fill) >= contrastRatio(INK_DARK, fill) ? WHITE : INK_DARK]),
+);
 /** 地圖浮動元件與卡片的陰影色。 */
 
 /** 無障礙評等（excellent → critical）。 */

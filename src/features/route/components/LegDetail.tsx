@@ -4,7 +4,7 @@ import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
-import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE, ICON_SIZE } from '@/shared/theme';
+import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { filterIncidentsAlongRoute, formatIncidentEnd, isIncidentClosed } from '../domain/geo';
@@ -22,7 +22,7 @@ import {
   type A11yGrade,
   type Translate,
 } from '../domain/routeCard';
-import { A11Y_FEATURE_COLOR, LEG_ICON, formatDuration, getLegColor, pointLabel } from '../domain/routeDisplay';
+import { A11Y_FEATURE_COLOR, LEG_ICON, formatDuration, getLegColor, legEdgeColor, legRailIconColors, pointLabel } from '../domain/routeDisplay';
 import { nonEmptyName, presentRouteLegNames, walkStreetNames } from '../domain/routeNames';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import type { DriveLeg, MatchedAlert, MetroAlert, RouteLeg, TrafficLevel, WalkLeg, WalkRestPoint } from '../types/route';
@@ -280,13 +280,15 @@ function DriveDetail({
 /** 步行段的點狀軌道：一串圓點由外層裁切，內容多高就露出多長（RN 的 dotted 邊框單邊在 iOS 不可靠）。 */
 const DOTS = Array.from({ length: 400 }, (_, index) => index);
 
-function TimelineRail({ leg, color }: { leg: RouteLeg; color: string }) {
+function TimelineRail({ leg }: { leg: RouteLeg }) {
   const semantic = useSemanticColors();
   const walk = leg.type === 'WALK';
+  const icon = legRailIconColors(leg);
+  const edge = legEdgeColor(leg);
   return (
     <View style={styles.rail} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-      <View style={[styles.legIcon, walk ? { backgroundColor: semantic.neutral.bg } : { backgroundColor: color }]}>
-        <Icon name={LEG_ICON[leg.type]} size={ICON_SIZE.body} color={walk ? semantic.neutral.fg : WHITE} />
+      <View style={[styles.legIcon, walk ? { backgroundColor: semantic.neutral.bg } : { backgroundColor: icon.fill }]}>
+        <Icon name={LEG_ICON[leg.type]} size={ICON_SIZE.body} color={walk ? semantic.neutral.fg : icon.fg} />
       </View>
       {walk ? (
         // 絕對定位：點串本身很長，若參與排版會把整段撐高；只填滿內容決定的高度
@@ -298,7 +300,7 @@ function TimelineRail({ leg, color }: { leg: RouteLeg; color: string }) {
           </View>
         </View>
       ) : (
-        <View style={[styles.line, { backgroundColor: color }]} />
+        <View style={[styles.line, { backgroundColor: getLegColor(leg) }, edge ? { borderWidth: 1, borderColor: edge } : null]} />
       )}
     </View>
   );
@@ -335,7 +337,7 @@ export default function LegDetail({ leg: originalLeg, busStops, engine, isFirst 
 
   return (
     <View style={styles.segment}>
-      <TimelineRail leg={leg} color={getLegColor(leg)} />
+      <TimelineRail leg={leg} />
       <View style={styles.body}>
         <View style={styles.titleRow}>
           <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]} maxFontSizeMultiplier={MAX_FONT_SCALE.heading}>

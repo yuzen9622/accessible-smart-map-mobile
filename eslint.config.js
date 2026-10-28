@@ -21,6 +21,14 @@ module.exports = defineConfig([
         'error',
         { 'ts-ignore': true, 'ts-expect-error': true, 'ts-nocheck': true },
       ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'JSXAttribute[name.name=/^(adjustsFontSizeToFit|minimumFontScale)$/]',
+          message:
+            '新架構（Fabric）的 iOS 會忽略 minimumFontScale，adjustsFontSizeToFit 可把字縮到 4pt。請改用 numberOfLines 截斷或允許換行。',
+        },
+      ],
     },
   },
   {

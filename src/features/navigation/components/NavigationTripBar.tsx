@@ -107,7 +107,7 @@ export default function NavigationTripBar() {
           {progress.remainMinutes != null ? <Text fixedSize style={[styles.unit, { color: colors.text }]}>{t('nativeMinuteUnit')}</Text> : null}
         </View>
         {/* 限一行：換行會把左欄撐高，整列超出 peek detent、按鈕就不再垂直置中 */}
-        <Text fixedSize style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+        <Text fixedSize style={[styles.meta, { color: colors.textSecondary }]} numberOfLines={1}>
           {[etaText, visibleRemainingM != null ? formatDistance(visibleRemainingM) : null].filter(Boolean).join(' · ')}
         </Text>
       </View>

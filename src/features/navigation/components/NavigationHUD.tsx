@@ -204,14 +204,12 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
                 ) : distanceM != null && step ? (
                   <AnimatedNumberText text={formatDistance(distanceM)} value={distanceM} fontSize={28} fontWeight="heavy" fixedSize color={ON_ACCENT_FILL} />
                 ) : null}
-                {/* 一行為限：長路名先縮字再截斷；完整指示走 accessibilityLabel，步驟清單也看得到全文 */}
+                {/* 最多兩行再截斷（搭車指示是整句話）；完整指示走 accessibilityLabel，步驟清單也看得到全文 */}
                 <Text
                   fixedSize
                   accessibilityLiveRegion="assertive"
                   accessibilityLabel={instructionLabel}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.75}
+                  numberOfLines={2}
                   style={styles.bannerInstruction}>
                   {instructionText}
                 </Text>

@@ -163,7 +163,11 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     now,
   });
 
-  function speak(text: string): void {
+  /**
+   * 預設排在正在念的句子後面：實際導航開場那句要念好幾秒，人一走（或 GPS 漂幾公尺）下一段就到，
+   * 先 `stop()` 會把開場那句切掉。只有使用者手動切步驟（預覽）才打斷，念他剛選的那一步。
+   */
+  function speak(text: string, interrupt = false): void {
     if (useNavStore.getState().instructionError || loadedLanguage !== deps.language()) return;
     // 每次都重新讀開關：播報可能在使用者剛切換之後觸發。
     const maySpeak = shouldSpeakLocally({
@@ -171,7 +175,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       localVoiceEnabled: useNavStore.getState().voiceEnabled,
     });
     if (!maySpeak) return;
-    deps.speech.stop();
+    if (interrupt) deps.speech.stop();
     deps.speech.speak(text, deps.language());
   }
 
@@ -504,7 +508,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
           if (state.instructions !== previous.instructions) queuePosition();
         } else if (step && !transit.ownsStepSpeech(state.currentStepIndex)) {
           // 公車段的上車／下車指令改由等車／搭乘導引播報（含即時分鐘數），不念後端的靜態文字。
-          speak(prefix ? `${prefix} ${step.text}` : step.text);
+          speak(prefix ? `${prefix} ${step.text}` : step.text, state.stepMode === 'preview');
         }
         if (state.currentStepIndex !== previous.currentStepIndex) deps.onStepChange?.(state.currentStepIndex);
       }

@@ -194,6 +194,26 @@ describe('NavigationController', () => {
     controller.stop();
   });
 
+  // Regression: every call-out stopped the synthesiser first, so the opening line (several seconds long)
+  // was cut off by the next call-out a few metres later and the user heard nothing until the next step.
+  it('queues live call-outs behind the opening line instead of cutting it off', async () => {
+    const { controller, speech } = setup({
+      maneuverAheadText: (meters, instruction) => `${Math.round(meters / 10) * 10}m後${instruction}`,
+    });
+    fix(25.05, 121.5);
+    controller.start();
+    await flush();
+    fix(25.05, 121.50195); // ~5 m before the turn, right after the opening line.
+    await flush();
+
+    expect(speech.speak.mock.calls).toEqual([
+      ['出發 200m後右轉', 'zh-TW'],
+      ['右轉', 'zh-TW'],
+    ]);
+    expect(speech.stop).not.toHaveBeenCalled();
+    controller.stop();
+  });
+
   it('calls a straight step once at the point, never "X m ahead", and says a carried prefix at once', async () => {
     const instructions = [
       step('出發', 0, { type: 'depart', maneuver: 'DEPART' }),
@@ -597,9 +617,12 @@ describe('NavigationController step mode (live vs preview)', () => {
     expect(useNavStore.getState().currentStepIndex).toBe(0);
     expect(reroute.triggerAutoReroute).not.toHaveBeenCalled();
 
+    speech.stop.mockClear();
     useNavStore.getState().selectPreviewStep(2);
     expect(useNavStore.getState().currentStepIndex).toBe(2);
     expect(speech.speak).toHaveBeenLastCalledWith('左轉', 'zh-TW');
+    // 手動選的步驟要立刻念，不排在上一步後面。
+    expect(speech.stop).toHaveBeenCalledTimes(1);
     useNavStore.getState().selectPreviewStep(99);
     expect(useNavStore.getState().currentStepIndex).toBe(3);
     useNavStore.getState().selectPreviewStep(-1);

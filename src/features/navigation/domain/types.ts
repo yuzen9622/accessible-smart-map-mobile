@@ -14,6 +14,13 @@ export interface VoiceTransit {
     from: string;
     to: string;
     routeName?: string;
+    /** METRO：列車終點（往…）；`to` 仍是下車站。 */
+    terminalStation?: string;
+    /** METRO：線別標籤（i18n `metroLines.<lineKey>`）與來源英文站名，HUD 依目前介面語言選字。 */
+    lineKey?: string;
+    fromNameEn?: string;
+    toNameEn?: string;
+    terminalNameEn?: string;
   } | null;
 }
 export type RerouteStatus = 'idle' | 'pending' | 'error';

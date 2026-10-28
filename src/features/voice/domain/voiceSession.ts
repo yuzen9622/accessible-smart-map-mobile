@@ -210,6 +210,13 @@ export type VoiceNavigationEvent =
         from: string;
         to: string;
         routeName?: string;
+        /** METRO：列車終點（往…）；`to` 仍是下車站。 */
+        terminalStation?: string;
+        /** METRO：線別標籤與來源英文站名。 */
+        lineKey?: string;
+        fromNameEn?: string;
+        toNameEn?: string;
+        terminalNameEn?: string;
       };
     }
   | { type: 'nav.arrived' }

@@ -285,6 +285,15 @@ describe('backend navigation recovery', () => {
     expect(useNavStore.getState()).toMatchObject({ currentStepIndex: 1, routeTotalM: 350, remainingM: 310, distanceToNextM: 300, remainingDurationSec: null, estimatedArrivalAt: null, voiceTransit: { onVehicle: true, leg }, voiceEnabled: false });
   });
 
+  it('resume restores the metro train terminal without replacing the alighting station', () => {
+    fakeRouteStore.setState({ navigationRoute: { route: { navigationId: 'nav-1', routeVersion: 3, routeToken: 'old', legs: JSON.parse('[{"type":"WALK"},{"type":"METRO","departureStation":"市政府","arrivalStation":"台北車站","lineName":"板南線","terminalStation":"頂埔","lineKey":"TRTC_BL","fromNameEn":"Taipei City Hall","toNameEn":"Taipei Main Station","terminalNameEn":"Dingpu","routeDisplayName":"板南線","toDisplayName":"台北車站"}]') } } });
+    handleVoiceNavigationEvent(start, 'listening');
+    handleVoiceNavigationEvent({ ...resume, steps: resume.steps.map((s) => (s.legType === 'BUS' ? { ...s, legType: 'METRO' } : s)) }, 'listening');
+    expect(useNavStore.getState().voiceTransit).toEqual({ onVehicle: true,
+      leg: { mode: 'METRO', from: '市政府', to: '台北車站', routeName: '板南線', terminalStation: '頂埔',
+        lineKey: 'TRTC_BL', fromNameEn: 'Taipei City Hall', toNameEn: 'Taipei Main Station', terminalNameEn: 'Dingpu' } });
+  });
+
   it('resume without trusted steps or leg clears stale distances and does not invent stations', () => {
     handleVoiceNavigationEvent(start, 'listening');
     handleVoiceNavigationEvent({ ...resume, steps: [], currentStepIndex: 0 }, 'listening');

@@ -119,7 +119,15 @@ function resumedTransit(event: Extract<VoiceNavigationEvent, { type: 'nav.resume
     case 'BUS':
       return { onVehicle: true, leg: { mode: leg.type, from: leg.departureStop, to: leg.arrivalStop, routeName: leg.routeName } };
     case 'METRO':
-      return { onVehicle: true, leg: { mode: leg.type, from: leg.departureStation, to: leg.arrivalStation, routeName: leg.lineName } };
+      return { onVehicle: true, leg: { mode: leg.type, from: leg.departureStation, to: leg.arrivalStation, routeName: leg.lineName,
+        ...(leg.terminalStation ? { terminalStation: leg.terminalStation } : {}),
+        // 只帶標籤與來源英文名，不帶舊的 display 字：恢復後 HUD 依「現在」的介面語言重新選字。
+        ...Object.fromEntries(([
+          ['lineKey', leg.lineKey],
+          ['fromNameEn', leg.fromNameEn],
+          ['toNameEn', leg.toNameEn],
+          ['terminalNameEn', leg.terminalStation ? leg.terminalNameEn : undefined],
+        ] as const).filter(([, value]) => value?.trim())) } };
     case 'TRA':
     case 'THSR':
       return { onVehicle: true, leg: { mode: leg.type, from: leg.departureStation, to: leg.arrivalStation, routeName: leg.trainNo } };

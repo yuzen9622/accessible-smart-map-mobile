@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useUserLocationStore } from '@/features/map';
 import { formatDistance } from '@/shared/geo';
-import { useAppTranslation } from '@/shared/i18n';
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, WHITE, TYPE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
 import { AnimatedNumberText, GlassCard, Icon } from '@/shared/ui';
 
@@ -16,6 +16,7 @@ import { rerouteStripText, stripStepDistance } from '../domain/hudProgress';
 import { findLegHandoffIndex, isVehicleLegType, resolveActiveLegType } from '../domain/legMode';
 import { stepIcon } from '../domain/navStepIcon';
 import { transitDetail, transitHeadline, transitInstruction, type Translate } from '../domain/transitCopy';
+import { voiceTransitLine } from '../domain/voiceTransitText';
 import { useNavStore } from '../store/navStore';
 import PressableScale from '@/shared/ui/PressableScale';
 import { Numeral } from '@/shared/ui/typography/Numeral';
@@ -68,7 +69,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
   const voiceTransit = useNavStore((s) => s.voiceTransit);
   const transitGuide = navigationSource === 'local' ? localTransitGuide : null;
   const voiceLeg = navigationSource === 'voice' && voiceTransit?.onVehicle ? voiceTransit.leg : null;
-  const voiceTransitLine = voiceLeg ? [voiceLeg.routeName, `${voiceLeg.from} → ${voiceLeg.to}`].filter(Boolean).join(' · ') : null;
+  const voiceTransitLineText = voiceLeg ? voiceTransitLine(voiceLeg, getAppLanguage(), t as Translate) : null;
 
   const step = instructions[currentStepIndex];
   // 第一個定位樣本進來前引擎還沒算出距離：先用這一步的規劃距離，大字不會空著。
@@ -113,7 +114,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
   // 主列以外的補充資訊收成一行小字：開車／交接／步驟警告／公車段細節，橫幅高度才不會隨狀態一路疊高
   const metaIcon = handoff ? 'footprints' : vehicle ? (step?.legType === 'MOTORCYCLE' ? 'bike' : 'car') : null;
   const metaText = [
-    voiceTransitLine,
+    voiceTransitLineText,
     transitLine,
     handoff ? t('parkThenWalk') : vehicle ? t(step?.legType === 'MOTORCYCLE' ? 'motorcycle' : 'drive') : null,
     stepWarning,

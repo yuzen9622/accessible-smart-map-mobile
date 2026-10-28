@@ -1206,6 +1206,7 @@
   "nativeReturnToSearchPoint": "回到搜尋點",
   "nativeChangeAvatar": "更換頭像",
   "nativeAvatarUploading": "上傳中…",
+  "nativeAvatarUploadFailed": "頭像上傳失敗，請稍後再試",
   "cctvScreenTitle": "附近監視器",
   "cctvEmptyTitle": "附近沒有監視器畫面",
   "cctvEmptyDescription": "這個地點 500 公尺內沒有可用的路口監視器。",

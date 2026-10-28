@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useRef } from 'react';
 import { AccessibilityInfo, Alert, Linking, Platform } from 'react-native';
 
-import { runAccountDeletion, selectIsLoggedIn, signOut, useAuthStore, useAvatarUpload } from '@/features/auth';
+import { runAccountDeletion, selectAvatarUrl, selectIsLoggedIn, signOut, useAuthStore, useAvatarUpload } from '@/features/auth';
 import { PINNED_FACILITY_CATEGORIES, useFacilityStore, type PinnedFacilityCategory } from '@/features/map';
 import { requestPushPermission, syncPushToken, usePushStatus } from '@/features/notifications';
 import { useOnboardingStore } from '@/features/onboarding';
@@ -47,6 +47,11 @@ export function useSettingsViewModel() {
   const loggedIn = useAuthStore(selectIsLoggedIn);
   const user = useAuthStore((s) => s.user);
   const avatarUpload = useAvatarUpload();
+  const avatarUrl = useAuthStore(selectAvatarUrl);
+
+  const changeAvatar = async () => {
+    if ((await avatarUpload.pickAndUpload()) === 'failed') Alert.alert(t('nativeAvatarUploadFailed'));
+  };
   const prefs = usePreferencesStore();
   const pushStatus = usePushStatus((s) => s.status);
   const notificationAttempt = useRef(0);
@@ -230,10 +235,10 @@ export function useSettingsViewModel() {
           email: user.email,
           lineLinked: Boolean(user.lineUserId),
           hasPassword: user.authProviders.includes('local'),
-          avatarUrl: user.avatar ?? null,
+          avatarUrl,
           avatarLabel: t('nativeChangeAvatar'),
           avatarUploading: avatarUpload.uploading,
-          onChangeAvatar: () => void avatarUpload.pickAndUpload(),
+          onChangeAvatar: () => void changeAvatar(),
         }
       : null,
     openLogin: () => router.navigate('/auth'),

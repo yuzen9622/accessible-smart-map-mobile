@@ -1222,6 +1222,7 @@
   "nativeReturnToSearchPoint": "Return to search point",
   "nativeChangeAvatar": "Change avatar",
   "nativeAvatarUploading": "Uploading…",
+  "nativeAvatarUploadFailed": "Couldn’t update your avatar. Please try again later.",
   "cctvScreenTitle": "Nearby cameras",
   "cctvEmptyTitle": "No cameras nearby",
   "cctvEmptyDescription": "There are no traffic cameras within 500 m of this place.",

@@ -18,7 +18,7 @@ import {
   type MapLayersBarNeedsPill,
   type MapLayersBarToggle,
 } from '@/features/map';
-import { selectIsLoggedIn, useAuthStore } from '@/features/auth';
+import { selectAvatarUrl, selectIsLoggedIn, useAuthStore } from '@/features/auth';
 import { ROUTE_MODE_LABEL_KEY, useOnboardingStore } from '@/features/onboarding';
 import { formatDistance, haversineMeters } from '@/shared/geo';
 import { useAppTranslation } from '@/shared/i18n';
@@ -211,7 +211,7 @@ export function useExploreViewModel(): ExploreViewModel {
   const { t, i18n } = useAppTranslation();
   const loggedIn = useAuthStore(selectIsLoggedIn);
   const userName = useAuthStore((s) => (loggedIn ? (s.user?.name ?? null) : null));
-  const avatarUrl = useAuthStore((s) => (loggedIn ? (s.user?.avatar ?? null) : null));
+  const avatarUrl = useAuthStore(selectAvatarUrl);
   const [query, setQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   // 常去地點分類複選；空陣列＝不篩選、全部顯示（預設）。

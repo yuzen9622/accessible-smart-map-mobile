@@ -218,12 +218,8 @@ export interface UploadAvatarResult {
 }
 
 /**
- * TODO(Avatar API)：後端目前沒有「更新頭像」的端點——`UserDTO.avatar` 欄位已經存在（型別裡有，
- * 但沒有任何寫入路徑），`/api/v1/user` 下只有 `GET info`／`POST auth/password`／`DELETE`
- * （2026-10-25 已確認過整個路由沒有 avatar 相關端點）。這裡先假設
- * `PATCH /api/v1/user/avatar`（multipart，欄位名 `avatar`，成功回傳 `{ avatarUrl }`），
- * 呼叫端（`useAvatarUpload`）已經把「選圖→裁切→上傳→套用」整條流程接好，上傳失敗時仍會套用本機
- * 預覽圖，不會卡住 UI。拿到真正的 endpoint／回應格式後，只要改這個函式本身即可，不用動呼叫端。
+ * `PATCH /api/v1/user/avatar`（multipart，欄位 `avatar`）。後端會重新裁成 512×512 JPEG 存到 GCS，
+ * 回傳相對於 API origin 的新網址（`/api/v1/avatars/...`）；顯示時用 `resolveAvatarUrl` 轉成完整網址。
  */
 export async function uploadAvatar(photo: { uri: string }): Promise<UploadAvatarResult> {
   const form = new FormData();

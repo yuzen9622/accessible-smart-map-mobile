@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { configureAuthPort } from '@/shared/api';
+import { getAppConfig } from '@/shared/config';
 import { logger } from '@/shared/logger';
 import { deleteSecureItem, getSecureItem, setSecureItem } from '@/shared/storage';
 
@@ -11,6 +12,7 @@ import {
   refreshAccessToken,
   type AuthSession,
 } from '../domain/authRefresh';
+import { resolveAvatarUrl } from '../domain/avatarUrl';
 import { isUserDTO, type UserConfig, type UserDTO } from '../domain/types';
 
 /**
@@ -120,6 +122,11 @@ async function runLogoutListener(listener: LogoutListener, captured: AuthSession
 /** 已登入＝有使用者且 access token 非空。 */
 export function selectIsLoggedIn(state: AuthStore): boolean {
   return state.user !== null && Boolean(state.session?.accessToken);
+}
+
+/** 已登入使用者可直接給 `<Image>` 的頭像網址；未登入或沒有頭像時為 null。 */
+export function selectAvatarUrl(state: AuthStore): string | null {
+  return selectIsLoggedIn(state) ? resolveAvatarUrl(state.user?.avatar, getAppConfig().apiBaseUrl) : null;
 }
 
 // 向 single-flight refresh 協調層註冊 state port（對齊 Web store 建立後立即 `configureAuthState`）。

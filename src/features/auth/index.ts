@@ -7,6 +7,7 @@ export { useAvatarUpload } from './hooks/useAvatarUpload';
 export {
   onLogout,
   restoreSession,
+  selectAvatarUrl,
   selectIsLoggedIn,
   useAuthStore,
   type AuthStore,

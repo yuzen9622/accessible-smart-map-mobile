@@ -44,6 +44,7 @@ export interface VoiceNavigationUplink {
   setNavigationRoute(routeToken: string | null): void;
   startNavigation(routeToken: string, position?: VoiceNavigationPosition): void;
   sendNavigationPosition(position: VoiceNavigationPosition): void;
+  previewNavigationStep(index: number): void;
   cancelNavigation(): void;
   setMuted(muted: boolean): void;
   getStatus(): VoiceStatusName;
@@ -402,6 +403,9 @@ export function installVoiceNavigationBridge(target: VoiceNavigationUplink): voi
       const position = useUserLocationStore.getState().position;
       lastSent = position;
       uplink.startNavigation(token, position ? positionPayload(position) : undefined);
+    },
+    previewStep: (index) => {
+      if (voiceNavigationActive() && isVoiceSpeechChannelLive(uplink?.getStatus() ?? 'idle')) uplink?.previewNavigationStep(index);
     },
     geminiOwnsSpeech: () => geminiOwnsNavigationSpeech(useNavStore.getState().navigationSource, useVoiceStore.getState().status.status),
     geminiMuted: () => useVoiceStore.getState().isMuted,

@@ -31,7 +31,7 @@ export default function NavigationStepsScreen() {
   const currentStepIndex = useNavStore((s) => s.currentStepIndex);
   const arrived = useNavStore((s) => s.arrived);
   const isNavigating = useNavStore((s) => s.isNavigating);
-  const previewing = useNavStore((s) => s.stepMode === 'preview' && s.navigationSource === 'local');
+  const previewing = useNavStore((s) => s.stepMode === 'preview');
   const showTripBar = isNavigating && !arrived;
 
   return (

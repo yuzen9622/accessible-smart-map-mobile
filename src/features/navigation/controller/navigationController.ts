@@ -42,6 +42,7 @@ import {
   observeLocalNavigationGeometry,
   replaceNavigationGeometryRuntime,
 } from './navigationGeometryRuntime';
+import { getNavigationSpeechOwner } from './speechOwnerPort';
 import { createTransitRideRuntime, type TransitRideDeps } from './transitRideRuntime';
 
 /**
@@ -310,7 +311,15 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     if (course != null) nav.setGpsHeading(course);
     writeHeading(activeIsVehicle(position));
 
-    if (nav.navigationSource === 'voice' || !geometry.path) return;
+    if (nav.navigationSource === 'voice') {
+      // 語音後端以同一條 500 m 規則自己從預覽轉成實際導航，並送 nav.step 校正步驟；這裡只切 HUD 的情境。
+      const route = currentRoute();
+      if (nav.stepMode === 'preview' && route && resolveStepMode('preview', position, buildCumulativePath(route.legs)) === 'live') {
+        nav.setStepMode('live');
+      }
+      return;
+    }
+    if (!geometry.path) return;
     // 預覽（人不在路線附近）：步驟由使用者手動切換，定位不驅動進度。
     if (resolveStepMode(nav.stepMode, position, geometry.path) === 'preview') return;
     // 預覽中定位來到路線附近 → 升級成實際導航；手動選的步驟作廢，改從第 0 步由定位重新推算
@@ -501,7 +510,10 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
           state.instructions === previous.instructions
             ? transit.alightPrefix(previous.currentStepIndex, state.currentStepIndex)
             : null;
-        if (staged()) {
+        if (state.stepMode === 'preview' && geminiOwnsSpeech()) {
+          // 語音助理擁有播報：使用者切到的步驟請它念；指令整組換掉（開始、恢復）時由後端自己開場。
+          if (state.instructions === previous.instructions) getNavigationSpeechOwner().previewStep?.(state.currentStepIndex);
+        } else if (staged()) {
           // 實際導航：等這個樣本的進度寫入後，由 `announceManeuver` 依距離決定念什麼；
           // 換了一份指令（重算、換語言）不一定伴隨新定位，主動用目前位置重算一次。
           resetAnnouncer(state.instructions, state.currentStepIndex, prefix);

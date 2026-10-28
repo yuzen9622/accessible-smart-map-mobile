@@ -6,6 +6,7 @@ import type { VisibilitySource } from '@/shared/polling';
 
 import { useNavStore } from '../../store/navStore';
 import { createNavigationController, type NavigationControllerDeps } from '../navigationController';
+import { configureNavigationSpeechOwner } from '../speechOwnerPort';
 import { fakeUserLocationStore } from '../testing/fakeMap';
 import { resetNavHarness, useMapStore } from '../testing/navHarness';
 import { flushPromises } from '@/shared/testing/flushPromises';
@@ -651,15 +652,28 @@ describe('NavigationController step mode (live vs preview)', () => {
     controller.stop();
   });
 
-  it('does not let manual selection override a voice-owned navigation', async () => {
+  it('hands a step picked while previewing a voice-owned navigation to the assistant to read', async () => {
     fix(24.1477, 120.6736);
-    const { controller } = setup();
-    controller.start();
-    await flush();
-    useNavStore.setState({ navigationSource: 'voice' });
-    useNavStore.getState().selectPreviewStep(2);
-    expect(useNavStore.getState().currentStepIndex).toBe(0);
-    controller.stop();
+    const previewStep = jest.fn();
+    configureNavigationSpeechOwner({
+      previewStep, geminiOwnsSpeech: () => true, geminiMuted: () => false, subscribe: () => () => {}, toggleGeminiMute: () => {},
+    });
+    const { controller, speech } = setup({ geminiOwnsSpeech: () => true });
+    try {
+      controller.start();
+      await flush();
+      useNavStore.setState({ navigationSource: 'voice', voiceEnabled: false });
+      speech.speak.mockClear();
+      useNavStore.getState().selectPreviewStep(2);
+      expect(useNavStore.getState().currentStepIndex).toBe(2);
+      expect(previewStep).toHaveBeenCalledWith(2);
+      expect(speech.speak).not.toHaveBeenCalled();
+    } finally {
+      controller.stop();
+      configureNavigationSpeechOwner({
+        geminiOwnsSpeech: () => false, geminiMuted: () => false, subscribe: () => () => {}, toggleGeminiMute: () => {},
+      });
+    }
   });
 });
 

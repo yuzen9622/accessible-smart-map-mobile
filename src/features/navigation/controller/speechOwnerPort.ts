@@ -8,6 +8,8 @@ import { useSyncExternalStore } from 'react';
 export interface NavigationSpeechOwner {
   /** 路線已固定、引擎尚未啟動時，讓已開啟的助理接手導航。 */
   prepareNavigation?(): void;
+  /** 預覽中使用者切到第 `index` 步：由擁有播報的助理念這一步。 */
+  previewStep?(index: number): void;
   /** 語音助理（Gemini）目前是否擁有導航播報（`geminiOwnsNavigationSpeech`）。 */
   geminiOwnsSpeech(): boolean;
   /** 語音助理的輸出是否被使用者靜音（只有 `geminiOwnsSpeech` 為真時有意義）。 */

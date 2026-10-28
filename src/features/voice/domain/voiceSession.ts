@@ -721,6 +721,11 @@ export class VoiceSessionController {
     this.sendControl({ type: 'nav.cancel' });
   }
 
+  /** 預覽中使用者切到第 `index` 步：請後端讓助理念那一步（後端自己的指令文字）。 */
+  previewNavigationStep(index: number): void {
+    this.sendControl({ type: 'nav.previewStep', index });
+  }
+
   getStatus(): VoiceStatus {
     return { ...this.status };
   }
@@ -738,6 +743,7 @@ export class VoiceSessionController {
       | NavPositionMessage
       | NavCancelMessage
       | { type: 'nav.start' }
+      | { type: 'nav.previewStep'; index: number }
       | NavResumeMessage,
   ): void {
     if (!this.sessionActive || !this.socket) return;

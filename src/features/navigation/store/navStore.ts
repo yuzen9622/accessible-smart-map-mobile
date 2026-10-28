@@ -116,7 +116,7 @@ interface NavAction {
   setCurrentStepIndex: (index: number) => void;
   setStepMode: (mode: NavStepMode) => void;
   /**
-   * 使用者手動切換步驟（上一步／下一步、點步驟清單）。只在預覽、本機導航時生效；
+   * 使用者手動切換步驟（上一步／下一步、點步驟清單）。只在預覽時生效（語音助理擁有導航時改由它念）；
    * 實際導航中步驟只由定位推進，這裡直接忽略，UI 不可能把 HUD 帶離使用者的實際位置。
    */
   selectPreviewStep: (index: number) => void;
@@ -218,7 +218,7 @@ export const useNavStore = create<NavStore>()((set) => ({
   setStepMode: (stepMode) => set({ stepMode }),
   selectPreviewStep: (index) =>
     set((state) => {
-      if (state.stepMode !== 'preview' || state.navigationSource !== 'local' || state.instructions.length === 0) return {};
+      if (state.stepMode !== 'preview' || state.instructions.length === 0) return {};
       const currentStepIndex = Math.max(0, Math.min(index, state.instructions.length - 1));
       // 預覽沒有「目前位置到下一步」的距離：清掉，HUD 退回顯示該步的規劃距離。
       return currentStepIndex === state.currentStepIndex ? {} : { currentStepIndex, distanceToNextM: null };

@@ -4,6 +4,7 @@ import { useRouteSessionStore } from '@/features/route/store/routeSessionStore';
 import { useNavStore } from '@/features/navigation/store/navStore';
 import { localRerouteCoordinator } from '@/features/navigation/controller/localRerouteCoordinator';
 import { createNavigationController } from '@/features/navigation/controller/navigationController';
+import { getNavigationSpeechOwner } from '@/features/navigation/controller/speechOwnerPort';
 import { flushPromises } from '@/shared/testing/flushPromises';
 
 import { beginNavigation, endNavigation } from '@/features/navigation';
@@ -27,6 +28,7 @@ const uplink = {
   setNavigationRoute: jest.fn(),
   startNavigation: jest.fn(),
   sendNavigationPosition: jest.fn(),
+  previewNavigationStep: jest.fn(),
   cancelNavigation: jest.fn(),
   setMuted: jest.fn(),
   getStatus: () => useVoiceStore.getState().status.status,
@@ -78,6 +80,51 @@ it.each(['ready', 'listening', 'model-speaking', 'playback-blocked'] as const)(
     }
   },
 );
+
+it('lets the assistant read a far route as a preview and switches to live once the user is near', async () => {
+  const selected = route('far');
+  useRouteSessionStore.setState({ navigationRoute: null, selectRoute: { index: 0, route: selected }, computeRoutes: [selected] });
+  useUserLocationStore.getState().setPosition({ lat: 24.15, lng: 120.68 });
+  useVoiceStore.setState({ status: { status: 'listening' } });
+  const speech = { speak: jest.fn(), stop: jest.fn() };
+  const controller = createNavigationController({
+    speech, reroute: localRerouteCoordinator,
+    location: { getCurrent: async () => ({ lat: 24.15, lng: 120.68, heading: 90, accuracy: 5, speed: 1, timestamp: 0 }) },
+    visibility: { isActive: () => true, subscribe: () => () => {} },
+    language: () => 'zh-TW', arrivedText: () => '已抵達', fetchInstructions: jest.fn(),
+    geminiOwnsSpeech: () => getNavigationSpeechOwner().geminiOwnsSpeech(),
+  });
+  const unsubscribe = useNavStore.subscribe((state, previous) => {
+    if (state.isNavigating && !previous.isNavigating) controller.start();
+  });
+  try {
+    beginNavigation({ notificationTitle: '導航', notificationBody: '導航中' });
+    await flushPromises();
+    expect(useNavStore.getState()).toMatchObject({ navigationSource: 'voice', stepMode: 'preview' });
+    expect(uplink.startNavigation).toHaveBeenCalledWith('far-token', { latitude: 24.15, longitude: 120.68 });
+    handleVoiceNavigationEvent({ type: 'nav.start', currentStepIndex: 0, totalSteps: 2, steps: [
+      { index: 0, instruction: '向東直走', legType: 'WALK', distanceM: 300, isTransit: false },
+      { index: 1, instruction: '抵達B', legType: 'WALK', distanceM: 200, isTransit: false },
+    ] }, 'listening');
+    expect(useNavStore.getState()).toMatchObject({ remainingM: 500, routeTotalM: 500, remainingDurationSec: null });
+
+    useNavStore.getState().selectPreviewStep(1);
+    expect(useNavStore.getState().currentStepIndex).toBe(1);
+    expect(uplink.previewNavigationStep).toHaveBeenCalledWith(1);
+    expect(speech.speak).not.toHaveBeenCalled();
+
+    useUserLocationStore.getState().setPosition({ lat: 25.05, lng: 121.502 });
+    await flushPromises();
+    expect(useNavStore.getState().stepMode).toBe('live');
+    useNavStore.getState().selectPreviewStep(0);
+    expect(useNavStore.getState().currentStepIndex).toBe(1);
+  } finally {
+    unsubscribe();
+    controller.stop();
+    endNavigation();
+    useUserLocationStore.getState().setPosition({ lat: 25.05, lng: 121.5 });
+  }
+});
 
 it.each(['idle', 'ended', 'error', 'needs-login', 'connecting', 'reconnecting'] as const)(
   'manual navigation keeps system speech when the assistant is %s', (status) => {

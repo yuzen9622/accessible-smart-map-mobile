@@ -65,6 +65,7 @@ const uplink = {
   setNavigationRoute: jest.fn(),
   startNavigation: jest.fn(),
   sendNavigationPosition: jest.fn(),
+  previewNavigationStep: jest.fn(),
   cancelNavigation: jest.fn(),
   setMuted: jest.fn(),
   getStatus: jest.fn((): import('../../domain/voiceSession').VoiceStatusName => 'listening'),

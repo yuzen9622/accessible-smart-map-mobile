@@ -91,7 +91,7 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
   const handoff = findLegHandoffIndex(instructions, currentStepIndex) !== null;
   const showReroute = !arrived && (isOffRoute || rerouteStatus !== 'idle');
   // 預覽（人不在路線附近）：步驟改由使用者切換；實際導航只由定位推進。
-  const previewing = stepMode === 'preview' && navigationSource === 'local' && instructions.length > 0;
+  const previewing = stepMode === 'preview' && instructions.length > 0;
   const canPrev = currentStepIndex > 0;
   const canNext = currentStepIndex < instructions.length - 1;
   const selectStep = (index: number) => useNavStore.getState().selectPreviewStep(index);

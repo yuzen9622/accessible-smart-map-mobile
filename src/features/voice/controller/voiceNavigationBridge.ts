@@ -11,7 +11,7 @@ import {
   localRerouteCoordinator,
   useNavStore,
 } from '@/features/navigation';
-import { getRouteSessionSnapshot, replaceNavigationRoute, subscribeRouteSession } from '@/features/route';
+import { getRouteSessionSnapshot, replaceNavigationRoute, selectRouteAt, subscribeRouteSession } from '@/features/route';
 import { haversineMeters, type LatLng } from '@/shared/geo';
 import { appStateVisibility } from '@/shared/polling';
 
@@ -146,8 +146,28 @@ function handBackToLocal(muted = useVoiceStore.getState().isMuted): void {
   serverStopped = false;
 }
 
+/**
+ * 語音指定的候選（例：「導航 30 號那條」）不是畫面選的那條時，先切過去，地圖與 HUD 才會跟後端的步驟一致。
+ * 正在導航別條（本機導航）或畫面沒有這條時切不過去，回 false。
+ */
+function showStartedRoute(token: string | undefined): boolean {
+  if (!token) return true;
+  const session = getRouteSessionSnapshot();
+  if (useNavStore.getState().isNavigating) return (session.navigationRoute ?? session.selectRoute)?.route.routeToken === token;
+  if (session.selectRoute?.route.routeToken === token) return true;
+  const index = session.computeRoutes?.findIndex((route) => route.routeToken === token) ?? -1;
+  if (index < 0) return false;
+  selectRouteAt(index);
+  return true;
+}
+
 function startVoiceNavigation(event: Extract<VoiceNavigationEvent, { type: 'nav.start' }>): void {
   manualStartPending = false;
+  if (!showStartedRoute(event.routeToken)) {
+    // 不接手畫面對不上的路線；請後端取消，免得它對著另一條路線播報
+    uplink?.cancelNavigation();
+    return;
+  }
   const nav = useNavStore.getState();
   const instructions = event.steps.map(toNavInstruction);
   const totalM = event.steps.reduce((sum, step) => sum + (step.distanceM ?? 0), 0);

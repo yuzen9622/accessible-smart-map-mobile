@@ -93,7 +93,7 @@ beforeEach(() => {
   useNavStore.getState().setIsNavigating(false);
   useNavStore.getState().reset();
   setPosition({ lat: 25.04, lng: 121.52 });
-  fakeRouteStore.setState({ navigationRoute: null, selectRoute: { route: { navigationId: 'nav-1', routeVersion: 3, routeToken: 'tok-3' } } });
+  fakeRouteStore.setState({ navigationRoute: null, computeRoutes: null, selectRoute: { route: { navigationId: 'nav-1', routeVersion: 3, routeToken: 'tok-3' } } });
   jest.clearAllMocks();
 });
 
@@ -112,11 +112,39 @@ describe('voiceNavigationBridge', () => {
     expect(uplink.sendNavigationPosition).toHaveBeenCalledWith({ latitude: 25.04, longitude: 121.52 });
   });
 
+  it('nav.start 指定別條候選時先切到該路線，導航身分跟著它', () => {
+    const second = { navigationId: 'nav-2', routeVersion: 1, routeToken: 'tok-2' };
+    fakeRouteStore.setState({ computeRoutes: [{ navigationId: 'nav-1', routeVersion: 3, routeToken: 'tok-3' }, second] });
+    handleVoiceNavigationEvent({ ...start, routeToken: 'tok-2' }, 'listening');
+    expect(fakeRouteStore.getState().selectRoute?.route.routeToken).toBe('tok-2');
+    expect(useNavStore.getState().navigationId).toBe('nav-2');
+    expect(mockBegin).toHaveBeenCalledTimes(1);
+  });
+
   it('已在本機導航時 nav.start 不重啟導航或改選候選', () => {
     useNavStore.getState().setIsNavigating(true);
     handleVoiceNavigationEvent(start, 'listening');
     expect(mockStart).not.toHaveBeenCalled();
     expect(mockBegin).not.toHaveBeenCalled();
+  });
+
+  it('本機正在導航別條時不接手 nav.start，請後端取消', () => {
+    fakeRouteStore.setState({
+      navigationRoute: { route: { navigationId: 'nav-1', routeVersion: 3, routeToken: 'tok-3' } },
+      computeRoutes: [{ navigationId: 'nav-2', routeVersion: 1, routeToken: 'tok-2' }],
+    });
+    useNavStore.setState({ isNavigating: true, navigationSource: 'local', navigationId: 'nav-1' });
+    handleVoiceNavigationEvent({ ...start, routeToken: 'tok-2' }, 'listening');
+    expect(fakeRouteStore.getState().navigationRoute?.route.routeToken).toBe('tok-3');
+    expect(useNavStore.getState()).toMatchObject({ navigationSource: 'local', navigationId: 'nav-1' });
+    expect(uplink.cancelNavigation).toHaveBeenCalledTimes(1);
+  });
+
+  it('畫面沒有後端開始的路線時不接手，請後端取消', () => {
+    handleVoiceNavigationEvent({ ...start, routeToken: 'tok-unknown' }, 'listening');
+    expect(mockBegin).not.toHaveBeenCalled();
+    expect(useNavStore.getState().isNavigating).toBe(false);
+    expect(uplink.cancelNavigation).toHaveBeenCalledTimes(1);
   });
 
   it.each([

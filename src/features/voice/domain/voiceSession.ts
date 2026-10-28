@@ -185,6 +185,8 @@ export type VoiceNavigationEvent =
       steps: VoiceNavStep[];
       currentStepIndex: number;
       totalSteps: number;
+      /** 實際開始的路線；語音指定別條候選時與畫面選的不同，App 要先切過去。 */
+      routeToken?: string;
     }
   | {
       type: 'nav.step';

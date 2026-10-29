@@ -91,12 +91,13 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
           <View style={[styles.row, { borderColor: PLACE_BORDER_COLOR }]}>
             <PressableScale feedback="highlight"
               accessibilityRole="button"
-              accessibilityLabel={item.categoryLabel ? `${item.title}，${item.categoryLabel}` : item.title}
+              accessibilityLabel={[item.title, item.subtitle, item.categoryLabel].filter(Boolean).join('，')}
               onPress={item.onPress}
               style={styles.rowMain}>
               <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={1}>
                 {item.title}
               </Text>
+              {item.subtitle ? <Text style={{ color: colors.textSecondary, fontSize: TYPE.subhead }}>{item.subtitle}</Text> : null}
               {item.categoryLabel ? <Text style={{ color: colors.textSecondary, fontSize: TYPE.caption }}>{item.categoryLabel}</Text> : null}
             </PressableScale>
             <PressableScale

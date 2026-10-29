@@ -1,4 +1,5 @@
 import type { PlaceDetail } from '../types/place';
+import { venuePlaceId } from './venuePlace';
 
 /**
  * 移植自 Web `src/stores/map/types.ts:240-260`（commit 5eadc71）。
@@ -8,6 +9,7 @@ import type { PlaceDetail } from '../types/place';
  * 要修的問題。
  */
 export function placeKey(p: PlaceDetail): string {
+  if (p.kind === 'venue-place') return venuePlaceId(p);
   return p.kind === 'place' ? `p_${p.place.id}` : `c_${p.position.lat}_${p.position.lng}`;
 }
 

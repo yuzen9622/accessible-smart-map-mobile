@@ -1791,5 +1791,8 @@
   "nativeRouteTimelineEnd": "Arrive",
   "nativeRouteLoadingRoutes": "Finding routes",
   "nativeBusViewedStopsLoading": "Loading this bus's stops",
-  "nativeBusViewedStopsUnavailable": "This bus's stops are unavailable right now"
+  "nativeBusViewedStopsUnavailable": "This bus's stops are unavailable right now",
+  "nativeRouteUnsupportedVenueDirection": "Choose a campus gate as the destination first, then plan your outdoor journey.",
+  "nativeRouteDifferentVenues": "Indoor journeys between different venues are unavailable. Choose a campus gate first.",
+  "nativeRouteStaleVenue": "Building data has changed. Please select your start and destination again."
 }

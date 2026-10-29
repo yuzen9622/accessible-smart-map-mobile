@@ -36,6 +36,7 @@ export {
 } from './routeDisplay';
 export { ROUTE_FAILURE_I18N, type ComputeRouteParams, type RouteFailureKind } from './routeRequest';
 export type * from '../types/route';
+export { venueHandoffCopy } from './venueHandoffCopy';
 export {
   A11Y_FEATURE_LABEL_KEY,
   A11Y_FEATURE_ORDER,

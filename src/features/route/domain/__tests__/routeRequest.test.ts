@@ -17,9 +17,25 @@ const KAOHSIUNG = { lat: 22.6273, lng: 120.3014 };
 const TOKYO = { lat: 35.6812, lng: 139.7671 };
 
 describe('planRouteRequest', () => {
+  it('routes to an indoor place identity without inventing its outdoor destination', () => {
+    const destinationVenuePlace = { venueId: 'test-venue', placeId: 'meeting' };
+    const plan = planRouteRequest({ destinationVenuePlace, mode: 'wheelchair' }, TAIPEI_MAIN);
+    expect(plan.ok && 'request' in plan && plan.request).toEqual({
+      origin: { latitude: TAIPEI_MAIN.lat, longitude: TAIPEI_MAIN.lng },
+      destinationVenuePlace, mode: 'wheelchair', userLocation: { latitude: TAIPEI_MAIN.lat, longitude: TAIPEI_MAIN.lng },
+    });
+    expect(planRouteRequest({ destinationVenuePlace }, null)).toEqual({ ok: false, reason: 'missing-input' });
+    expect(planRouteRequest({ destinationVenuePlace, destination: CITY_HALL }, TAIPEI_MAIN).ok).toBe(false);
+    expect(planRouteRequest({ destinationVenuePlace, query: 'to station' }, TAIPEI_MAIN).ok).toBe(false);
+  });
+  it('keeps local venue metadata out of the strict outdoor request body', () => {
+    const destinationVenuePlace = { venueId: 'test-venue', placeId: 'room', buildingId: 'info', levelRef: '2F', sourceVersion: 3 };
+    const plan = planRouteRequest({ destinationVenuePlace }, TAIPEI_MAIN);
+    expect(plan.ok && 'request' in plan && plan.request.destinationVenuePlace).toEqual({ venueId: 'test-venue', placeId: 'room' });
+  });
   it.each(['en', 'zh-TW'] as const)('sends resolved %s language in the body', (language) => {
     const plan = planRouteRequest({ origin: TAIPEI_MAIN, destination: CITY_HALL, language }, null);
-    expect(plan.ok && plan.request.language).toBe(language);
+    expect(plan.ok && 'request' in plan && plan.request.language).toBe(language);
   });
   it('preserves canonical false, none, future departure and accessibility preferences on explicit replan', () => {
     const canonicalPreferences = {
@@ -27,27 +43,27 @@ describe('planRouteRequest', () => {
       avoidStairs: false, requireElevator: false, needsAccessibleToilet: true, needsHandrail: false, maxSlopePercent: 5,
     };
     const plan = planRouteRequest({ origin: TAIPEI_MAIN, destination: CITY_HALL, mode: canonicalPreferences.mode, canonicalPreferences }, null);
-    expect(plan.ok && plan.request).toMatchObject({
+    expect(plan.ok && 'request' in plan && plan.request).toMatchObject({
       avoidStairs: false, requireElevator: false, transitPreference: 'none', maxTransfers: 0,
       departureTime: canonicalPreferences.departureTime, needsAccessibleToilet: true, needsHandrail: false, maxSlopePercent: 5,
     });
-    expect(plan.ok && 'canonicalPreferences' in plan.request).toBe(false);
+    expect(plan.ok && 'request' in plan && 'canonicalPreferences' in plan.request).toBe(false);
     const changed = planRouteRequest({ origin: TAIPEI_MAIN, destination: CITY_HALL, mode: 'elderly', canonicalPreferences }, null);
-    expect(changed.ok && 'avoidStairs' in changed.request).toBe(false);
-    expect(changed.ok && 'requireElevator' in changed.request).toBe(false);
+    expect(changed.ok && 'request' in changed && 'avoidStairs' in changed.request).toBe(false);
+    expect(changed.ok && 'request' in changed && 'requireElevator' in changed.request).toBe(false);
   });
   it('sends hard accessibility constraints only when enabled', () => {
     const on = planRouteRequest(
       { origin: TAIPEI_MAIN, destination: CITY_HALL, mode: 'elderly', avoidStairs: true, requireElevator: true },
       null,
     );
-    expect(on.ok && on.request).toMatchObject({ avoidStairs: true, requireElevator: true });
+    expect(on.ok && 'request' in on && on.request).toMatchObject({ avoidStairs: true, requireElevator: true });
     const off = planRouteRequest(
       { origin: TAIPEI_MAIN, destination: CITY_HALL, mode: 'wheelchair', avoidStairs: false, requireElevator: false },
       null,
     );
-    expect(off.ok && 'avoidStairs' in off.request).toBe(false);
-    expect(off.ok && 'requireElevator' in off.request).toBe(false);
+    expect(off.ok && 'request' in off && 'avoidStairs' in off.request).toBe(false);
+    expect(off.ok && 'request' in off && 'requireElevator' in off.request).toBe(false);
   });
 
   it('rejects a request with nothing to route', () => {
@@ -75,7 +91,7 @@ describe('planRouteRequest', () => {
 
   it('lets the backend parse endpoints from a natural-language query', () => {
     const plan = planRouteRequest({ query: '到台北車站' }, TAIPEI_MAIN);
-    expect(plan.ok && plan.request).toEqual({
+    expect(plan.ok && 'request' in plan && plan.request).toEqual({
       query: '到台北車站',
       userLocation: { latitude: 25.0478, longitude: 121.517 },
     });
@@ -83,7 +99,7 @@ describe('planRouteRequest', () => {
 
   it('never sends undefined keys — the backend schema is strict', () => {
     const plan = planRouteRequest({ origin: TAIPEI_MAIN, destination: CITY_HALL }, null);
-    expect(plan.ok && Object.keys(plan.request).sort()).toEqual(['destination', 'origin']);
+    expect(plan.ok && 'request' in plan && Object.keys(plan.request).sort()).toEqual(['destination', 'origin']);
   });
 
   it('allows a domestic long trip but rejects one outside coverage', () => {
@@ -99,7 +115,7 @@ describe('planRouteRequest', () => {
     const nan = { lat: Number.NaN, lng: 121 };
     expect(planRouteRequest({ origin: nan, destination: CITY_HALL }, null)).toEqual({ ok: false, reason: 'missing-input' });
     const plan = planRouteRequest({ origin: TAIPEI_MAIN, destination: CITY_HALL, waypoints: [nan] }, nan);
-    expect(plan.ok && Object.keys(plan.request).sort()).toEqual(['destination', 'origin']);
+    expect(plan.ok && 'request' in plan && Object.keys(plan.request).sort()).toEqual(['destination', 'origin']);
   });
 
   it('passes waypoints and travel mode through', () => {
@@ -107,8 +123,8 @@ describe('planRouteRequest', () => {
       { origin: TAIPEI_MAIN, destination: CITY_HALL, waypoints: [{ lat: 25.04, lng: 121.53 }], travelMode: 'walk' },
       null,
     );
-    expect(plan.ok && plan.request.waypoints).toEqual([{ latitude: 25.04, longitude: 121.53 }]);
-    expect(plan.ok && plan.request.travelMode).toBe('walk');
+    expect(plan.ok && 'request' in plan && plan.request.waypoints).toEqual([{ latitude: 25.04, longitude: 121.53 }]);
+    expect(plan.ok && 'request' in plan && plan.request.travelMode).toBe('walk');
   });
 });
 

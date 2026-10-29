@@ -13,8 +13,8 @@ export interface RoutePlanScreenProps {
  * 地點詳情「規劃路線」以 `destLat`／`destLng`／`destName` 帶入目的地。
  */
 export default function RoutePlanScreen({ onStartNavigation }: RoutePlanScreenProps) {
-  const params = useLocalSearchParams<{ destLat?: string; destLng?: string; destName?: string }>();
-  const planParams: RoutePlanParams = { destLat: params.destLat, destLng: params.destLng, destName: params.destName };
+  const params = useLocalSearchParams<{ destLat?: string; destLng?: string; destName?: string; venueId?: string; venuePlaceId?: string; venueField?: 'origin' | 'destination' }>();
+  const planParams: RoutePlanParams = { destLat: params.destLat, destLng: params.destLng, destName: params.destName, venueId: params.venueId, venuePlaceId: params.venuePlaceId, venueField: params.venueField };
   const model = useRoutePlanViewModel(planParams);
   return (
     <>

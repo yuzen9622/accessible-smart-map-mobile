@@ -1,5 +1,6 @@
 import { getRouteSessionSnapshot, replaceNavigationRoute } from '@/features/route';
-import type { AccessibleRoute, AccessibleRouteRerouteData, NavInstruction } from '@/features/route/domain';
+import type { AccessibleRoute, AccessibleRouteRerouteData, NavInstruction, VenueArrival } from '@/features/route/domain';
+import type { VenueRoute } from '@/shared/venue';
 
 import type { NavRerouteReason } from '../domain/types';
 import { useNavStore } from '../store/navStore';
@@ -20,6 +21,8 @@ export interface RouteReplacement {
   warnings: string[];
   currentStepIndex: 0;
   reason?: NavRerouteReason;
+  venueArrival?: VenueArrival;
+  venueLeg?: VenueRoute;
 }
 
 export type VoiceRerouteCoordinatorEvent =
@@ -50,6 +53,8 @@ export function normalizeRerouteReplacement(
     instructions: data.instructions ?? data.steps,
     warnings: data.warnings,
     currentStepIndex: data.currentStepIndex,
+    venueArrival: data.venueArrival,
+    venueLeg: data.venueLeg,
   };
 }
 
@@ -86,7 +91,10 @@ export function applyRouteReplacement(replacement: RouteReplacement): boolean {
     0,
   );
 
-  if (!replaceNavigationRoute(route)) return false;
+  const destinationName = getRouteSessionSnapshot().navigationVenueHandoff?.destinationName ?? '';
+  const handoff = replacement.venueArrival && replacement.venueLeg
+    ? { arrival: replacement.venueArrival, leg: replacement.venueLeg, destinationName } : null;
+  if (!replaceNavigationRoute(route, handoff)) return false;
   useNavStore.setState({
     navigationId: replacement.navigationId,
     routeVersion: replacement.routeVersion,

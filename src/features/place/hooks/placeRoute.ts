@@ -1,6 +1,7 @@
 import type { Href } from 'expo-router';
 
 import { isCoordPlaceId } from '../domain/placeId';
+import { venuePlaceId } from '../domain/venuePlace';
 import type { PlaceDetail } from '../types/place';
 
 /**
@@ -8,6 +9,7 @@ import type { PlaceDetail } from '../types/place';
  * 一律走 `/loc/[coords]` 反查——`/place/[id]` 不會對 coord: 發 details 請求，只會停在錯誤畫面。
  */
 export function placeDetailHref(entry: PlaceDetail): Href {
+  if (entry.kind === 'venue-place') return { pathname: '/place/[id]', params: { id: venuePlaceId(entry) } };
   if (entry.kind === 'place' && !isCoordPlaceId(entry.place.id)) {
     return { pathname: '/place/[id]', params: { id: entry.place.id } };
   }

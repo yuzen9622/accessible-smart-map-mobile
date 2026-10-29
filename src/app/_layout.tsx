@@ -6,6 +6,7 @@ import { BackHandler, Platform, View, useColorScheme, useWindowDimensions } from
 
 import { useAiBootstrap } from '@/features/ai';
 import { useAuthBootstrap } from '@/features/auth';
+import { useIndoorStore } from '@/features/indoor';
 import {
   SHEET_UNDIMMED_DETENT_INDEX,
   sheetBottomInset,
@@ -56,10 +57,11 @@ export default function RootLayout() {
   const setSheetInset = useMapUiStore((state) => state.setSheetInset);
   // 導航中 sheet 只到 half：full 會蓋住 HUD（SDD §4.5：HUD 與 sheet 互斥，sheet 收為步驟清單入口）
   const isNavigating = useNavStore((state) => state.isNavigating);
+  const isIndoorGuiding = useIndoorStore((state) => state.guidance.status !== 'idle');
   // 點到地點（詳情頁）時 sheet 落在 half、不給 full；換 allowed detents 時 sheet 會重新落在
   // initialDetentIndex，但不會發 sheetDetentChange：同步地圖 inset。
   const pathname = usePathname();
-  const { detents, initialDetentIndex } = sheetConfig(isNavigating, pathname);
+  const { detents, initialDetentIndex } = sheetConfig(isNavigating, pathname, isIndoorGuiding);
   useEffect(() => {
     if (!sheetController.available) {
       setSheetInset(sheetBottomInset(initialDetentIndex, height));
@@ -67,8 +69,8 @@ export default function RootLayout() {
     }
     // 換 allowed detents 本身不保證落點（UIKit 會留在同索引的 detent）：選到地點時確實升到 half、
     // 開始導航時確實收成行程列（Apple 地圖的連貫轉場）。其他情況（例：從地點返回搜尋結果）保留使用者的高度。
-    if (initialDetentIndex > 0 || isNavigating) void sheetController.select(initialDetentIndex);
-  }, [initialDetentIndex, isNavigating, height, setSheetInset]);
+    if (initialDetentIndex > 0 || isNavigating || isIndoorGuiding) void sheetController.select(initialDetentIndex);
+  }, [initialDetentIndex, isNavigating, isIndoorGuiding, height, setSheetInset]);
   usePreferencesEffects();
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>

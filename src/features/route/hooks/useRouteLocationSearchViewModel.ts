@@ -5,10 +5,13 @@ import {
   placeDisplayName,
   placeKey,
   resolveAutocompleteItem,
+  resolveVenuePlace,
+  venuePlaceSubtitle,
   useAutocomplete,
   useSavedPlacesStore,
   type AutocompleteItem,
   type PlaceDetail,
+  type VenuePlaceDetail,
 } from '@/features/place';
 import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
@@ -49,9 +52,27 @@ export function useRouteLocationSearchViewModel(field: PlanField, onClose: () =>
     useSavedPlacesStore.getState().addSearchHistory(entry);
     const store = useRouteSessionStore.getState();
     const name = placeDisplayName(entry);
-    if (field === 'origin') store.setOrigin(entry.position, name);
+    if (entry.kind === 'venue-place') store.setVenueEndpoint(field, entry);
+    else if (field === 'origin') store.setOrigin(entry.position, name);
     else store.setDestination(entry.position, name);
     close();
+  };
+
+  const chooseVenue = async (entry: VenuePlaceDetail) => {
+    if (closed.current || (pending.current && !pending.current.signal.aborted)) return;
+    const controller = new AbortController();
+    pending.current = controller;
+    setResolving(true); setResolveError(null);
+    try {
+      const current = await resolveVenuePlace(entry, controller.signal);
+      if (controller.signal.aborted) return;
+      if (!current) { setResolveError('此地點資料已更新，請重新搜尋。'); return; }
+      commit(current);
+    } catch {
+      if (!controller.signal.aborted) setResolveError(t('nativeRouteLocationResolveError'));
+    } finally {
+      if (pending.current === controller && !controller.signal.aborted) { pending.current = null; setResolving(false); }
+    }
   };
 
   const chooseSuggestion = async (item: AutocompleteItem) => {
@@ -81,22 +102,25 @@ export function useRouteLocationSearchViewModel(field: PlanField, onClose: () =>
   };
 
   const rows: RouteLocationRow[] = hasQuery
-    ? autocomplete.suggestions.map((item) => ({
+    ? [...(autocomplete.venueSuggestions ?? []).map((entry) => ({
+        key: placeKey(entry), title: entry.name, subtitle: venuePlaceSubtitle(entry),
+        onPress: () => void chooseVenue(entry),
+      })), ...autocomplete.suggestions.map((item) => ({
         key: item.id,
         title: item.primaryText,
         subtitle: item.secondaryText,
         onPress: () => void chooseSuggestion(item),
-      }))
+      }))]
     : history.map((entry) => ({
         key: placeKey(entry),
         title: placeDisplayName(entry),
-        subtitle: entry.kind === 'place' ? entry.place.fullAddress : null,
-        onPress: () => { if (!resolving) commit(entry); },
+        subtitle: entry.kind === 'place' ? entry.place.fullAddress : entry.kind === 'venue-place' ? venuePlaceSubtitle(entry) : null,
+        onPress: () => { if (!resolving) { if (entry.kind === 'venue-place') void chooseVenue(entry); else commit(entry); } },
       }));
 
   return {
     query,
-    onQueryChange: (text: string) => { setResolveError(null); setQuery(text); },
+    onQueryChange: (text: string) => { pending.current?.abort(); pending.current = null; setResolving(false); setResolveError(null); setQuery(text); },
     onClose: close,
     onDismiss: () => { closed.current = true; pending.current?.abort(); },
     rows,

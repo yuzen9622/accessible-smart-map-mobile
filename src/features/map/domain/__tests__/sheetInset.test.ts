@@ -34,4 +34,11 @@ describe('sheetConfig', () => {
   it('導航中用較低的 peek、不給 full，落在 peek', () => {
     expect(sheetConfig(true, '/loc/1,2')).toEqual({ detents: [NAV_PEEK_DETENT, 0.5], initialDetentIndex: 0 });
   });
+
+  it('室內導引直接顯示確認操作，保留全頁供放大字級閱讀', () => {
+    const config = sheetConfig(false, '/navigation', true);
+    expect(config.detents[config.initialDetentIndex]).toBe(0.5);
+    expect(config.detents).toContain(1);
+    expect(sheetConfig(true, '/navigation', true).detents).toEqual([NAV_PEEK_DETENT, 0.5]);
+  });
 });

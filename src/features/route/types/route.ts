@@ -2,6 +2,8 @@
 // 只搬路線／導航相關的型別；危險通報、福利機構、停車、公車到站等型別隨各自 feature 移植。
 // 型別對齊後端 OpenAPI（POST /a11y/accessible-route）；後端為 Zod `.strict()`，request 多帶欄位即 400。
 
+import type { VenueRoute } from '@/shared/venue';
+
 export type LngLatTuple = [number, number]; // [lng, lat]
 
 // --- Transit operating alerts（/transit/alerts；路線回應可選帶） ---
@@ -553,6 +555,38 @@ export interface AccessibleRouteData {
   transitAlerts?: MatchedAlert[];
   /** 登入且 profile 設了坡度上限時出現。`enforced: false` 代表這個設定實際上沒有作用，必須把 `note` 告訴使用者。 */
   slopeConstraint?: SlopeConstraint;
+  venueArrival?: VenueArrival;
+  venueLeg?: VenueRoute;
+}
+
+export interface VenueDestination {
+  venueId: string;
+  placeId: string;
+  buildingId?: string | null;
+  levelRef?: string | null;
+  sourceVersion?: number;
+}
+
+/** A selected authored place. Its position is for display, never an outdoor gate. */
+export interface VenueEndpoint extends VenueDestination {
+  name: string;
+  position: { lat: number; lng: number };
+  buildingId: string | null;
+  levelRef: string | null;
+  sourceVersion: number;
+}
+
+export interface VenueArrival extends VenueDestination {
+  gateId: string;
+  gateLocation: { lat: number; lng: number };
+  mode: RouteMode;
+  venueVersion: number;
+}
+
+export interface VenueHandoff {
+  arrival: VenueArrival;
+  leg: VenueRoute;
+  destinationName: string;
 }
 
 export interface SlopeConstraint {
@@ -570,6 +604,7 @@ export interface AccessibleRouteRequest {
   language?: RouteLanguage;
   origin?: string | ApiCoordinate;
   destination?: string | ApiCoordinate;
+  destinationVenuePlace?: VenueDestination;
   waypoints?: (string | ApiCoordinate)[];
   query?: string;
   userLocation?: ApiCoordinate;
@@ -665,6 +700,8 @@ export type AccessibleRouteRerouteData = {
   warningDetails?: RouteMessageDetail[];
   currentStepIndex: 0;
   replayed: boolean;
+  venueArrival?: VenueArrival;
+  venueLeg?: VenueRoute;
 } & ({ instructions: NavInstruction[]; steps?: never } | { steps: NavInstruction[]; instructions?: never });
 
 // --- LINE 路線預覽（/line/route-preview） ---

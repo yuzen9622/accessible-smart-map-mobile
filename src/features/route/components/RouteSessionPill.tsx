@@ -34,9 +34,12 @@ export default function RouteSessionPill({ isNavigating, chatOpen = false }: Rou
   const selectRoute = useRouteSessionStore((s) => s.selectRoute);
   const destination = useRouteSessionStore((s) => s.destination);
   const destinationName = useRouteSessionStore((s) => s.destinationName);
+  const originVenuePlace = useRouteSessionStore((s) => s.originVenuePlace);
+  const destinationVenuePlace = useRouteSessionStore((s) => s.destinationVenuePlace);
+  const indoorRoute = useRouteSessionStore((s) => s.indoorRoute);
 
   const visible = shouldShowRoutePill({
-    hasSession: hasRouteSession({ computeRoutes, selectRoute, destination }),
+    hasSession: hasRouteSession({ computeRoutes, selectRoute, destination, originVenuePlace, destinationVenuePlace, indoorRoute }),
     sheetMode: sheetModeFromPath(pathname),
     isNavigating,
     chatOpen,
@@ -44,7 +47,7 @@ export default function RouteSessionPill({ isNavigating, chatOpen = false }: Rou
   if (!visible) return null;
 
   const label = destinationName ? t('routeSessionPillTo', { destination: destinationName }) : t('routeSessionPillGeneric');
-  const minutes = selectRoute ? Math.round(selectRoute.route.totalMinutes) : null;
+  const minutes = indoorRoute ? Math.max(1, Math.ceil(indoorRoute.durationS / 60)) : selectRoute ? Math.round(selectRoute.route.totalMinutes) : null;
 
   const resume = () => {
     router.navigate('/plan');

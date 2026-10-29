@@ -23,6 +23,11 @@ describe('hasRouteSession', () => {
   it('is true with a selected route', () => {
     expect(hasRouteSession({ ...EMPTY, selectRoute: { index: 0 } })).toBe(true);
   });
+
+  it('keeps a selected indoor origin or indoor result in the route session', () => {
+    expect(hasRouteSession({ ...EMPTY, originVenuePlace: { venueId: 'campus', placeId: 'room' } })).toBe(true);
+    expect(hasRouteSession({ ...EMPTY, indoorRoute: { venueId: 'campus' } })).toBe(true);
+  });
 });
 
 describe('shouldShowRoutePill', () => {
@@ -104,6 +109,15 @@ describe('planRequestKey', () => {
 
   it('沒有目的地時不能算', () => {
     expect(planRequestKey({ ...base, destination: null })).toBeNull();
+  });
+
+  it('distinguishes colocated floors and versions by the authored place identity', () => {
+    const originVenuePlace = { venueId: 'campus', placeId: '2101', sourceVersion: 3 };
+    const destinationVenuePlace = { venueId: 'campus', placeId: '2201', sourceVersion: 3 };
+    const args = { ...base, originVenuePlace, destinationVenuePlace };
+    expect(planRequestKey(args)).not.toBe(planRequestKey({ ...args, originVenuePlace: destinationVenuePlace }));
+    expect(planRequestKey(args)).not.toBe(planRequestKey({ ...args, originVenuePlace: { ...originVenuePlace, sourceVersion: 4 } }));
+    expect(planRequestKey(args)).toBe(planRequestKey({ ...args, destination: { lat: 0, lng: 0 } }));
   });
 
   it('起點是我的位置時與座標無關，條件相同就相同', () => {

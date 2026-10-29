@@ -10,10 +10,13 @@ import { usePlaceUiStore } from '../store/placeUiStore';
 import { useSavedPlacesStore } from '../store/savedPlacesStore';
 import type { PlaceDetail } from '../types/place';
 import { placeDetailHref } from './placeRoute';
+import { openVenuePlace } from './openVenuePlace';
+import { venuePlaceSubtitle } from '../domain/venuePlace';
 
 export interface SavedPlaceRow {
   key: string;
   title: string;
+  subtitle?: string;
   categoryLabel: string | null;
   onPress: () => void;
   onRemove: () => void;
@@ -98,6 +101,7 @@ export function useSavedPlacesViewModel(): SavedPlacesViewModel {
     filter === 'all' ? savedPlaces : savedPlaces.filter((p) => savedPlaceCategories[placeKey(p)] === filter);
 
   const handleNavigate = (item: PlaceDetail) => {
+    if (item.kind === 'venue-place') { openVenuePlace(item); return; }
     setSelectedPlace(item);
     mapCamera.flyTo([item.position.lng, item.position.lat], 17);
     router.navigate(placeDetailHref(item));
@@ -133,6 +137,7 @@ export function useSavedPlacesViewModel(): SavedPlacesViewModel {
     return {
       key: placeKey(item),
       title,
+      subtitle: item.kind === 'venue-place' ? venuePlaceSubtitle(item) : undefined,
       categoryLabel: category ? savedCategoryLabel(t, category) : null,
       onPress: () => handleNavigate(item),
       onRemove: () => removeSavedPlace(item),

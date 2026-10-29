@@ -17,6 +17,7 @@ import { SAVED_PLACE_CATEGORIES, placeKey, savedCategoryLabel, type SavedPlaceCa
 import { evidenceLines } from '../domain/reviewEvidence';
 import { buildPlaceShareUrl } from '../domain/shareUrl';
 import { buildPlaceHeading } from '../domain/placeHeading';
+import { venuePlaceSubtitle } from '../domain/venuePlace';
 import { deleteReview } from '../api/reviews';
 import { bumpReviewRevision, useReviewEditorStore } from '../store/reviewEditorStore';
 import { isSavedPlace, useSavedPlacesStore } from '../store/savedPlacesStore';
@@ -91,6 +92,7 @@ export interface PlaceDetailReviewsModel {
 }
 
 export interface PlaceDetailModel {
+  venue?: { originLabel: string; onSetOrigin: () => void; warnings: string[] };
   title: string;
   subtitle: string | null;
   saved: boolean;
@@ -155,7 +157,7 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   const userPosition = mapFeature.useUserLocationStore((state) => state.position);
   // 設計 1a：「類別 · 距離 · 地址」一行交代這是什麼、多遠
   const distanceText = userPosition ? mapFeature.formatDistance(haversineMeters(userPosition, entry.position)) : null;
-  const { title, subtitle } = buildPlaceHeading({
+  const { title, subtitle } = entry.kind === 'venue-place' ? { title: entry.name, subtitle: venuePlaceSubtitle(entry) } : buildPlaceHeading({
     name: entry.kind === 'place' ? entry.place.name || null : null,
     address: entry.kind === 'place' ? entry.place.fullAddress : entry.address,
     typeLabel: place?.typeLabel ?? null,
@@ -165,13 +167,13 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   const checklistItems = place ? buildAccessibilityChecklist(place) : [];
   const reviews = useReviews(place?.reviewKey?.placeId ?? '', place?.reviewKey?.placeType ?? 'osm');
   const hasReviewKey = Boolean(place?.reviewKey);
-  const shareUrl = buildPlaceShareUrl(getAppConfig().shareBaseUrl, entry);
+  const shareUrl = entry.kind === 'venue-place' ? '' : buildPlaceShareUrl(getAppConfig().shareBaseUrl, entry);
   const { lat, lng } = entry.position;
 
   // 打開地點面板（搜尋、深層連結、點地圖）時相機帶到該地點；padding 已含 sheet 高度
   useEffect(() => {
-    mapCamera.flyTo([lng, lat], 17);
-  }, [lat, lng]);
+    if (entry.kind !== 'venue-place') mapCamera.flyTo([lng, lat], 17);
+  }, [lat, lng, entry.kind]);
 
   const handleToggleSave = () => {
     haptic.commit();
@@ -194,6 +196,10 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   // 對齊 Web `PlaceContent.tsx` 的「規劃路線」：把這個地點設為目的地並打開規劃面板。
   // 只經路由參數傳遞，place 不 import route feature（sheet 路由是兩者之間唯一的介面）。
   const handlePlanRoute = () => {
+    if (entry.kind === 'venue-place') {
+      router.navigate({ pathname: '/plan', params: { venueId: entry.venueId, venuePlaceId: entry.placeId, venueField: 'destination' } });
+      return;
+    }
     router.navigate({ pathname: '/plan', params: { destLat: String(lat), destLng: String(lng), destName: title } });
   };
 
@@ -311,6 +317,14 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
   const confirmedCount = checklist.filter((row) => row.tone !== 'unknown').length;
 
   return {
+    ...(entry.kind === 'venue-place' ? { venue: {
+      originLabel: '設為起點',
+      onSetOrigin: () => router.navigate({ pathname: '/plan', params: { venueId: entry.venueId, venuePlaceId: entry.placeId, venueField: 'origin' } }),
+      warnings: [
+        ...(entry.arrivalKind === 'corridor' || (entry.placeKind === 'room' && entry.doorKnown !== true) ? ['門位尚未確認，導引抵達空間前公共走道。'] : []),
+        ...(entry.wheelchair === 'no' ? ['此地點標記為輪椅不可通行。'] : []),
+      ],
+    } } : {}),
     title,
     subtitle,
     saved,

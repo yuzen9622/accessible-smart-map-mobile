@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { getVenueHandoff } from '@/features/route';
+import { venueHandoffCopy } from '@/features/route/domain';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { getLocationPort } from '@/shared/location';
@@ -49,7 +51,8 @@ export function useNavigationSession(speech: SpeechPort = silentSpeech): void {
         stop: () => env.current.speech.stop(),
       },
       language: () => (env.current.language === 'en' ? 'en' : 'zh-TW'),
-      arrivedText: () => env.current.arrived,
+      arrivedText: () => getVenueHandoff()
+        ? venueHandoffCopy(env.current.language === 'en' ? 'en' : 'zh-TW').arrived : env.current.arrived,
       maneuverAheadText: (meters, instruction) => {
         // 英文句中的指令接在「In 120 meters,」之後，首字改小寫。
         const text = env.current.language === 'en' ? instruction.charAt(0).toLowerCase() + instruction.slice(1) : instruction;

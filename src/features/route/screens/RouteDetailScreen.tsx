@@ -19,6 +19,9 @@ import { presentRouteNames } from '../domain/routeNames';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import type { AccessibleRoute, BusLeg } from '../types/route';
 import PressableScale from '@/shared/ui/PressableScale';
+import VenueHandoffCard from '../components/VenueHandoffCard';
+import { venueHandoffCopy } from '../domain/venueHandoffCopy';
+import IndoorRouteSummary from '../components/IndoorRouteSummary';
 
 export interface BusLegRenderArgs {
   route: AccessibleRoute;
@@ -49,7 +52,12 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
   const { index } = useLocalSearchParams<{ index: string }>();
   const routeIndex = Number(index);
   const route = useRouteSessionStore((s) => (Number.isInteger(routeIndex) ? (s.computeRoutes?.[routeIndex] ?? null) : null));
+  const indoorRoute = useRouteSessionStore((s) => routeIndex === 0 ? s.indoorRoute : null);
   const destinationName = useRouteSessionStore((s) => s.destinationName);
+  const venueArrival = useRouteSessionStore((s) => s.venueArrival);
+  const venueLeg = useRouteSessionStore((s) => s.venueLeg);
+  const handoff = venueArrival && venueLeg ? { arrival: venueArrival, leg: venueLeg, destinationName } : null;
+  const outdoorDestinationName = handoff ? venueHandoffCopy(getAppLanguage()).gate : destinationName;
   const preferredDeparture = useRouteSessionStore((s) => s.effectivePreferences?.departureTime);
   const canNavigate = route ? canNavigateRoute(route) : false;
   // 時間軸從使用者規劃時選的出發時間起算，沒選就當作現在出發（使用者回饋 2026-10-23，參考設計圖三：
@@ -66,8 +74,12 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
 
   return (
     <>
-      <Stack.Screen options={{ title: route ? formatDuration(route.totalMinutes) : t('nativeRouteDetails') }} />
-      {!route ? (
+      <Stack.Screen options={{ title: indoorRoute ? formatDuration(Math.ceil(indoorRoute.durationS / 60)) : route ? formatDuration(route.totalMinutes) : t('nativeRouteDetails') }} />
+      {indoorRoute ? (
+        <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={routeStyles.content} contentInsetAdjustmentBehavior="automatic">
+          <IndoorRouteSummary route={indoorRoute} showSteps onStartNavigation={onStartNavigation} />
+        </ScrollView>
+      ) : !route ? (
         <EmptyState title={t('nativeRouteErrorEmpty')} systemImage="map" />
       ) : (
         <ScrollView
@@ -116,19 +128,20 @@ export default function RouteDetailScreen({ onStartNavigation, renderBusLeg, ren
                   {finalArrival}
                 </Text>
               </View>
-              <View accessible accessibilityLabel={[destinationName || t('destination'), t('arrived')].join('，')} style={styles.destinationRow}>
+              <View accessible accessibilityLabel={[outdoorDestinationName || t('destination'), t('arrived')].join('，')} style={styles.destinationRow}>
                 <View style={[styles.destinationDot, { backgroundColor: ROUTE_DESTINATION_COLOR }]}>
                   <Icon name="flag" size={ICON_SIZE.caption} color={WHITE} />
                 </View>
                 <View style={routeStyles.flex}>
                   <Text style={[routeStyles.bodyText, { color: colors.text }]} numberOfLines={2}>
-                    {destinationName || t('destination')}
+                    {outdoorDestinationName || t('destination')}
                   </Text>
                   <Text style={[routeStyles.metaText, { color: semantic.ok.fg }]}>{t('arrived')}</Text>
                 </View>
               </View>
             </View>
           </View>
+          {handoff ? <VenueHandoffCard handoff={handoff} /> : null}
           {/* 亮點與警告合併成一列、各自帶 info／alert 圖示，不是分三段各自列純文字。 */}
           {notes.length > 0 || route.attribution ? (
             <View style={[styles.notes, { borderTopColor: semantic.separator }]}>

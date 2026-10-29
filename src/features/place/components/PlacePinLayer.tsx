@@ -19,7 +19,7 @@ const PIN_PATH = 'M13.5 0C6.04 0 0 6.04 0 13.5 0 21.5 13.5 36 13.5 36S27 21.5 27
  */
 export default function PlacePinLayer() {
   const selectedPlace = usePlaceUiStore((state) => state.selectedPlace);
-  if (!selectedPlace) return null;
+  if (!selectedPlace || selectedPlace.kind === 'venue-place') return null;
 
   const { lat, lng } = selectedPlace.position;
   return (

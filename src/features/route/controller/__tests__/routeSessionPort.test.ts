@@ -2,10 +2,15 @@ import { ApiError, type ApiResponse } from '@/shared/api';
 import { changeAppLanguage } from '@/shared/i18n';
 
 import type { AccessibleRoute, AccessibleRouteData, RoutePreviewPageData } from '../../types/route';
+import { venueHandoffFixture } from '../../domain/testing/venueHandoffFixture';
 import { useRouteSessionStore } from '../../store/routeSessionStore';
 import {
   applyComputedRoutes,
   computeRoute,
+  computeRouteToVenuePlace,
+  getVenueHandoff,
+  pinNavigationRoute,
+  replaceNavigationRoute,
   endRouteSession,
   hasActiveRouteSession,
   loadRoutePreview,
@@ -83,6 +88,71 @@ beforeEach(async () => {
 });
 
 describe('computeRoute', () => {
+  it('preserves the indoor destination while routing only to the selected gate', async () => {
+    const { arrival, leg, destinationName } = venueHandoffFixture();
+    mockUserLocation.position = ORIGIN;
+    mockGetAccessibleRoute.mockResolvedValue(ok({
+      routes: [{ ...route('campus'), routeToken: 'token', navigationId: 'navigation' }],
+      destination: arrival.gateLocation, venueArrival: arrival, venueLeg: leg,
+    }));
+    const result = await computeRouteToVenuePlace({ venueId: arrival.venueId, placeId: arrival.placeId, name: destinationName });
+    expect(result.ok).toBe(true);
+    const request = mockGetAccessibleRoute.mock.calls[0][0];
+    expect(request.destinationVenuePlace).toEqual({ venueId: arrival.venueId, placeId: arrival.placeId });
+    expect(request.destination).toBeUndefined();
+    expect(useRouteSessionStore.getState().destination).toEqual(arrival.gateLocation);
+    expect(getVenueHandoff()).toEqual({ arrival, leg, destinationName });
+    useRouteSessionStore.getState().setRouteMode('wheelchair');
+    useRouteSessionStore.getState().setTravelMode('walk');
+    useRouteSessionStore.getState().setOrigin(null);
+    expect(getVenueHandoff()).toEqual({ arrival, leg, destinationName });
+    expect(pinNavigationRoute()).toBe(true);
+    useRouteSessionStore.getState().setDestination(DEST, '其他目的地');
+    expect(useRouteSessionStore.getState().venueLeg).toBeNull();
+    expect(getVenueHandoff()).toEqual({ arrival, leg, destinationName });
+    const replacement = { ...route('reroute'), navigationId: 'navigation' };
+    expect(replaceNavigationRoute(replacement, null)).toBe(false);
+    expect(replaceNavigationRoute(replacement, {
+      arrival: { ...arrival, gateId: 'different-gate' }, leg, destinationName,
+    })).toBe(false);
+    const refreshed = { arrival: { ...arrival, venueVersion: 4 }, leg: { ...leg, venueVersion: 4 }, destinationName };
+    expect(replaceNavigationRoute(replacement, refreshed)).toBe(true);
+    expect(getVenueHandoff()).toEqual(refreshed);
+  });
+
+  it('rejects gate-only success and ignores responses after the indoor destination is cleared', async () => {
+    mockUserLocation.position = ORIGIN;
+    mockGetAccessibleRoute.mockResolvedValueOnce(ok({ routes: [route('gate-only')] }));
+    const destination = { venueId: 'test-venue', placeId: 'meeting', name: '測試會議室' };
+    expect(await computeRouteToVenuePlace(destination)).toEqual({ ok: false, failure: 'failed' });
+    const pending = deferred<ApiResponse<AccessibleRouteData>>();
+    mockGetAccessibleRoute.mockReturnValueOnce(pending.promise);
+    const running = computeRouteToVenuePlace(destination);
+    useRouteSessionStore.getState().setDestination(null);
+    const { arrival, leg } = venueHandoffFixture();
+    pending.resolve(ok({ routes: [route('late')], venueArrival: arrival, venueLeg: leg }));
+    expect(await running).toEqual({ ok: false, failure: 'superseded' });
+    expect(useRouteSessionStore.getState().destinationVenuePlace).toBeNull();
+    expect(getVenueHandoff()).toBeNull();
+  });
+
+  it('cancels an abandoned venue request without cancelling a later request', async () => {
+    mockUserLocation.position = ORIGIN;
+    const pending = deferred<ApiResponse<AccessibleRouteData>>();
+    const { arrival, leg, destinationName } = venueHandoffFixture();
+    const destination = { venueId: arrival.venueId, placeId: arrival.placeId, name: destinationName };
+    mockGetAccessibleRoute.mockReturnValueOnce(pending.promise);
+    const cancel = new AbortController();
+    const running = computeRouteToVenuePlace(destination, cancel.signal);
+    cancel.abort();
+    expect(mockGetAccessibleRoute.mock.calls[0][1].aborted).toBe(true);
+    expect(useRouteSessionStore.getState().isLoading).toBe(false);
+    mockGetAccessibleRoute.mockResolvedValueOnce(ok({ routes: [route('new')], venueArrival: arrival, venueLeg: leg }));
+    expect((await computeRouteToVenuePlace(destination)).ok).toBe(true);
+    pending.resolve(ok({ routes: [route('old')], venueArrival: arrival, venueLeg: leg }));
+    expect(await running).toEqual({ ok: false, failure: 'superseded' });
+    expect(useRouteSessionStore.getState().selectRoute?.route.routeId).toBe('new');
+  });
   it('reads current UI language rather than a stale caller or account preference', async () => {
     await changeAppLanguage('en');
     mockGetAccessibleRoute.mockResolvedValue(ok({ routes: [route('en')] }));

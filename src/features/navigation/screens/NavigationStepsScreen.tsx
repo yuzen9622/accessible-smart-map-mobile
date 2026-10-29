@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { formatDistance } from '@/shared/geo';
-import { useAppTranslation } from '@/shared/i18n';
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { useThemeColors, ACCENT_FILL, semanticColors, WHITE, TYPE, SHAPE, ICON_SIZE } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
@@ -13,6 +13,8 @@ import NavigationTripBar from '../components/NavigationTripBar';
 import { useNavStore } from '../store/navStore';
 import PressableScale from '@/shared/ui/PressableScale';
 import ArrivalCheck from '../components/ArrivalCheck';
+import { useRouteSession, VenueHandoffCard } from '@/features/route';
+import { venueHandoffCopy } from '@/features/route/domain';
 
 const ACCENT = ACCENT_FILL;
 
@@ -24,7 +26,7 @@ const ACCENT = ACCENT_FILL;
  * `stepMode === 'preview'`）時可點選任一步跳過去。
  * 導航中不提供返回鍵：離開導航只能經 HUD「結束導航」確認（對齊 Web `ExitNavDialog`）。
  */
-export default function NavigationStepsScreen() {
+export default function NavigationStepsScreen({ onContinueVenue }: { onContinueVenue?: () => void } = {}) {
   const { t } = useAppTranslation();
   const colors = useThemeColors();
   const instructions = useNavStore((s) => s.instructions);
@@ -33,6 +35,11 @@ export default function NavigationStepsScreen() {
   const isNavigating = useNavStore((s) => s.isNavigating);
   const previewing = useNavStore((s) => s.stepMode === 'preview');
   const showTripBar = isNavigating && !arrived;
+  const handoff = useRouteSession((s) => s.navigationVenueHandoff);
+  const continueVenue = arrived && handoff ? onContinueVenue : undefined;
+  const continueLabel = getAppLanguage() === 'en' ? 'Continue indoors' : '繼續室內導航';
+  const arrivalActionLabel = continueVenue ? continueLabel : t('endNav');
+  const arrivalActionText = continueVenue ? getAppLanguage() === 'en' ? 'Continue' : '繼續' : t('endNav');
 
   return (
     <>
@@ -55,14 +62,15 @@ export default function NavigationStepsScreen() {
         {arrived || !isNavigating ? (
           <View style={styles.arrived}>
             <ArrivalCheck size={ICON_SIZE.tile} color={semanticColors(false).ok.fg} />
-            <Text style={[styles.text, { color: colors.text }]}>{arrived ? t('arrived') : t('preparingNav')}</Text>
+            <Text numberOfLines={1} style={[styles.text, styles.flex, { color: colors.text }]}>{arrived ? handoff ? venueHandoffCopy(getAppLanguage()).arrived : t('arrived') : t('preparingNav')}</Text>
             {isNavigating ? (
-              <PressableScale accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.end}>
-                <Text style={styles.endText}>{t('endNav')}</Text>
+              <PressableScale accessibilityRole="button" accessibilityLabel={arrivalActionLabel} onPress={continueVenue ?? endNavigation} style={styles.end}>
+                <Text style={styles.endText}>{arrivalActionText}</Text>
               </PressableScale>
             ) : null}
           </View>
         ) : null}
+        {handoff ? <VenueHandoffCard handoff={handoff} /> : null}
         {!arrived && instructions.length === 0 ? (
           <Text style={[styles.meta, { color: colors.textSecondary }]}>{t('preparingNav')}</Text>
         ) : null}
@@ -110,7 +118,7 @@ const styles = StyleSheet.create({
   index: { width: 22, textAlign: 'right', fontSize: TYPE.footnote, fontWeight: '600', fontVariant: ['tabular-nums'] },
   text: { fontSize: TYPE.subhead, fontWeight: '600' },
   meta: { fontSize: TYPE.caption },
-  arrived: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, flexWrap: 'wrap' },
+  arrived: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   end: { minHeight: 44, borderRadius: SHAPE.pill, borderCurve: 'continuous', paddingHorizontal: 16, justifyContent: 'center', backgroundColor: ACCENT },
   endText: { color: WHITE, fontSize: TYPE.subhead, fontWeight: '700' },
 });

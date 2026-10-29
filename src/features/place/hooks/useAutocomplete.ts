@@ -7,6 +7,7 @@ import { getPlaceAutocomplete } from '../api/placeSearch';
 import { toApiLang } from '../domain/lang';
 import { createSearchSessionToken } from '../domain/searchSession';
 import type { AutocompleteItem } from '../types/place';
+import { useVenuePlaceSuggestions } from './useVenuePlaceSuggestions';
 
 /**
  * 移植自 Web `src/hook/usePlacePredictions.ts`（commit 5eadc71）。
@@ -21,6 +22,7 @@ import type { AutocompleteItem } from '../types/place';
  * - `limit: 8` 寫死；`lang` 由 `toApiLang(i18n.language)` 推導。
  */
 export function useAutocomplete(query: string, location?: { lat: number; lng: number }) {
+  const venue = useVenuePlaceSuggestions(query);
   const [suggestions, setSuggestions] = useState<AutocompleteItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -92,14 +94,15 @@ export function useAutocomplete(query: string, location?: { lat: number; lng: nu
     };
   }, [query, lang, location?.lat, location?.lng, attempt]);
 
-  const retry = () => setAttempt((n) => n + 1);
+  const retry = () => { setAttempt((n) => n + 1); venue.retry(); };
 
   const trimmed = query.trim();
   const current = completedQuery === trimmed;
   return {
     suggestions: current && trimmed ? suggestions : [],
-    loading: !!trimmed && (!current || loading),
-    error: !!trimmed && current && error,
+    venueSuggestions: venue.suggestions,
+    loading: !!trimmed && (!current || loading || venue.loading),
+    error: !!trimmed && current && (error || (venue.failed && suggestions.length === 0)) && venue.suggestions.length === 0,
     retry,
     sessionToken,
     resetSession,

@@ -10,6 +10,9 @@ export {
   canNavigateRoute,
   replaceNavigationRoute,
   computeRoute,
+  setVenueEndpoint,
+  computeRouteToVenuePlace,
+  getVenueHandoff,
   endRouteSession,
   hasActiveRouteSession,
   loadRoutePreview,
@@ -39,3 +42,4 @@ export { default as RouteDetailScreen, type BusLegRenderArgs, type RouteDetailSc
 export { default as RouteLayer } from './components/RouteLayer';
 export { default as RouteFacilityLayer } from './components/RouteFacilityLayer';
 export { default as RouteSessionPill, type RouteSessionPillProps } from './components/RouteSessionPill';
+export { default as VenueHandoffCard } from './components/VenueHandoffCard';

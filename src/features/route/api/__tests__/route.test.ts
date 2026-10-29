@@ -1,6 +1,7 @@
 import type { ApiResponse } from '@/shared/api';
 
 import type { NavInstructionsRequest } from '../../types/route';
+import { venueHandoffFixture } from '../../domain/testing/venueHandoffFixture';
 import {
   getAccessibleRoute,
   getLineRoutePreview,
@@ -25,6 +26,19 @@ function envelope(data: unknown): ApiResponse<unknown> {
 }
 
 beforeEach(() => mockFetchRequest.mockReset());
+
+describe('indoor handoff parsing', () => {
+  it('validates the complete handoff and never accepts only the gate', () => {
+    const handoff = venueHandoffFixture();
+    const data = { routes: [], venueArrival: handoff.arrival, venueLeg: handoff.leg };
+    expect(parseAccessibleRouteData(data)).toMatchObject(data);
+    expect(() => parseAccessibleRouteData({ ...data, venueLeg: undefined })).toThrow();
+    expect(() => parseAccessibleRouteData({ ...data, venueArrival: undefined })).toThrow();
+    expect(() => parseAccessibleRouteData({ ...data, venueLeg: { ...handoff.leg, venueVersion: 4 } })).toThrow();
+    expect(() => parseAccessibleRouteData({ ...data, venueLeg: { ...handoff.leg, toPlaceId: 'wrong-room' } })).toThrow();
+    expect(() => parseAccessibleRouteData({ ...data, venueArrival: { ...handoff.arrival, gateLocation: { lat: 95, lng: 120 } } })).toThrow();
+  });
+});
 
 describe('getRouteInstructions', () => {
   it('sends only routeToken/userHeading/language even when the caller passes more', async () => {

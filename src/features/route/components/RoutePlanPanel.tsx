@@ -1,5 +1,5 @@
 import { Text } from '@/shared/ui/typography/Text';
-import { Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
+import { ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 
 import { useCloseScreen } from '@/shared/navigation';
 import { MAX_FONT_SCALE, TYPE, useSemanticColors, useThemeColors, SHAPE, ICON_SIZE } from '@/shared/theme';
@@ -19,6 +19,10 @@ import {
 } from './palette';
 import PressableScale from '@/shared/ui/PressableScale';
 import { haptic } from '@/shared/haptics';
+import { getAppLanguage } from '@/shared/i18n';
+import { venueHandoffCopy } from '../domain/venueHandoffCopy';
+import VenueHandoffCard from './VenueHandoffCard';
+import IndoorRouteSummary from './IndoorRouteSummary';
 
 const TRAVEL_MODE_ICON: Record<TravelMode, IconName> = {
   transit: 'bus',
@@ -152,13 +156,13 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
               </Text>
             </PressableScale>
             {!model.originIsMyLocation ? (
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
-                accessibilityLabel={model.labels.clear}
+                accessibilityLabel={getAppLanguage() === 'en' ? 'Clear origin' : '清除起點'}
                 onPress={model.onClearOrigin}
                 hitSlop={14}>
                 <Icon name="close" size={ICON_SIZE.body} color={colors.textSecondary} />
-              </Pressable>
+              </PressableScale>
             ) : null}
           </View>
           <View style={[styles.divider, { backgroundColor: ROUTE_BORDER_COLOR }]} />
@@ -193,6 +197,9 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.labels.swap}
+          accessibilityHint={model.swapDisabled ? venueHandoffCopy(getAppLanguage()).swapUnavailable : undefined}
+          accessibilityState={{ disabled: model.swapDisabled }}
+          disabled={model.swapDisabled}
           onPress={model.onSwap}
           hitSlop={4}
           style={[routeStyles.circleButton, styles.swapButton, { borderColor: ROUTE_BORDER_COLOR }]}>
@@ -211,23 +218,23 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
         </View>
       </View>
 
-      <View style={routeStyles.section}>
+      {!model.isIndoorJourney ? <View style={routeStyles.section}>
         <View accessibilityRole="tablist" accessibilityLabel={model.labels.travelMode} style={[styles.modeTabs, { backgroundColor: surface }]}>
           {model.travelModes.map(renderModeTab)}
         </View>
         {model.gatedHint ? (
           <Text style={[routeStyles.metaText, { color: colors.textSecondary }]}>{model.gatedHint}</Text>
         ) : null}
-      </View>
+      </View> : null}
 
       {/* 沿途顯示設施：以前只在已經有結果、按「重新規劃」時才看得到；改成規劃表單就常駐顯示
           （使用者回饋 2026-10-23，參考設計圖二：規劃前就能先選好要看哪些設施，不用等結果出來）。 */}
-      <View style={routeStyles.section}>
+      {!model.isIndoorJourney ? <View style={routeStyles.section}>
         <Text accessibilityRole="header" style={[routeStyles.sectionTitle, { color: colors.textSecondary }]}>
           {model.labels.facilityFilterTitle}
         </Text>
         <View style={routeStyles.chipsRow}>{model.facilityFilters.map((option) => renderOption(option))}</View>
-      </View>
+      </View> : null}
 
       {model.error ? (
         <View accessibilityLiveRegion="polite" style={[routeStyles.card, styles.errorCard]}>
@@ -236,8 +243,11 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
         </View>
       ) : null}
 
-      {model.results ? (
+      {model.indoorRoute ? (
+        <IndoorRouteSummary route={model.indoorRoute} onStartNavigation={onStartNavigation} onOpenDetail={() => model.onOpenRouteDetail(0)} />
+      ) : model.results ? (
         <View style={styles.results}>
+          {model.venueHandoff ? <VenueHandoffCard handoff={model.venueHandoff} /> : null}
           <View style={styles.resultsHeader}>
             <Text accessibilityRole="header" style={[styles.resultsTitle, { color: colors.text }]} maxFontSizeMultiplier={MAX_FONT_SCALE.heading}>
               {model.labels.routeOptions}

@@ -5,6 +5,8 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useUserLocationStore } from '@/features/map';
+import { useRouteSession } from '@/features/route';
+import { venueHandoffCopy } from '@/features/route/domain';
 import { formatDistance } from '@/shared/geo';
 import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { ACCENT_FILL, ON_ACCENT_FILL, useSemanticColors, useThemeColors, WHITE, TYPE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
@@ -41,9 +43,10 @@ export interface NavigationHUDProps {
   /** 頂部橫幅實際渲染高度（pt，含 safe-area top）；呼叫端用來讓語音膠囊貼在橫幅下方，
    * 不用再憑經驗寫死一個高度猜測值（使用者回饋 2026-10-15：指示文字一多行就蓋到語音膠囊）。 */
   onBannerHeightChange?: (height: number) => void;
+  onContinueVenue?: () => void;
 }
 
-export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDProps) {
+export default function NavigationHUD({ onBannerHeightChange, onContinueVenue }: NavigationHUDProps) {
   const { t } = useAppTranslation();
   const instructionError = useNavStore((s) => s.instructionError);
   const colors = useThemeColors();
@@ -56,6 +59,11 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
   const distanceToNextM = useNavStore((s) => s.distanceToNextM);
   const isOffRoute = useNavStore((s) => s.isOffRoute);
   const arrived = useNavStore((s) => s.arrived);
+  const venueHandoff = useRouteSession((s) => s.navigationVenueHandoff);
+  const continueVenue = arrived && venueHandoff ? onContinueVenue : undefined;
+  const continueLabel = getAppLanguage() === 'en' ? 'Continue indoors' : '繼續室內導航';
+  const arrivalActionLabel = continueVenue ? continueLabel : t('endNav');
+  const arrivalActionText = continueVenue ? getAppLanguage() === 'en' ? 'Continue' : '繼續' : t('endNav');
   const navigationSource = useNavStore((s) => s.navigationSource);
   const rerouteStatus = useNavStore((s) => s.rerouteStatus);
   const rerouteError = useNavStore((s) => s.rerouteError);
@@ -148,12 +156,12 @@ export default function NavigationHUD({ onBannerHeightChange }: NavigationHUDPro
             <View accessible accessibilityLiveRegion="assertive" style={[styles.bannerRow, styles.flex]}>
               <ArrivalCheck size={ICON_SIZE.hero} color={ON_ACCENT_FILL} />
               <View style={styles.flex}>
-                <Text fixedSize numberOfLines={1} style={styles.bannerTitle}>{t('arrived')}</Text>
-                <Text fixedSize numberOfLines={1} style={styles.bannerMeta}>{t('arrivedDesc')}</Text>
+                <Text fixedSize numberOfLines={1} style={styles.bannerTitle}>{venueHandoff ? venueHandoffCopy(getAppLanguage()).arrived : t('arrived')}</Text>
+                <Text fixedSize numberOfLines={1} style={styles.bannerMeta}>{venueHandoff ? venueHandoffCopy(getAppLanguage()).arrivalHint : t('arrivedDesc')}</Text>
               </View>
             </View>
-            <PressableScale accessibilityRole="button" accessibilityLabel={t('endNav')} onPress={endNavigation} style={styles.bannerButton}>
-              <Text fixedSize style={styles.bannerButtonText}>{t('endNav')}</Text>
+            <PressableScale accessibilityRole="button" accessibilityLabel={arrivalActionLabel} onPress={continueVenue ?? endNavigation} style={styles.bannerButton}>
+              <Text fixedSize style={styles.bannerButtonText}>{arrivalActionText}</Text>
             </PressableScale>
           </View>
         ) : (

@@ -1,4 +1,4 @@
-import type { EffectiveRoutePreferences, RouteLanguage } from '../types/route';
+import type { EffectiveRoutePreferences, RouteLanguage, VenueDestination } from '../types/route';
 
 // 移植自 Web `src/lib/route/routeSession.ts`（commit 5eadc71），邏輯逐行保留。
 // 差異：Web 的 `SheetMode` 是 store 裡的一份狀態；本 App 的 sheet 狀態由 Expo Router
@@ -20,6 +20,9 @@ export interface RouteSessionSnapshot {
   computeRoutes: unknown[] | null;
   selectRoute: unknown | null;
   destination: unknown | null;
+  destinationVenuePlace?: VenueDestination | null;
+  originVenuePlace?: VenueDestination | null;
+  indoorRoute?: unknown | null;
 }
 
 /**
@@ -30,7 +33,8 @@ export interface RouteSessionSnapshot {
  * 一般搜尋不會寫，所以不會誤觸發。
  */
 export function hasRouteSession(snapshot: RouteSessionSnapshot): boolean {
-  return snapshot.computeRoutes !== null || snapshot.selectRoute !== null || snapshot.destination !== null;
+  return snapshot.computeRoutes !== null || snapshot.selectRoute !== null || snapshot.destination !== null ||
+    Boolean(snapshot.destinationVenuePlace || snapshot.originVenuePlace || snapshot.indoorRoute);
 }
 
 /** 面板種類（對應 Web `SheetMode`）。本 App 由目前的 sheet 路由換算而來。 */
@@ -73,6 +77,8 @@ export function sheetModeFromPath(pathname: string): SheetMode {
 export function planRequestKey(args: {
   origin: { lat: number; lng: number } | null;
   destination: { lat: number; lng: number } | null;
+  destinationVenuePlace?: VenueDestination | null;
+  originVenuePlace?: VenueDestination | null;
   travelMode: string;
   routeMode: string;
   avoidStairs: boolean;
@@ -80,11 +86,14 @@ export function planRequestKey(args: {
   canonicalPreferences?: EffectiveRoutePreferences | null;
   language?: RouteLanguage;
 }): string | null {
-  if (!args.destination) return null;
+  if (!args.destination && !args.destinationVenuePlace) return null;
   const point = (p: { lat: number; lng: number }) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+  const venue = (p: VenueDestination) => `venue:${JSON.stringify([p.venueId, p.placeId, p.sourceVersion ?? null])}`;
   return [
-    args.origin ? point(args.origin) : 'me',
-    point(args.destination),
+    args.originVenuePlace ? venue(args.originVenuePlace) : args.origin ? point(args.origin) : 'me',
+    args.destinationVenuePlace
+      ? venue(args.destinationVenuePlace)
+      : args.destination ? point(args.destination) : '',
     args.travelMode,
     args.routeMode,
     args.avoidStairs ? 'no-stairs' : 'stairs',

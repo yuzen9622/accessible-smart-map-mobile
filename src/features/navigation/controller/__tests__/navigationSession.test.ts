@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { sheetNavigation } from '@/features/map';
 import { fitSelectedRoute, getRouteSessionSnapshot, type RouteSessionView } from '@/features/route';
 
-import { beginNavigation, endNavigation } from '../navigationSession';
+import { beginNavigation, endNavigation, stopNavigationForVenueHandoff } from '../navigationSession';
 
 jest.mock('expo-router', () => ({ router: { navigate: jest.fn(), dismiss: jest.fn(), dismissTo: jest.fn() } }));
 jest.mock('@/features/map', () => ({
@@ -57,6 +57,18 @@ it('shows the navigation panel, then lands on the detail of the navigated route 
   expect(router.navigate).toHaveBeenCalledWith('/navigation');
   expect(router.dismissTo).toHaveBeenCalledWith({ pathname: '/routes/[index]', params: { index: '1' } });
   expect(fitSelectedRoute).toHaveBeenCalledTimes(1);
+});
+
+it('stops outdoor navigation for an indoor handoff without dismissing the new screen or moving its camera', () => {
+  sheetNavigation.setVisible(true);
+  beginNavigation(texts);
+  jest.mocked(router.navigate).mockClear();
+  stopNavigationForVenueHandoff();
+  stopNavigationForVenueHandoff();
+  expect(router.navigate).not.toHaveBeenCalled();
+  expect(router.dismiss).not.toHaveBeenCalled();
+  expect(router.dismissTo).not.toHaveBeenCalled();
+  expect(fitSelectedRoute).not.toHaveBeenCalled();
 });
 
 it('only pops the navigation panel when the navigated route is not among the results', () => {

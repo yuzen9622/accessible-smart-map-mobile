@@ -210,6 +210,8 @@ export interface WalkLeg extends LegSourceNames {
   restPoints?: WalkRestPoint[];
   /** 這段步行沿線的政府人行道路段登記的斜坡道數量——整段的計數，不是路徑上的位置。 */
   sidewalkRampCount?: number;
+  /** 原始 polyline 的人行道索引區間（兩端皆含）。缺少／空陣列不推定為人行道。 */
+  sidewalkSegments?: { startIndex: number; endIndex: number }[];
   /** 只在 `engine: "pedestrian-a11y"` 路線出現。空陣列＝查過但沒有可分類的；缺欄位＝沒查過。 */
   a11ySegments?: A11ySegment[];
 }

@@ -88,6 +88,9 @@ export function semanticColors(isDark: boolean, highContrast = false): SemanticC
 /** 淺色主色：實心按鈕底色在兩種模式都用它（深色模式的 `accent` 是給文字用的亮藍）。 */
 export const ACCENT_FILL = '#0065C8';
 export const ON_ACCENT_FILL = '#FFFFFF';
+
+/** 所有地圖路線共用：7pt 實色內線，兩側各 2pt 外框。 */
+export const ROUTE_STROKE = { lineWidth: 7, casingWidth: 11 } as const;
 /** 緊急／危險實心按鈕（SOS、結束導航）。 */
 export const DANGER_FILL = '#C62828';
 

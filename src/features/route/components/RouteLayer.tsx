@@ -6,20 +6,23 @@ import { ROUTE_DESTINATION_COLOR, buildRouteLayerData, type RoutePointProps } fr
 import { revealRouteLines } from '../domain/routeReveal';
 import { useRouteReveal } from '../hooks/useRouteReveal';
 import { useRouteSessionStore } from '../store/routeSessionStore';
-import { WHITE } from '@/shared/theme';
+import { ROUTE_STROKE, WHITE } from '@/shared/theme';
 
 /**
- * 路線圖層（SDD §4.4 RouteLayer）：選中路線的每段 leg 一條線，依 feature `kind` 分到不同 layer——
- * maplibre 的 `line-dasharray` 不支援 data-driven 表達式，所以步行虛線、實線、無障礙疊色各一層，
- * 顏色由 feature 的 `color` 屬性決定。點（起訖點、轉乘、中繼站、事故、點狀設施）共用一個 circle layer。
+ * 路線圖層：所有運具使用實色內線與同色系外框，步行依人行道分類使用藍／綠線。
+ * 顏色由 feature 屬性決定。點（起訖點、轉乘、中繼站、事故、點狀設施）共用一個 circle layer。
  *
  * 只有目的地、還沒算出路線時也畫目的地 pin（對齊 `hasRouteSession` 的定義：它也需要 pill 當出口）。
  */
-/** 大眾運輸／開車線的外框：捷運線色表內的淺色線（環狀線黃…）是深框，其餘白框。 */
+/** 全運具共用；traffic 的外框與內線另疊在底線上，保持路況顏色完整。 */
 export const ROUTE_CASING_PAINT: LineLayerSpecification['paint'] = {
   'line-color': ['coalesce', ['get', 'casing'], WHITE],
-  'line-width': 11,
-  'line-opacity': 0.9,
+  'line-width': ROUTE_STROKE.casingWidth,
+};
+
+export const ROUTE_LINE_PAINT: LineLayerSpecification['paint'] = {
+  'line-color': ['get', 'color'],
+  'line-width': ROUTE_STROKE.lineWidth,
 };
 
 /**
@@ -81,30 +84,30 @@ export default function RouteLayer() {
         <Layer
           id="route-line-casing"
           type="line"
-          filter={['match', ['get', 'kind'], ['transit', 'drive'], true, false]}
+          filter={['match', ['get', 'kind'], ['walk', 'sidewalk', 'transit', 'drive'], true, false]}
           layout={{ 'line-cap': 'round', 'line-join': 'round' }}
           paint={ROUTE_CASING_PAINT}
         />
         <Layer
-          id="route-line-walk"
-          type="line"
-          filter={['==', ['get', 'kind'], 'walk']}
-          layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-          paint={{ 'line-color': ['get', 'color'], 'line-width': 6, 'line-opacity': 0.8, 'line-dasharray': [0.5, 1.5] }}
-        />
-        <Layer
           id="route-line-solid"
           type="line"
-          filter={['match', ['get', 'kind'], ['transit', 'drive', 'traffic'], true, false]}
-          layout={{ 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'order'] }}
-          paint={{ 'line-color': ['get', 'color'], 'line-width': 8 }}
+          filter={['match', ['get', 'kind'], ['walk', 'sidewalk', 'transit', 'drive'], true, false]}
+          layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+          paint={ROUTE_LINE_PAINT}
         />
         <Layer
-          id="route-line-a11y"
+          id="route-line-traffic-casing"
           type="line"
-          filter={['==', ['get', 'kind'], 'a11y']}
-          layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-          paint={{ 'line-color': ['get', 'color'], 'line-width': 6, 'line-opacity': 0.95 }}
+          filter={['==', ['get', 'kind'], 'traffic']}
+          layout={{ 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'order'] }}
+          paint={ROUTE_CASING_PAINT}
+        />
+        <Layer
+          id="route-line-traffic"
+          type="line"
+          filter={['==', ['get', 'kind'], 'traffic']}
+          layout={{ 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'order'] }}
+          paint={ROUTE_LINE_PAINT}
         />
         <Layer
           id="route-line-incident"
@@ -112,12 +115,6 @@ export default function RouteLayer() {
           filter={['==', ['get', 'kind'], 'incident']}
           layout={{ 'line-cap': 'round', 'line-join': 'round' }}
           paint={{ 'line-color': ['get', 'color'], 'line-width': 5, 'line-opacity': 0.9, 'line-dasharray': [1, 1.5] }}
-        />
-        <Layer
-          id="route-line-a11y-indoor"
-          type="line"
-          filter={['==', ['get', 'kind'], 'a11yIndoor']}
-          paint={{ 'line-color': ['get', 'color'], 'line-width': 6, 'line-opacity': 0.95, 'line-dasharray': [1, 2] }}
         />
       </GeoJSONSource>
       <GeoJSONSource id="route-points" data={points}>

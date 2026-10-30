@@ -3,7 +3,7 @@
  * 狀態色（ok／warn／danger）屬於 `tokens.ts` 的語意層，不在這裡。
  * `line` 用於地圖線與底板，`text` 是對白底 ≥ 4.5:1 的文字色。
  */
-import { contrastRatio } from './contrast';
+import { contrastRatio, hexToRgb } from './contrast';
 import { ACCENT_FILL } from './tokens';
 
 export interface DomainColor {
@@ -12,7 +12,7 @@ export interface DomainColor {
 }
 
 export const MODE = {
-  walk: { line: '#8A8E96', text: '#60646C' },
+  walk: { line: '#007AFF', text: '#0066D6' },
   bus: { line: '#1B9A4B', text: '#1B7F3B' },
   metro: { line: '#0C8599', text: '#0B6577' },
   hsr: { line: '#E8590C', text: '#B34700' },
@@ -22,6 +22,14 @@ export const MODE = {
 } as const satisfies Record<string, DomainColor>;
 
 export type ModeKey = keyof typeof MODE;
+
+/** 步行線的實色內線與亮色外框；綠色只表示已確認的人行道路徑。 */
+export const WALK_ROUTE = {
+  line: MODE.walk.line,
+  casing: '#78B9FF',
+  sidewalk: '#16844A',
+  sidewalkCasing: '#83D4A7',
+} as const;
 
 export const FACILITY = {
   elevator: { line: '#1B7F3B', text: '#1B7F3B' },
@@ -46,6 +54,18 @@ export type FeatureKey = keyof typeof FEATURE;
 
 export const WHITE = '#FFFFFF';
 export const BLACK = '#000000';
+
+/** 地圖專用同色系外框；淺色線用深框，其餘用亮框。徽章與標記的字色另由原色票決定。 */
+export function routeCasingColor(fill: string): string {
+  const { r, g, b } = hexToRgb(fill);
+  const pale = contrastRatio(fill, WHITE) < 3;
+  const target = pale ? 0 : 255;
+  const amount = pale ? 0.55 : 0.47;
+  return '#' + [r, g, b]
+    .map((channel) => Math.round(channel * (1 - amount) + target * amount).toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase();
+}
 /** 淺色線色（環狀線黃等）上的深色字與外框：白字對比不足時用它。 */
 export const INK_DARK = '#1A1A1A';
 

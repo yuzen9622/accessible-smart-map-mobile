@@ -4,6 +4,7 @@ import { AccessibilityInfo } from 'react-native';
 
 import {
   PINNED_FACILITY_CATEGORIES,
+  sheetController,
   useUserLocationStore,
   type PinnedFacilityCategory,
 } from '@/features/map';
@@ -236,6 +237,13 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const matchesComputed = computedFor === requestKey || (['en', 'zh-TW'] as const).some((language) =>
     computedFor === planRequestKey({ ...requestInputs, language }));
   const resultsFresh = requestKey !== null && (matchesComputed || aiRequestKey === requestKey) && (computeRoutes !== null || indoorRoute !== null);
+  // Only new plans reveal the map; metadata refreshes preserve the user's sheet height.
+  const presentedPlan = useRef<typeof aiPlan | undefined>(undefined);
+  useEffect(() => {
+    if (!resultsFresh || presentedPlan.current === aiPlan) return;
+    presentedPlan.current = aiPlan;
+    void sheetController.select(1);
+  }, [resultsFresh, aiPlan]);
   // 每組條件只自動算一次：失敗時停在錯誤訊息＋重試鈕，不會一直重打 API
   const autoAttempted = useRef<string | null>(null);
   const previousRequestKey = useRef(requestKey);
@@ -256,7 +264,9 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     const result = await pending;
     if (useRouteSessionStore.getState().requestSeq !== seq) return;
     if (result.ok) {
+      presentedPlan.current = null;
       useRouteSessionStore.setState({ computedFor: key });
+      void sheetController.select(1);
       AccessibilityInfo.announceForAccessibility(t('nativeRoutesFound', { count: result.indoorRoute ? 1 : result.routes.length }));
       return;
     }

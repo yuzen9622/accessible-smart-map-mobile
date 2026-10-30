@@ -8,3 +8,4 @@ export {
 export { useSemanticColors, useThemeColors, type UseThemeColorsOptions } from './use-theme-colors';
 export { ACCENT_FILL, BUTTON_HEIGHT, DANGER_FILL, ELEVATION, ICON_SIZE, MAX_FONT_SCALE, SOS_BUTTON, MIN_TOUCH, ON_ACCENT_FILL, SHAPE, SPACE, TEXT_STYLE, TYPE, semanticColors, type SemanticColors, type ToneColors } from './tokens';
 export * from './palettes';
+export { ROUTE_STROKE } from './tokens';

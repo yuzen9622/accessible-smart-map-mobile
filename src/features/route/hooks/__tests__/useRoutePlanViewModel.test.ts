@@ -4,7 +4,7 @@ import { useRouteSessionStore } from '../../store/routeSessionStore';
 import { act, renderHook } from '@testing-library/react-native';
 import { routePlanFixture } from '@/features/ai/domain/testing/routePlanFixture';
 import { getAccessibleRoute } from '../../api/route';
-import { applyAiRoutePlan, endRouteSession } from '../../controller/routeSessionPort';
+import { applyAiRoutePlan, endRouteSession, replaceSelectedRoute } from '../../controller/routeSessionPort';
 import { useRoutePlanViewModel } from '../useRoutePlanViewModel';
 import { venueHandoffFixture } from '../../domain/testing/venueHandoffFixture';
 import { planVenueRoute } from '@/shared/venue';
@@ -12,8 +12,16 @@ import { resolveVenuePlace } from '@/features/place/hooks/venuePlaceCatalog';
 import { toVenuePlaceDetail } from '@/features/place/domain/venuePlace';
 import { createVenueDetail, createVenueRoute } from '@/features/indoor/domain/fixtures/venueFixture';
 import type { VenuePlaceDetail } from '@/features/place/types/place';
+import { Dimensions } from 'react-native';
+import { selectSheetDetent } from '../../../../../modules/sheet-detent';
+import { useMapUiStore } from '@/features/map/store/mapUiStore';
+import { sheetBottomInset } from '@/features/map/domain/sheetInset';
 
-jest.mock('@/features/map', () => jest.requireActual('@/features/navigation/controller/testing/fakeMap').mapModule);
+jest.mock('@/features/map', () => ({
+  ...jest.requireActual('@/features/navigation/controller/testing/fakeMap').mapModule,
+  sheetController: jest.requireActual('@/features/map/controller/sheetController').sheetController,
+}));
+jest.mock('../../../../../modules/sheet-detent', () => ({ isSheetDetentAvailable: () => true, selectSheetDetent: jest.fn() }));
 jest.mock('expo-router', () => ({ router: { navigate: jest.fn(), push: jest.fn() } }));
 jest.mock('@/features/place', () => ({ useAutocomplete: () => ({ suggestions: [], loading: false, resetSession: jest.fn() }) }));
 jest.mock('@/features/onboarding', () => ({
@@ -28,7 +36,13 @@ jest.mock('../../api/route', () => ({ getAccessibleRoute: jest.fn() }));
 jest.mock('@/shared/venue', () => ({ ...jest.requireActual('@/shared/venue'), planVenueRoute: jest.fn() }));
 jest.mock('@/features/place/hooks/venuePlaceCatalog', () => ({ resolveVenuePlace: jest.fn() }));
 
-beforeEach(async () => { await changeAppLanguage('zh-TW'); endRouteSession(); jest.clearAllMocks(); });
+beforeEach(async () => {
+  await changeAppLanguage('zh-TW');
+  endRouteSession();
+  jest.clearAllMocks();
+  jest.mocked(selectSheetDetent).mockResolvedValue(true);
+  useMapUiStore.setState({ sheetDetentIndex: 2, sheetInset: sheetBottomInset(2, Dimensions.get('window').height) });
+});
 
 function indoorEndpoints() {
   const detail = createVenueDetail();
@@ -48,6 +62,8 @@ it('automatically plans indoor endpoints without GPS, hides outdoor controls and
     isIndoorJourney: true, travelModes: [], facilityFilters: [], results: null,
     indoorRoute: { fromPlaceId: 'start', toPlaceId: 'end' },
   });
+  expect(selectSheetDetent).toHaveBeenCalledWith(1);
+  expect(useMapUiStore.getState().sheetDetentIndex).toBe(1);
   await act(() => result.current.onOpenRouteDetail(0));
   expect(router.navigate).toHaveBeenCalledWith({ pathname: '/routes/[index]', params: { index: '0' } });
   await act(() => result.current.onSelectRouteMode('wheelchair'));
@@ -158,6 +174,76 @@ it('opening an AI plan preserves the selected candidate and conditions without p
   expect(result.current.originLabel).toBe(plan.origin.name);
   expect(result.current.routeModes.find((mode) => mode.selected)?.value).toBe('wheelchair');
   expect(getAccessibleRoute).not.toHaveBeenCalled();
+  expect(selectSheetDetent).toHaveBeenCalledWith(1);
+  expect(useMapUiStore.getState().sheetDetentIndex).toBe(1);
+});
+
+it('reveals a successful outdoor result at half height and preserves later manual sheet changes', async () => {
+  const plan = routePlanFixture();
+  useRouteSessionStore.getState().setOrigin(plan.origin, 'Origin');
+  useRouteSessionStore.getState().setDestination(plan.destination, 'Destination');
+  let resolve!: (response: Awaited<ReturnType<typeof getAccessibleRoute>>) => void;
+  jest.mocked(getAccessibleRoute).mockReturnValue(new Promise((done) => { resolve = done; }));
+  const { result, rerender } = await renderHook(() => useRoutePlanViewModel({}));
+  expect(result.current.loading).toBe(true);
+  expect(selectSheetDetent).not.toHaveBeenCalled();
+  expect(useMapUiStore.getState().sheetDetentIndex).toBe(2);
+
+  await act(() => resolve({ ok: true, status: 'success', code: 200, message: '', data: plan }));
+  expect(result.current.results?.routes).toEqual(plan.routes);
+  expect(selectSheetDetent).toHaveBeenCalledTimes(1);
+  expect(selectSheetDetent).toHaveBeenCalledWith(1);
+  expect(useMapUiStore.getState()).toMatchObject({
+    sheetDetentIndex: 1,
+    sheetInset: sheetBottomInset(1, Dimensions.get('window').height),
+  });
+
+  await act(() => useMapUiStore.getState().setSheetDetentIndex(2));
+  await act(() => result.current.onSelectRoute(1));
+  await rerender({});
+  expect(selectSheetDetent).toHaveBeenCalledTimes(1);
+  expect(useMapUiStore.getState().sheetDetentIndex).toBe(2);
+});
+
+it('keeps the current sheet height when planning fails or an abandoned request resolves', async () => {
+  const plan = routePlanFixture();
+  useRouteSessionStore.getState().setOrigin(plan.origin, 'Origin');
+  useRouteSessionStore.getState().setDestination(plan.destination, 'Destination');
+  jest.mocked(getAccessibleRoute).mockRejectedValueOnce(new Error('offline'));
+  const { result } = await renderHook(() => useRoutePlanViewModel({}));
+  expect(result.current.error).not.toBeNull();
+  expect(selectSheetDetent).not.toHaveBeenCalled();
+  expect(useMapUiStore.getState().sheetDetentIndex).toBe(2);
+
+  let resolve!: (response: Awaited<ReturnType<typeof getAccessibleRoute>>) => void;
+  jest.mocked(getAccessibleRoute).mockReturnValue(new Promise((done) => { resolve = done; }));
+  let retry: void | Promise<void>;
+  await act(() => { retry = result.current.onStart(); });
+  await act(() => endRouteSession());
+  await act(async () => {
+    resolve({ ok: true, status: 'success', code: 200, message: '', data: plan });
+    await retry;
+  });
+  expect(result.current.results).toBeNull();
+  expect(selectSheetDetent).not.toHaveBeenCalled();
+  expect(useMapUiStore.getState().sheetDetentIndex).toBe(2);
+});
+
+it('preserves manual sheet height for route metadata replacements and reveals a new AI plan', async () => {
+  const plan = routePlanFixture();
+  applyAiRoutePlan(plan);
+  const { result } = await renderHook(() => useRoutePlanViewModel({}));
+  expect(selectSheetDetent).toHaveBeenCalledTimes(1);
+  await act(() => useMapUiStore.getState().setSheetDetentIndex(2));
+
+  await act(() => replaceSelectedRoute({ ...plan.routes[1], totalMinutes: 17, routeVersion: 2 }));
+  expect(result.current.results?.routes[1].totalMinutes).toBe(17);
+  expect(selectSheetDetent).toHaveBeenCalledTimes(1);
+  expect(useMapUiStore.getState().sheetDetentIndex).toBe(2);
+
+  await act(() => applyAiRoutePlan({ ...plan, planId: 'plan-b' }));
+  expect(selectSheetDetent).toHaveBeenCalledTimes(2);
+  expect(useMapUiStore.getState().sheetDetentIndex).toBe(1);
 });
 
 it('only the explicit replan action requests a new route', async () => {
@@ -165,6 +251,8 @@ it('only the explicit replan action requests a new route', async () => {
   applyAiRoutePlan(plan);
   jest.mocked(getAccessibleRoute).mockResolvedValue({ ok: true, status: 'success', code: 200, message: '', data: plan });
   const { result } = await renderHook(() => useRoutePlanViewModel({}));
+  expect(selectSheetDetent).toHaveBeenCalledTimes(1);
+  await act(() => useMapUiStore.getState().setSheetDetentIndex(2));
   await act(() => result.current.onStart());
   expect(getAccessibleRoute).toHaveBeenCalledTimes(1);
   expect(getAccessibleRoute).toHaveBeenCalledWith(expect.objectContaining({
@@ -173,4 +261,6 @@ it('only the explicit replan action requests a new route', async () => {
     departureTime: plan.effectivePreferences.departureTime,
     maxTransfers: plan.effectivePreferences.maxTransfers,
   }), expect.any(AbortSignal));
+  expect(selectSheetDetent).toHaveBeenCalledTimes(2);
+  expect(useMapUiStore.getState().sheetDetentIndex).toBe(1);
 });

@@ -9,7 +9,7 @@ function collection(): FeatureCollection<LineString, RouteLineProps> {
     features: [
       { type: 'Feature', geometry: { type: 'LineString', coordinates: [[121, 25], [121.01, 25]] }, properties: { id: 'a', kind: 'walk', color: '#000', order: 0 } },
       { type: 'Feature', geometry: { type: 'LineString', coordinates: [[121.01, 25], [121.02, 25]] }, properties: { id: 'b', kind: 'transit', color: '#000', order: 0 } },
-      { type: 'Feature', geometry: { type: 'LineString', coordinates: [[121, 25], [121.005, 25]] }, properties: { id: 'c', kind: 'a11y', color: '#000', order: 1 } },
+      { type: 'Feature', geometry: { type: 'LineString', coordinates: [[121, 25], [121.005, 25]] }, properties: { id: 'c', kind: 'traffic', color: '#000', order: 1 } },
     ],
   };
 }

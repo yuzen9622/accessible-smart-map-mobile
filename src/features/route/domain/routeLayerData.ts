@@ -3,8 +3,8 @@
 // 原生改成兩個 GeoJSON collection（線、點）交給 maplibre 的 line／circle layer，由 feature 屬性決定樣式。
 //
 // 規則逐條對齊 Web：
-// - 每段 leg 一條底線；步行虛線、大眾運輸與開車實線。
-// - 步行 `a11ySegments` 在底線上疊色；`startIndex === endIndex` 是點狀設施（畫圓點，不是零長度線）。
+// - 所有運具採實色內線與同色系外框；步行依已確認的人行道區間分成藍／綠實線。
+// - 步行 `a11ySegments` 保留點狀設施；線段資訊在詳情呈現，不蓋掉步行線的分類色。
 // - 開車 `trafficSegments` 經 `visibleTrafficSegments` 過濾後疊在底線上（unknown／越界不畫）。
 // - 起點＝第一段 leg 的第一點；終點＝最後一段 leg 的最後一點；運具改變處畫轉乘點；中繼站；
 //   沿線 150 m 內的開車事故（`filterIncidentsAlongRoute`）。
@@ -15,16 +15,16 @@ import type { LatLng } from '@/shared/geo';
 
 import { filterIncidentsAlongRoute, isIncidentClosed } from './geo';
 import { A11Y_FEATURE_COLOR, TRAFFIC_LEVEL_COLORS, getLegColor, legEdgeColor, visibleTrafficSegments } from './routeDisplay';
-import type { AccessibleRoute, LngLatTuple } from '../types/route';
-import { ROUTE_MARKER } from '@/shared/theme/palettes';
+import type { AccessibleRoute, LngLatTuple, WalkLeg } from '../types/route';
+import { ROUTE_MARKER, WALK_ROUTE, routeCasingColor } from '@/shared/theme/palettes';
 
-export type RouteLineKind = 'walk' | 'transit' | 'drive' | 'traffic' | 'a11y' | 'a11yIndoor' | 'incident';
+export type RouteLineKind = 'walk' | 'sidewalk' | 'transit' | 'drive' | 'traffic' | 'incident';
 
 export interface RouteLineProps {
   id: string;
   kind: RouteLineKind;
   color: string;
-  /** 捷運線色表內的線：外框色（淺線色＝深框）。沒有就用預設白框。 */
+  /** 地圖線條的同色系外框；與標記／徽章的對比字色分開。 */
   casing?: string;
   /** 疊放順序：底線 0、疊色 1（line-sort-key）。 */
   order: number;
@@ -65,6 +65,37 @@ function isFiniteTuple(p: LngLatTuple | undefined): p is LngLatTuple {
   return !!p && Number.isFinite(p[0]) && Number.isFinite(p[1]);
 }
 
+/** 分割底線而非另加疊線，讓藍／綠區間跟著同一個繪出進度出現，也不重複計算路線長度。 */
+function walkingLines(leg: WalkLeg, base: string): Feature<LineString, RouteLineProps>[] {
+  const coords = leg.polyline ?? [];
+  if (coords.length < 2) return [];
+  const sidewalkEdges = new Array<boolean>(coords.length - 1).fill(false);
+  if (Array.isArray(leg.sidewalkSegments)) {
+    for (const segment of leg.sidewalkSegments) {
+      if (!segment || !Number.isInteger(segment.startIndex) || !Number.isInteger(segment.endIndex) ||
+          segment.startIndex < 0 || segment.startIndex >= segment.endIndex || segment.endIndex >= coords.length ||
+          !coords.slice(segment.startIndex, segment.endIndex + 1).every(isFiniteTuple)) continue;
+      sidewalkEdges.fill(true, segment.startIndex, segment.endIndex);
+    }
+  }
+  const result: Feature<LineString, RouteLineProps>[] = [];
+  let start = 0;
+  for (let edge = 1; edge <= sidewalkEdges.length; edge++) {
+    if (edge < sidewalkEdges.length && sidewalkEdges[edge] === sidewalkEdges[start]) continue;
+    const sidewalk = sidewalkEdges[start];
+    // 先以原索引切片，再處理無效座標，避免人行道區間因座標過濾而移位。
+    const slice = coords.slice(start, edge + 1).filter(isFiniteTuple);
+    if (slice.length >= 2) result.push(line(result.length === 0 ? base : `${base}-walk-${start}`, slice, {
+      kind: sidewalk ? 'sidewalk' : 'walk',
+      color: sidewalk ? WALK_ROUTE.sidewalk : WALK_ROUTE.line,
+      casing: sidewalk ? WALK_ROUTE.sidewalkCasing : WALK_ROUTE.casing,
+      order: 0,
+    }));
+    start = edge;
+  }
+  return result;
+}
+
 export function buildRouteLayerData(route: AccessibleRoute | null, waypoints: readonly LatLng[] = []): RouteLayerData {
   const lines: Feature<LineString, RouteLineProps>[] = [];
   const points: Feature<Point, RoutePointProps>[] = [];
@@ -74,22 +105,21 @@ export function buildRouteLayerData(route: AccessibleRoute | null, waypoints: re
     const coords = (leg.polyline ?? []).filter(isFiniteTuple);
     const base = `leg-${legIndex}`;
     const casing = legEdgeColor(leg);
-    if (coords.length >= 2) {
-      const kind: RouteLineKind = leg.type === 'WALK' ? 'walk' : leg.type === 'DRIVE' || leg.type === 'MOTORCYCLE' ? 'drive' : 'transit';
-      lines.push(line(base, coords, { kind, color: getLegColor(leg), ...(casing ? { casing } : {}), order: 0 }));
+    if (leg.type === 'WALK') {
+      lines.push(...walkingLines(leg, base));
+    } else if (coords.length >= 2) {
+      const kind: RouteLineKind = leg.type === 'DRIVE' || leg.type === 'MOTORCYCLE' ? 'drive' : 'transit';
+      const color = getLegColor(leg);
+      lines.push(line(base, coords, { kind, color, casing: routeCasingColor(color), order: 0 }));
     }
 
     if (leg.type === 'WALK' && leg.a11ySegments) {
       leg.a11ySegments.forEach((segment, i) => {
         const color = A11Y_FEATURE_COLOR[segment.feature];
         if (segment.startIndex === segment.endIndex) {
-          const at = coords[segment.startIndex];
-          if (at) points.push(point(`${base}-a11y-${i}`, at, { kind: 'a11yDot', color }));
+          const at = leg.polyline?.[segment.startIndex];
+          if (isFiniteTuple(at)) points.push(point(`${base}-a11y-${i}`, at, { kind: 'a11yDot', color }));
           return;
-        }
-        const slice = coords.slice(segment.startIndex, segment.endIndex + 1);
-        if (slice.length >= 2) {
-          lines.push(line(`${base}-a11y-${i}`, slice, { kind: segment.indoor ? 'a11yIndoor' : 'a11y', color, order: 1 }));
         }
       });
     }
@@ -102,6 +132,7 @@ export function buildRouteLayerData(route: AccessibleRoute | null, waypoints: re
             line(`${base}-traffic-${segment.trafficLevel}-${segment.fromIndex}-${segment.toIndex}-${i}`, slice, {
               kind: 'traffic',
               color: TRAFFIC_LEVEL_COLORS[segment.trafficLevel],
+              casing: routeCasingColor(TRAFFIC_LEVEL_COLORS[segment.trafficLevel]),
               order: 1,
             }),
           );

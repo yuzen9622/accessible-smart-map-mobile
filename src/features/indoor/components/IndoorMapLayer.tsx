@@ -4,7 +4,7 @@ import { StyleSheet, useColorScheme, View } from 'react-native';
 
 import { mapCamera, useMapUiStore } from '@/features/map';
 import { usePreferencesStore } from '@/shared/preferences/preferencesStore';
-import { ICON_SIZE, MAX_FONT_SCALE, SHAPE, SPACE, TYPE, useThemeColors } from '@/shared/theme';
+import { ICON_SIZE, MAX_FONT_SCALE, ROUTE_STROKE, SHAPE, SPACE, TYPE, WALK_ROUTE, useThemeColors } from '@/shared/theme';
 import { getIndoorPalette } from '@/shared/theme/indoorPalette';
 import Icon from '@/shared/ui/Icon';
 import { Text } from '@/shared/ui/typography/Text';
@@ -131,9 +131,9 @@ export default function IndoorMapLayer({ onSelectPlace }: { onSelectPlace?: (ven
     </GeoJSONSource>
     {line ? <GeoJSONSource id="indoor-route" data={line}>
       <Layer id="indoor-route-casing" type="line" filter={['==', ['geometry-type'], 'LineString']}
-        layout={{ 'line-cap': 'round', 'line-join': 'round' }} paint={{ 'line-color': palette.routeCasingCss, 'line-width': 8 }} />
+        layout={{ 'line-cap': 'round', 'line-join': 'round' }} paint={{ 'line-color': WALK_ROUTE.casing, 'line-width': ROUTE_STROKE.casingWidth }} />
       <Layer id="indoor-route-line" type="line" filter={['==', ['geometry-type'], 'LineString']}
-        layout={{ 'line-cap': 'round', 'line-join': 'round' }} paint={{ 'line-color': palette.primaryCss, 'line-width': 4 }} />
+        layout={{ 'line-cap': 'round', 'line-join': 'round' }} paint={{ 'line-color': WALK_ROUTE.line, 'line-width': ROUTE_STROKE.lineWidth }} />
       <Layer id="indoor-route-endpoints" type="circle" filter={['all', ['==', ['geometry-type'], 'Point'], ['in', ['get', 'pathIndex'], ['literal', [0, (route?.path.coordinates.length ?? 1) - 1]]]]}
         paint={{ 'circle-color': palette.primaryCss, 'circle-radius': 6, 'circle-stroke-color': palette.routeCasingCss, 'circle-stroke-width': 2 }} />
     </GeoJSONSource> : null}

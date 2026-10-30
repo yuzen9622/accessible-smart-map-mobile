@@ -2,7 +2,10 @@
 // Web 斷言 renderToStaticMarkup 產生的 Polyline／Marker id；原生改斷言 GeoJSON feature。
 import { buildRouteLayerData } from '../routeLayerData';
 import { TRAFFIC_BASE_COLOR, TRAFFIC_LEVEL_COLORS } from '../routeDisplay';
-import type { AccessibleRoute, DriveLeg, LngLatTuple, MetroLeg, WalkLeg } from '../../types/route';
+import { MODE, WALK_ROUTE, routeCasingColor } from '@/shared/theme/palettes';
+import { adaptRoutePreviewRoutes } from '../routePreviewAdapter';
+import { revealRouteLines } from '../routeReveal';
+import type { AccessibleRoute, DriveLeg, LngLatTuple, MetroLeg, RouteLeg, WalkLeg } from '../../types/route';
 
 const DRIVE_POLYLINE: LngLatTuple[] = [
   [121.5, 25.03],
@@ -143,7 +146,66 @@ describe('buildRouteLayerData', () => {
     expect(kinds).toEqual(['a11yDot', 'transfer', 'waypoint', 'origin', 'destination']);
     expect(data.points.features.find((f) => f.properties.kind === 'origin')?.geometry.coordinates).toEqual([121.49, 25.02]);
     expect(data.points.features.find((f) => f.properties.kind === 'destination')?.geometry.coordinates).toEqual([121.52, 25.034]);
-    expect(data.lines.features.map((f) => f.properties.kind)).toEqual(['walk', 'a11y', 'drive']);
+    expect(data.lines.features.map((f) => f.properties.kind)).toEqual(['walk', 'drive']);
+  });
+});
+
+describe('walking route classification', () => {
+  const polyline: LngLatTuple[] = [[121, 25], [121.001, 25], [121.002, 25], [121.003, 25]];
+  function build(overrides: Partial<WalkLeg> = {}) {
+    const walk: WalkLeg = { type: 'WALK', from: 'A', to: 'B', distanceM: 300, minutesEst: 5, a11yFacilities: [], polyline, ...overrides };
+    return buildRouteLayerData({ ...driveRoute(), legs: [walk] });
+  }
+
+  it.each([undefined, []])('keeps unconfirmed walking blue with ranges %j', (sidewalkSegments) => {
+    const data = build({ sidewalkSegments });
+    expect(data.lines.features).toHaveLength(1);
+    expect(data.lines.features[0]).toMatchObject({
+      geometry: { coordinates: polyline }, properties: { kind: 'walk', color: WALK_ROUTE.line, casing: WALK_ROUTE.casing },
+    });
+  });
+
+  it('colors only the confirmed original range green, sharing endpoints with blue runs', () => {
+    const data = build({ sidewalkSegments: [{ startIndex: 1, endIndex: 2 }] });
+    expect(data.lines.features.map((f) => f.geometry.coordinates)).toEqual([polyline.slice(0, 2), polyline.slice(1, 3), polyline.slice(2)]);
+    expect(data.lines.features.map((f) => [f.properties.kind, f.properties.color, f.properties.casing])).toEqual([
+      ['walk', WALK_ROUTE.line, WALK_ROUTE.casing], ['sidewalk', WALK_ROUTE.sidewalk, WALK_ROUTE.sidewalkCasing], ['walk', WALK_ROUTE.line, WALK_ROUTE.casing],
+    ]);
+  });
+
+  it('merges overlapping and adjacent ranges without duplicating geometry or route length', () => {
+    const data = build({ sidewalkSegments: [{ startIndex: 1, endIndex: 3 }, { startIndex: 0, endIndex: 1 }, { startIndex: 0, endIndex: 2 }] });
+    expect(data.lines.features).toHaveLength(1);
+    expect(data.lines.features[0]).toMatchObject({ geometry: { coordinates: polyline }, properties: { kind: 'sidewalk' } });
+  });
+
+  it('ignores invalid ranges and never shifts a green range after an invalid coordinate', () => {
+    const data = build({ sidewalkSegments: [
+      { startIndex: -1, endIndex: 1 }, { startIndex: 1, endIndex: 4 }, { startIndex: 2, endIndex: 1 },
+      { startIndex: 1.5, endIndex: 2 }, { startIndex: 1, endIndex: 1 },
+    ] });
+    expect(data.lines.features.map((f) => f.properties.kind)).toEqual(['walk']);
+    const broken = build({ polyline: [[NaN, 25], ...polyline.slice(1)], sidewalkSegments: [{ startIndex: 2, endIndex: 3 }] });
+    expect(broken.lines.features.find((f) => f.properties.kind === 'sidewalk')?.geometry.coordinates).toEqual(polyline.slice(2));
+    expect(build({ polyline: [[NaN, 25], ...polyline.slice(1)], sidewalkSegments: [{ startIndex: 0, endIndex: 2 }] })
+      .lines.features.some((f) => f.properties.kind === 'sidewalk')).toBe(false);
+  });
+
+  it('reveals green with the same progress as the rest of the path', () => {
+    const data = build({ sidewalkSegments: [{ startIndex: 1, endIndex: 2 }] });
+    const halfway = revealRouteLines(data.lines, 0.5);
+    expect(halfway.features.map((f) => f.properties.kind)).toEqual(['walk', 'sidewalk']);
+    expect(halfway.features[1].geometry.coordinates[0]).toEqual(polyline[1]);
+    expect(halfway.features[1].geometry.coordinates.at(-1)?.[0]).toBeCloseTo(121.0015, 6);
+  });
+
+  it('retains elevator points without facility line colors overriding blue and green', () => {
+    const detail = { indoor: false, distanceM: null, maxSlopePercent: null, minWidthCm: null };
+    const data = build({ sidewalkSegments: [{ startIndex: 1, endIndex: 3 }], a11ySegments: [
+      { ...detail, feature: 'stairs', startIndex: 0, endIndex: 1 }, { ...detail, feature: 'elevator', startIndex: 2, endIndex: 2 },
+    ] });
+    expect(data.lines.features.map((f) => f.properties.kind)).toEqual(['walk', 'sidewalk']);
+    expect(data.points.features.find((f) => f.properties.kind === 'a11yDot')?.geometry.coordinates).toEqual(polyline[2]);
   });
 });
 
@@ -160,15 +222,45 @@ describe('metro line casing', () => {
   });
   const build = (leg: MetroLeg) => buildRouteLayerData({ ...driveRoute(), legs: [walkLeg, leg] });
 
-  it('gives a coloured metro line and its transfer point a casing in the line ink', () => {
+  it('gives a light metro line a same-hue map casing while keeping its transfer point ink', () => {
     const data = build(metroLeg('NTMC_Y'));
-    expect(data.lines.features.find((f) => f.properties.id === 'leg-1')?.properties).toMatchObject({ color: '#FFDB00', casing: '#1A1A1A' });
+    expect(data.lines.features.find((f) => f.properties.id === 'leg-1')?.properties).toMatchObject({ color: '#FFDB00', casing: '#736300' });
     expect(data.points.features.find((f) => f.properties.kind === 'transfer')?.properties).toMatchObject({ color: '#FFDB00', casing: '#1A1A1A' });
   });
 
-  it('adds no casing to a line without a colour', () => {
+  it('outlines an unknown metro line in its mode color without changing its transfer point', () => {
     const data = build(metroLeg());
-    expect(data.lines.features.find((f) => f.properties.id === 'leg-1')?.properties).not.toHaveProperty('casing');
+    expect(data.lines.features.find((f) => f.properties.id === 'leg-1')?.properties).toMatchObject({ color: MODE.metro.line, casing: routeCasingColor(MODE.metro.line) });
+    expect(data.points.features.find((f) => f.properties.kind === 'transfer')?.properties).not.toHaveProperty('casing');
+  });
+});
+
+describe('unified transit and vehicle lines', () => {
+  type VehicleType = Exclude<RouteLeg['type'], 'WALK'>;
+  const expectedFill: Record<VehicleType, string> = {
+    BUS: MODE.bus.line, METRO: MODE.metro.line, TRA: MODE.tra.line, THSR: MODE.hsr.line, DRIVE: MODE.car.line, MOTORCYCLE: MODE.scooter.line,
+  };
+
+  it.each<VehicleType>(['BUS', 'METRO', 'TRA', 'THSR', 'DRIVE', 'MOTORCYCLE'])('%s preserves its own color and gets a same-hue casing', (type) => {
+    const [route] = adaptRoutePreviewRoutes([{ routeName: 'test', totalMinutes: 10, legs: [{ type, polyline: DRIVE_POLYLINE }] }]);
+    const data = buildRouteLayerData(route);
+    const color = expectedFill[type];
+    expect(data.lines.features[0].properties).toMatchObject({ color, casing: routeCasingColor(color), order: 0 });
+  });
+
+  it.each<DriveLeg['type']>(['DRIVE', 'MOTORCYCLE'])('%s preserves each traffic color with its own casing', (type) => {
+    const data = buildRouteLayerData(driveRoute({ type, trafficSegments: [{ fromIndex: 1, toIndex: 3, trafficLevel: 'heavy', congestionLevel: 4 }] }));
+    expect(data.lines.features.find((f) => f.properties.kind === 'traffic')?.properties).toMatchObject({
+      color: TRAFFIC_LEVEL_COLORS.heavy, casing: routeCasingColor(TRAFFIC_LEVEL_COLORS.heavy), order: 1,
+    });
+  });
+
+  it('does not turn a bus transfer point into a filled marker when adding the bus line casing', () => {
+    const [route] = adaptRoutePreviewRoutes([{ routeName: 'test', totalMinutes: 10, legs: [
+      { type: 'WALK', polyline: DRIVE_POLYLINE.slice(0, 2) }, { type: 'BUS', polyline: DRIVE_POLYLINE.slice(1) },
+    ] }]);
+    const data = buildRouteLayerData(route);
+    expect(data.lines.features.find((f) => f.properties.id === 'leg-1')?.properties.casing).toBeDefined();
     expect(data.points.features.find((f) => f.properties.kind === 'transfer')?.properties).not.toHaveProperty('casing');
   });
 });

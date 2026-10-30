@@ -11,6 +11,7 @@ import {
 import { VOICE_HISTORY_LIMIT } from '@/features/ai/domain';
 import { useAuthStore } from '@/features/auth';
 import { useUserLocationStore } from '@/features/map';
+import { suppressNavigationSpeechForCue } from '@/features/navigation/controller/speechOwnerPort';
 import { getRouteSessionSnapshot, subscribeRouteSession, invalidateRouteConversations, markRouteTokenInvalid } from '@/features/route';
 import { getAuthPort } from '@/shared/api';
 import { getLocationPort } from '@/shared/location';
@@ -160,12 +161,21 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
       gateForward = onFrame;
       return createCapture(b.wrapCaptureFrame((frame) => echoGate.push(frame)));
     },
-    createPlayback: () =>
-      createPlayback({
+    createPlayback: () => {
+      let releaseCueSpeech: (() => void) | null = null;
+      return createPlayback({
         onScheduled: (ms) => echoGate.notePlayback(ms),
         onCleared: () => echoGate.clear(),
         onLevel: (level) => voiceLevels.model.set(level),
-      }),
+        onCueActivity: (active) => {
+          if (active) releaseCueSpeech ??= suppressNavigationSpeechForCue();
+          else {
+            releaseCueSpeech?.();
+            releaseCueSpeech = null;
+          }
+        },
+      });
+    },
     onStatusChange: b.onStatusChange,
     onTranscript: b.onTranscript,
     onTranscriptCorrection: b.onTranscriptCorrection,
@@ -229,7 +239,6 @@ export function startVoiceSession(t: Translate): void {
 export function endVoiceSession(): void {
   controller?.end();
   invalidateRouteConversations();
-  useVoiceStore.setState((state) => reduceSessionBoundary(state));
 }
 
 /** needs-login／error 之後控制器已無東西可拆：UI 的「關閉」只把畫面回到 idle。 */

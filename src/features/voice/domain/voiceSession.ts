@@ -412,6 +412,7 @@ export interface VoiceSocket {
 
 export interface VoicePlayback {
   play(frame: ArrayBuffer): void;
+  playCue?(kind: 'start' | 'end'): Promise<void>;
   clear(): void;
   dispose(): void;
   resume(): Promise<boolean>;
@@ -532,6 +533,9 @@ export class VoiceSessionController {
   private socket: VoiceSocket | null = null;
   private capture: VoiceCapture | null = null;
   private playback: VoicePlayback | null = null;
+  private terminalPlayback: VoicePlayback | null = null;
+  private hasStartedListening = false;
+  private startCuePending = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectDelay = RECONNECT_INITIAL_DELAY_MS;
   private muted = false;
@@ -563,7 +567,7 @@ export class VoiceSessionController {
   }
 
   private responseInProgress(): boolean {
-    return this.modelTurnActive || Boolean(this.playback?.isPlaying?.());
+    return this.startCuePending || this.modelTurnActive || Boolean(this.playback?.isPlaying?.());
   }
 
   private flushRouteChanges(): void {
@@ -617,6 +621,12 @@ export class VoiceSessionController {
   start(): void {
     if (this.sessionActive) return;
 
+    if (this.terminalPlayback) {
+      this.generation += 1;
+      this.terminalPlayback.dispose();
+      this.terminalPlayback = null;
+    }
+
     const identity = this.deps.getAuthIdentity();
     if (identity === null) {
       // §5.7: identity null at start → reject, never build a socket.
@@ -629,6 +639,8 @@ export class VoiceSessionController {
     this.hasRefreshed = false;
     this.ending = null;
     this.hasBeenReady = false;
+    this.hasStartedListening = false;
+    this.startCuePending = false;
     this.muted = false;
     this.reconnectDelay = RECONNECT_INITIAL_DELAY_MS;
 
@@ -638,6 +650,7 @@ export class VoiceSessionController {
       if (this.playback !== playback) return;
       this.finishFarewell();
       this.flushRouteChanges();
+      this.maybePlayStartCue();
     });
     this.playback.onBlocked(() => {
       if (!this.sessionActive || this.ending) return;
@@ -654,7 +667,7 @@ export class VoiceSessionController {
   }
 
   requireLogin(): void {
-    if (!this.sessionActive) return;
+    if (!this.sessionActive && !this.terminalPlayback) return;
     this.terminate({ status: 'needs-login' }, true);
   }
 
@@ -663,6 +676,7 @@ export class VoiceSessionController {
     this.playback?.setMuted?.(muted);
     this.finishFarewell();
     this.flushRouteChanges();
+    this.maybePlayStartCue();
   }
 
   resumePlayback(): void {
@@ -676,6 +690,7 @@ export class VoiceSessionController {
     if (!this.sessionActive || this.ending) return;
     if (ok) {
       this.setStatus({ status: 'listening' });
+      this.maybePlayStartCue();
     }
     // ok === false: remain in playback-blocked, nothing to do.
   }
@@ -780,6 +795,10 @@ export class VoiceSessionController {
    */
   private terminate(status: VoiceStatus, sendEndMessage = false): void {
     this.generation += 1;
+    const gen = this.generation;
+    this.terminalPlayback?.dispose();
+    this.terminalPlayback = null;
+    this.startCuePending = false;
     this.sessionActive = false;
     this.ending = null;
     this.pendingLanguage = false;
@@ -796,7 +815,6 @@ export class VoiceSessionController {
     const playback = this.playback;
     this.playback = null;
     playback?.clear();
-    playback?.dispose();
 
     const socket = this.socket;
     this.socket = null;
@@ -813,7 +831,49 @@ export class VoiceSessionController {
       socket.close();
     }
 
-    this.setStatus(status);
+    if (status.status === 'ended' && this.hasStartedListening && playback?.playCue) {
+      this.terminalPlayback = playback;
+      this.setStatus({ status: 'ending' });
+      void this.finishEndCue(playback, gen);
+    } else {
+      playback?.dispose();
+      this.setStatus(status);
+    }
+  }
+
+  private async finishEndCue(playback: VoicePlayback, gen: number): Promise<void> {
+    try {
+      await playback.playCue?.('end');
+    } catch (error) {
+      logger.warn('[voiceSession] End cue failed', error);
+    } finally {
+      playback.dispose();
+      if (this.terminalPlayback === playback) this.terminalPlayback = null;
+      if (gen === this.generation && !this.sessionActive) this.setStatus({ status: 'ended' });
+    }
+  }
+
+  private maybePlayStartCue(): void {
+    if (this.hasStartedListening || !this.sessionActive || !this.socketReady || !this.capture ||
+      this.contextBlocked || this.ending || this.muted || this.responseInProgress()) return;
+    this.hasStartedListening = true;
+    const playback = this.playback;
+    if (!playback?.playCue) return;
+    this.startCuePending = true;
+    void this.finishStartCue(playback, this.generation);
+  }
+
+  private async finishStartCue(playback: VoicePlayback, gen: number): Promise<void> {
+    try {
+      await playback.playCue?.('start');
+    } catch (error) {
+      logger.warn('[voiceSession] Start cue failed', error);
+    } finally {
+      if (gen === this.generation) {
+        this.startCuePending = false;
+        this.flushRouteChanges();
+      }
+    }
   }
 
   /**
@@ -857,6 +917,7 @@ export class VoiceSessionController {
 
     this.contextSync?.dispose();
     this.socketReady = false;
+    this.startCuePending = false;
     this.modelTurnActive = false;
     this.pendingLanguage = false;
     this.pendingRouteContext = null;
@@ -868,6 +929,7 @@ export class VoiceSessionController {
       (state) => {
         this.contextBlocked = state !== 'synced';
         this.deps.onRouteSyncState?.(state);
+        this.maybePlayStartCue();
       },
     );
     const socket = this.deps.createSocket(this.deps.wsUrl);
@@ -1051,6 +1113,7 @@ export class VoiceSessionController {
           this.setStatus({ status: 'listening' });
         }
         this.flushRouteChanges();
+        this.maybePlayStartCue();
         return;
       }
       case 'turn.complete': {
@@ -1060,6 +1123,7 @@ export class VoiceSessionController {
           this.setStatus({ status: 'listening' });
         }
         this.flushRouteChanges();
+        this.maybePlayStartCue();
         return;
       }
       case 'error': {
@@ -1153,11 +1217,13 @@ export class VoiceSessionController {
     }
     this.capture = capture;
     this.setStatus({ status: 'listening' });
+    this.maybePlayStartCue();
   }
 
   private sendAudio(gen: number, frame: ArrayBuffer): void {
     if (gen !== this.generation) return; // stale capture, discarded
     if (this.ending || this.contextBlocked) return;
+    if (this.startCuePending) return;
     if (this.muted) return; // muted: discard microphone frames
     // §6: never send binary before `ready` — only listening/model-speaking
     // are reachable post-ready states in which uplink audio is valid.
@@ -1185,6 +1251,7 @@ export class VoiceSessionController {
 
     this.generation += 1;
     this.socketReady = false;
+    this.startCuePending = false;
     this.contextSync?.dispose();
     this.contextBlocked = Boolean(this.deps.getRouteConversation);
     // §6: any close, current-generation, immediately releases mic + playback.

@@ -8,7 +8,8 @@ import { useAuthStore } from '@/features/auth';
 import { appendVoiceTurns } from '@/features/ai';
 import { useUserLocationStore } from '@/features/map';
 import { configureAuthState, refreshAccessToken, resetRefreshLaneForTests } from '@/features/auth/domain/authRefresh';
-import type { VoiceSocket } from '@/features/voice/domain/voiceSession';
+import { releaseVoiceAudio } from '@/features/voice/audio/audioSession';
+import type { VoicePlayback, VoiceSocket } from '@/features/voice/domain/voiceSession';
 
 const mockSockets: (VoiceSocket & { sent: (string | ArrayBuffer)[] })[] = [];
 const mockNavigate = jest.fn();
@@ -16,6 +17,7 @@ const mockDismiss = jest.fn();
 const mockApply = jest.fn();
 const mockCaptureStop = jest.fn();
 let mockCaptureFrame: (frame: ArrayBuffer) => void;
+let mockPlayCue: VoicePlayback['playCue'];
 const mockPlayback = { play: jest.fn(), clear: jest.fn(), dispose: jest.fn(), resume: jest.fn(async () => true), onBlocked: jest.fn(), setMuted: jest.fn(), isPlaying: jest.fn(() => false), onDrained: jest.fn() };
 const mockRouteState = { selectionGeneration: 1, selectRoute: null, navigationRoute: null, isLoading: false, invalidRouteTokens: [] };
 const mockRouteListeners: ((state: typeof mockRouteState, previous: typeof mockRouteState) => void)[] = [];
@@ -46,7 +48,7 @@ jest.mock('@/features/ai', () => ({
 jest.mock('@/shared/api', () => ({ getAuthPort: () => ({ getSession: () => jest.requireMock('@/features/auth').useAuthStore.getState().session, refresh: () => mockRefresh() }) }));
 jest.mock('@/shared/i18n', () => ({ __esModule: true, default: { on: jest.fn() }, getAppLanguage: () => 'zh-TW' }));
 jest.mock('@/features/voice/audio/audioCapture', () => ({ createCapture: async (onFrame: (frame: ArrayBuffer) => void) => { mockCaptureFrame = onFrame; return { stop: mockCaptureStop }; } }));
-jest.mock('@/features/voice/audio/audioPlayback', () => ({ createPlayback: () => mockPlayback }));
+jest.mock('@/features/voice/audio/audioPlayback', () => ({ createPlayback: () => ({ ...mockPlayback, playCue: mockPlayCue }) }));
 jest.mock('@/features/voice/audio/audioSession', () => ({ beginVoiceAudio: jest.fn(), releaseVoiceAudio: jest.fn() }));
 jest.mock('@/features/voice/store/voiceLevels', () => ({ voiceLevels: { mic: { set: jest.fn() }, model: { set: jest.fn() } } }));
 jest.mock('@/features/voice/controller/voiceNavigationBridge', () => ({
@@ -81,6 +83,7 @@ function toolResult(result: unknown, extra = {}) { event({ type: 'tool_result', 
 let unregister: () => void;
 beforeEach(() => {
   dismissVoiceSession(); jest.clearAllMocks(); mockSockets.length = 0; mockRouteState.selectionGeneration = 1; mockRouteState.selectRoute = null;
+  mockPlayCue = undefined;
   useAuthStore.setState({ user: { _id: 'user-a' } as never, session: { accessToken: 'token-a' } });
   useUserLocationStore.setState({ position: { lat: 25, lng: 121 } });
   mockPermission.mockResolvedValue('denied');
@@ -236,6 +239,25 @@ it('hands the pre-terminal mute preference to navigation before the voice UI res
   endVoiceSession();
   expect(useVoiceStore.getState().isMuted).toBe(false);
   expect(onVoiceSessionTerminal).toHaveBeenLastCalledWith({ muted: true, reason: 'ended' });
+});
+
+it('holds audio release and navigation handoff until the end cue finishes, preserving mute', async () => {
+  let finishEnd = () => {};
+  mockPlayCue = jest.fn(kind => kind === 'start' ? Promise.resolve() : new Promise<void>(resolve => { finishEnd = resolve; }));
+  await speaking();
+  toggleVoiceMute();
+  endVoiceSession();
+  expect(useVoiceStore.getState().status.status).toBe('ending');
+  expect(useVoiceStore.getState().isMuted).toBe(true);
+  expect(releaseVoiceAudio).not.toHaveBeenCalled();
+  expect(onVoiceSessionTerminal).not.toHaveBeenCalled();
+  expect(mockPlayback.dispose).not.toHaveBeenCalled();
+  finishEnd(); await Promise.resolve(); await Promise.resolve();
+  expect(useVoiceStore.getState().status.status).toBe('ended');
+  expect(useVoiceStore.getState().isMuted).toBe(false);
+  expect(releaseVoiceAudio).toHaveBeenCalledTimes(1);
+  expect(mockPlayback.dispose).toHaveBeenCalledTimes(1);
+  expect(onVoiceSessionTerminal).toHaveBeenCalledWith({ muted: true, reason: 'ended' });
 });
 
 it.each(['findA11yPlaces', 'trackBuses'])('keeps only the latest successful %s snapshot on the live voice view while preserving chat history', async name => {

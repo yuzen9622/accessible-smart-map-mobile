@@ -2,6 +2,7 @@ import type { PriorTurn } from '@/features/ai/domain';
 import { createEchoGate } from '../echoGate';
 import {
   type VoiceCapture,
+  type VoicePlayback,
   type VoiceNavigationResumeState,
   VoiceSessionController,
   type VoiceSessionDeps,
@@ -72,6 +73,7 @@ function createHarness(opts?: {
   conversation?: VoiceSessionDeps['getRouteConversation'];
   onRouteSyncState?: VoiceSessionDeps['onRouteSyncState'];
   onToolEvent?: VoiceSessionDeps['onToolEvent'];
+  playCue?: VoicePlayback['playCue'];
 }) {
   const sockets: FakeSocket[] = [];
   const captureCalls: CaptureCall[] = [];
@@ -125,6 +127,7 @@ function createHarness(opts?: {
   let blockedCb: (() => void) | null = null;
   let drainedCb: (() => void) | undefined;
   const playback = {
+    playCue: opts?.playCue,
     play: jest.fn(),
     isPlaying: jest.fn(() => false),
     onDrained: jest.fn((cb: () => void) => { drainedCb = cb; }),
@@ -206,6 +209,151 @@ async function flush(): Promise<void> {
 function readyMessage(): string {
   return JSON.stringify({ type: 'session.ready' });
 }
+
+function cueHarness(conversation?: VoiceSessionDeps['getRouteConversation'], language?: VoiceSessionDeps['getLanguage']) {
+  const cues: { kind: 'start' | 'end'; resolve(): void; reject(error: unknown): void }[] = [];
+  const playCue = jest.fn((kind: 'start' | 'end') => new Promise<void>((resolve, reject) => {
+    cues.push({ kind, resolve, reject });
+  }));
+  return { ...createHarness({ playCue, conversation, language }), cues, playCue };
+}
+
+describe('voice session cues', () => {
+  it('waits for a successful microphone, gates cue echo, and never repeats for ordinary listening transitions', async () => {
+    const h = cueHarness();
+    h.controller.start();
+    const s = h.sockets[0];
+    s.triggerOpen(); s.triggerMessage(readyMessage());
+    expect(h.playCue).not.toHaveBeenCalled();
+    h.captureCalls[0].resolve(); await flush();
+    expect(h.cues.map(cue => cue.kind)).toEqual(['start']);
+    const frame = new ArrayBuffer(4);
+    h.captureCalls[0].onFrame(frame);
+    expect(s.sent).not.toContain(frame);
+    h.cues[0].resolve(); await flush();
+    h.captureCalls[0].onFrame(frame);
+    expect(s.sent).toContain(frame);
+    s.triggerMessage(new ArrayBuffer(8));
+    s.triggerMessage(JSON.stringify({ type: 'turn.complete' }));
+    s.triggerMessage(JSON.stringify({ type: 'interrupted' }));
+    h.controller.resumePlayback(); h.controller.start(); await flush();
+    expect(h.playCue).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([true, false])('waits for both route acknowledgement and microphone, captureFirst=%s', async captureFirst => {
+    const h = cueHarness(() => ({ routeContractVersion: 1, routeContext: null }));
+    h.controller.start();
+    const s = h.sockets[0]; s.triggerOpen();
+    s.triggerMessage(JSON.stringify({ type: 'session.ready', capabilities: { aiRouteContractVersion: 1, routeContextSync: true } }));
+    const ack = () => s.triggerMessage(JSON.stringify({ type: 'route.context.ack', requestId: 'selection-1', selectionVersion: 1, ok: true, routeId: null, navigationId: null, routeVersion: null }));
+    if (captureFirst) { h.captureCalls[0].resolve(); await flush(); } else ack();
+    expect(h.playCue).not.toHaveBeenCalled();
+    if (captureFirst) ack(); else { h.captureCalls[0].resolve(); await flush(); }
+    expect(h.cues.map(cue => cue.kind)).toEqual(['start']);
+  });
+
+  it('does not signal success while route context has timed out', async () => {
+    const h = cueHarness(() => ({ routeContractVersion: 1, routeContext: { routeToken: 'route-a' } }));
+    h.controller.start(); await bringToListening(h);
+    await jest.advanceTimersByTimeAsync(10_001);
+    expect(h.playCue).not.toHaveBeenCalled();
+    h.controller.end();
+    expect(h.playCue).not.toHaveBeenCalled();
+  });
+
+  it.each(['reject', 'cancel'] as const)('never plays success or normal-end cues for a microphone that did not open: %s', async reason => {
+    const h = cueHarness(); h.controller.start();
+    h.sockets[0].triggerOpen(); h.sockets[0].triggerMessage(readyMessage());
+    if (reason === 'reject') h.captureCalls[0].reject(new Error('permission denied'));
+    else { h.controller.end(); h.captureCalls[0].resolve(); }
+    await flush(); h.controller.end();
+    expect(h.playCue).not.toHaveBeenCalled();
+  });
+
+  it('does not replay the start cue after reconnect or let a stale cue block the new microphone', async () => {
+    const h = cueHarness(); h.controller.start(); await bringToListening(h);
+    h.sockets[0].triggerClose(1006);
+    await jest.advanceTimersByTimeAsync(1000);
+    await bringToListening(h, 1);
+    h.cues[0].resolve(); await flush();
+    const frame = new ArrayBuffer(4); h.captureCalls[1].onFrame(frame);
+    expect(h.sockets[1].sent).toContain(frame);
+    expect(h.cues.map(cue => cue.kind)).toEqual(['start']);
+  });
+
+  it('recovers uplink when cue playback fails', async () => {
+    const h = cueHarness(); h.controller.start(); await bringToListening(h);
+    h.cues[0].reject(new Error('speaker unavailable')); await flush();
+    const frame = new ArrayBuffer(4); h.captureCalls[0].onFrame(frame);
+    expect(h.sockets[0].sent).toContain(frame);
+    expect(h.lastStatus()?.status).toBe('listening');
+  });
+
+  it('waits for the start cue before rebuilding for a language change', async () => {
+    let language: 'zh-TW' | 'en' = 'zh-TW';
+    const h = cueHarness(undefined, () => language);
+    h.controller.start(); await bringToListening(h);
+    language = 'en'; h.controller.syncLanguage();
+    expect(h.sockets).toHaveLength(1);
+    h.cues[0].resolve(); await flush();
+    expect(h.sockets).toHaveLength(2);
+    await bringToListening(h, 1);
+    expect(h.cues.map(cue => cue.kind)).toEqual(['start']);
+    const frame = new ArrayBuffer(4); h.captureCalls[1].onFrame(frame);
+    expect(h.sockets[1].sent).toContain(frame);
+  });
+
+  it('stops microphone and socket immediately, then disposes and publishes ended only after one end cue', async () => {
+    const h = cueHarness(); h.controller.start(); await bringToListening(h);
+    h.cues[0].resolve(); await flush();
+    h.controller.end(); h.controller.end();
+    expect(h.captureCalls[0].stop).toHaveBeenCalledTimes(1);
+    expect(h.sockets[0].closed).toBe(true);
+    expect(h.cues.map(cue => cue.kind)).toEqual(['start', 'end']);
+    expect(h.lastStatus()?.status).toBe('ending');
+    expect(h.playback.dispose).not.toHaveBeenCalled();
+    h.cues[1].resolve(); await flush();
+    expect(h.playback.dispose).toHaveBeenCalledTimes(1);
+    expect(h.lastStatus()?.status).toBe('ended');
+  });
+
+  it('waits for the farewell queue to drain before its end cue', async () => {
+    const h = cueHarness(); h.controller.start(); await bringToListening(h);
+    h.cues[0].resolve(); await flush();
+    const s = h.sockets[0];
+    s.triggerMessage(JSON.stringify({ type: 'session.ending' }));
+    s.triggerMessage(new ArrayBuffer(8));
+    h.playback.isPlaying.mockReturnValue(true); s.triggerClose(1000);
+    expect(h.playCue).toHaveBeenCalledTimes(1);
+    h.playback.isPlaying.mockReturnValue(false); h.playback.drain(); h.playback.drain();
+    expect(h.cues.map(cue => cue.kind)).toEqual(['start', 'end']);
+    h.cues[1].resolve(); await flush();
+    expect(h.lastStatus()?.status).toBe('ended');
+  });
+
+  it.each(['error', 'needs-login'] as const)('does not play a normal-end cue for %s', async reason => {
+    const h = cueHarness(); h.controller.start(); await bringToListening(h);
+    h.cues[0].resolve(); await flush();
+    if (reason === 'error') h.sockets[0].triggerMessage(JSON.stringify({ type: 'error', code: 'LIVE_SESSION_ENDED' }));
+    else h.controller.requireLogin();
+    h.controller.end();
+    expect(h.cues.map(cue => cue.kind)).toEqual(['start']);
+    expect(h.lastStatus()?.status).toBe(reason);
+  });
+
+  it('does not let an old end cue overwrite a restarted conversation', async () => {
+    const h = cueHarness(); h.controller.start(); await bringToListening(h);
+    h.cues[0].resolve(); await flush(); h.controller.end();
+    h.controller.start(); await bringToListening(h, 1);
+    h.cues[1].resolve(); await flush();
+    expect(h.lastStatus()?.status).toBe('listening');
+    expect(h.cues.map(cue => cue.kind)).toEqual(['start', 'end', 'start']);
+    const frame = new ArrayBuffer(4); h.captureCalls[1].onFrame(frame);
+    expect(h.sockets[1].sent).not.toContain(frame);
+    h.cues[2].resolve(); await flush(); h.captureCalls[1].onFrame(frame);
+    expect(h.sockets[1].sent).toContain(frame);
+  });
+});
 
 /** Drive a harness all the way to "listening": open -> ready -> capture resolves. */
 async function bringToListening(

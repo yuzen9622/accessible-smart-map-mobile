@@ -42,7 +42,7 @@ import {
   observeLocalNavigationGeometry,
   replaceNavigationGeometryRuntime,
 } from './navigationGeometryRuntime';
-import { getNavigationSpeechOwner } from './speechOwnerPort';
+import { getNavigationSpeechOwner, isNavigationSpeechSuppressed, subscribeNavigationSpeechSuppression } from './speechOwnerPort';
 import { createTransitRideRuntime, type TransitRideDeps } from './transitRideRuntime';
 
 /**
@@ -121,6 +121,18 @@ interface ManeuverAnnouncer {
   prefix: string | null;
 }
 
+interface DeferredSpeech {
+  text: string;
+  interrupt: boolean;
+  route: AccessibleRoute | null;
+  instructions: readonly NavInstruction[];
+  stepIndex: number;
+  language: 'zh-TW' | 'en';
+  source: ReturnType<typeof useNavStore.getState>['navigationSource'];
+  arrived: boolean;
+  resumedAfterCue: boolean;
+}
+
 function freshAnnouncer(): ManeuverAnnouncer {
   return {
     instructions: null,
@@ -145,6 +157,8 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
   let running = false;
   let instructionsAbort: AbortController | null = null;
   let positionQueued = false;
+  let deferredSpeech: DeferredSpeech | null = null;
+  let lastSpeech: DeferredSpeech | null = null;
 
   // 方位工作狀態（Web 的 compassRef／smoothRef／lastHeadingTs）。
   let compass: number | null = null;
@@ -169,15 +183,52 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
    * 先 `stop()` 會把開場那句切掉。只有使用者手動切步驟（預覽）才打斷，念他剛選的那一步。
    */
   function speak(text: string, interrupt = false): void {
-    if (useNavStore.getState().instructionError || loadedLanguage !== deps.language()) return;
-    // 每次都重新讀開關：播報可能在使用者剛切換之後觸發。
-    const maySpeak = shouldSpeakLocally({
+    const nav = useNavStore.getState();
+    const speech: DeferredSpeech = {
+      text, interrupt, route: currentRoute(), instructions: nav.instructions,
+      stepIndex: nav.currentStepIndex, language: deps.language(), source: nav.navigationSource,
+      arrived: nav.arrived, resumedAfterCue: false,
+    };
+    if (!isCurrentSpeech(speech)) return;
+    if (isNavigationSpeechSuppressed()) {
+      deferredSpeech = speech;
+      return;
+    }
+    deliverSpeech(speech);
+  }
+
+  function isCurrentSpeech(speech: DeferredSpeech): boolean {
+    const nav = useNavStore.getState();
+    return running && !nav.instructionError && loadedLanguage === deps.language()
+      && speech.language === deps.language() && speech.route === currentRoute()
+      && speech.instructions === nav.instructions && speech.stepIndex === nav.currentStepIndex
+      && speech.source === nav.navigationSource && speech.arrived === nav.arrived
+      && shouldSpeakLocally({
       geminiOwnsSpeech: geminiOwnsSpeech(),
-      localVoiceEnabled: useNavStore.getState().voiceEnabled,
+      localVoiceEnabled: nav.voiceEnabled,
     });
-    if (!maySpeak) return;
-    if (interrupt) deps.speech.stop();
-    deps.speech.speak(text, deps.language());
+  }
+
+  function deliverSpeech(speech: DeferredSpeech): void {
+    if (!isCurrentSpeech(speech)) return;
+    if (speech.interrupt) deps.speech.stop();
+    lastSpeech = speech;
+    deps.speech.speak(speech.text, speech.language);
+  }
+
+  function onSpeechSuppressed(suppressed: boolean): void {
+    if (suppressed) {
+      // 被短音效切斷的目前提醒最多接回一次；期間更新的提醒會取代它。
+      if (lastSpeech && !lastSpeech.resumedAfterCue && isCurrentSpeech(lastSpeech)) {
+        deferredSpeech = { ...lastSpeech, resumedAfterCue: true };
+      }
+      lastSpeech = null;
+      deps.speech.stop();
+      return;
+    }
+    const speech = deferredSpeech;
+    deferredSpeech = null;
+    if (speech) deliverSpeech(speech);
   }
 
   function currentRoute(): AccessibleRoute | null {
@@ -569,6 +620,8 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       resetHeading();
       spokenAdvisoryKeys.clear();
       announcer = freshAnnouncer();
+      deferredSpeech = null;
+      lastSpeech = null;
       const location = useUserLocationStore.getState();
       location.setNavigationAccuracy(true);
       cleanups.push(() => useUserLocationStore.getState().setNavigationAccuracy(false));
@@ -576,6 +629,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       cleanups.push(subscribeAnnouncements());
       cleanups.push(subscribeSourceChanges());
       cleanups.push(subscribeLocation());
+      cleanups.push(subscribeNavigationSpeechSuppression(onSpeechSuppressed));
       cleanups.push(transit.start());
       cleanups.push(
         subscribeRouteSession((state, previous) => {
@@ -639,6 +693,8 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     },
     stop() {
       running = false;
+      deferredSpeech = null;
+      lastSpeech = null;
       abortInstructions();
       if (trailingHeading) clearTimeout(trailingHeading);
       trailingHeading = null;

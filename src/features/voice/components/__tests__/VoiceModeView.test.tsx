@@ -78,6 +78,18 @@ it('shows the farewell state without pretending the microphone is listening', as
   expect(view.queryByText('聆聽中…')).toBeNull();
 });
 
+it('reopens an existing voice panel without starting another session or replaying its cue', async () => {
+  useVoiceStore.setState({ status: { status: 'listening' } });
+  const first = await render(<VoiceModeView />);
+  await first.unmount();
+  useVoiceStore.setState({ viewMode: 'pill' });
+  useVoiceStore.setState({ viewMode: 'panel' });
+  const reopened = await render(<VoiceModeView />);
+  expect(startVoiceSession).not.toHaveBeenCalled();
+  expect(useVoiceStore.getState().status.status).toBe('listening');
+  await reopened.unmount();
+});
+
 it('does not reconnect voice when the user has not consented to sharing data with AI', async () => {
   mockLanguage = 'zh-TW';
   jest.mocked(ensureAiDataConsent).mockResolvedValue(false);

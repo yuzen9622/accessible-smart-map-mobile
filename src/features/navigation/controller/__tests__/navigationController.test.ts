@@ -6,7 +6,7 @@ import type { VisibilitySource } from '@/shared/polling';
 
 import { useNavStore } from '../../store/navStore';
 import { createNavigationController, type NavigationControllerDeps } from '../navigationController';
-import { configureNavigationSpeechOwner } from '../speechOwnerPort';
+import { configureNavigationSpeechOwner, suppressNavigationSpeechForCue } from '../speechOwnerPort';
 import { fakeUserLocationStore } from '../testing/fakeMap';
 import { resetNavHarness, useMapStore } from '../testing/navHarness';
 import { flushPromises } from '@/shared/testing/flushPromises';
@@ -394,6 +394,150 @@ describe('NavigationController', () => {
     notify(true);
     expect(speech.stop).toHaveBeenCalledTimes(1);
     controller.stop();
+  });
+
+  it('stops local speech for a cue and resumes the newest relevant announcement', async () => {
+    fix(24.1477, 120.6736);
+    const { controller, speech } = setup();
+    controller.start();
+    await flush();
+    expect(speech.speak).toHaveBeenCalledWith('出發', 'zh-TW');
+    speech.speak.mockClear();
+    speech.stop.mockClear();
+    const release = suppressNavigationSpeechForCue();
+    try {
+      expect(speech.stop).toHaveBeenCalledTimes(1);
+      useNavStore.getState().selectPreviewStep(1);
+      expect(speech.speak).not.toHaveBeenCalled();
+      expect(useNavStore.getState()).toMatchObject({ navigationSource: 'local', voiceEnabled: true });
+
+      useNavStore.getState().selectPreviewStep(2);
+      release();
+      expect(speech.speak.mock.calls).toEqual([['左轉', 'zh-TW']]);
+    } finally {
+      release();
+      controller.stop();
+    }
+  });
+
+  it('honors a cue that began before navigation and removes its listener when navigation stops', async () => {
+    fix(24.1477, 120.6736);
+    const release = suppressNavigationSpeechForCue();
+    const { controller, speech } = setup();
+    try {
+      controller.start();
+      await flush();
+      expect(speech.stop).toHaveBeenCalledTimes(1);
+      expect(speech.speak).not.toHaveBeenCalled();
+
+      release();
+      expect(speech.speak.mock.calls).toEqual([['出發', 'zh-TW']]);
+      useNavStore.getState().selectPreviewStep(1);
+      expect(speech.speak).toHaveBeenLastCalledWith('右轉', 'zh-TW');
+    } finally {
+      release();
+      controller.stop();
+    }
+    speech.stop.mockClear();
+    const releaseAfterStop = suppressNavigationSpeechForCue();
+    try {
+      expect(speech.stop).not.toHaveBeenCalled();
+    } finally {
+      releaseAfterStop();
+    }
+  });
+
+  it('retains the latest live turn reminder even after the announcement stage is marked spoken', async () => {
+    fix(25.05, 121.5);
+    const { controller, speech } = setup({
+      maneuverAheadText: (meters, instruction) => `${Math.round(meters / 10) * 10}m後${instruction}`,
+    });
+    controller.start();
+    await flush();
+    speech.speak.mockClear();
+    const release = suppressNavigationSpeechForCue();
+    try {
+      fix(25.05, 121.5017);
+      await flush();
+      fix(25.05, 121.50195);
+      await flush();
+      expect(speech.speak).not.toHaveBeenCalled();
+      release();
+      expect(speech.speak.mock.calls).toEqual([['右轉', 'zh-TW']]);
+      fix(25.05, 121.502);
+      await flush();
+      expect(speech.speak).toHaveBeenCalledTimes(1);
+    } finally {
+      release();
+      controller.stop();
+    }
+  });
+
+  it('retains the arrival announcement reached during a cue', async () => {
+    fix(25.05, 121.5);
+    const { controller, speech } = setup();
+    controller.start();
+    await flush();
+    speech.speak.mockClear();
+    const release = suppressNavigationSpeechForCue();
+    try {
+      fix(25.05, 121.50501);
+      await flush();
+      expect(useNavStore.getState().arrived).toBe(true);
+      expect(speech.speak).not.toHaveBeenCalled();
+      release();
+      expect(speech.speak.mock.calls).toEqual([['已抵達目的地', 'zh-TW']]);
+    } finally {
+      release();
+      controller.stop();
+    }
+  });
+
+  it.each(['route', 'step', 'language', 'muted', 'owner', 'stopped'] as const)(
+    'discards a buffered reminder when %s changes before the cue finishes', async boundary => {
+      fix(24.1477, 120.6736);
+      let language: 'zh-TW' | 'en' = 'zh-TW';
+      let geminiOwns = false;
+      const { controller, speech } = setup({ language: () => language, geminiOwnsSpeech: () => geminiOwns });
+      controller.start();
+      await flush();
+      speech.speak.mockClear();
+      const release = suppressNavigationSpeechForCue();
+      try {
+        useNavStore.getState().selectPreviewStep(1);
+        if (boundary === 'route') replaceNavigationRoute(makeRoute(2));
+        if (boundary === 'step') useNavStore.setState({ currentStepIndex: 2, stepMode: 'live' });
+        if (boundary === 'language') language = 'en';
+        if (boundary === 'muted') useNavStore.setState({ voiceEnabled: false });
+        if (boundary === 'owner') geminiOwns = true;
+        if (boundary === 'stopped') controller.stop();
+        release();
+        expect(speech.speak).not.toHaveBeenCalled();
+      } finally {
+        release();
+        controller.stop();
+      }
+    },
+  );
+
+  it('resumes an interrupted current reminder at most once across repeated cues', async () => {
+    fix(24.1477, 120.6736);
+    const { controller, speech } = setup();
+    controller.start();
+    await flush();
+    speech.speak.mockClear();
+    const releaseFirst = suppressNavigationSpeechForCue();
+    releaseFirst();
+    expect(speech.speak.mock.calls).toEqual([['出發', 'zh-TW']]);
+    const releaseSecond = suppressNavigationSpeechForCue();
+    try {
+      releaseSecond();
+      expect(speech.speak).toHaveBeenCalledTimes(1);
+    } finally {
+      releaseFirst();
+      releaseSecond();
+      controller.stop();
+    }
   });
 
   it('writes the foreground fix into the shared store, which drives progress', async () => {

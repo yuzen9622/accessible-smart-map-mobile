@@ -30,6 +30,30 @@ const localOnly: NavigationSpeechOwner = {
 let owner: NavigationSpeechOwner = localOnly;
 const listeners = new Set<() => void>();
 let unsubscribeOwner: (() => void) | null = null;
+const cueHolds = new Set<symbol>();
+const suppressionListeners = new Set<(suppressed: boolean) => void>();
+
+export function isNavigationSpeechSuppressed(): boolean {
+  return cueHolds.size > 0;
+}
+
+/** 短提示音暫借喇叭；不改導航來源或 HUD 的靜音控制對象。 */
+export function suppressNavigationSpeechForCue(): () => void {
+  const hold = Symbol('voice-cue');
+  const wasSuppressed = isNavigationSpeechSuppressed();
+  cueHolds.add(hold);
+  if (!wasSuppressed) for (const listener of suppressionListeners) listener(true);
+  return () => {
+    if (!cueHolds.delete(hold) || isNavigationSpeechSuppressed()) return;
+    for (const listener of suppressionListeners) listener(false);
+  };
+}
+
+export function subscribeNavigationSpeechSuppression(onChange: (suppressed: boolean) => void): () => void {
+  suppressionListeners.add(onChange);
+  onChange(isNavigationSpeechSuppressed());
+  return () => suppressionListeners.delete(onChange);
+}
 
 function notify(): void {
   for (const listener of listeners) listener();

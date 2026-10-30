@@ -1,6 +1,7 @@
-import { AudioContext, type AnalyserNode, type AudioBufferQueueSourceNode } from 'react-native-audio-api';
+import { AudioContext, type AnalyserNode, type AudioBufferQueueSourceNode, type AudioBufferSourceNode } from 'react-native-audio-api';
 
 import { floatLevel } from '../domain/audioLevel';
+import { ECHO_TAIL_MS } from '../domain/echoGate';
 import { pcm16ToFloat32 } from '../domain/pcm';
 import type { VoicePlayback } from '../domain/voiceSession';
 import { trackAudioTeardown } from './audioSession';
@@ -14,6 +15,11 @@ const METER_INTERVAL_MS = 33;
 const METER_EPSILON = 0.01;
 /** 連續這麼多次取樣都是靜音（約 2 秒，避開句間停頓）就停掉取樣；下一段音訊排進來時再開。 */
 const METER_IDLE_TICKS = 60;
+const CUE_TIMEOUT_MS = 2000;
+const CUE_SOURCES: Record<'start' | 'end', number> = {
+  start: require('../../../../assets/sounds/assistant-start.wav'),
+  end: require('../../../../assets/sounds/assistant-end.wav'),
+};
 
 /**
  * `VoicePlayback` 原生實作（取代 Web `lib/voice/audioPlayback.ts`）：`AudioBufferQueueSourceNode` 依序無縫排隊。
@@ -27,6 +33,8 @@ export interface PlaybackObserver {
   onCleared?(): void;
   /** 喇叭實際輸出的音量 [0, 1]（AnalyserNode 取樣，與聲音同步）；停止播放時回報 0。 */
   onLevel?(level: number): void;
+  /** 提示音含解碼與尾音期間，暫停其他本機播報。 */
+  onCueActivity?(active: boolean): void;
 }
 
 export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
@@ -36,6 +44,9 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
   let meter: ReturnType<typeof setInterval> | null = null;
   let lastLevel = 0;
   let muted = false;
+  let disposed = false;
+  let cue: { cancel(): void } | null = null;
+  const bufferedFrames: ArrayBuffer[] = [];
   const pendingBuffers = new Set<string>();
   let onDrained: (() => void) | undefined;
 
@@ -80,9 +91,13 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
     return node;
   };
 
+  const ensureContext = (): AudioContext => {
+    context ??= new AudioContext({ sampleRate: PLAYBACK_RATE });
+    return context;
+  };
+
   const ensureQueue = (): { ctx: AudioContext; node: AudioBufferQueueSourceNode } => {
-    const ctx = context ?? new AudioContext({ sampleRate: PLAYBACK_RATE });
-    context = ctx;
+    const ctx = ensureContext();
     if (queue) return { ctx, node: queue };
     const node = ctx.createBufferQueueSource();
     node.onBufferEnded = ({ bufferId }) => {
@@ -99,7 +114,8 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
     return { ctx, node };
   };
 
-  const clear = () => {
+  const clearModel = () => {
+    bufferedFrames.length = 0;
     observer.onCleared?.();
     stopMeter();
     const node = queue;
@@ -115,25 +131,98 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
     }
   };
 
+  const clear = () => {
+    clearModel();
+    cue?.cancel();
+  };
+
+  const play = (frame: ArrayBuffer) => {
+    if (disposed || muted || frame.byteLength < 2) return;
+    if (cue) {
+      bufferedFrames.push(frame);
+      return;
+    }
+    try {
+      const samples = pcm16ToFloat32(frame);
+      const { ctx, node } = ensureQueue();
+      const buffer = ctx.createBuffer(1, samples.length, PLAYBACK_RATE);
+      buffer.copyToChannel(samples, 0);
+      pendingBuffers.add(node.enqueueBuffer(buffer));
+      if (analyser) startMeter(analyser);
+      observer.onScheduled?.((samples.length / PLAYBACK_RATE) * 1000);
+    } catch (error) {
+      logger.warn('[voice] play frame failed', error);
+    }
+  };
+
+  const playCue = (kind: 'start' | 'end'): Promise<void> => {
+    if (disposed) return Promise.resolve();
+    cue?.cancel();
+    return new Promise<void>((resolve) => {
+      let source: AudioBufferSourceNode | null = null;
+      let tail: ReturnType<typeof setTimeout> | null = null;
+      let finished = false;
+      const finish = (flush: boolean) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(deadline);
+        if (tail !== null) clearTimeout(tail);
+        if (source) {
+          source.onEnded = null;
+          try { source.stop(); } catch (error) {
+            logger.warn('[voice] stop cue failed', error);
+          }
+          try { source.disconnect(); } catch (error) {
+            logger.warn('[voice] disconnect cue failed', error);
+          }
+        }
+        if (cue === currentCue) cue = null;
+        observer.onCueActivity?.(false);
+        resolve();
+        if (flush) {
+          const frames = bufferedFrames.splice(0);
+          for (const frame of frames) play(frame);
+        }
+      };
+      const currentCue = { cancel: () => finish(false) };
+      cue = currentCue;
+      const deadline = setTimeout(() => {
+        logger.warn('[voice] cue timed out', kind);
+        finish(true);
+      }, CUE_TIMEOUT_MS);
+      observer.onCueActivity?.(true);
+      const run = async () => {
+        const ctx = ensureContext();
+        const buffer = await ctx.decodeAudioData(CUE_SOURCES[kind]);
+        if (finished || disposed || cue !== currentCue) return;
+        source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.onEnded = () => {
+          if (finished || tail !== null) return;
+          if (source) source.onEnded = null;
+          if (kind === 'start') tail = setTimeout(() => finish(true), ECHO_TAIL_MS);
+          else finish(true);
+        };
+        source.start(0, 0);
+        observer.onScheduled?.(buffer.duration * 1000);
+      };
+      void run().catch((error: unknown) => {
+        if (finished) return;
+        logger.warn('[voice] play cue failed', error);
+        finish(true);
+      });
+    });
+  };
+
   return {
-    play(frame) {
-      if (muted || frame.byteLength < 2) return;
-      try {
-        const samples = pcm16ToFloat32(frame);
-        const { ctx, node } = ensureQueue();
-        const buffer = ctx.createBuffer(1, samples.length, PLAYBACK_RATE);
-        buffer.copyToChannel(samples, 0);
-        pendingBuffers.add(node.enqueueBuffer(buffer));
-        if (analyser) startMeter(analyser);
-        observer.onScheduled?.((samples.length / PLAYBACK_RATE) * 1000);
-      } catch (error) {
-        logger.warn('[voice] play frame failed', error);
-      }
-    },
+    play,
+    playCue,
     clear,
-    isPlaying: () => pendingBuffers.size > 0,
+    isPlaying: () => pendingBuffers.size > 0 || bufferedFrames.length > 0,
     onDrained(callback) { onDrained = callback; },
     dispose() {
+      disposed = true;
       clear();
       analyser = null;
       const ctx = context;
@@ -153,7 +242,7 @@ export function createPlayback(observer: PlaybackObserver = {}): VoicePlayback {
     },
     setMuted(value) {
       muted = value;
-      if (value) clear();
+      if (value) clearModel();
     },
   };
 }

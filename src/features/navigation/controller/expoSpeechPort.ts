@@ -8,7 +8,12 @@ import type { SpeechPort } from './navigationController';
  */
 export const expoSpeechPort: SpeechPort = {
   speak(text, language) {
-    Speech.speak(text, { language: language === 'en' ? 'en-US' : 'zh-TW', rate: 0.9 });
+    Speech.speak(text, {
+      language: language === 'en' ? 'en-US' : 'zh-TW',
+      rate: 0.9,
+      // AI 交回導航時可能仍在拆除錄音，讓 TTS 自行管理音訊可避開通話模式。
+      useApplicationAudioSession: false,
+    });
   },
   stop() {
     void Speech.stop();

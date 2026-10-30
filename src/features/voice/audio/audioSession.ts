@@ -3,7 +3,7 @@ import { logger } from '@/shared/logger';
 
 /**
  * 語音對話的 iOS audio session（SDD §6.7）：`playAndRecord` + `voiceChat`（系統回音消除），允許藍牙耳機、
- * 預設走喇叭。擷取與播放共用；對話結束時關閉 session，把音訊交還給導航 TTS 與其他 App。
+ * 預設走喇叭。擷取與播放共用；對話結束時恢復播放模式並關閉 session。
  *
  * 啟用／關閉全部排進同一條序列，並以「世代」判斷過期：
  * - 麥克風權限對話框還開著時對話就結束了（結束鈕、1011、4409、登出），權限之後才回來的啟用要作廢，
@@ -52,6 +52,7 @@ export function activateVoiceAudioSession(epochAtRequest: number): Promise<void>
     });
     await AudioManager.setAudioSessionActivity(true);
     active = true;
+    if (!wanted || epochAtRequest !== epoch) throw new StaleAudioSessionError();
   });
 }
 
@@ -61,18 +62,25 @@ export function trackAudioTeardown(teardown: Promise<void>): void {
   void teardown.finally(() => teardowns.delete(teardown));
 }
 
-/** 對話結束：作廢進行中的啟用，等拆除完成後關閉 session。 */
+/** 對話結束：等拆除完成後，先還原播放模式，再停用 session。 */
 export function releaseVoiceAudio(): void {
   wanted = false;
   epoch += 1;
   void enqueue(async () => {
     await Promise.allSettled([...teardowns]);
     if (!active) return;
-    active = false;
     try {
+      // 原生 manager 只在 session 啟用時立即套用選項，必須先還原再停用。
+      AudioManager.setAudioSessionOptions({
+        iosCategory: 'playback',
+        iosMode: 'default',
+        iosOptions: [],
+      });
       await AudioManager.setAudioSessionActivity(false);
     } catch (error) {
-      logger.warn('[voice] deactivate audio session failed', error);
+      logger.warn('[voice] release audio session failed', error);
+    } finally {
+      active = false;
     }
   });
 }

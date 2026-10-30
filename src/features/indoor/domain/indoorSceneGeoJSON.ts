@@ -2,6 +2,7 @@ import type { Feature, FeatureCollection, Polygon } from 'geojson';
 import polygonClipping from 'polygon-clipping';
 import type { IndoorMaterialRole } from '@/shared/theme/indoorPalette';
 import type { LngLat, VenueDetail, VenueFeature, VenuePlace } from '../types/venue';
+import { campusFloorViews } from './campusFloorViews';
 
 type XY = [number, number];
 type Rings = XY[][];
@@ -341,7 +342,7 @@ function facilityRole(detail: VenueDetail, feature: VenueFeature): { role: Indoo
 /** Native single-floor grounded cutaway. All raised dimensions are display
  * conventions from web geometry/sceneContent, never measured building heights.
  * Other buildings are only thin footprint context and cannot cover the cutaway. */
-export function indoorSceneGeoJSON(detail: VenueDetail, buildingId: string | null, levelRef: string | null): FeatureCollection<Polygon, IndoorSceneProperties> {
+export function indoorSceneGeoJSON(detail: VenueDetail, buildingId: string | null, levelRef: string | null, includeContext = true): FeatureCollection<Polygon, IndoorSceneProperties> {
   const result: Feature<Polygon, IndoorSceneProperties>[] = [];
   const selected = detail.buildings.find((building) => building.id === buildingId);
   const level = selected?.levels.find((candidate) => candidate.ref === levelRef);
@@ -354,7 +355,7 @@ export function indoorSceneGeoJSON(detail: VenueDetail, buildingId: string | nul
     result.push({ type: 'Feature', id: `${props.buildingId}:${props.sourceId}:${props.kind}:${result.length}`, geometry: { type: 'Polygon', coordinates: rings.map((ring) => ring.map(geographic)) }, properties: props });
   };
   for (const building of detail.buildings) {
-    if (building.id === buildingId) continue;
+    if (!includeContext || building.id === buildingId) continue;
     result.push({ type: 'Feature', id: `context:${building.id}`, geometry: { type: 'Polygon', coordinates: building.footprint }, properties: { ...properties(building.id, 'context', 'context', 0, 0.035), active: false, buildingId: building.id, levelRef: null, sourceElevationM: null } });
   }
   if (!selected || !level) return { type: 'FeatureCollection', features: result };
@@ -467,4 +468,17 @@ export function indoorSceneGeoJSON(detail: VenueDetail, buildingId: string | nul
     return { type: 'FeatureCollection', features: withOpenings };
   }
   return { type: 'FeatureCollection', features: result };
+}
+
+/** One venue revision is one scene: every building displays its own matching
+ * floor. Missing floor plans remain footprints, never invented ground rooms. */
+export function campusSceneGeoJSON(detail: VenueDetail, buildingId: string | null, levelRef: string | null): FeatureCollection<Polygon, IndoorSceneProperties> {
+  const views = campusFloorViews(detail, buildingId, levelRef);
+  const displayed = views.filter((view) => view.hasDisplayGeometry);
+  const buildingIds = new Set(displayed.map((view) => view.buildingId));
+  const context = indoorSceneGeoJSON(detail, null, null).features.filter((feature) => !buildingIds.has(feature.properties.buildingId));
+  return {
+    type: 'FeatureCollection',
+    features: [...context, ...displayed.flatMap((view) => indoorSceneGeoJSON(detail, view.buildingId, view.levelRef, false).features)],
+  };
 }

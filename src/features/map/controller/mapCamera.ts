@@ -1,19 +1,25 @@
 import type { CameraRef, LngLat, LngLatBounds, ViewPadding } from '@maplibre/maplibre-react-native';
+import { Platform } from 'react-native';
 
 import { isReduceMotionEnabled, motionDuration } from '@/shared/accessibility';
+import { logger } from '@/shared/logger';
 
 import { MAP_PITCH_3D } from '../domain/basemap';
 import { useMapUiStore, type MapFollowMode } from '../store/mapUiStore';
 
-/**
- * MapController port（SDD §4.3）：其他 feature 透過這裡移動相機，不直接拿 CameraRef。
- * Spike A 發現 `<Camera padding>` 變更不影響 flyTo 置中，所以每個動作都帶入目前的 sheet inset。
- */
+/** MapController port. Every movement includes the current sheet inset. */
 let camera: CameraRef | null = null;
-/** 任何明確的相機動作（深層連結、搜尋結果、定位按鈕）之後，啟動時的自動定位就不再搶鏡頭 */
 let claimed = false;
+let commandSequence = 0;
+let preparation: Promise<void> | null = null;
+let intendedPitch: number | null = null;
+let nativePitch: number | null = null;
+
+type CameraStop = Parameters<CameraRef['setStop']>[0];
+type CameraAction = () => void | Promise<void>;
 
 export function registerMapCamera(ref: CameraRef | null): void {
+  // React's native handle changes on renders; only a new intent cancels work.
   camera = ref;
 }
 
@@ -25,53 +31,148 @@ function currentPadding(extraTop = 0): ViewPadding {
   return { top: extraTop, bottom: useMapUiStore.getState().sheetInset, left: 0, right: 0 };
 }
 
-/** 「減少動態效果」開啟時不飛行、不縮放動畫：直接跳到終點（SDD §10）。 */
-function moveTo(options: { center: LngLat; zoom?: number; pitch?: number; padding: ViewPadding }): void {
-  if (isReduceMotionEnabled()) camera?.jumpTo(options);
-  else camera?.flyTo(options);
+function intendedCameraPitch(): number {
+  const { follow, is3d } = useMapUiStore.getState();
+  return follow?.pitch ?? intendedPitch ?? (is3d ? MAP_PITCH_3D : 0);
+}
+
+function currentPitch(): number {
+  return nativePitch ?? intendedCameraPitch();
+}
+
+function sendToCamera(action: (ref: CameraRef) => void | Promise<void>, pitch?: number, immediate = false): void | Promise<void> {
+  if (!camera) return;
+  const sequence = commandSequence;
+  // Animated pitch changes may still be tilted when the next intent arrives.
+  // Only an accepted zero-duration stop can lower the known possible pitch.
+  if (pitch !== undefined) nativePitch = Math.max(currentPitch(), pitch);
+  const result = action(camera);
+  if (!immediate || pitch === undefined) return result;
+  return Promise.resolve(result).then(() => {
+    if (sequence === commandSequence) nativePitch = pitch;
+  });
+}
+
+function outsideCurrentBounds([lng, lat]: LngLat): boolean {
+  const bounds = useMapUiStore.getState().bounds;
+  if (!bounds || !bounds.every(Number.isFinite)) return true;
+  const [west, south, east, north] = bounds;
+  const longitudeVisible = west <= east ? lng >= west && lng <= east : lng >= west || lng <= east;
+  return !longitudeVisible || lat < south || lat > north;
+}
+
+function needsFlatApproach(center: LngLat): boolean {
+  return Platform.OS === 'ios' && currentPitch() > 0 && outsideCurrentBounds(center);
+}
+
+function reportFailure(error: unknown): void {
+  logger.warn('[mapCamera] camera movement failed', error);
+}
+
+function perform(action: CameraAction): Promise<void> {
+  try {
+    // CameraRef's convenience methods are typed void but return native promises.
+    return Promise.resolve(action()).catch(reportFailure);
+  } catch (error) {
+    reportFailure(error);
+    return Promise.resolve();
+  }
+}
+
+/** A shared barrier also holds newer, otherwise synchronous actions until an
+ * already-issued native preparation settles. Only the latest intent may move. */
+function dispatch(action: CameraAction, stops: CameraStop[] = []): Promise<void> {
+  const sequence = ++commandSequence;
+  const previous = preparation;
+  if (!previous && stops.length === 0) return perform(action);
+  const ready = (async () => {
+    if (previous) await previous;
+    for (const stop of stops) {
+      if (sequence !== commandSequence || !camera) return false;
+      await sendToCamera((ref) => ref.setStop(stop), stop.pitch, true);
+    }
+    return sequence === commandSequence;
+  })().catch((error: unknown) => { reportFailure(error); return false; });
+  if (stops.length > 0) {
+    const barrier = ready.then(() => undefined);
+    preparation = barrier;
+    void barrier.then(() => { if (preparation === barrier) preparation = null; });
+  }
+  return ready.then((canMove) => canMove && sequence === commandSequence ? perform(action) : undefined);
+}
+
+/** MapLibre iOS 11.4 fits a center/bounds using the current pitch before applying the
+ * requested pitch. Zero-duration stops are applied before their native promise
+ * resolves; that promise does not represent an animated transition finishing. */
+function centerMovement(center: LngLat, move: (pitch?: number) => void, pitch?: number): void {
+  const flatten = needsFlatApproach(center);
+  const restorePitch = flatten || preparation !== null;
+  const targetPitch = pitch ?? (restorePitch ? intendedCameraPitch() : undefined);
+  if (pitch !== undefined) intendedPitch = pitch;
+  void dispatch(() => move(targetPitch), flatten ? [{ pitch: 0, duration: 0 }] : []);
 }
 
 export const mapCamera = {
   flyTo(center: LngLat, zoom?: number, pitch?: number): void {
     claimed = true;
-    moveTo({ center, zoom, pitch, padding: currentPadding() });
+    const padding = currentPadding();
+    centerMovement(center, (targetPitch) => isReduceMotionEnabled()
+      ? sendToCamera((ref) => ref.jumpTo({ center, zoom, pitch: targetPitch, padding }), targetPitch, true)
+      : sendToCamera((ref) => ref.flyTo({ center, zoom, pitch: targetPitch, padding }), targetPitch), pitch);
   },
   easeTo(center: LngLat, zoom?: number, duration = 500): void {
     claimed = true;
-    if (isReduceMotionEnabled()) camera?.jumpTo({ center, zoom, padding: currentPadding() });
-    else camera?.easeTo({ center, zoom, duration, padding: currentPadding() });
-  },
-  /** `edge` 是 sheet inset 以外、額外保留的邊距（例：路線要避開頂部浮動控制，對齊 Web top 70／左右 40）。 */
-  fitBounds(bounds: LngLatBounds, edge?: { top?: number; left?: number; right?: number }, orientation?: { pitch: number; bearing: number }): void {
-    claimed = true;
-    camera?.fitBounds(bounds, {
-      ...orientation,
-      padding: { ...currentPadding(edge?.top ?? 0), left: edge?.left ?? 0, right: edge?.right ?? 0 },
-      duration: motionDuration(800),
+    const padding = currentPadding();
+    centerMovement(center, (pitch) => {
+      const options = { center, zoom, padding, ...(pitch === undefined ? {} : { pitch }) };
+      return sendToCamera((ref) => isReduceMotionEnabled() ? ref.jumpTo(options) : ref.easeTo({ ...options, duration }), pitch, isReduceMotionEnabled());
     });
   },
-  /** 冷啟動第一個 GPS fix：只在沒有其他相機動作搶先時置中一次（對齊 Web hasAutoLocatedRef） */
+  /** `edge` adds margins beyond the sheet inset. */
+  fitBounds(bounds: LngLatBounds, edge?: { top?: number; left?: number; right?: number }, orientation?: { pitch: number; bearing: number }): void {
+    claimed = true;
+    const targetPitch = orientation?.pitch ?? intendedCameraPitch();
+    const [west, south, east, north] = bounds;
+    const outside = [[west, south], [west, north], [east, south], [east, north]]
+      .some(([longitude, latitude]) => outsideCurrentBounds([longitude, latitude]));
+    const flatten = Platform.OS === 'ios' && (currentPitch() > 0 || targetPitch > 0) && outside;
+    const stops: CameraStop[] = [];
+    const padding = { ...currentPadding(edge?.top ?? 0), left: edge?.left ?? 0, right: edge?.right ?? 0 };
+    if (orientation) intendedPitch = orientation.pitch;
+    if (flatten) {
+      // Fit the entire extent while flat; moving only its center can leave
+      // distant corners behind a tilted camera at the previous close zoom.
+      stops.push({ pitch: 0, duration: 0 }, { bounds, padding, pitch: 0, duration: 0 });
+    }
+    if (Platform.OS === 'ios' && (orientation || flatten || preparation)) {
+      stops.push({ pitch: targetPitch, ...(orientation ? { bearing: orientation.bearing } : {}), duration: 0 });
+    }
+    void dispatch(() => sendToCamera((ref) => ref.fitBounds(bounds, { ...orientation, padding, duration: motionDuration(800) }), orientation?.pitch, isReduceMotionEnabled()), stops);
+  },
+  /** Only the first unclaimed GPS fix can center the map. */
   autoCenterOnce(center: LngLat, zoom: number): boolean {
     if (claimed || !camera) return false;
-    claimed = true;
-    moveTo({ center, zoom, padding: currentPadding() });
+    mapCamera.flyTo(center, zoom);
     return true;
   },
-  /**
-   * 導航跟隨：交給 maplibre 原生 `trackUserLocation`（步行 heading＝羅盤、開車 course＝行進方向），
-   * 不在 JS 每幀 jumpTo（Web 做法）——原生追蹤更順、更省電，使用者拖曳地圖時由原生自動解除。
-   */
+  /** Native user tracking handles heading/course without per-frame JS jumps. */
   follow(mode: MapFollowMode, zoom: number, pitch: number): void {
     claimed = true;
-    useMapUiStore.getState().setFollow({ mode, zoom, pitch });
+    intendedPitch = pitch;
+    void dispatch(() => {
+      nativePitch = Math.max(currentPitch(), pitch);
+      useMapUiStore.getState().setFollow({ mode, zoom, pitch });
+    });
   },
-  /** 結束跟隨：恢復使用者自己的 2D/3D 俯角並轉回正北（導航的 60° 俯角與航向不留在一般瀏覽）。 */
   stopFollow(): void {
     const { is3d, setFollow } = useMapUiStore.getState();
+    const pitch = is3d ? MAP_PITCH_3D : 0;
+    intendedPitch = pitch;
     setFollow(null);
-    void camera?.setStop({ pitch: is3d ? MAP_PITCH_3D : 0, bearing: 0, duration: motionDuration(600), easing: 'ease' });
+    void dispatch(() => sendToCamera((ref) => ref.setStop({ pitch, bearing: 0, duration: motionDuration(600), easing: 'ease' }), pitch, isReduceMotionEnabled()));
   },
-  async setPitch(pitch: number): Promise<void> {
-    await camera?.setStop({ pitch, duration: motionDuration(600), easing: 'ease' });
+  setPitch(pitch: number): Promise<void> {
+    intendedPitch = pitch;
+    return dispatch(() => sendToCamera((ref) => ref.setStop({ pitch, duration: motionDuration(600), easing: 'ease' }), pitch, isReduceMotionEnabled()));
   },
 };

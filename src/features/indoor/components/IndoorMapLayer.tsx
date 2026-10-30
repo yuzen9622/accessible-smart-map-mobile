@@ -1,4 +1,5 @@
 import { GeoJSONSource, Layer, Marker, type GeoJSONSourceProps } from '@maplibre/maplibre-react-native';
+import type { StyleSpecification } from '@maplibre/maplibre-gl-style-spec';
 import { useEffect, useMemo } from 'react';
 import { StyleSheet, useColorScheme, View } from 'react-native';
 
@@ -10,10 +11,13 @@ import Icon from '@/shared/ui/Icon';
 import { Text } from '@/shared/ui/typography/Text';
 
 import { buildingBounds, floorGeoJSON, routeFloorGeoJSON } from '../domain/floorGeoJSON';
-import { indoorSceneGeoJSON } from '../domain/indoorSceneGeoJSON';
+import { campusFloorViews, defaultIndoorLevel } from '../domain/campusFloorViews';
+import { campusRoadGeoJSON } from '../domain/campusRoadGeoJSON';
+import { CAMPUS_ROAD_SOURCE, campusRoadLayers } from '../domain/campusRoadStyle';
+import { campusSceneGeoJSON } from '../domain/indoorSceneGeoJSON';
 import { useIndoorStore } from '../store/indoorStore';
 
-export default function IndoorMapLayer({ onSelectPlace }: { onSelectPlace?: (venueId: string, placeId: string) => void }) {
+export default function IndoorMapLayer({ basemapStyle, onSelectPlace }: { basemapStyle?: StyleSpecification; onSelectPlace?: (venueId: string, placeId: string) => void }) {
   const active = useIndoorStore((s) => s.active);
   const venue = useIndoorStore((s) => s.venue);
   const floor = useIndoorStore((s) => s.floor);
@@ -21,22 +25,30 @@ export default function IndoorMapLayer({ onSelectPlace }: { onSelectPlace?: (ven
   const guidance = useIndoorStore((s) => s.guidance);
   const selectedPlaceId = useIndoorStore((s) => s.selectedPlaceId);
   const zoom = useMapUiStore((s) => s.zoom);
+  const is3d = useMapUiStore((s) => s.is3d);
   const highContrast = usePreferencesStore((s) => s.highContrast);
   const colors = useThemeColors();
   const palette = getIndoorPalette(useColorScheme() === 'dark' ? 'dark' : 'light');
   const detail = venue.status === 'ready' ? venue.data : null;
   const route = plan.status === 'ready' ? plan.data : null;
+  const views = useMemo(() => detail ? campusFloorViews(detail, floor.buildingId, floor.levelRef) : [], [detail, floor.buildingId, floor.levelRef]);
+  const roads = useMemo(() => detail ? campusRoadGeoJSON(detail) : null, [detail]);
+  const roadLayers = useMemo(() => campusRoadLayers(basemapStyle?.layers ?? []), [basemapStyle]);
+  const roadBeforeId = basemapStyle?.layers.find((layer) => layer.type === 'fill-extrusion' || layer.type === 'symbol')?.id ?? 'indoor-cutaway';
   const data = useMemo(() => {
     if (!detail) return null;
-    const result = floorGeoJSON(detail, floor.buildingId, floor.levelRef);
+    const features = [
+      ...views.filter((view) => view.hasDisplayGeometry).flatMap((view) => floorGeoJSON(detail, view.buildingId, view.levelRef).features),
+      ...floorGeoJSON(detail, null, null).features,
+    ];
     const places = new Map(detail.places.map((place) => [place.id, place]));
-    return { ...result, features: result.features.map((feature) => {
+    return { type: 'FeatureCollection' as const, features: features.map((feature) => {
       const place = feature.properties.placeId ? places.get(feature.properties.placeId) : null;
       return { ...feature, properties: { ...feature.properties, label: place?.ref ?? feature.properties.name } };
     }) };
-  }, [detail, floor.buildingId, floor.levelRef]);
-  const scene = useMemo(() => detail ? indoorSceneGeoJSON(detail, floor.buildingId, floor.levelRef) : null, [detail, floor.buildingId, floor.levelRef]);
-  const line = useMemo(() => route ? routeFloorGeoJSON(route, floor.buildingId, floor.levelRef) : null, [route, floor.buildingId, floor.levelRef]);
+  }, [detail, views]);
+  const scene = useMemo(() => detail ? campusSceneGeoJSON(detail, floor.buildingId, floor.levelRef) : null, [detail, floor.buildingId, floor.levelRef]);
+  const line = useMemo(() => route && detail ? routeFloorGeoJSON(route, detail, floor.buildingId, floor.levelRef) : null, [route, detail, floor.buildingId, floor.levelRef]);
   const selected = detail?.places.find((place) => place.id === selectedPlaceId);
   const visibleSelected = selected?.buildingId === floor.buildingId && selected?.levelRef === floor.levelRef ? selected : null;
   const landings = useMemo(() => {
@@ -73,13 +85,24 @@ export default function IndoorMapLayer({ onSelectPlace }: { onSelectPlace?: (ven
     }
   }, [active, selected]);
   useEffect(() => {
-    if (!active || !route) return;
-    const index = guidance.status === 'guiding' ? route.steps[guidance.stepIndex]?.pathStart : guidance.status === 'complete' ? route.path.coordinates.length - 1 : 0;
+    if (!active || !route || !detail) return;
     const currentFloor = useIndoorStore.getState().floor;
-    const point = index !== undefined && route.path.buildingIds[index] === currentFloor.buildingId && route.path.levelRefs[index] === currentFloor.levelRef ? route.path.coordinates[index] : undefined;
+    if (guidance.status === 'idle') {
+      const visible = routeFloorGeoJSON(route, detail, currentFloor.buildingId, currentFloor.levelRef);
+      const points = visible.features.flatMap((feature) => feature.geometry.type === 'LineString' ? feature.geometry.coordinates : []);
+      if (points.length >= 2) {
+        const lngs = points.map(([lng]) => lng), lats = points.map(([, lat]) => lat);
+        mapCamera.fitBounds([Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)],
+          { top: 180, left: 24, right: 76 }, { pitch: useMapUiStore.getState().is3d ? 48 : 0, bearing: 0 });
+      }
+      return;
+    }
+    const index = guidance.status === 'guiding' ? route.steps[guidance.stepIndex]?.pathStart : guidance.status === 'complete' ? route.path.coordinates.length - 1 : 0;
+    const outdoor = index !== undefined && route.path.buildingIds[index] === null && route.path.levelRefs[index] === null;
+    const point = index !== undefined && (outdoor || (route.path.buildingIds[index] === currentFloor.buildingId && route.path.levelRefs[index] === currentFloor.levelRef)) ? route.path.coordinates[index] : undefined;
     // 鏡頭跟隨使用者確認的步驟，不以 GPS 推測室內位置。
     if (point) mapCamera.flyTo([point[0], point[1]], 20.2, useMapUiStore.getState().is3d ? 48 : 0);
-  }, [active, route, guidance]);
+  }, [active, route, detail, guidance, is3d]);
   if (!active || !data || !scene) return null;
 
   const selectFeature: NonNullable<GeoJSONSourceProps['onPress']> = (event) => {
@@ -91,13 +114,16 @@ export default function IndoorMapLayer({ onSelectPlace }: { onSelectPlace?: (ven
       if (detail) onSelectPlace?.(detail.venueId, id);
       return;
     }
-    const buildingId = event.nativeEvent.features.find((item) => item.properties?.role === 'context')?.properties?.buildingId;
+    const buildingId = event.nativeEvent.features.find((item) => typeof item.properties?.buildingId === 'string')?.properties?.buildingId;
     const building = detail?.buildings.find((item) => item.id === buildingId);
-    const level = building?.levels.find((item) => item.ref === floor.levelRef) ?? building?.levels.find((item) => item.ref === '1F') ?? building?.levels[0];
+    const level = building?.levels.find((item) => item.ref === floor.levelRef) ?? defaultIndoorLevel(building?.levels ?? []);
     if (building && level) useIndoorStore.getState().selectFloor({ buildingId: building.id, levelRef: level.ref });
   };
   const m = palette.material;
   return <>
+    {roads ? <GeoJSONSource id={CAMPUS_ROAD_SOURCE} data={roads}>
+      {roadLayers.map(({ id, type, source: _source, ...style }) => <Layer key={id} id={id} type={type} beforeId={roadBeforeId} {...style} />)}
+    </GeoJSONSource> : null}
     <GeoJSONSource id="indoor-scene" data={scene} onPress={selectFeature}>
       <Layer id="indoor-cutaway" type="fill-extrusion" paint={{
         'fill-extrusion-base': ['get', 'base'],
@@ -130,11 +156,11 @@ export default function IndoorMapLayer({ onSelectPlace }: { onSelectPlace?: (ven
         paint={{ 'text-color': highContrast ? colors.text : palette.labelInk, 'text-halo-color': palette.labelBackground, 'text-halo-width': 2 }} />
     </GeoJSONSource>
     {line ? <GeoJSONSource id="indoor-route" data={line}>
-      <Layer id="indoor-route-casing" type="line" filter={['==', ['geometry-type'], 'LineString']}
+      <Layer id="indoor-route-casing" type="line" afterId="indoor-labels" filter={['==', ['geometry-type'], 'LineString']}
         layout={{ 'line-cap': 'round', 'line-join': 'round' }} paint={{ 'line-color': palette.routeCasingCss, 'line-width': 8 }} />
-      <Layer id="indoor-route-line" type="line" filter={['==', ['geometry-type'], 'LineString']}
+      <Layer id="indoor-route-line" type="line" afterId="indoor-route-casing" filter={['==', ['geometry-type'], 'LineString']}
         layout={{ 'line-cap': 'round', 'line-join': 'round' }} paint={{ 'line-color': palette.primaryCss, 'line-width': 4 }} />
-      <Layer id="indoor-route-endpoints" type="circle" filter={['all', ['==', ['geometry-type'], 'Point'], ['in', ['get', 'pathIndex'], ['literal', [0, (route?.path.coordinates.length ?? 1) - 1]]]]}
+      <Layer id="indoor-route-endpoints" type="circle" afterId="indoor-route-line" filter={['all', ['==', ['geometry-type'], 'Point'], ['in', ['get', 'pathIndex'], ['literal', [0, (route?.path.coordinates.length ?? 1) - 1]]]]}
         paint={{ 'circle-color': palette.primaryCss, 'circle-radius': 6, 'circle-stroke-color': palette.routeCasingCss, 'circle-stroke-width': 2 }} />
     </GeoJSONSource> : null}
     {zoom > 18 && !route ? landings.map((feature) => {

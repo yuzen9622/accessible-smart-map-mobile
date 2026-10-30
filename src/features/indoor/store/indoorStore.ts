@@ -4,6 +4,7 @@ import { ApiError } from '@/shared/api';
 import { logger } from '@/shared/logger';
 
 import { loadVenue, loadVenues } from '../api/venueApi';
+import { defaultIndoorLevel } from '../domain/campusFloorViews';
 import type { VenueDetail, VenueRoute, VenueSummary } from '../types/venue';
 
 export type Resource<T> =
@@ -51,8 +52,12 @@ function messageFor(error: unknown): string {
 
 function initialFloor(detail: VenueDetail): FloorSelection {
   const building = detail.buildings[0];
-  const level = building?.levels.find((item) => item.ref === '1F' || item.ref === '1') ?? building?.levels[0];
+  const level = building ? defaultIndoorLevel(building.levels) : undefined;
   return { buildingId: building?.id ?? null, levelRef: level?.ref ?? null };
+}
+
+function displayFloor(location: FloorSelection, current: FloorSelection): FloorSelection {
+  return location.buildingId !== null && location.levelRef !== null ? location : current;
 }
 
 export function createIndoorStore() {
@@ -114,14 +119,14 @@ export function createIndoorStore() {
       const venue = get().venue;
       if (venue.status !== 'ready') return;
       const place = venue.data.places.find((p) => p.id === id);
-      if (place) set({ selectedPlaceId: id, floor: { buildingId: place.buildingId, levelRef: place.levelRef } });
+      if (place) set({ selectedPlaceId: id, floor: displayFloor({ buildingId: place.buildingId, levelRef: place.levelRef }, get().floor) });
     },
     clearRoute: () => { adoptionGeneration += 1; set({ plan: { status: 'idle' }, guidance: { status: 'idle' }, notice: null }); },
     startGuidance: () => {
       const { plan } = get();
       if (plan.status !== 'ready' || plan.data.steps.length === 0) return;
       const confirmed = { buildingId: plan.data.path.buildingIds[0] ?? null, levelRef: plan.data.path.levelRefs[0] ?? null };
-      set({ guidance: { status: 'guiding', stepIndex: 0, confirmed }, floor: confirmed });
+      set({ guidance: { status: 'guiding', stepIndex: 0, confirmed }, floor: displayFloor(confirmed, get().floor) });
     },
     confirmStep: () => {
       const { plan, guidance } = get();
@@ -130,7 +135,7 @@ export function createIndoorStore() {
       if (!step) return;
       const confirmed = { buildingId: plan.data.path.buildingIds[step.pathEnd] ?? null, levelRef: plan.data.path.levelRefs[step.pathEnd] ?? null };
       const next = guidance.stepIndex + 1;
-      set({ guidance: next >= plan.data.steps.length ? { status: 'complete', confirmed } : { status: 'guiding', stepIndex: next, confirmed }, floor: confirmed });
+      set({ guidance: next >= plan.data.steps.length ? { status: 'complete', confirmed } : { status: 'guiding', stepIndex: next, confirmed }, floor: displayFloor(confirmed, get().floor) });
     },
     endGuidance: () => set({ guidance: { status: 'idle' } }),
     adoptRoute: async (route, signal) => {
@@ -146,7 +151,7 @@ export function createIndoorStore() {
         set({ notice: '起訖地點已變更，請重新規劃路線。' }); return false;
       }
       set({ active: true, plan: { status: 'ready', data: route },
-        floor: { buildingId: route.path.buildingIds[0] ?? null, levelRef: route.path.levelRefs[0] ?? null }, notice: null });
+        floor: displayFloor({ buildingId: route.path.buildingIds[0] ?? null, levelRef: route.path.levelRefs[0] ?? null }, state.floor), notice: null });
       return true;
     },
   }));

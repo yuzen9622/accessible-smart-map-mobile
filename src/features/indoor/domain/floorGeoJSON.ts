@@ -1,5 +1,6 @@
 import type { Feature, FeatureCollection, Geometry, LineString, Point } from 'geojson';
-import type { LngLat, VenueDetail, VenueRoute } from '../types/venue';
+import type { LngLatZ, VenueDetail, VenueRoute } from '../types/venue';
+import { campusFloorViews, type CampusFloorView } from './campusFloorViews';
 
 export interface FloorProperties {
   id: string;
@@ -8,7 +9,7 @@ export interface FloorProperties {
   name: string;
   placeId?: string;
 }
-export interface RouteProperties { kind: 'route' | 'route-stop'; pathIndex?: number }
+export interface RouteProperties { kind: 'route' | 'route-stop'; pathIndex?: number; pathStart?: number; pathEnd?: number }
 
 /** 只畫所選樓層。電梯井道不會自行產生可搭乘點，停靠點僅取 connections。 */
 export function floorGeoJSON(detail: VenueDetail, buildingId: string | null, levelRef: string | null): FeatureCollection<Geometry, FloorProperties> {
@@ -39,21 +40,53 @@ export function floorGeoJSON(detail: VenueDetail, buildingId: string | null, lev
   return { type: 'FeatureCollection', features };
 }
 
-/** 每點的樓層才是幾何依據；不能把電梯或跨棟路段壓成同層直線。 */
-export function routeFloorGeoJSON(route: VenueRoute, buildingId: string | null, levelRef: string | null): FeatureCollection<LineString | Point, RouteProperties> {
+function clipFloorEdge(from: LngLatZ, to: LngLatZ, view: CampusFloorView): [LngLatZ, LngLatZ] | null {
+  const low = view.elevationM - 0.16, high = view.elevationM + 0.85;
+  const delta = to[2] - from[2];
+  if (Math.abs(delta) < 1e-10) return from[2] >= low && from[2] <= high ? [from, to] : null;
+  const first = (low - from[2]) / delta, last = (high - from[2]) / delta;
+  const start = Math.max(0, Math.min(first, last)), end = Math.min(1, Math.max(first, last));
+  if (start >= end) return null;
+  const at = (amount: number): LngLatZ => amount === 0 ? from : amount === 1 ? to : [
+    from[0] + (to[0] - from[0]) * amount,
+    from[1] + (to[1] - from[1]) * amount,
+    from[2] + delta * amount,
+  ];
+  return [at(start), at(end)];
+}
+
+/** Preserve authored adjacent edges across visible buildings and the ground
+ * campus network. Hidden floors never become shortcuts between visible runs. */
+export function routeFloorGeoJSON(route: VenueRoute, detail: VenueDetail, buildingId: string | null, levelRef: string | null): FeatureCollection<LineString | Point, RouteProperties> {
   const features: Feature<LineString | Point, RouteProperties>[] = [];
-  let run: LngLat[] = [];
-  const flush = () => {
-    if (run.length >= 2) features.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: run }, properties: { kind: 'route' } });
-    run = [];
+  const { coordinates, buildingIds, levelRefs } = route.path;
+  if (coordinates.length !== buildingIds.length || coordinates.length !== levelRefs.length) return { type: 'FeatureCollection', features };
+  const views = campusFloorViews(detail, buildingId, levelRef);
+  const visible = (index: number) => views.some((view) => (
+    buildingIds[index] === view.buildingId && levelRefs[index] === view.levelRef
+  ) || (
+    view.hasDisplayGeometry && view.ordinal === 0 && buildingIds[index] === null && levelRefs[index] === null
+    && [0, view.elevationM].some((height) => Math.abs(coordinates[index][2] - height) <= 0.02)
+  ));
+  const stops = new Set<number>();
+  const add = (index: number, edge: [LngLatZ, LngLatZ]) => {
+    features.push({ type: 'Feature', id: `route-edge:${index}`, geometry: { type: 'LineString', coordinates: edge.map(([lng, lat]) => [lng, lat]) }, properties: { kind: 'route', pathStart: index, pathEnd: index + 1 } });
+    if (edge[0] === coordinates[index]) stops.add(index);
+    if (edge[1] === coordinates[index + 1]) stops.add(index + 1);
   };
-  route.path.coordinates.forEach(([lng, lat], index) => {
-    const belongs = route.path.buildingIds[index] === buildingId && route.path.levelRefs[index] === levelRef;
-    if (!belongs) { flush(); return; }
-    run.push([lng, lat]);
-    features.push({ type: 'Feature', id: `route:${index}`, geometry: { type: 'Point', coordinates: [lng, lat] }, properties: { kind: 'route-stop', pathIndex: index } });
+  coordinates.slice(1).forEach((to, index) => {
+    const from = coordinates[index];
+    if (buildingIds[index] !== null && buildingIds[index] === buildingIds[index + 1]) {
+      const view = views.find((candidate) => candidate.hasDisplayGeometry && candidate.buildingId === buildingIds[index]
+        && candidate.levelRef === levelRefs[index] && candidate.levelRef === levelRefs[index + 1]);
+      const edge = view ? clipFloorEdge(from, to, view) : null;
+      if (edge) add(index, edge);
+    } else if (visible(index) && visible(index + 1)) add(index, [from, to]);
   });
-  flush();
+  for (const index of stops) {
+    const [lng, lat] = coordinates[index];
+    features.push({ type: 'Feature', id: `route:${index}`, geometry: { type: 'Point', coordinates: [lng, lat] }, properties: { kind: 'route-stop', pathIndex: index } });
+  }
   return { type: 'FeatureCollection', features };
 }
 

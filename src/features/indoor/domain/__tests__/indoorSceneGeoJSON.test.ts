@@ -1,6 +1,6 @@
 import { getIndoorPalette } from '@/shared/theme/indoorPalette';
 import type { LngLat, VenueDetail, VenueFeature } from '../../types/venue';
-import { indoorSceneGeoJSON, INDOOR_DISPLAY } from '../indoorSceneGeoJSON';
+import { campusSceneGeoJSON, indoorSceneGeoJSON, INDOOR_DISPLAY } from '../indoorSceneGeoJSON';
 import { createVenueDetail } from '../fixtures/venueFixture';
 
 const origin: LngLat = [121, 25];
@@ -113,6 +113,27 @@ describe('室內 grounded cutaway', () => {
     const other = indoorSceneGeoJSON(detail, 'a', '2F').features.filter((item) => item.properties.buildingId === 'b');
     expect(other).toHaveLength(1);
     expect(other[0].properties).toMatchObject({ active: false, kind: 'context', height: 0.035, levelRef: null });
+  });
+  it('校區場景同時顯示各棟同名樓層，保持原始樓層高程與房間身分', () => {
+    const detail = fixture([polygon('a-room', 'room', [box(0, 0, 2, 2)]), { ...polygon('b-room', 'room', [box(30, 0, 2, 2)]), buildingId: 'b' }]);
+    detail.buildings.push({ ...detail.buildings[0], id: 'b', footprint: [box(30, 0, 5, 5)],
+      levels: detail.buildings[0].levels.map((level) => ({ ...level, elevationM: level.elevationM + 2 })) });
+    const snapshot = JSON.stringify(detail);
+    const scene = campusSceneGeoJSON(detail, 'a', '2F');
+    const rooms = scene.features.filter((feature) => feature.properties.kind === 'surface');
+    expect(rooms.map((feature) => feature.properties.sourceId)).toEqual(['a-room', 'b-room']);
+    expect(rooms.map((feature) => feature.properties.sourceElevationM)).toEqual([999, 1001]);
+    expect(scene.features.some((feature) => feature.properties.kind === 'context')).toBe(false);
+    expect(JSON.stringify(detail)).toBe(snapshot);
+  });
+  it('旁棟缺同名樓層或沒有該層圖資時只保留輪廓，不補畫其他樓層', () => {
+    const detail = fixture([polygon('a-room', 'room', [box(0, 0, 2, 2)]), { ...polygon('b-room', 'room', [box(30, 0, 2, 2)]), buildingId: 'b' }]);
+    detail.buildings.push({ ...detail.buildings[0], id: 'b', footprint: [box(30, 0, 5, 5)], levels: detail.buildings[0].levels.filter((level) => level.ref !== '2F') });
+    const missing = campusSceneGeoJSON(detail, 'a', '2F').features.filter((feature) => feature.properties.buildingId === 'b');
+    expect(missing).toHaveLength(1);
+    expect(missing[0].properties.kind).toBe('context');
+    detail.buildings[1].levels = detail.buildings[0].levels.map((level) => ({ ...level, coverage: { ...level.coverage, hasDisplayGeometry: false } }));
+    expect(campusSceneGeoJSON(detail, 'a', '2F').features.filter((feature) => feature.properties.buildingId === 'b')).toEqual(missing);
   });
   it('明確牆線buffer保留來源牆厚；未知厚度採顯示值不隱藏', () => {
     const detail = fixture([polygon('room', 'room', [box(0, 0, 10, 10)])]);

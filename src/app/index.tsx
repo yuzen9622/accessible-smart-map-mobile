@@ -56,7 +56,7 @@ export default function Index() {
       facilityLayerEnabled={!hasRouteFacilities && !indoorActive}
       buildingExtrusionEnabled={!indoorActive}
       perspectivePitch={indoorActive ? 48 : undefined}
-      layers={
+      layers={(basemapStyle) =>
         <>
           {!isNavigating ? <VenueFootprintLayer /> : null}
           <HazardLayer />
@@ -66,7 +66,7 @@ export default function Index() {
           <RouteFacilityLayer />
           <AIResultLayer />
           <LiveBusLayer />
-          {indoorActive ? <IndoorMapLayer onSelectPlace={(venueId, placeId) => openVenuePlace({ venueId, placeId })} /> : null}
+          {indoorActive ? <IndoorMapLayer basemapStyle={basemapStyle} onSelectPlace={(venueId, placeId) => openVenuePlace({ venueId, placeId })} /> : null}
           <SosTrackerLayer />
         </>
       }

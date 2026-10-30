@@ -1,4 +1,5 @@
 import { Camera, Layer, Map, NativeUserLocation, type MapRef, type PressEvent } from '@maplibre/maplibre-react-native';
+import type { StyleSpecification } from '@maplibre/maplibre-gl-style-spec';
 import { router, useIsFocused, usePathname } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Animated, Keyboard, StyleSheet, View, useColorScheme, type NativeSyntheticEvent } from 'react-native';
@@ -52,7 +53,7 @@ function ParkingLoader() {
 
 export interface MapScreenProps {
   /** 其他 feature 的地圖圖層（設施點、搜尋 pin…），由 app 路由組裝 */
-  layers?: ReactNode;
+  layers?: ReactNode | ((style: StyleSpecification) => ReactNode);
   /** 疊在地圖上的 RN 控制（路線 pill、導航 HUD），由 app 路由組裝；以絕對定位自行擺放 */
   overlays?: ReactNode;
   /** 導航中：隱藏一般浮動按鈕（HUD 有自己的控制），點地圖也不開地點面板 */
@@ -296,7 +297,7 @@ export default function MapScreen({
         {facilityLayerEnabled ? <FacilityLayer /> : null}
         {navigationMode || !baseContextEnabled ? null : <FacilityPills />}
         {baseContextEnabled && (showParking || pathname === '/nearby') ? <ParkingLayer /> : null}
-        {layers}
+        {typeof layers === 'function' ? layers(basemap.style) : layers}
         {baseContextEnabled && permission === 'granted' ? <NativeUserLocation mode="heading" /> : null}
       </Map>
       {showParking ? <ParkingLoader /> : null}

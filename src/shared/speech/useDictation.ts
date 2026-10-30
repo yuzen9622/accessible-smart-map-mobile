@@ -12,7 +12,7 @@ const SPEECH_LANG: Record<ReturnType<typeof getAppLanguage>, string> = {
   en: 'en-US',
 };
 
-export type DictationStatus = 'idle' | 'listening' | 'denied' | 'error';
+export type DictationStatus = 'idle' | 'starting' | 'listening' | 'denied' | 'error';
 
 export interface UseDictationResult {
   status: DictationStatus;
@@ -20,6 +20,8 @@ export interface UseDictationResult {
   start: () => Promise<void>;
   /** 主動停止；會先觸發最後一次 `onResult`（若有講到話）才真正結束。 */
   stop: () => void;
+  /** 放棄本次語音輸入，不再接收辨識結果。 */
+  cancel: () => void;
 }
 
 /**
@@ -30,49 +32,103 @@ export interface UseDictationResult {
  */
 export function useDictation(onResult: (transcript: string) => void): UseDictationResult {
   const [status, setStatus] = useState<DictationStatus>('idle');
+  const active = useRef(false);
+  const nativePhase = useRef<'idle' | 'active' | 'ending'>('idle');
+  const restartRequested = useRef(false);
+  const requestId = useRef(0);
   const onResultRef = useRef(onResult);
   useEffect(() => {
     onResultRef.current = onResult;
   }, [onResult]);
 
-  useSpeechRecognitionEvent('result', (event) => {
-    if (!event.results[0]?.transcript) return;
-    if (event.isFinal) onResultRef.current(event.results[0].transcript.trim());
-  });
-  useSpeechRecognitionEvent('error', (event) => {
-    logger.warn('[speech] recognition error', event.error, event.message);
-    setStatus('error');
-  });
-  useSpeechRecognitionEvent('end', () => {
-    setStatus((current) => (current === 'listening' ? 'idle' : current));
-  });
-
-  useEffect(
-    () => () => {
-      // 卸載時（例如離開搜尋頁）確保麥克風真的關掉，不留著繼續收音
-      ExpoSpeechRecognitionModule.abort();
-    },
-    [],
-  );
-
   const start = useCallback(async () => {
+    if (active.current || restartRequested.current) return;
+    setStatus('starting');
+    // 原生 abort/stop 會延遲送出 end；等舊 session 完全結束，避免舊事件清掉新收音。
+    if (nativePhase.current !== 'idle') {
+      restartRequested.current = true;
+      return;
+    }
+    active.current = true;
+    const currentRequest = ++requestId.current;
     try {
       const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!active.current || currentRequest !== requestId.current) return;
       if (!permission.granted) {
+        active.current = false;
         setStatus('denied');
         return;
       }
-      setStatus('listening');
+      nativePhase.current = 'active';
       ExpoSpeechRecognitionModule.start({ lang: SPEECH_LANG[getAppLanguage()], interimResults: false });
     } catch (error) {
+      if (!active.current || currentRequest !== requestId.current) return;
+      active.current = false;
+      nativePhase.current = 'idle';
       logger.warn('[speech] start dictation failed', error);
       setStatus('error');
     }
   }, []);
 
+  useSpeechRecognitionEvent('start', () => {
+    if (active.current) setStatus('listening');
+  });
+  useSpeechRecognitionEvent('result', (event) => {
+    const transcript = event.results[0]?.transcript.trim();
+    if (active.current && event.isFinal && transcript) onResultRef.current(transcript);
+  });
+  useSpeechRecognitionEvent('error', (event) => {
+    if (!active.current) return;
+    active.current = false;
+    nativePhase.current = 'ending';
+    logger.warn('[speech] recognition error', event.error, event.message);
+    setStatus(event.error === 'not-allowed' ? 'denied' : 'error');
+  });
+  useSpeechRecognitionEvent('end', () => {
+    active.current = false;
+    nativePhase.current = 'idle';
+    if (restartRequested.current) {
+      restartRequested.current = false;
+      void start();
+    } else {
+      setStatus((current) => (current === 'starting' || current === 'listening' ? 'idle' : current));
+    }
+  });
+
+  useEffect(
+    () => () => {
+      requestId.current += 1;
+      active.current = false;
+      restartRequested.current = false;
+      // 只中止這個 hook 啟動的收音，並取消尚未完成的權限請求。
+      if (nativePhase.current === 'active') ExpoSpeechRecognitionModule.abort();
+      nativePhase.current = 'idle';
+    },
+    [],
+  );
+
   const stop = useCallback(() => {
-    ExpoSpeechRecognitionModule.stop();
+    requestId.current += 1;
+    restartRequested.current = false;
+    if (nativePhase.current === 'active') {
+      nativePhase.current = 'ending';
+      ExpoSpeechRecognitionModule.stop();
+    } else if (nativePhase.current === 'idle' || !active.current) {
+      active.current = false;
+      setStatus('idle');
+    }
   }, []);
 
-  return { status, start, stop };
+  const cancel = useCallback(() => {
+    requestId.current += 1;
+    active.current = false;
+    restartRequested.current = false;
+    setStatus('idle');
+    if (nativePhase.current === 'active') {
+      nativePhase.current = 'ending';
+      ExpoSpeechRecognitionModule.abort();
+    }
+  }, []);
+
+  return { status, start, stop, cancel };
 }

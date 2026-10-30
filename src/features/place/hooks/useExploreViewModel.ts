@@ -186,7 +186,7 @@ export interface ExploreViewModel {
   /** 搜尋框的語音輸入：原地辨識、講完直接把文字填進搜尋框觸發搜尋，不開啟任何對話 UI
    * （測試人員回饋 2026-10-11：一開始接去 AI 聊天頁是誤解，使用者要的是像 Google 地圖那種
    * 「按麥克風→講話→文字自動出現在搜尋框」）。見 `@/shared/speech` 的 `useDictation`。 */
-  voiceInput: { status: DictationStatus; label: string; accessibilityLabel: string; onToggle: () => void };
+  voiceInput: { status: DictationStatus; accessibilityLabel: string; onToggle: () => void };
   labels: {
     searchPlaceholder: string;
     nearbyA11y: string;
@@ -500,6 +500,7 @@ export function useExploreViewModel(): ExploreViewModel {
     // 完全不知道怎麼離開（2026-10-15）。加一顆明確的取消鍵：清空查詢、收鍵盤、把 sheet 收回去。
     onCancelSearch: () => {
       pending.current?.abort(); pending.current = null; setResolvingId(null);
+      dictation.cancel();
       Keyboard.dismiss();
       setQuery('');
       setResolveFailed(false);
@@ -564,9 +565,9 @@ export function useExploreViewModel(): ExploreViewModel {
     },
     voiceInput: {
       status: dictation.status,
-      label: t('chatbot.voice.micLabel'),
       accessibilityLabel:
-        dictation.status === 'listening' ? t('nativeVoiceSearchListening') : t('chatbot.voice.micLabel'),
+        dictation.status === 'starting' ? t('nativeVoiceSearchStarting')
+          : dictation.status === 'listening' ? t('nativeVoiceSearchListening') : t('nativeVoiceSearch'),
       onToggle: () => {
         if (dictation.status === 'listening') dictation.stop();
         else void dictation.start();

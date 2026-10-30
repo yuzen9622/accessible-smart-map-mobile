@@ -34,7 +34,7 @@ jest.mock('@/features/map', () => ({
   useNearbySummary: () => null,
   useFacilityStore: (selector: (state: unknown) => unknown) => selector({ showParking: false, selected: [], toggleCategory: jest.fn(), toggleParking: jest.fn() }),
 }));
-jest.mock('@/shared/speech', () => ({ useDictation: () => ({ status: 'idle', start: jest.fn(), stop: jest.fn() }) }));
+jest.mock('@/shared/speech', () => ({ useDictation: () => ({ status: 'idle', start: jest.fn(), stop: jest.fn(), cancel: jest.fn() }) }));
 
 const outdoor: AutocompleteItem = {
   id: 'osm:node:123', source: 'osm', primaryText: '戶外公園', secondaryText: '臺中市',

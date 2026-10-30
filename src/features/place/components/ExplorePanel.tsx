@@ -1,5 +1,6 @@
+import { useRef } from 'react';
 import { Text, TextInput } from '@/shared/ui/typography/Text';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, View, type TextInput as NativeTextInput } from 'react-native';
 
 import { MapLayersBar } from '@/features/map';
 import { ACCENT_FILL, SPACE, TYPE, useSemanticColors, useThemeColors, WHITE, SHAPE, ELEVATION, ICON_SIZE } from '@/shared/theme';
@@ -28,6 +29,7 @@ import PressableScale from '@/shared/ui/PressableScale';
  *   面板最上面一列，跟搜尋框在同一張卡片裡，不再是獨立浮動元件、沒有疊圖風險。
  */
 export default function ExplorePanel({ model }: ExplorePanelProps) {
+  const searchInputRef = useRef<NativeTextInput>(null);
   const colors = useThemeColors();
   const tones = useSemanticColors();
   const accentText = tones.accent;
@@ -65,6 +67,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
       <View style={[styles.searchBar, { backgroundColor: colors.backgroundElement }]}>
         <Icon name="search" color={colors.textSecondary} />
         <TextInput
+          ref={searchInputRef}
           value={model.query}
           onChangeText={model.onQueryChange}
           onFocus={model.onSearchFocus}
@@ -79,13 +82,17 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
         {model.loading ? <ActivityIndicator size="small" color={colors.textSecondary} /> : null}
         <PressableScale
           accessibilityRole="button"
-          accessibilityState={{ selected: model.voiceInput.status === 'listening' }}
+          accessibilityState={{ selected: model.voiceInput.status === 'listening', busy: model.voiceInput.status === 'starting' }}
           accessibilityLabel={model.voiceInput.accessibilityLabel}
-          onPress={model.voiceInput.onToggle}
+          disabled={model.voiceInput.status === 'starting'}
+          onPress={() => {
+            searchInputRef.current?.focus();
+            model.voiceInput.onToggle();
+          }}
           hitSlop={6}
           style={styles.voiceButton}>
           <Icon
-            name="audioLines"
+            name="mic"
             size={ICON_SIZE.body}
             color={model.voiceInput.status === 'listening' ? tones.accent : colors.textSecondary}
           />

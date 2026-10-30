@@ -18,7 +18,7 @@ const model: ExploreViewModel = {
     { key: 'bus', label: 'Bus', iconName: 'bus', color: '#0F9960', onPress: noop },
   ],
   account: { label: 'Settings', initial: null, avatarUrl: null, onPress: noop },
-  voiceInput: { status: 'idle', label: 'Voice conversation', accessibilityLabel: 'Voice conversation', onToggle: noop },
+  voiceInput: { status: 'idle', accessibilityLabel: 'Voice conversation', onToggle: noop },
   labels: {
     searchPlaceholder: 'Search', nearbyA11y: 'Nearby', savedPlaces: 'Saved', searchHistory: 'History',
     searchResults: 'Results', noResults: 'No results', searching: 'Searching', cancelSearch: 'Cancel', recentSearches: 'Recent', moreActions: 'More',
@@ -90,4 +90,35 @@ it('keeps search results through collapse and re-expansion', async () => {
     expect(view.getByRole('button', { name: 'Station' })).toBeTruthy();
     expect(view.getByText('Results')).toBeTruthy();
   }
+});
+
+it('prevents repeated voice-search taps while starting without adding status text', async () => {
+  const onToggle = jest.fn();
+  const view = await render(<ExplorePanel model={{
+    ...model,
+    voiceInput: { status: 'starting', accessibilityLabel: 'Starting voice input…', onToggle },
+  }} />);
+
+  expect(view.queryByText('Starting voice input…')).toBeNull();
+  const button = view.getByRole('button', { name: 'Starting voice input…' });
+  expect(button).toBeDisabled();
+  await fireEvent.press(button);
+  expect(onToggle).not.toHaveBeenCalled();
+});
+
+it('keeps voice-search feedback on the microphone button without extra text', async () => {
+  const view = await render(<ExplorePanel model={{
+    ...model,
+    voiceInput: { ...model.voiceInput, status: 'listening', accessibilityLabel: 'Listening… tap again to stop' },
+  }} />);
+  expect(view.queryByText('Listening… tap again to stop')).toBeNull();
+  expect(view.getByRole('button', { name: 'Listening… tap again to stop', selected: true })).toBeTruthy();
+  expect(view.getByTestId('icon-mic', { includeHiddenElements: true })).toBeTruthy();
+
+  await view.rerender(<ExplorePanel model={{
+    ...model,
+    voiceInput: { ...model.voiceInput, status: 'error' },
+  }} />);
+  expect(view.queryByRole('alert')).toBeNull();
+  expect(view.getByRole('button', { name: 'Voice conversation', selected: false })).toBeTruthy();
 });

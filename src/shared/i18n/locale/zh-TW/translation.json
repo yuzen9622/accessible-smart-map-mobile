@@ -1112,6 +1112,8 @@
   "nativeFontMega": "巨大",
   "nativeLanguageSystem": "跟隨系統",
   "nativeOpenSettings": "前往設定",
+  "nativeVoiceSearch": "語音搜尋",
+  "nativeVoiceSearchStarting": "正在啟動語音輸入…",
   "nativeVoiceSearchListening": "聽取中，再點一下結束",
   "nativeVoiceSearchDenied": "尚未開啟麥克風與語音辨識權限，無法使用語音搜尋。",
   "nativeLogoutConfirm": "確定要登出嗎？",

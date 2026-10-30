@@ -1128,6 +1128,8 @@
   "nativeFontMega": "Extra large",
   "nativeLanguageSystem": "System",
   "nativeOpenSettings": "Open Settings",
+  "nativeVoiceSearch": "Voice search",
+  "nativeVoiceSearchStarting": "Starting voice input…",
   "nativeVoiceSearchListening": "Listening… tap again to stop",
   "nativeVoiceSearchDenied": "Microphone and speech recognition access is off, so voice search isn't available.",
   "nativeLogoutConfirm": "Sign out?",

@@ -55,6 +55,20 @@ export interface PlaceReviewKey {
   placeType: PlaceReviewType;
 }
 
+export type PlaceBounds = [number, number, number, number];
+
+export interface NearbyA11yCategoryStat {
+  count: number;
+  nearestMeters: number | null;
+}
+
+/** 後端 `GET /a11y/nearby-a11y` 依類別彙整的附近設施數量 */
+export interface NearbyA11ySummary {
+  elevator: NearbyA11yCategoryStat;
+  ramp: NearbyA11yCategoryStat;
+  toilet: NearbyA11yCategoryStat;
+}
+
 export interface PlaceResult {
   id: string;
   source: PlaceSource;
@@ -62,6 +76,8 @@ export interface PlaceResult {
   fullAddress: string | null;
   addressComponents: PlaceAddressComponents;
   location: PlaceGeoPoint;
+  /** [minLng, minLat, maxLng, maxLat]；舊快取或非 Google 來源沒有範圍 */
+  bounds?: PlaceBounds | null;
   placeClass: string | null;
   placeType: string | null;
   typeLabel: string | null;

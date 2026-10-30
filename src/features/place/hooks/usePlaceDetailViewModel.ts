@@ -22,6 +22,7 @@ import { deleteReview } from '../api/reviews';
 import { bumpReviewRevision, useReviewEditorStore } from '../store/reviewEditorStore';
 import { isSavedPlace, useSavedPlacesStore } from '../store/savedPlacesStore';
 import type { PlaceDetail } from '../types/place';
+import { useNearbyA11ySummary } from './useNearbyA11ySummary';
 import { useReviews } from './useReviews';
 import { haptic } from '@/shared/haptics';
 
@@ -164,7 +165,8 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     distanceText,
   });
 
-  const checklistItems = place ? buildAccessibilityChecklist(place) : [];
+  const nearbySummary = useNearbyA11ySummary(place);
+  const checklistItems = place ? buildAccessibilityChecklist(place, nearbySummary) : [];
   const reviews = useReviews(place?.reviewKey?.placeId ?? '', place?.reviewKey?.placeType ?? 'osm');
   const hasReviewKey = Boolean(place?.reviewKey);
   const shareUrl = entry.kind === 'venue-place' ? '' : buildPlaceShareUrl(getAppConfig().shareBaseUrl, entry);

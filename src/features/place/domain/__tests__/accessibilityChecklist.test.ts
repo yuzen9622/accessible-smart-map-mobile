@@ -39,4 +39,23 @@ describe('buildAccessibilityChecklist', () => {
       }
     }
   });
+
+  it('reads elevator/ramp/toilet independently from the nearby summary', () => {
+    const summary = {
+      elevator: { count: 4, nearestMeters: 24 },
+      ramp: { count: 0, nearestMeters: null },
+      toilet: { count: 2, nearestMeters: 42 },
+    };
+    const items = buildAccessibilityChecklist(place(null), summary);
+    expect(items.find((i) => i.key === 'elevator')?.available).toBe(true);
+    expect(items.find((i) => i.key === 'ramp')?.available).toBeNull();
+    expect(items.find((i) => i.key === 'toilet')?.available).toBe(true);
+  });
+
+  it('leaves facilities unconfirmed without a summary', () => {
+    const items = buildAccessibilityChecklist(place('yes'), null);
+    for (const key of ['elevator', 'ramp', 'toilet'] as const) {
+      expect(items.find((i) => i.key === key)?.available).toBeNull();
+    }
+  });
 });

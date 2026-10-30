@@ -1,4 +1,4 @@
-import type { PlaceResult } from '../types/place';
+import type { NearbyA11yCategoryStat, NearbyA11ySummary, PlaceResult } from '../types/place';
 
 export type ChecklistAvailability = boolean | null;
 
@@ -14,24 +14,22 @@ export interface ChecklistItem {
  * `true`／`null`，永遠不能是 `false`——後端無法區分「已調查、確認沒有」和
  * 「從未調查」，顯示確定的 ✗ 會誤導輪椅使用者以為某處確定不可通行。
  *
- * **與 Web 版的差異**（記錄於 port-ledger）：Web 版還會合併附近廁所／捷運
- * 無障礙設施（`getNearbyRouteA11yPlaces`）與 OSM 地點細節
- * （`getOsmPlaceDetail` 的 `wheelchair`／`tags`／`facilities`）兩個資料源，
- * 屬於 `features/map`（SDD §6.1 a11y 設施）的職責範圍，不在 Phase 1.3
- * （`features/place`）之內。本版只用 place-detail 端點自帶的
- * `place.accessibility.wheelchair`；elevator/ramp/toilet 三項因缺少那兩個
- * 資料源，目前只能回傳 `null`（未確認）——仍然滿足「絕不顯示確定 false」
- * 的不變量，只是可用的確定 `true` 訊號比 Web 版少。等 a11y 設施資料接進
- * 地圖 feature 後，可以把該資料源注入這個函式（多一個參數）補上真訊號。
+ * elevator/ramp/toilet 來自後端 `nearby-a11y` 的分類彙整 `summary`（地點範圍內
+ * 各類別的數量），各類別獨立判斷：有數量才是 `true`，否則 `null`。沒有 summary
+ * （載入中、失敗、舊後端）時三項都是 `null`。
+ *
+ * **與 Web 版的差異**（記錄於 port-ledger）：Web 版另外合併 OSM 地點細節
+ * （`getOsmPlaceDetail` 的 `tags`／`facilities`），本版尚未接這個資料源。
  */
-export function buildAccessibilityChecklist(place: PlaceResult): ChecklistItem[] {
+export function buildAccessibilityChecklist(place: PlaceResult, summary: NearbyA11ySummary | null = null): ChecklistItem[] {
   const wheelchair = place.accessibility.wheelchair;
   const wheelchairAvailable: ChecklistAvailability = wheelchair === 'yes' || wheelchair === 'limited' ? true : wheelchair === 'no' ? false : null;
+  const present = (stat: NearbyA11yCategoryStat | undefined): ChecklistAvailability => (stat && stat.count > 0 ? true : null);
 
   return [
     { key: 'wheelchair', available: wheelchairAvailable },
-    { key: 'elevator', available: null },
-    { key: 'ramp', available: null },
-    { key: 'toilet', available: null },
+    { key: 'elevator', available: present(summary?.elevator) },
+    { key: 'ramp', available: present(summary?.ramp) },
+    { key: 'toilet', available: present(summary?.toilet) },
   ];
 }

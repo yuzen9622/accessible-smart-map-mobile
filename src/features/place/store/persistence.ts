@@ -2,6 +2,7 @@ import { appStorage, commitVersionedWrite, readJson, type KeyValueStorage } from
 
 import { migrateLegacyPlaceStorage } from '../domain/adapters';
 import { sanitizeSavedPlaces, sanitizeSearchHistory } from '../domain/searchHistory';
+import { isVenuePlaceDetail } from '../domain/venuePlace';
 import type { PlaceDetail } from '../types/place';
 
 /**
@@ -45,15 +46,10 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   return Object.values(value as Record<string, unknown>).every((v) => typeof v === 'string');
 }
 
-function isPlaceDetailArray(value: unknown): value is PlaceDetail[] {
-  return (
-    Array.isArray(value) &&
-    value.every((entry) => {
-      if (typeof entry !== 'object' || entry === null) return false;
-      const kind = (entry as { kind?: unknown }).kind;
-      return kind === 'place' || kind === 'coordinate';
-    })
-  );
+function isPlaceDetail(entry: unknown): entry is PlaceDetail {
+  if (typeof entry !== 'object' || entry === null) return false;
+  const kind = (entry as { kind?: unknown }).kind;
+  return kind === 'place' || kind === 'coordinate' || isVenuePlaceDetail(entry);
 }
 
 /** 讀取＋（必要時）搬遷本機儲存的地點資料。同步、供 store 在模組載入時呼叫一次。 */
@@ -62,8 +58,8 @@ export function loadPersistedPlaceState(storage: KeyValueStorage = appStorage): 
 
   if (currentVersion === PLACE_SCHEMA_VERSION) {
     return {
-      searchHistory: sanitizeSearchHistory(readJson(storage, SEARCH_HISTORY_KEY, isPlaceDetailArray, [])),
-      savedPlaces: sanitizeSavedPlaces(readJson(storage, SAVED_PLACES_KEY, isPlaceDetailArray, [])),
+      searchHistory: sanitizeSearchHistory(readJson(storage, SEARCH_HISTORY_KEY, isUnknownArray, []).filter(isPlaceDetail)),
+      savedPlaces: sanitizeSavedPlaces(readJson(storage, SAVED_PLACES_KEY, isUnknownArray, []).filter(isPlaceDetail)),
       savedPlaceCategories: readJson(storage, SAVED_CATEGORIES_KEY, isStringRecord, {}),
       savedCustomCategories: readJson(storage, SAVED_CUSTOM_CATEGORIES_KEY, isStringArray, []),
     };

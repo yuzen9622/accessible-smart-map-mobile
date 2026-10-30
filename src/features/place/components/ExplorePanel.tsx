@@ -34,11 +34,12 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
 
   const renderHistoryRow = (row: ExploreRow) => (
     <View key={row.key} style={[styles.historyRow, { borderColor: PLACE_BORDER_COLOR }]}>
-      <PressableScale feedback="highlight" accessibilityRole="button" accessibilityLabel={row.title} onPress={row.onPress} style={styles.historyRowPress}>
+      <PressableScale feedback="highlight" accessibilityRole="button" accessibilityLabel={[row.title, row.subtitle].filter(Boolean).join('，')} onPress={row.onPress} style={styles.historyRowPress}>
         <Icon name="clock" size={ICON_SIZE.body} color={colors.textSecondary} />
-        <Text style={[styles.listRowText, { color: colors.text }]} numberOfLines={1}>
-          {row.title}
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.listRowText, { color: colors.text }]} numberOfLines={1}>{row.title}</Text>
+          {row.subtitle ? <Text style={{ color: colors.textSecondary, fontSize: TYPE.subhead }}>{row.subtitle}</Text> : null}
+        </View>
       </PressableScale>
       {row.onDelete ? (
         <PressableScale
@@ -117,6 +118,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
       </View>
 
       {model.mode === 'idle' ? (
+        <>
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={model.planRoute.label}
@@ -126,6 +128,7 @@ export default function ExplorePanel({ model }: ExplorePanelProps) {
           <Text style={[styles.planRouteText, { color: WHITE }]}>{model.planRoute.label}</Text>
           <Icon name="chevronRight" size={ICON_SIZE.body} color={WHITE} />
         </PressableScale>
+        </>
       ) : null}
 
       {model.mode === 'history' ? (

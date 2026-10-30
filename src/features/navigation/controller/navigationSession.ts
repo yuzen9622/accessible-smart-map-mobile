@@ -44,6 +44,11 @@ function stopEngineAndLocation(): void {
   void run();
 }
 
+/** Indoor handoff owns the next screen and camera; only stop outdoor tracking here. */
+export function stopNavigationForVenueHandoff(): void {
+  if (useNavStore.getState().isNavigating) stopEngineAndLocation();
+}
+
 /** 導航用的那條路線在結果中的位置；結果裡已沒有它（例：語音直接開的導航）時為 null。 */
 function navigatedRouteIndex(): number | null {
   const { selectRoute, computeRoutes } = getRouteSessionSnapshot();

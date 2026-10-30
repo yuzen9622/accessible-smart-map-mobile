@@ -1,4 +1,5 @@
 import { placeKey } from './placeKey';
+import { isVenuePlaceDetail } from './venuePlace';
 import type { LatLng, NominatimPlace, PlaceDetail, PlaceResult } from '../types/place';
 
 /**
@@ -93,6 +94,7 @@ export function nominatimToPlaceResult(p: NominatimPlace): PlaceResult {
 
 export function legacyPlaceDetailToPlaceResult(raw: unknown): PlaceDetail | null {
   if (!isRecord(raw)) return null;
+  if (isVenuePlaceDetail(raw)) return raw;
 
   // Coordinate 條目沒有巢狀 place 物件，原樣相容。
   if (raw.kind === 'coordinate') {

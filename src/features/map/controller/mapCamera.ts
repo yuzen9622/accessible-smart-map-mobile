@@ -42,9 +42,10 @@ export const mapCamera = {
     else camera?.easeTo({ center, zoom, duration, padding: currentPadding() });
   },
   /** `edge` 是 sheet inset 以外、額外保留的邊距（例：路線要避開頂部浮動控制，對齊 Web top 70／左右 40）。 */
-  fitBounds(bounds: LngLatBounds, edge?: { top?: number; left?: number; right?: number }): void {
+  fitBounds(bounds: LngLatBounds, edge?: { top?: number; left?: number; right?: number }, orientation?: { pitch: number; bearing: number }): void {
     claimed = true;
     camera?.fitBounds(bounds, {
+      ...orientation,
       padding: { ...currentPadding(edge?.top ?? 0), left: edge?.left ?? 0, right: edge?.right ?? 0 },
       duration: motionDuration(800),
     });

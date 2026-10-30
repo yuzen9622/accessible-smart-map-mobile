@@ -37,7 +37,7 @@ export function usePlaceDetail(id: string | null, options: UsePlaceDetailOptions
     void (async () => {
       setPlace(null);
       setError(false);
-      if (!id || isCoordPlaceId(id)) {
+      if (!id || isCoordPlaceId(id) || id.startsWith('venue:')) {
         setLoading(false);
         return;
       }

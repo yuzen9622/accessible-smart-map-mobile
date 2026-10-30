@@ -9,7 +9,7 @@ import type { PlaceDetail } from '../types/place';
  * 規則：`place` 且 id 是 `osm:`／`google:` 開頭 → `?place={id}`；否則
  * （coordinate-kind，或沒有那兩種前綴的 place id）→ `?loc={lat},{lng}`。
  */
-export function buildPlaceShareUrl(shareBaseUrl: string, entry: PlaceDetail): string {
+export function buildPlaceShareUrl(shareBaseUrl: string, entry: Exclude<PlaceDetail, { kind: 'venue-place' }>): string {
   const base = shareBaseUrl.replace(/\/+$/, '');
   if (entry.kind === 'place' && (entry.place.id.startsWith('osm:') || entry.place.id.startsWith('google:'))) {
     return `${base}?place=${encodeURIComponent(entry.place.id)}`;

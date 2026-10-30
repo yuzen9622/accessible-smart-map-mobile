@@ -88,10 +88,11 @@ export default function SavedPlacesPanel({ model }: SavedPlacesPanelProps) {
                 onPress={row.onPress}
                 modifiers={[
                   buttonStyle('plain'),
-                  accessibilityLabel(row.categoryLabel ? `${row.title}，${row.categoryLabel}` : row.title),
+                  accessibilityLabel([row.title, row.subtitle, row.categoryLabel].filter(Boolean).join('，')),
                 ]}>
                 <VStack alignment="leading" spacing={2}>
                   <Text>{row.title}</Text>
+                  {row.subtitle ? <Text modifiers={[secondaryForeground]}>{row.subtitle}</Text> : null}
                   {row.categoryLabel ? (
                     <Text modifiers={[secondaryForeground]}>{row.categoryLabel}</Text>
                   ) : null}

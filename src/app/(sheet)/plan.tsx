@@ -1,4 +1,4 @@
-import { beginNavigation } from '@/features/navigation';
+import { beginJourneyNavigation } from '@/composition/journeyNavigation';
 import { RoutePlanScreen } from '@/features/route';
 import { useAppTranslation } from '@/shared/i18n';
 
@@ -8,7 +8,7 @@ export default function PlanSheet() {
   return (
     <RoutePlanScreen
       onStartNavigation={() =>
-        beginNavigation({ notificationTitle: t('nativeNavNotificationTitle'), notificationBody: t('nativeNavNotificationBody') })
+        beginJourneyNavigation({ notificationTitle: t('nativeNavNotificationTitle'), notificationBody: t('nativeNavNotificationBody') })
       }
     />
   );

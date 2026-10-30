@@ -5,6 +5,10 @@ import { getPlaceAutocomplete, getPlaceDetails } from '@/features/place/api/plac
 import { loadPersistedPlaceState } from '@/features/place/store/persistence';
 
 import { changeAppLanguage } from '@/shared/i18n';
+import { loadVenue, loadVenues } from '@/features/indoor/api/venueApi';
+import { createVenueDetail } from '@/features/indoor/domain/fixtures/venueFixture';
+import { toVenuePlaceDetail } from '@/features/place/domain/venuePlace';
+import { refreshVenuePlaceCatalog } from '@/features/place/hooks/venuePlaceCatalog';
 
 import RouteLocationSearchPanel from '../../components/RouteLocationSearchPanel';
 import { useRouteSessionStore } from '../../store/routeSessionStore';
@@ -12,6 +16,7 @@ import { useRouteLocationSearchViewModel } from '../useRouteLocationSearchViewMo
 
 jest.mock('@/features/map', () => jest.requireActual('@/features/navigation/controller/testing/fakeMap').mapModule);
 jest.mock('@/features/place/api/placeSearch', () => ({ getPlaceAutocomplete: jest.fn(), getPlaceDetails: jest.fn() }));
+jest.mock('@/features/indoor/api/venueApi', () => ({ loadVenue: jest.fn(), loadVenues: jest.fn() }));
 jest.mock('@/shared/ui', () => ({ Icon: () => null }));
 
 const station: PlaceDetail = { kind: 'coordinate', address: '台北車站', position: { lat: 25.047, lng: 121.517 } };
@@ -28,6 +33,9 @@ beforeEach(async () => {
   await changeAppLanguage('zh-TW');
   jest.useFakeTimers();
   jest.clearAllMocks();
+  jest.mocked(loadVenues).mockResolvedValue([]);
+  jest.mocked(loadVenue).mockResolvedValue(createVenueDetail());
+  await refreshVenuePlaceCatalog();
   useSavedPlacesStore.getState().clearSearchHistory();
   useSavedPlacesStore.getState().addSearchHistory(park);
   useSavedPlacesStore.getState().addSearchHistory(station);
@@ -167,5 +175,53 @@ it('distinguishes network errors from no results and retries the same query', as
   expect(result.current.error).toBeNull();
   expect(result.current.rows).toEqual([]);
   expect(result.current.labels.empty).toContain('找不到');
+  expect(close).not.toHaveBeenCalled();
+});
+
+it.each(['origin', 'destination'] as const)('keeps fresh venue identity when choosing an indoor history item as %s', async (field) => {
+  const detail = createVenueDetail();
+  useSavedPlacesStore.getState().addSearchHistory(toVenuePlaceDetail(detail, detail.places[1]));
+  const latest = createVenueDetail(); latest.version = 4;
+  jest.mocked(loadVenue).mockResolvedValue(latest);
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel(field, close));
+  expect(result.current.rows[0].subtitle).toBe('測試館・2F');
+  await act(async () => result.current.rows[0].onPress());
+  expect(useRouteSessionStore.getState()[field === 'origin' ? 'originVenuePlace' : 'destinationVenuePlace']).toMatchObject({
+    venueId: 'test-venue', placeId: 'end', buildingId: 'a', levelRef: '2F', sourceVersion: 4,
+  });
+  expect(loadPersistedPlaceState().searchHistory[0]).toMatchObject({ kind: 'venue-place', placeId: 'end', sourceVersion: 4 });
+  expect(getPlaceDetails).not.toHaveBeenCalled();
+  expect(close).toHaveBeenCalledTimes(1);
+});
+
+it('mixes rooms with ordinary endpoint suggestions and does not commit removed indoor history', async () => {
+  const detail = createVenueDetail();
+  jest.mocked(loadVenues).mockResolvedValue([{ ...detail, buildings: detail.buildings.map(({ id, name }) => ({ id, name })) }]);
+  await refreshVenuePlaceCatalog();
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel('destination', close));
+  await act(() => result.current.onQueryChange('空間'));
+  await act(async () => jest.advanceTimersByTime(400));
+  expect(result.current.rows.map((row) => row.title)).toEqual(['起點空間', '終點空間', '台北101']);
+  jest.mocked(loadVenue).mockResolvedValue({ ...detail, version: 4, places: [] });
+  await act(async () => result.current.rows[1].onPress());
+  expect(result.current.error).toBe('此地點資料已更新，請重新搜尋。');
+  expect(useRouteSessionStore.getState().destinationVenuePlace).toBeNull();
+  expect(close).not.toHaveBeenCalled();
+});
+
+it('does not change an endpoint when an indoor resolution finishes after dismissal', async () => {
+  const detail = createVenueDetail();
+  useSavedPlacesStore.getState().addSearchHistory(toVenuePlaceDetail(detail, detail.places[1]));
+  const historyBefore = loadPersistedPlaceState().searchHistory;
+  let finish: (value: typeof detail) => void = () => {};
+  jest.mocked(loadVenue).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel('destination', close));
+  await act(() => result.current.rows[0].onPress());
+  const signal = jest.mocked(loadVenue).mock.calls.at(-1)?.[1];
+  await act(() => result.current.onDismiss());
+  expect(signal?.aborted).toBe(true);
+  await act(async () => finish({ ...detail, version: 4 }));
+  expect(useRouteSessionStore.getState().destinationVenuePlace).toBeNull();
+  expect(loadPersistedPlaceState().searchHistory).toEqual(historyBefore);
   expect(close).not.toHaveBeenCalled();
 });

@@ -83,6 +83,26 @@ export interface LatLng {
   lng: number;
 }
 
+/** 場館地點以圖節點身分識別；同一座標的不同樓層不能合併。 */
+export interface VenuePlaceDetail {
+  kind: 'venue-place';
+  venueId: string;
+  placeId: string;
+  placeKind: 'room' | 'amenity' | 'parking' | 'entrance' | 'gate' | 'anchor' | 'poi';
+  name: string;
+  venueName: string;
+  buildingId: string | null;
+  buildingName: string;
+  levelRef: string | null;
+  sourceVersion: number;
+  dataSource: 'api';
+  address: string;
+  position: LatLng;
+  arrivalKind: 'door' | 'corridor' | 'place' | null;
+  doorKnown: boolean | null;
+  wheelchair?: 'yes' | 'no' | 'limited' | 'unknown';
+}
+
 /**
  * 對齊 Web `src/types/index.ts` 的 `PlaceDetail`（原始碼未直接讀取，由
  * `adapters.ts`／`createSearchSlice.ts`／`SavedPlacesPanel.tsx` 的用法反推）：
@@ -91,7 +111,8 @@ export interface LatLng {
  */
 export type PlaceDetail =
   | { kind: 'place'; place: PlaceResult; position: LatLng }
-  | { kind: 'coordinate'; address: string; position: LatLng };
+  | { kind: 'coordinate'; address: string; position: LatLng }
+  | VenuePlaceDetail;
 
 /**
  * 移植自 Web `src/lib/api/placeSearch.ts` 使用的 Nominatim 回應形狀

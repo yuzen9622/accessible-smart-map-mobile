@@ -3,18 +3,23 @@
 // 與 maplibre-gl 的 LngLatBounds；本版拆成純函式讓 jest 測，副作用留給 `controller/routeSessionPort.ts`。
 
 import { haversineMeters, type LatLng } from '@/shared/geo';
+import type { VenueRouteRequest } from '@/shared/venue';
 
-import type { AccessibleRouteRequest, ApiCoordinate, EffectiveRoutePreferences, RouteLanguage, RouteLeg, RouteMode, TravelMode } from '../types/route';
+import type { AccessibleRouteRequest, ApiCoordinate, EffectiveRoutePreferences, RouteLanguage, RouteLeg, RouteMode, TravelMode, VenueDestination } from '../types/route';
 
 // 直線距離超過這個值已遠超任何國內行程（台北–高雄約 300 km），幾乎可以確定起訖點不在服務範圍——
 // 在這裡擋下能給出準確的「距離過遠」訊息，而不是暗示重試有用的「失敗，請再試一次」。
 export const MAX_ROUTE_METERS = 500_000;
 
 export interface ComputeRouteParams {
+  /** Client-only cancellation; never serialized into the strict request body. */
+  signal?: AbortSignal;
   /** Resolved UI language, never the persisted `system` preference. */
   language?: RouteLanguage;
   origin?: LatLng;
   destination?: LatLng;
+  originVenuePlace?: VenueDestination;
+  destinationVenuePlace?: VenueDestination;
   waypoints?: LatLng[];
   query?: string;
   mode?: RouteMode;
@@ -28,7 +33,8 @@ export interface ComputeRouteParams {
 
 export type RoutePlanResult =
   | { ok: true; request: AccessibleRouteRequest; start?: LatLng; end?: LatLng }
-  | { ok: false; reason: 'missing-input' | 'too-far' };
+  | { ok: true; venueRequest: VenueRouteRequest & { language?: RouteLanguage } }
+  | { ok: false; reason: 'missing-input' | RouteFailureKind };
 
 function toApiCoordinate(p: LatLng): ApiCoordinate {
   return { latitude: p.lat, longitude: p.lng };
@@ -45,18 +51,33 @@ function isFiniteLatLng(p: LatLng | null | undefined): p is LatLng {
  * 自然語言查詢交給後端從文字解析起終點；只有結構化路徑才以使用者位置補缺。
  */
 export function planRouteRequest(params: ComputeRouteParams, userLocation: LatLng | null): RoutePlanResult {
-  const { waypoints, query, mode, travelMode } = params;
+  const { waypoints, query, mode, travelMode, destinationVenuePlace } = params;
+  if (params.originVenuePlace) {
+    if (!destinationVenuePlace) return { ok: false, reason: params.destination ? 'unsupported-venue-direction' : 'missing-input' };
+    if (params.originVenuePlace.venueId !== destinationVenuePlace.venueId) return { ok: false, reason: 'different-venues' };
+    if (params.originVenuePlace.sourceVersion !== undefined && destinationVenuePlace.sourceVersion !== undefined &&
+      params.originVenuePlace.sourceVersion !== destinationVenuePlace.sourceVersion) return { ok: false, reason: 'stale-venue' };
+    if (query || waypoints?.length) return { ok: false, reason: 'unsupported-venue-direction' };
+    return { ok: true, venueRequest: {
+      venueId: params.originVenuePlace.venueId, fromPlaceId: params.originVenuePlace.placeId,
+      toPlaceId: destinationVenuePlace.placeId, mode: mode ?? 'normal',
+      ...(params.language ? { language: params.language } : {}),
+    } };
+  }
   // 非有限座標（NaN）序列化成 JSON 會變 null → strict schema 400，一律當成沒給。
   const origin = isFiniteLatLng(params.origin) ? params.origin : undefined;
   const destination = isFiniteLatLng(params.destination) ? params.destination : undefined;
   const here = isFiniteLatLng(userLocation) ? userLocation : undefined;
 
-  if (!query && !origin && !destination) return { ok: false, reason: 'missing-input' };
+  if (destinationVenuePlace && (query !== undefined || params.destination !== undefined)) {
+    return { ok: false, reason: 'missing-input' };
+  }
+  if (!query && !origin && !destination && !destinationVenuePlace) return { ok: false, reason: 'missing-input' };
 
   const start = origin ?? (query ? undefined : here);
-  const end = destination ?? (query ? undefined : here);
+  const end = destination ?? (query || destinationVenuePlace ? undefined : here);
 
-  if (!query && (!start || !end)) return { ok: false, reason: 'missing-input' };
+  if (!query && (!start || (!end && !destinationVenuePlace))) return { ok: false, reason: 'missing-input' };
 
   if (start && end && haversineMeters(start, end) > MAX_ROUTE_METERS) {
     return { ok: false, reason: 'too-far' };
@@ -66,6 +87,9 @@ export function planRouteRequest(params: ComputeRouteParams, userLocation: LatLn
   if (params.language) request.language = params.language;
   if (start) request.origin = toApiCoordinate(start);
   if (end) request.destination = toApiCoordinate(end);
+  if (destinationVenuePlace) request.destinationVenuePlace = {
+    venueId: destinationVenuePlace.venueId, placeId: destinationVenuePlace.placeId,
+  };
   const validWaypoints = waypoints?.filter(isFiniteLatLng) ?? [];
   if (validWaypoints.length) request.waypoints = validWaypoints.map(toApiCoordinate);
   if (query) request.query = query;
@@ -90,7 +114,8 @@ export function planRouteRequest(params: ComputeRouteParams, userLocation: LatLn
   return { ok: true, request, start, end };
 }
 
-export type RouteFailureKind = 'too-far' | 'no-route' | 'no-accessible-route' | 'empty' | 'failed';
+export type RouteFailureKind = 'too-far' | 'no-route' | 'no-accessible-route' | 'empty' | 'failed'
+  | 'unsupported-venue-direction' | 'different-venues' | 'stale-venue';
 
 /** i18n key 與 Web 版 toast 文案一致；Web 的「找不到合適的無障礙路線」「路線規劃失敗」沒有 key，這裡補上 native 前綴 key。 */
 export const ROUTE_FAILURE_I18N: Record<RouteFailureKind, { key: string; fallback: string }> = {
@@ -102,6 +127,9 @@ export const ROUTE_FAILURE_I18N: Record<RouteFailureKind, { key: string; fallbac
   },
   empty: { key: 'nativeRouteErrorEmpty', fallback: '找不到合適的無障礙路線' },
   failed: { key: 'nativeRouteErrorFailed', fallback: '路線規劃失敗，請稍後再試' },
+  'unsupported-venue-direction': { key: 'nativeRouteUnsupportedVenueDirection', fallback: '目前尚未提供從室內地點接往校外的完整路線。請先選擇校門為終點。' },
+  'different-venues': { key: 'nativeRouteDifferentVenues', fallback: '目前尚未提供不同場域之間的完整路線。請選擇同一場域內的起點與終點。' },
+  'stale-venue': { key: 'nativeRouteStaleVenue', fallback: '場域資料已更新，請重新選擇起點與終點。' },
 };
 
 /**

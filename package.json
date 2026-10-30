@@ -44,6 +44,7 @@
     "expo-widgets": "~57.0.22",
     "i18next": "^26.4.2",
     "lucide-react-native": "^1.48.0",
+    "polygon-clipping": "0.15.7",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-i18next": "^17.0.15",

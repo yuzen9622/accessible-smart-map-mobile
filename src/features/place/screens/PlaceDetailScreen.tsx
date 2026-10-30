@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { useAppTranslation } from '@/shared/i18n';
 import { ErrorState, HeaderCloseButton } from '@/shared/ui';
@@ -7,26 +7,30 @@ import { ErrorState, HeaderCloseButton } from '@/shared/ui';
 import PlaceDetailPanel from '../components/PlaceDetailPanel';
 import PlaceDetailSkeleton from '../components/PlaceDetailSkeleton';
 import { usePlaceDetail } from '../hooks/usePlaceDetail';
+import { useVenuePlaceDetail } from '../hooks/useVenuePlaceDetail';
 import { usePlaceUiStore } from '../store/placeUiStore';
 
 /**
  * `(sheet)/place/[id]` — 對應 Web `?place=` deep link／自動完成選定地點。
- * `id` 一律是目前格式（`osm:*`／`google:*`），`coord:` 座標型 id 不會走這條路由
- * （見 `domain/placeId.ts` 的不變量），而是 `(sheet)/loc/[coords]`。
+ * `osm:*`／`google:*` 讀一般地點，`venue:*` 依場館與地點身分讀室內資料；
+ * 座標型地點走 `(sheet)/loc/[coords]`。
  */
 export default function PlaceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useAppTranslation();
-  const { place, loading, error } = usePlaceDetail(id ?? null);
+  const venueId = id?.startsWith('venue:') ? id : null;
+  const outdoor = usePlaceDetail(venueId ? null : id ?? null);
+  const venue = useVenuePlaceDetail(venueId);
+  const { place } = outdoor;
+  const entry = useMemo(() => venueId ? venue.entry : place ? { kind: 'place' as const, place, position: { lat: place.location.coordinates[1], lng: place.location.coordinates[0] } } : null, [venueId, venue.entry, place]);
+  const loading = venueId ? venue.loading : outdoor.loading;
+  const error = venueId ? venue.error : outdoor.error;
   const setSelectedPlace = usePlaceUiStore((state) => state.setSelectedPlace);
 
   useEffect(() => {
-    if (place) {
-      const [lng, lat] = place.location.coordinates;
-      setSelectedPlace({ kind: 'place', place, position: { lat, lng } });
-    }
+    if (entry) setSelectedPlace(entry);
     return () => setSelectedPlace(null);
-  }, [place, setSelectedPlace]);
+  }, [entry, setSelectedPlace]);
 
   return (
     <>
@@ -34,10 +38,10 @@ export default function PlaceDetailScreen() {
       <Stack.Screen options={{ title: t('placeInfoLabel'), headerLeft: () => <HeaderCloseButton /> }} />
       {loading ? (
         <PlaceDetailSkeleton />
-      ) : error || !place ? (
-        <ErrorState title={t('nativePlaceLoadError')} systemImage="exclamationmark.triangle" />
+      ) : error || !entry ? (
+        <ErrorState title={t('nativePlaceLoadError')} systemImage="exclamationmark.triangle" retry={venueId ? { label: t('retry'), onPress: venue.retry } : undefined} />
       ) : (
-        <PlaceDetailPanel entry={{ kind: 'place', place, position: { lat: place.location.coordinates[1], lng: place.location.coordinates[0] } }} />
+        <PlaceDetailPanel entry={entry} />
       )}
     </>
   );

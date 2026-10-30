@@ -4,7 +4,8 @@ import { PINNED_FACILITY_CATEGORIES, type PinnedFacilityCategory } from '@/featu
 import type { LatLng } from '@/shared/geo';
 
 import type { RouteFailureKind } from '../domain/routeRequest';
-import type { AiRoutePlan, EffectiveRoutePreferences, AccessibleRoute, LngLatTuple, MatchedAlert, MetroAlertResult, RouteMode, SlopeConstraint, TravelMode } from '../types/route';
+import type { AiRoutePlan, EffectiveRoutePreferences, AccessibleRoute, LngLatTuple, MatchedAlert, MetroAlertResult, RouteMode, SlopeConstraint, TravelMode, VenueDestination, VenueEndpoint, VenueArrival, VenueHandoff } from '../types/route';
+import type { VenueRoute } from '@/shared/venue';
 
 /**
  * 移植自 Web `src/stores/map/createRouteSlice.ts`（commit 5eadc71）的路線欄位；拆出 route feature
@@ -43,8 +44,14 @@ export interface RouteSessionState {
   invalidRouteTokens: string[];
   origin: LatLng | null;
   originName: string;
+  originVenuePlace: VenueDestination | null;
   destination: LatLng | null;
   destinationName: string;
+  destinationVenuePlace: VenueDestination | null;
+  venueArrival: VenueArrival | null;
+  venueLeg: VenueRoute | null;
+  indoorRoute: VenueRoute | null;
+  navigationVenueHandoff: VenueHandoff | null;
   computeRoutes: AccessibleRoute[] | null;
   selectRoute: SelectedRoute | null;
   legGeometryPreview: LegGeometryPreview | null;
@@ -75,6 +82,7 @@ export interface RouteSessionState {
 
   setOrigin: (origin: LatLng | null, name?: string) => void;
   setDestination: (destination: LatLng | null, name?: string) => void;
+  setVenueEndpoint: (field: 'origin' | 'destination', endpoint: VenueEndpoint) => void;
   swapEndpoints: () => void;
   selectRouteIndex: (index: number) => void;
   setTravelMode: (travelMode: TravelMode) => void;
@@ -101,8 +109,14 @@ const CLEARED_SESSION = {
   invalidRouteTokens: [],
   origin: null,
   originName: '',
+  originVenuePlace: null,
   destination: null,
   destinationName: '',
+  destinationVenuePlace: null,
+  venueArrival: null,
+  venueLeg: null,
+  indoorRoute: null,
+  navigationVenueHandoff: null,
   computeRoutes: null,
   selectRoute: null,
   legGeometryPreview: null,
@@ -123,11 +137,32 @@ export const useRouteSessionStore = create<RouteSessionState>()((set, get) => ({
   routeMode: null,
   facilityFilter: [...PINNED_FACILITY_CATEGORIES],
 
-  setOrigin: (origin, name = '') => set({ origin, originName: name }),
-  setDestination: (destination, name = '') => set({ destination, destinationName: name }),
+  setOrigin: (origin, name = '') => set((state) => ({
+    origin, originName: name, originVenuePlace: null,
+    ...(state.origin?.lat === origin?.lat && state.origin?.lng === origin?.lng && !state.originVenuePlace ? {} : invalidateResult(state)),
+  })),
+  setDestination: (destination, name = '') => set((state) => ({
+    destination, destinationName: name, destinationVenuePlace: null,
+    ...(destination !== null && state.destination?.lat === destination.lat && state.destination?.lng === destination.lng && !state.destinationVenuePlace
+      ? {} : invalidateResult(state)),
+  })),
+  setVenueEndpoint: (field, endpoint) => set((state) => {
+    const current = field === 'origin' ? state.originVenuePlace : state.destinationVenuePlace;
+    const unchanged = current?.venueId === endpoint.venueId && current.placeId === endpoint.placeId &&
+      current.sourceVersion === endpoint.sourceVersion && current.buildingId === endpoint.buildingId && current.levelRef === endpoint.levelRef;
+    return {
+      ...(unchanged ? {} : invalidateResult(state)),
+      ...(field === 'origin'
+        ? { origin: unchanged ? state.origin : endpoint.position, originName: endpoint.name, originVenuePlace: { ...endpoint } }
+        : { destination: unchanged ? state.destination : endpoint.position, destinationName: endpoint.name, destinationVenuePlace: { ...endpoint } }),
+    };
+  }),
   swapEndpoints: () => {
-    const { origin, originName, destination, destinationName } = get();
-    set({ origin: destination, originName: destinationName, destination: origin, destinationName: originName });
+    const state = get();
+    const { origin, originName, destination, destinationName } = state;
+    set({ ...invalidateResult(state), origin: destination, originName: destinationName,
+      originVenuePlace: state.destinationVenuePlace, destination: origin, destinationName: originName,
+      destinationVenuePlace: state.originVenuePlace });
   },
   selectRouteIndex: (index) => {
     const routes = get().computeRoutes;
@@ -136,8 +171,8 @@ export const useRouteSessionStore = create<RouteSessionState>()((set, get) => ({
     if (get().selectRoute?.route === route) return;
     set({ selectRoute: { index, route }, selectedRouteId: route.routeId, requestSeq: get().requestSeq + 1, selectionGeneration: get().selectionGeneration + 1 });
   },
-  setTravelMode: (travelMode) => set({ travelMode }),
-  setRouteMode: (routeMode) => set({ routeMode }),
+  setTravelMode: (travelMode) => set((state) => ({ travelMode, ...(state.travelMode === travelMode ? {} : invalidateResult(state)) })),
+  setRouteMode: (routeMode) => set((state) => ({ routeMode, ...(state.routeMode === routeMode ? {} : invalidateResult(state)) })),
   toggleFacilityFilter: (category) =>
     set((state) => ({
       facilityFilter: state.facilityFilter.includes(category)
@@ -146,3 +181,14 @@ export const useRouteSessionStore = create<RouteSessionState>()((set, get) => ({
     })),
   endRouteSession: () => set((s) => ({ ...CLEARED_SESSION, requestSeq: s.requestSeq + 1, selectionGeneration: s.selectionGeneration + 1 })),
 }));
+
+/** A changed input must not retain a handoff from a different campus journey. */
+function invalidateResult(state: RouteSessionState): Partial<RouteSessionState> {
+  return {
+    venueArrival: null, venueLeg: null, indoorRoute: null, computeRoutes: null, selectRoute: null,
+    selectedRouteId: null, planId: null, plan: null, effectivePreferences: null,
+    legGeometryPreview: null, routeWaypoints: [], metroAlerts: null, transitAlerts: null, slopeConstraint: null,
+    computedFor: null, isLoading: false, lastFailure: null,
+    requestSeq: state.requestSeq + 1, selectionGeneration: state.selectionGeneration + 1,
+  };
+}

@@ -41,6 +41,7 @@ import FacilityLayer from './FacilityLayer';
 import FacilityPills from './FacilityPills';
 import ParkingLayer from './ParkingLayer';
 import MapControls from './MapControls';
+import type { MapControlAction } from './MapControls.types';
 import { MOTION } from '@/shared/theme/motion';
 
 /** 首頁「停車」圖層開啟時才依位置查附近無障礙停車（`NearbyScreen` 也會各自載入）。 */
@@ -69,6 +70,11 @@ export interface MapScreenProps {
    * 好多馬桶）。有路線時交給 `RouteFacilityLayer` 顯示，常駐圖層讓出。
    */
   facilityLayerEnabled?: boolean;
+  /** 室內等獨立地圖內容可關閉底圖建物、POI 與 GPS 藍點，避免表示錯誤樓層位置。 */
+  baseContextEnabled?: boolean;
+  buildingExtrusionEnabled?: boolean;
+  /** 由畫面內容指定斜視角度，保留同一個 2D/3D 控制。 */
+  perspectivePitch?: number;
 }
 
 export default function MapScreen({
@@ -77,6 +83,9 @@ export default function MapScreen({
   navigationMode = false,
   homeSheetEnabled = true,
   facilityLayerEnabled = true,
+  baseContextEnabled = true,
+  buildingExtrusionEnabled = true,
+  perspectivePitch = MAP_PITCH_3D,
 }: MapScreenProps) {
   const theme: MapTheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const { t } = useAppTranslation();
@@ -136,7 +145,7 @@ export default function MapScreen({
     const next = !is3d;
     toggle3d();
     try {
-      await mapCamera.setPitch(next ? MAP_PITCH_3D : 0);
+      await mapCamera.setPitch(next ? perspectivePitch : 0);
     } catch (error) {
       logger.warn('[map] setPitch failed', error);
     }
@@ -176,7 +185,7 @@ export default function MapScreen({
   // 單點只開底圖上「目前畫出來」的店家／景點 POI；空白處、道路、建物不反應（點到設施時 FacilityLayer
   // 已 stopPropagation）。任意位置改由長按開座標面板。
   const handlePress = async (event: NativeSyntheticEvent<PressEvent>) => {
-    if (navigationMode) return;
+    if (navigationMode || !baseContextEnabled) return;
     const { point, lngLat } = event.nativeEvent;
     const [x, y] = point;
     try {
@@ -248,7 +257,7 @@ export default function MapScreen({
         }}
         onPress={(event) => void handlePress(event)}
         onLongPress={(event) => {
-          if (navigationMode) return;
+          if (navigationMode || !baseContextEnabled) return;
           // 長按任意處：以座標開地點面板（反查地址），同 Apple／Google 地圖的「放置大頭針」
           haptic.select();
           const [lng, lat] = event.nativeEvent.lngLat;
@@ -259,7 +268,7 @@ export default function MapScreen({
           initialViewState={{
             center: [initialCamera.center.lng, initialCamera.center.lat],
             zoom: initialCamera.zoom,
-            pitch: is3d ? MAP_PITCH_3D : 0,
+            pitch: is3d ? perspectivePitch : 0,
           }}
           trackUserLocation={follow?.mode}
           // 跟隨中只帶 zoom／pitch：原生追蹤每個定位點都用 1 秒動畫把相機移到使用者，定位點則固定畫在
@@ -275,7 +284,7 @@ export default function MapScreen({
             }
           }}
         />
-        <Layer
+        {baseContextEnabled && buildingExtrusionEnabled ? <Layer
           id={BUILDING_3D_LAYER_ID}
           type="fill-extrusion"
           source={BASEMAP_SOURCE_ID}
@@ -283,12 +292,12 @@ export default function MapScreen({
           minzoom={14}
           filter={['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false]}
           paint={buildingExtrusionPaint(theme, is3d)}
-        />
+        /> : null}
         {facilityLayerEnabled ? <FacilityLayer /> : null}
-        {navigationMode ? null : <FacilityPills />}
-        {showParking || pathname === '/nearby' ? <ParkingLayer /> : null}
+        {navigationMode || !baseContextEnabled ? null : <FacilityPills />}
+        {baseContextEnabled && (showParking || pathname === '/nearby') ? <ParkingLayer /> : null}
         {layers}
-        {permission === 'granted' ? <NativeUserLocation mode="heading" /> : null}
+        {baseContextEnabled && permission === 'granted' ? <NativeUserLocation mode="heading" /> : null}
       </Map>
       {showParking ? <ParkingLoader /> : null}
       {overlays}
@@ -296,13 +305,13 @@ export default function MapScreen({
       <Animated.View style={[styles.controls, { top: insets.top + 56, opacity: controlsOpacity }]}>
         <MapControls
           actions={[
-            {
+            ...(baseContextEnabled ? [{
               key: 'locate',
               label: t('shortcutMyLocation'),
               systemImage: 'location.fill',
               shortLabel: '◎',
               onPress: () => void handleLocate(),
-            },
+            } satisfies MapControlAction] : []),
             {
               // 2D／3D 跟設施圖層篩選放在同一排圖示時使用者分不出哪顆在控制視角（使用者回饋：那排
               // 圖示長得都一樣，圈起來那顆其實只是在切 2D／3D）；獨立成自己的常駐按鈕。

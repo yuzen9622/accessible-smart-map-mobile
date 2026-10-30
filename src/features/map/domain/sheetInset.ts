@@ -46,8 +46,10 @@ export interface SheetConfig {
  * `ScrollView` 接手；只有兩檔時使用者會卡在「拖不動 sheet、也滑不動內容」。保留 full 選項
  * 讓手勢交接正常運作，使用者一樣可以把 sheet 拉到底看完整段內容。
  */
-export function sheetConfig(isNavigating: boolean, pathname: string): SheetConfig {
+export function sheetConfig(isNavigating: boolean, pathname: string, isIndoorGuiding = false): SheetConfig {
   if (isNavigating) return { detents: [NAV_PEEK_DETENT, SHEET_DETENTS[SHEET_UNDIMMED_DETENT_INDEX]], initialDetentIndex: 0 };
+  // 室內確認按鈕位於面板內，開始導引時必須可見；大字使用者仍能展開整頁。
+  if (isIndoorGuiding) return { detents: [...SHEET_DETENTS], initialDetentIndex: SHEET_UNDIMMED_DETENT_INDEX };
   if (isPlaceDetailPath(pathname) || pathname.startsWith('/hazard/')) {
     return { detents: [...SHEET_DETENTS], initialDetentIndex: SHEET_UNDIMMED_DETENT_INDEX };
   }

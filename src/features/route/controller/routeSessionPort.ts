@@ -2,6 +2,7 @@ import { mapCamera, useUserLocationStore } from '@/features/map';
 import { ApiError } from '@/shared/api';
 import type { LatLng } from '@/shared/geo';
 import i18n, { getAppLanguage } from '@/shared/i18n';
+import { planVenueRoute, type VenueRoute } from '@/shared/venue';
 
 import { getAccessibleRoute, getLineRoutePreview } from '../api/route';
 import {
@@ -15,9 +16,9 @@ import {
   type RouteFailureKind,
 } from '../domain/routeRequest';
 import { adaptRoutePreviewRoutes } from '../domain/routePreviewAdapter';
-import { hasRouteSession } from '../domain/routeSession';
+import { hasRouteSession, planRequestKey } from '../domain/routeSession';
 import { useRouteSessionStore, type LegGeometryPreview } from '../store/routeSessionStore';
-import type { AiRoutePlan, AccessibleRoute } from '../types/route';
+import type { AiRoutePlan, AccessibleRoute, EffectiveRoutePreferences, RouteMode, VenueDestination, VenueEndpoint, VenueHandoff } from '../types/route';
 
 /**
  * `RouteSessionPort`（SDD §4.3）：路線面板、AI 聊天、語音、SOS、深層連結都經過這裡算路與結束 session，
@@ -34,13 +35,26 @@ import type { AiRoutePlan, AccessibleRoute } from '../types/route';
  * - `computeRoute` 用於手動規劃；AI 與語音直接套用後端已規劃的完整結果。
  */
 export type ComputeRouteResult =
-  | { ok: true; routes: AccessibleRoute[] }
+  | { ok: true; routes: AccessibleRoute[]; indoorRoute?: VenueRoute }
   | { ok: false; failure: RouteFailureKind | 'missing-input' | 'superseded' };
 
 /** 對齊 Web `fitRouteBounds` 的 top 70／左右 40；底部由 sheet inset 決定。 */
 const ROUTE_EDGE_PADDING = { top: 70, left: 40, right: 40 };
 
 let inflight: AbortController | null = null;
+
+// Store actions also invalidate requests (editing/swapping/clearing an endpoint).
+// Abort immediately, including when the sheet unmounts before a replacement plan starts.
+useRouteSessionStore.subscribe((state, previous) => {
+  if (state.requestSeq !== previous.requestSeq && inflight) {
+    inflight.abort();
+    inflight = null;
+  }
+});
+
+export function setVenueEndpoint(field: 'origin' | 'destination', endpoint: VenueEndpoint): void {
+  useRouteSessionStore.getState().setVenueEndpoint(field, endpoint);
+}
 
 /** 作廢目前的請求世代：abort 進行中的請求，晚到的回應會因世代不符而被丟棄。 */
 function invalidate(): number {
@@ -68,6 +82,10 @@ function beginRequest(): { seq: number; signal: AbortSignal } {
     metroAlerts: null,
     transitAlerts: null,
     routeWaypoints: [],
+    slopeConstraint: null, legGeometryPreview: null,
+    venueArrival: null,
+    venueLeg: null,
+    indoorRoute: null,
   });
   return { seq, signal: controller.signal };
 }
@@ -91,26 +109,33 @@ function fail(failure: RouteFailureKind): ComputeRouteResult {
     isLoading: false,
     lastFailure: failure,
     selectRoute: null,
+    computeRoutes: null, indoorRoute: null, venueArrival: null, venueLeg: null,
+    selectedRouteId: null, planId: null, plan: null, effectivePreferences: null, computedFor: null,
+    metroAlerts: null, transitAlerts: null, slopeConstraint: null, legGeometryPreview: null,
     routeWaypoints: [],
   });
   return { ok: false, failure };
 }
 
 export async function computeRoute(params: ComputeRouteParams): Promise<ComputeRouteResult> {
+  if (params.signal?.aborted) return { ok: false, failure: 'superseded' };
   const language = getAppLanguage();
   const plan = planRouteRequest({ ...params, language }, useUserLocationStore.getState().position);
   if (!plan.ok) {
-    if (plan.reason === 'too-far') {
-      // 使用者已經改了條件：之前還在跑的請求不再代表他要的路線，不能讓它晚到後蓋進來。
-      invalidate();
-      useRouteSessionStore.setState({ isLoading: false, lastFailure: 'too-far' });
-      return { ok: false, failure: 'too-far' };
-    }
-    useRouteSessionStore.setState({ lastFailure: null });
-    return { ok: false, failure: 'missing-input' };
+    invalidate();
+    if (plan.reason !== 'missing-input') return fail(plan.reason);
+    useRouteSessionStore.setState({ isLoading: false, lastFailure: null });
+    return { ok: false, failure: plan.reason };
   }
 
   const { seq, signal } = beginRequest();
+  useRouteSessionStore.setState({ originVenuePlace: params.originVenuePlace ?? null, destinationVenuePlace: params.destinationVenuePlace ?? null });
+  const onExternalAbort = () => {
+    if (!isCurrent(seq)) return;
+    invalidate();
+    useRouteSessionStore.setState({ isLoading: false, lastFailure: null });
+  };
+  params.signal?.addEventListener('abort', onExternalAbort, { once: true });
   // Cancel only this pending plan, never replan/reset an already active navigation.
   // An event (rather than an end-of-request equality check) also guards en → zh-TW → en.
   const onLanguageChanged = () => {
@@ -121,11 +146,35 @@ export async function computeRoute(params: ComputeRouteParams): Promise<ComputeR
   };
   i18n.on('languageChanged', onLanguageChanged);
   try {
+    if ('venueRequest' in plan) {
+      const indoorRoute = await planVenueRoute(plan.venueRequest, signal);
+      if (!isCurrent(seq)) return { ok: false, failure: 'superseded' };
+      if ([params.originVenuePlace, params.destinationVenuePlace].some((place) =>
+        place?.sourceVersion !== undefined && place.sourceVersion !== indoorRoute.venueVersion)) return fail('stale-venue');
+      const avoidStairs = params.avoidStairs || params.canonicalPreferences?.avoidStairs;
+      const requireElevator = params.requireElevator || params.canonicalPreferences?.requireElevator;
+      if ((avoidStairs || requireElevator) && indoorRoute.steps.some((step) =>
+        step.type === 'stairs' || step.type === 'steps' || step.type === 'escalator')) return fail('no-accessible-route');
+      useRouteSessionStore.setState({
+        isLoading: false, lastFailure: null, indoorRoute, computedFor: null,
+        selectionGeneration: useRouteSessionStore.getState().selectionGeneration + 1,
+      });
+      return { ok: true, routes: [], indoorRoute };
+    }
     const response = await getAccessibleRoute(plan.request, signal);
     if (!isCurrent(seq)) return { ok: false, failure: 'superseded' };
 
     const data = response.data;
     if (!data?.routes.length) return fail('empty');
+    const indoorDestination = params.destinationVenuePlace;
+    if (indoorDestination && (!data.venueArrival || !data.venueLeg ||
+      data.venueArrival.venueId !== indoorDestination.venueId || data.venueArrival.placeId !== indoorDestination.placeId ||
+      data.venueLeg.venueId !== indoorDestination.venueId || data.venueLeg.toPlaceId !== indoorDestination.placeId)) {
+      return fail('failed');
+    }
+    if (indoorDestination?.sourceVersion !== undefined && data.venueLeg?.venueVersion !== indoorDestination.sourceVersion) {
+      return fail('stale-venue');
+    }
 
     const routes = data.routes;
     const waypoints = normalizeWaypoints(data.waypoints);
@@ -141,6 +190,9 @@ export async function computeRoute(params: ComputeRouteParams): Promise<ComputeR
       selectRoute: { index: 0, route: routes[0] },
       selectedRouteId: routes[0].routeId,
       routeWaypoints: waypoints,
+      venueArrival: data.venueArrival ?? null,
+      venueLeg: data.venueLeg ?? null,
+      ...(indoorDestination ? { destination: coordToLatLng(data.destination) } : {}),
     });
     fitCamera(routes[0], {
       origin: coordToLatLng(data.origin),
@@ -153,8 +205,57 @@ export async function computeRoute(params: ComputeRouteParams): Promise<ComputeR
     return fail(classifyRouteError(error instanceof ApiError ? error.reason : undefined));
   } finally {
     i18n.off('languageChanged', onLanguageChanged);
+    params.signal?.removeEventListener('abort', onExternalAbort);
     endRequest(signal);
   }
+}
+
+/** Plans to a server-selected gate, retaining the room identity for subsequent replans. */
+export async function computeRouteToVenuePlace(
+  destination: VenueDestination & { name: string; mode?: RouteMode },
+  signal?: AbortSignal,
+): Promise<ComputeRouteResult> {
+  if (signal?.aborted) return { ok: false, failure: 'superseded' };
+  const mode = destination.mode ?? 'wheelchair';
+  const destinationVenuePlace: VenueDestination = {
+    venueId: destination.venueId, placeId: destination.placeId,
+    ...(destination.sourceVersion !== undefined ? { sourceVersion: destination.sourceVersion } : {}),
+    ...(destination.buildingId !== undefined ? { buildingId: destination.buildingId } : {}),
+    ...(destination.levelRef !== undefined ? { levelRef: destination.levelRef } : {}),
+  };
+  const preferences: EffectiveRoutePreferences = {
+    mode, travelMode: 'walk', transitPreference: 'none', maxTransfers: 0,
+    avoidStairs: mode !== 'normal', requireElevator: false,
+  };
+  invalidate();
+  useRouteSessionStore.setState({
+    origin: null, originName: '', originVenuePlace: null, destination: null, destinationName: destination.name,
+    destinationVenuePlace, venueArrival: null, venueLeg: null, indoorRoute: null,
+    computeRoutes: null, selectRoute: null, computedFor: null, plan: null, planId: null,
+    isLoading: false, lastFailure: null, travelMode: 'walk', routeMode: mode, planningPreferences: preferences,
+  });
+  const pending = computeRoute({
+    destinationVenuePlace, mode, travelMode: 'walk', canonicalPreferences: preferences, signal,
+  });
+  const seq = useRouteSessionStore.getState().requestSeq;
+  const result = await pending;
+  if (!isCurrent(seq)) return { ok: false, failure: 'superseded' };
+  if (result.ok) {
+    useRouteSessionStore.setState({ computedFor: planRequestKey({
+      origin: null, destination: null, destinationVenuePlace, routeMode: mode, travelMode: 'walk',
+      avoidStairs: preferences.avoidStairs, requireElevator: preferences.requireElevator,
+      canonicalPreferences: preferences, language: getAppLanguage(),
+    }) });
+  }
+  return result;
+}
+
+/** Capture before changing navigation or route sessions; indoor adoption validates the venue version again. */
+export function getVenueHandoff(): VenueHandoff | null {
+  const state = useRouteSessionStore.getState();
+  if (state.navigationRoute) return state.navigationVenueHandoff;
+  if (!state.venueArrival || !state.venueLeg) return null;
+  return { arrival: state.venueArrival, leg: state.venueLeg, destinationName: state.destinationName };
 }
 
 /** 寫入一組新結果（外部來源）。附屬資料屬於上一組結果，一併重置。 */
@@ -171,6 +272,7 @@ function commitExternalRoutes(origin: LatLng | null, destination: LatLng | null,
     routeWaypoints: [],
     metroAlerts: null,
     transitAlerts: null,
+    originVenuePlace: null, destinationVenuePlace: null, venueArrival: null, venueLeg: null, indoorRoute: null,
   });
   fitCamera(routes[0], { origin, destination, includeEndpoints: true });
 }
@@ -296,6 +398,7 @@ export function applyAiRoutePlan(plan: AiRoutePlan): void {
     slopeConstraint: plan.slopeConstraint ?? null, routeWaypoints: plan.waypoints ?? [],
     travelMode: plan.effectivePreferences.travelMode, routeMode: plan.effectivePreferences.mode,
     computedFor: null, isLoading: false, lastFailure: null,
+    originVenuePlace: null, destinationVenuePlace: null, venueArrival: null, venueLeg: null, indoorRoute: null,
   }));
 }
 
@@ -326,30 +429,45 @@ export function markRouteTokenInvalid(token: string): void {
 }
 
 export function pinNavigationRoute(): boolean {
-  const selected = useRouteSessionStore.getState().selectRoute;
+  const state = useRouteSessionStore.getState();
+  const selected = state.selectRoute;
   if (!canNavigateRoute(selected?.route)) return false;
-  useRouteSessionStore.setState({ navigationRoute: selected });
+  const handoff = state.venueArrival && state.venueLeg
+    ? { arrival: state.venueArrival, leg: state.venueLeg, destinationName: state.destinationName } : null;
+  useRouteSessionStore.setState({ navigationRoute: selected, navigationVenueHandoff: handoff });
   return true;
 }
 
 export function clearNavigationRoute(): void {
-  useRouteSessionStore.setState({ navigationRoute: null });
+  useRouteSessionStore.setState({ navigationRoute: null, navigationVenueHandoff: null });
 }
 
 /** A replacement follows its navigation identity, even while another candidate is viewed. */
-export function replaceNavigationRoute(route: AccessibleRoute): boolean {
+export function replaceNavigationRoute(route: AccessibleRoute, venueHandoff?: VenueHandoff | null): boolean {
   const state = useRouteSessionStore.getState();
   const active = state.navigationRoute;
   if (!active?.route.navigationId || active.route.navigationId !== route.navigationId) return false;
+  if (venueHandoff !== undefined) {
+    const previous = state.navigationVenueHandoff;
+    if (Boolean(previous) !== Boolean(venueHandoff)) return false;
+    if (previous && venueHandoff && (
+      previous.arrival.venueId !== venueHandoff.arrival.venueId ||
+      previous.arrival.placeId !== venueHandoff.arrival.placeId ||
+      previous.arrival.gateId !== venueHandoff.arrival.gateId ||
+      previous.arrival.mode !== venueHandoff.arrival.mode
+    )) return false;
+  }
   const viewingActive = state.selectRoute?.route.navigationId === active.route.navigationId;
   const index = state.computeRoutes?.findIndex((item) => item.navigationId === active.route.navigationId) ?? -1;
   useRouteSessionStore.setState({
     navigationRoute: { index: active.index, route },
+    ...(venueHandoff !== undefined ? { navigationVenueHandoff: venueHandoff } : {}),
     computeRoutes: state.computeRoutes?.map((item, i) => i === index ? route : item) ?? null,
     ...(viewingActive ? {
       selectRoute: { index: index < 0 ? active.index : index, route }, selectedRouteId: route.routeId,
       requestSeq: state.requestSeq + 1,
       selectionGeneration: state.selectionGeneration + 1,
+      ...(venueHandoff !== undefined ? { venueArrival: venueHandoff?.arrival ?? null, venueLeg: venueHandoff?.leg ?? null } : {}),
     } : {}),
   });
   return true;

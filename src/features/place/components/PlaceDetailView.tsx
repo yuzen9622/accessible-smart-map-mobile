@@ -177,6 +177,11 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             {model.planRouteLabel}
           </Text>
         </PressableScale>
+        {model.venue ? <PressableScale accessibilityRole="button" accessibilityLabel={model.venue.originLabel}
+          onPress={model.venue.onSetOrigin} style={[styles.primaryButton, largeText && styles.primaryButtonLarge, { backgroundColor: circleSurface }]}>
+          <Icon name="crosshair" size={ICON_SIZE.control} color={accentText} />
+          <Text maxFontSizeMultiplier={MAX_FONT_SCALE.label} style={[styles.primaryButtonText, { color: accentText }]}>{model.venue.originLabel}</Text>
+        </PressableScale> : null}
         <View style={styles.actionColumn}>
           <PressableScale
             accessibilityRole="button"
@@ -190,13 +195,13 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             {model.saveLabel}
           </Text>
         </View>
-        <View style={styles.actionColumn}>
+        {!model.venue ? <View style={styles.actionColumn}>
           <ShareButton url={model.shareUrl} title={model.title} label={model.shareLabel} onShare={model.onShare} />
           <Text importantForAccessibility="no" maxFontSizeMultiplier={MAX_FONT_SCALE.label} numberOfLines={1} style={[styles.actionLabel, { color: colors.textSecondary }]}>
             {model.shareLabel}
           </Text>
-        </View>
-        <View style={styles.actionColumn}>
+        </View> : null}
+        {!model.venue ? <View style={styles.actionColumn}>
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={model.cctvLabel}
@@ -207,8 +212,9 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
           <Text importantForAccessibility="no" maxFontSizeMultiplier={MAX_FONT_SCALE.label} numberOfLines={1} style={[styles.actionLabel, { color: colors.textSecondary }]}>
             {model.cctvLabel}
           </Text>
-        </View>
+        </View> : null}
       </View>
+      {model.venue?.warnings.map((warning) => <Text key={warning} selectable style={[styles.bodyText, { color: semantic.warn.fg }]}>{warning}</Text>)}
 
       {model.categories ? (
         <View style={styles.chipsRow}>
@@ -316,7 +322,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
       ) : null}
 
       {/* 每個地點都能回報現場狀況（障礙物、施工、資料錯誤）；放在無障礙資訊之後，看完現況再決定要不要回報 */}
-      <PressableScale feedback="highlight"
+      {!model.venue ? <PressableScale feedback="highlight"
         accessibilityRole="button"
         accessibilityLabel={model.placeReport.accessibilityLabel}
         accessibilityHint={model.placeReport.subtitle}
@@ -334,9 +340,9 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
           </Text>
         </View>
         <Icon name="chevronRight" size={scaled(ICON_SIZE.body)} color={colors.textSecondary} />
-      </PressableScale>
+      </PressableScale> : null}
 
-      <View style={styles.section}>
+      {!model.venue ? <View style={styles.section}>
         <SectionHeader title={model.nearbyTitle} color={colors.text} stacked={largeText} />
         {model.nearbyRows.length > 0 ? (
           <View style={groupStyle}>
@@ -376,7 +382,7 @@ export default function PlaceDetailView({ model }: PlaceDetailViewProps) {
             <Text maxFontSizeMultiplier={MAX_FONT_SCALE.body} style={[styles.bodyText, styles.emptyText, { color: colors.textSecondary }]}>{model.nearbyEmptyLabel}</Text>
           </View>
         )}
-      </View>
+      </View> : null}
 
       {model.reviews ? (
         <View style={styles.section}>

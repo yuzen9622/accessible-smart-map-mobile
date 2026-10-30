@@ -5,10 +5,10 @@ import { AccessibilityInfo } from 'react-native';
 
 import { busLegKey, useBusStore } from '@/features/bus';
 import { mapCamera, useMapUiStore, useUserLocationStore } from '@/features/map';
-import { useRouteSession } from '@/features/route';
-import { buildCumulativePath, resolveWaypoints, type BusLeg } from '@/features/route/domain';
+import { getVenueHandoff, useRouteSession } from '@/features/route';
+import { buildCumulativePath, resolveWaypoints, venueHandoffCopy, type BusLeg } from '@/features/route/domain';
 import { formatDistance } from '@/shared/geo';
-import { useAppTranslation } from '@/shared/i18n';
+import { getAppLanguage, useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 
 import { expoSpeechPort } from '../controller/expoSpeechPort';
@@ -66,7 +66,8 @@ export function useNavigationEffects(): void {
       }
       if (state.arrived && !previous.arrived) {
         haptic.success();
-        AccessibilityInfo.announceForAccessibility(tRef.current('arrived'));
+        AccessibilityInfo.announceForAccessibility(getVenueHandoff()
+          ? venueHandoffCopy(getAppLanguage()).arrived : tRef.current('arrived'));
       }
       if (state.rerouteStatus === 'pending' && previous.rerouteStatus !== 'pending') {
         haptic.warning();

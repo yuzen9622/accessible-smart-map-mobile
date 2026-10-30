@@ -3,13 +3,16 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useIndoorMapSync } from '@/composition/useIndoorMapSync';
+
 import { AIResultLayer } from '@/features/ai';
 import { BusStopLayer, LiveBusLayer, useLiveBusTracking } from '@/features/bus';
 import { HazardLayer } from '@/features/hazard';
+import { IndoorMapControls, IndoorMapLayer, VenueFootprintLayer, useIndoorStore } from '@/features/indoor';
 import { EnvironmentChip, MapScreen, useEnvironment } from '@/features/map';
 import { NavigationHUD, useNavStore, useNavigationEffects } from '@/features/navigation';
 import { needsOnboarding, useOnboardingStore } from '@/features/onboarding';
-import { PlacePinLayer, ReturnToSearchButton } from '@/features/place';
+import { openVenuePlace, PlacePinLayer, ReturnToSearchButton } from '@/features/place';
 import { RouteFacilityLayer, RouteLayer, RouteSessionPill, useRouteSession } from '@/features/route';
 import { SosButton, SosTrackerLayer } from '@/features/sos';
 import { VoiceFloatingIndicator } from '@/features/voice';
@@ -25,6 +28,9 @@ export default function Index() {
   // MMKV 同步 hydrate，第一個 render 就能判斷，不會對回訪使用者閃一下引導
   const shouldOnboard = useOnboardingStore(needsOnboarding);
   const isNavigating = useNavStore((s) => s.isNavigating);
+  const indoorActive = useIndoorStore((s) => s.active);
+  const indoorGuiding = useIndoorStore((s) => s.guidance.status !== 'idle');
+  useIndoorMapSync();
   // 跟 `RouteFacilityLayer` 內部同一個判斷：有沒有路線可畫沿途設施。有的話常駐 `FacilityLayer`
   // 讓出，避免兩個圖層各自 cluster、同一個設施點在路線起訖點附近疊畫兩次（見 MapScreen 的
   // `facilityLayerEnabled` 註解）。
@@ -44,12 +50,15 @@ export default function Index() {
 
   return (
     <MapScreen
-      navigationMode={isNavigating}
+      navigationMode={isNavigating || indoorGuiding}
       // 引導未完成前不帶出首頁 sheet，否則 sheet 會疊在引導 modal 上（擋住底部按鈕、略過也關不掉）
       homeSheetEnabled={!shouldOnboard}
-      facilityLayerEnabled={!hasRouteFacilities}
+      facilityLayerEnabled={!hasRouteFacilities && !indoorActive}
+      buildingExtrusionEnabled={!indoorActive}
+      perspectivePitch={indoorActive ? 48 : undefined}
       layers={
         <>
+          {!isNavigating ? <VenueFootprintLayer /> : null}
           <HazardLayer />
           <PlacePinLayer />
           <BusStopLayer />
@@ -57,6 +66,7 @@ export default function Index() {
           <RouteFacilityLayer />
           <AIResultLayer />
           <LiveBusLayer />
+          {indoorActive ? <IndoorMapLayer onSelectPlace={(venueId, placeId) => openVenuePlace({ venueId, placeId })} /> : null}
           <SosTrackerLayer />
         </>
       }
@@ -64,7 +74,10 @@ export default function Index() {
         <>
           {isNavigating ? (
             <>
-              <NavigationHUD onBannerHeightChange={setHudBannerHeight} />
+              <NavigationHUD
+                onBannerHeightChange={setHudBannerHeight}
+                onContinueVenue={() => router.navigate({ pathname: '/navigation', params: { indoor: 'handoff' } })}
+              />
               {/* 離線提示與語音對話膠囊：導航中放到 HUD 下方，不擋轉向提示。
                   `hudBannerHeight` 已含 safe-area top，不用再加 insets.top；HUD 現在量的是橫幅
                   連同下方重新規劃／警示卡的整塊高度（見 NavigationHUD），警示卡展開時語音膠囊才會
@@ -81,8 +94,8 @@ export default function Index() {
             // （使用者回饋 2026-10-23：語音功能＋導航時左上角重疊）。
             <View pointerEvents="box-none" style={[styles.topColumn, { top: insets.top + 8 }]}>
               <View pointerEvents="box-none" style={styles.pill}>
-                <EnvironmentChip />
-                <RouteSessionPill isNavigating={isNavigating} />
+                {indoorActive ? <IndoorMapControls /> : <EnvironmentChip />}
+                <RouteSessionPill isNavigating={isNavigating || indoorGuiding} />
               </View>
               <View pointerEvents="box-none" style={styles.voice}>
                 <OfflineBanner />
@@ -95,7 +108,7 @@ export default function Index() {
           <View pointerEvents="box-none" style={[styles.sos, { top: isNavigating ? hudBannerHeight + 106 : insets.top + SOS_BUTTON.top }]}>
             <SosButton />
           </View>
-          {isNavigating ? null : <ReturnToSearchButton />}
+          {isNavigating || indoorActive ? null : <ReturnToSearchButton />}
         </>
       }
     />

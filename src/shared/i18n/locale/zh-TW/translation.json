@@ -1761,5 +1761,8 @@
   "nativeRouteTimelineEnd": "抵達",
   "nativeRouteLoadingRoutes": "正在尋找路線",
   "nativeBusViewedStopsLoading": "正在載入這班車的站序",
-  "nativeBusViewedStopsUnavailable": "暫時無法取得這班車的站序"
+  "nativeBusViewedStopsUnavailable": "暫時無法取得這班車的站序",
+  "nativeRouteUnsupportedVenueDirection": "請先將終點設為校門，再規劃校外路線。",
+  "nativeRouteDifferentVenues": "目前無法規劃不同場館間的室內路線，請先選擇校門。",
+  "nativeRouteStaleVenue": "建築資料已更新，請重新選擇起訖地點。"
 }

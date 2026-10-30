@@ -1,6 +1,9 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { router } from 'expo-router';
+import { mapCamera } from '@/features/map';
+import { createVenueDetail } from '@/features/indoor/domain/fixtures/venueFixture';
 
+import { toVenuePlaceDetail } from '../../domain/venuePlace';
 import type { PlaceDetail, PlaceResult } from '../../types/place';
 import { usePlaceDetailViewModel } from '../usePlaceDetailViewModel';
 
@@ -53,4 +56,20 @@ it('opens the CCTV sheet with the place coordinates', async () => {
     pathname: '/cctv/[coords]',
     params: { coords: '25.033,121.5654' },
   });
+});
+
+it('plans from a room or to a room using its identity without replacing the indoor camera', async () => {
+  const detail = createVenueDetail();
+  const room = toVenuePlaceDetail(detail, detail.places[1]);
+  const { result } = await renderHook(() => usePlaceDetailViewModel(room));
+  expect(result.current.title).toBe('終點空間');
+  expect(result.current.subtitle).toBe('測試館・2F');
+  expect(result.current.venue?.warnings).toContain('門位尚未確認，導引抵達空間前公共走道。');
+  expect(result.current.checklist).toEqual([]);
+  expect(result.current.reviews).toBeNull();
+  expect(mapCamera.flyTo).not.toHaveBeenCalled();
+  await act(() => result.current.onPlanRoute());
+  expect(router.navigate).toHaveBeenLastCalledWith({ pathname: '/plan', params: { venueId: 'test-venue', venuePlaceId: 'end', venueField: 'destination' } });
+  await act(() => result.current.venue?.onSetOrigin());
+  expect(router.navigate).toHaveBeenLastCalledWith({ pathname: '/plan', params: { venueId: 'test-venue', venuePlaceId: 'end', venueField: 'origin' } });
 });

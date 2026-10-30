@@ -1,6 +1,6 @@
 import { RouteExplanationCard } from '@/features/ai';
 import { BusLegStops } from '@/features/bus';
-import { beginNavigation } from '@/features/navigation';
+import { beginJourneyNavigation } from '@/composition/journeyNavigation';
 import { previewLegGeometry, RouteDetailScreen } from '@/features/route';
 import { useAppTranslation } from '@/shared/i18n';
 
@@ -10,7 +10,7 @@ export default function RouteDetailSheet() {
   return (
     <RouteDetailScreen
       onStartNavigation={() =>
-        beginNavigation({ notificationTitle: t('nativeNavNotificationTitle'), notificationBody: t('nativeNavNotificationBody') })
+        beginJourneyNavigation({ notificationTitle: t('nativeNavNotificationTitle'), notificationBody: t('nativeNavNotificationBody') })
       }
       renderBusLeg={(args) => (
         <BusLegStops

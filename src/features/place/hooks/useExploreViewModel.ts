@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import type { SFSymbol } from 'expo-symbols';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Keyboard, Linking } from 'react-native';
 
 import {
@@ -42,7 +42,10 @@ import {
 import { placeDisplayName } from '../domain/searchHistory';
 import { usePlaceUiStore } from '../store/placeUiStore';
 import { useSavedPlacesStore } from '../store/savedPlacesStore';
-import type { AutocompleteItem, PlaceDetail } from '../types/place';
+import type { AutocompleteItem, PlaceDetail, VenuePlaceDetail } from '../types/place';
+import { venuePlaceSubtitle } from '../domain/venuePlace';
+import { resolveVenuePlace } from './venuePlaceCatalog';
+import { openVenuePlace } from './openVenuePlace';
 import { placeDetailHref } from './placeRoute';
 import { useAutocomplete } from './useAutocomplete';
 
@@ -218,6 +221,8 @@ export function useExploreViewModel(): ExploreViewModel {
   const [shortcutCategoryFilter, setShortcutCategoryFilter] = useState<SavedPlaceCategory[]>([]);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [resolveFailed, setResolveFailed] = useState(false);
+  const pending = useRef<AbortController | null>(null);
+  useEffect(() => () => pending.current?.abort(), []);
   const userLocation = useUserLocationStore((state) => state.position);
   const searchHistory = useSavedPlacesStore((state) => state.searchHistory);
   const savedPlaces = useSavedPlacesStore((state) => state.savedPlaces);
@@ -233,8 +238,9 @@ export function useExploreViewModel(): ExploreViewModel {
   const removeSearchHistory = useSavedPlacesStore((state) => state.removeSearchHistory);
   const enabledQuickActions = usePreferencesStore((state) => state.quickActions);
   const setSelectedPlace = usePlaceUiStore((state) => state.setSelectedPlace);
-  const { suggestions, loading, error: autocompleteError, retry, sessionToken, resetSession } = useAutocomplete(query, userLocation ?? undefined);
+  const { suggestions, venueSuggestions = [], loading, error: autocompleteError, retry, sessionToken, resetSession } = useAutocomplete(query, userLocation ?? undefined);
   const dictation = useDictation((transcript) => {
+    pending.current?.abort(); pending.current = null; setResolvingId(null);
     setResolveFailed(false);
     setQuery(transcript);
     sheetController.raiseTo(SHEET_DETENTS.length - 1);
@@ -250,7 +256,7 @@ export function useExploreViewModel(): ExploreViewModel {
   const openPlace = (entry: PlaceDetail) => {
     addSearchHistory(entry);
     setSelectedPlace(entry);
-    mapCamera.flyTo([entry.position.lng, entry.position.lat], 17);
+    if (entry.kind !== 'venue-place') mapCamera.flyTo([entry.position.lng, entry.position.lat], 17);
     Keyboard.dismiss();
     setSearchFocused(false);
     // 從搜尋建議開啟時要先等地點詳情 API，期間使用者可能已開了 modal
@@ -258,15 +264,18 @@ export function useExploreViewModel(): ExploreViewModel {
   };
 
   const handlePickSuggestion = async (item: AutocompleteItem) => {
-      if (resolvingId) return;
+      if (pending.current && !pending.current.signal.aborted) return;
+      const controller = new AbortController();
+      pending.current = controller;
       setResolvingId(item.id);
       setResolveFailed(false);
       try {
         const res = await getPlaceDetails(
           item.id,
           { sessiontoken: sessionToken, lat: userLocation?.lat, lng: userLocation?.lng, lang: toApiLang(i18n.language) },
-          undefined,
+          controller.signal,
         );
+        if (controller.signal.aborted) return;
         if (res.data) {
           const place = res.data;
           const [lng, lat] = place.location.coordinates;
@@ -275,20 +284,41 @@ export function useExploreViewModel(): ExploreViewModel {
           setQuery('');
         }
       } catch (error) {
+        if (controller.signal.aborted) return;
         logger.warn('[place] resolve suggestion failed', error);
         setResolveFailed(true);
       } finally {
-        setResolvingId(null);
+        if (pending.current === controller) { pending.current = null; setResolvingId(null); }
       }
   };
 
+  const handlePickVenue = async (entry: VenuePlaceDetail) => {
+    if (pending.current && !pending.current.signal.aborted) return;
+    const controller = new AbortController();
+    pending.current = controller;
+    setResolvingId(placeKey(entry));
+    setResolveFailed(false);
+    try {
+      const current = await resolveVenuePlace(entry, controller.signal);
+      if (controller.signal.aborted) return;
+      if (!current) { setResolveFailed(true); return; }
+      openPlace(current); resetSession(); setQuery('');
+    } catch {
+      if (!controller.signal.aborted) setResolveFailed(true);
+    } finally {
+      if (pending.current === controller) { pending.current = null; setResolvingId(null); }
+    }
+  };
+
   const handlePickHistory = (entry: PlaceDetail) => {
+    if (entry.kind === 'venue-place') { void handlePickVenue(entry); return; }
     openPlace(entry);
     setQuery('');
   };
 
   // 與 `useSavedPlacesViewModel.handleNavigate` 同語意：選取 → 飛地圖 → push 詳情（不寫搜尋歷史）
   const handlePickSaved = (entry: PlaceDetail) => {
+    if (entry.kind === 'venue-place') { openVenuePlace(entry); return; }
     setSelectedPlace(entry);
     mapCamera.flyTo([entry.position.lng, entry.position.lat], 17);
     Keyboard.dismiss();
@@ -301,8 +331,9 @@ export function useExploreViewModel(): ExploreViewModel {
   const historyRows: ExploreRow[] = searchHistory.map((entry, index) => ({
     key: `${placeDisplayName(entry)}-${index}`,
     title: placeDisplayName(entry),
-    resolving: false,
-    disabled: false,
+    subtitle: entry.kind === 'venue-place' ? venuePlaceSubtitle(entry) : undefined,
+    resolving: resolvingId === placeKey(entry),
+    disabled: resolvingId !== null,
     onPress: () => handlePickHistory(entry),
     onDelete: () => removeSearchHistory(entry),
     deleteA11yLabel: t('nativeHomeDeleteHistoryA11y', { name: placeDisplayName(entry) }),
@@ -316,6 +347,7 @@ export function useExploreViewModel(): ExploreViewModel {
 
   // 「更多搜尋類別」：類別名稱直接當查詢字串送進既有自動完成搜尋，跟使用者自己打字搜尋是同一條路徑。
   const searchByCategory = (label: string) => {
+    pending.current?.abort(); pending.current = null; setResolvingId(null);
     setResolveFailed(false);
     setQuery(label);
     sheetController.raiseTo(SHEET_DETENTS.length - 1);
@@ -342,14 +374,18 @@ export function useExploreViewModel(): ExploreViewModel {
     ],
   };
 
-  const resultRows: ExploreRow[] = suggestions.map((item) => ({
+  const resultRows: ExploreRow[] = [...venueSuggestions.map((entry) => ({
+    key: placeKey(entry), title: entry.name, subtitle: venuePlaceSubtitle(entry),
+    resolving: resolvingId === placeKey(entry), disabled: resolvingId !== null,
+    onPress: () => void handlePickVenue(entry),
+  })), ...suggestions.map((item) => ({
     key: item.id,
     title: item.primaryText,
     subtitle: item.secondaryText ?? undefined,
     resolving: resolvingId === item.id,
     disabled: resolvingId !== null,
     onPress: () => void handlePickSuggestion(item),
-  }));
+  }))];
 
   const resolvedCategoryOf = (entry: PlaceDetail): SavedPlaceCategory => {
     const category = savedPlaceCategories[placeKey(entry)];
@@ -380,7 +416,7 @@ export function useExploreViewModel(): ExploreViewModel {
     return {
       key,
       title,
-      meta: userLocation ? formatDistance(haversineMeters(userLocation, entry.position)) : null,
+      meta: entry.kind === 'venue-place' ? venuePlaceSubtitle(entry) : userLocation ? formatDistance(haversineMeters(userLocation, entry.position)) : null,
       iconName: isBuiltInSavedPlaceCategory(resolvedCategory) ? SAVED_CATEGORY_ICON[resolvedCategory] : 'bookmark',
       color: isBuiltInSavedPlaceCategory(resolvedCategory)
         ? SAVED_CATEGORY_COLOR[resolvedCategory]
@@ -450,6 +486,7 @@ export function useExploreViewModel(): ExploreViewModel {
   return {
     query,
     onQueryChange: (text: string) => {
+      pending.current?.abort(); pending.current = null; setResolvingId(null);
       setResolveFailed(false);
       setQuery(text);
     },
@@ -462,6 +499,7 @@ export function useExploreViewModel(): ExploreViewModel {
     // 「最近搜尋」／「搜尋結果」兩種全高畫面都沒有返回鍵，刪光文字才會退回首頁，使用者回報
     // 完全不知道怎麼離開（2026-10-15）。加一顆明確的取消鍵：清空查詢、收鍵盤、把 sheet 收回去。
     onCancelSearch: () => {
+      pending.current?.abort(); pending.current = null; setResolvingId(null);
       Keyboard.dismiss();
       setQuery('');
       setResolveFailed(false);

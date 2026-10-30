@@ -11,6 +11,10 @@ export { usePlaceDetail } from './hooks/usePlaceDetail';
 export { useReverseGeocode } from './hooks/useReverseGeocode';
 export { useReviews } from './hooks/useReviews';
 export { useAutocomplete } from './hooks/useAutocomplete';
+export { openVenuePlace } from './hooks/openVenuePlace';
+export { resolveVenuePlace } from './hooks/venuePlaceCatalog';
+export { venuePlaceId, parseVenuePlaceId, venuePlaceSubtitle } from './domain/venuePlace';
+export type { VenuePlaceIdentity } from './domain/venuePlace';
 export { placeDisplayName } from './domain/searchHistory';
 export { placeKey } from './domain/placeKey';
 
@@ -19,7 +23,7 @@ export { useSavedPlacesStore } from './store/savedPlacesStore';
 
 export { toPlaceId, isCoordPlaceId } from './domain/placeId';
 
-export type { AutocompleteItem, LatLng, NominatimPlace, PlaceDetail, PlaceResult } from './types/place';
+export type { AutocompleteItem, LatLng, NominatimPlace, PlaceDetail, PlaceResult, VenuePlaceDetail } from './types/place';
 export type { ReviewItem, ReviewListResult, ReviewSummaryResult } from './types/review';
 export { resolveAutocompleteItem, type ResolvedPlace } from './api/resolveAutocomplete';
 export { reverseGeocodeLabel } from './api/reverseGeocodeLabel';

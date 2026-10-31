@@ -1,0 +1,57 @@
+diff --git a/node_modules/@maplibre/maplibre-react-native/ios/components/camera/CameraUpdateItem.m b/node_modules/@maplibre/maplibre-react-native/ios/components/camera/CameraUpdateItem.m
+--- a/node_modules/@maplibre/maplibre-react-native/ios/components/camera/CameraUpdateItem.m
++++ b/node_modules/@maplibre/maplibre-react-native/ios/components/camera/CameraUpdateItem.m
+@@ -80,6 +80,13 @@
+                                      edgePadding:padding];
+     nextCamera.centerCoordinate = boundsCamera.centerCoordinate;
+   } else if ([self _areBoundsValid:_cameraStop.bounds]) {
++    // Fit the requested orientation on the camera copy without moving the map first.
++    if (_cameraStop.bearing != nil) {
++      nextCamera.heading = [_cameraStop.bearing floatValue];
++    }
++    if (_cameraStop.pitch != nil) {
++      nextCamera.pitch = [_cameraStop.pitch floatValue];
++    }
+     MLNMapCamera *boundsCamera = [mapView camera:nextCamera
+                          fittingCoordinateBounds:_cameraStop.bounds
+                                      edgePadding:padding];
+diff --git a/node_modules/@maplibre/maplibre-react-native/ios/components/camera/MLRNCamera.m b/node_modules/@maplibre/maplibre-react-native/ios/components/camera/MLRNCamera.m
+--- a/node_modules/@maplibre/maplibre-react-native/ios/components/camera/MLRNCamera.m
++++ b/node_modules/@maplibre/maplibre-react-native/ios/components/camera/MLRNCamera.m
+@@ -62,11 +62,27 @@
+ }
+ 
+ - (void)setTrackUserLocation:(NSString *)trackUserLocation {
++  BOOL wasTracking = [self _userTrackingMode] != MLNUserTrackingModeNone;
+   _trackUserLocation = trackUserLocation;
++  NSDictionary *padding = _stop[@"padding"];
++  if (wasTracking && [self _userTrackingMode] == MLNUserTrackingModeNone &&
++      _stop[@"center"] == nil && _stop[@"bounds"] == nil && _stop[@"zoom"] == nil &&
++      _stop[@"pitch"] == nil && _stop[@"bearing"] == nil &&
++      [padding[@"top"] doubleValue] == 0 && [padding[@"bottom"] doubleValue] == 0 &&
++      [padding[@"left"] doubleValue] == 0 && [padding[@"right"] doubleValue] == 0) {
++    // Clearing tracking props is not a new viewport intent. An empty stop would
++    // cancel an imperative route fit and replace its padding during the transition.
++    _stop = nil;
++  }
+ }
+ 
+ - (void)handleImperativeStop:(NSDictionary<NSString *, id> *)stop {
+   if (_map != nil) {
++    // Release the screen-centered location puck before moving the map. The React
++    // tracking prop may not reach native until the imperative animation is underway.
++    if (_map.userTrackingMode != MLNUserTrackingModeNone) {
++      [_map setUserTrackingMode:MLNUserTrackingModeNone animated:NO completionHandler:nil];
++    }
+     [cameraUpdateQueue enqueue:[CameraStop fromDictionary:stop]];
+     [cameraUpdateQueue execute:_map];
+   }
+@@ -84,7 +100,7 @@
+ 
+ - (void)_updateCameraFromStop {
+   if (_map.userTrackingMode != MLNUserTrackingModeNone) {
+-    _map.userTrackingMode = MLNUserTrackingModeNone;
++    [_map setUserTrackingMode:MLNUserTrackingModeNone animated:NO completionHandler:nil];
+   }
+ 
+   if (_stop != nil) {

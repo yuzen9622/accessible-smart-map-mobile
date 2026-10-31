@@ -101,9 +101,8 @@ function dispatch(action: CameraAction, stops: CameraStop[] = []): Promise<void>
   return ready.then((canMove) => canMove && sequence === commandSequence ? perform(action) : undefined);
 }
 
-/** MapLibre iOS 11.4 fits a center/bounds using the current pitch before applying the
- * requested pitch. Zero-duration stops are applied before their native promise
- * resolves; that promise does not represent an animated transition finishing. */
+/** Center-only moves still need iOS preparation when the current view is tilted.
+ * Bounds fitting uses the patched native camera-copy calculation instead. */
 function centerMovement(center: LngLat, move: (pitch?: number) => void, pitch?: number): void {
   const flatten = needsFlatApproach(center);
   const restorePitch = flatten || preparation !== null;
@@ -129,25 +128,13 @@ export const mapCamera = {
     });
   },
   /** `edge` adds margins beyond the sheet inset. */
-  fitBounds(bounds: LngLatBounds, edge?: { top?: number; left?: number; right?: number }, orientation?: { pitch: number; bearing: number }): void {
+  fitBounds(bounds: LngLatBounds, edge?: { top?: number; bottom?: number; left?: number; right?: number }, orientation?: { pitch: number; bearing: number }): void {
     claimed = true;
     const targetPitch = orientation?.pitch ?? intendedCameraPitch();
-    const [west, south, east, north] = bounds;
-    const outside = [[west, south], [west, north], [east, south], [east, north]]
-      .some(([longitude, latitude]) => outsideCurrentBounds([longitude, latitude]));
-    const flatten = Platform.OS === 'ios' && (currentPitch() > 0 || targetPitch > 0) && outside;
-    const stops: CameraStop[] = [];
-    const padding = { ...currentPadding(edge?.top ?? 0), left: edge?.left ?? 0, right: edge?.right ?? 0 };
+    const padding = { ...currentPadding(edge?.top ?? 0), bottom: useMapUiStore.getState().sheetInset + (edge?.bottom ?? 0), left: edge?.left ?? 0, right: edge?.right ?? 0 };
     if (orientation) intendedPitch = orientation.pitch;
-    if (flatten) {
-      // Fit the entire extent while flat; moving only its center can leave
-      // distant corners behind a tilted camera at the previous close zoom.
-      stops.push({ pitch: 0, duration: 0 }, { bounds, padding, pitch: 0, duration: 0 });
-    }
-    if (Platform.OS === 'ios' && (orientation || flatten || preparation)) {
-      stops.push({ pitch: targetPitch, ...(orientation ? { bearing: orientation.bearing } : {}), duration: 0 });
-    }
-    void dispatch(() => sendToCamera((ref) => ref.fitBounds(bounds, { ...orientation, padding, duration: motionDuration(800) }), orientation?.pitch, isReduceMotionEnabled()), stops);
+    // The native patch fits a camera copy at the target pitch, so no visible preparation is needed.
+    void dispatch(() => sendToCamera((ref) => ref.fitBounds(bounds, { ...orientation, pitch: targetPitch, padding, duration: motionDuration(800) }), targetPitch, isReduceMotionEnabled()));
   },
   /** Only the first unclaimed GPS fix can center the map. */
   autoCenterOnce(center: LngLat, zoom: number): boolean {
@@ -164,12 +151,14 @@ export const mapCamera = {
       useMapUiStore.getState().setFollow({ mode, zoom, pitch });
     });
   },
-  stopFollow(): void {
+  /** Release tracking without a separate camera animation; the next movement owns the view. */
+  stopFollow(): { pitch: number; bearing: number } {
+    commandSequence += 1;
     const { is3d, setFollow } = useMapUiStore.getState();
     const pitch = is3d ? MAP_PITCH_3D : 0;
     intendedPitch = pitch;
     setFollow(null);
-    void dispatch(() => sendToCamera((ref) => ref.setStop({ pitch, bearing: 0, duration: motionDuration(600), easing: 'ease' }), pitch, isReduceMotionEnabled()));
+    return { pitch, bearing: 0 };
   },
   setPitch(pitch: number): Promise<void> {
     intendedPitch = pitch;

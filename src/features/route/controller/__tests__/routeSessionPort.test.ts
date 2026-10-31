@@ -207,7 +207,7 @@ describe('computeRoute', () => {
     expect(s.selectRoute?.index).toBe(0);
     expect(s.routeWaypoints).toEqual([{ lat: 25.05, lng: 121.53 }]);
     expect(s.isLoading).toBe(false);
-    expect(mockFitBounds).toHaveBeenCalledWith([121.517, 25.0408, 121.5654, 25.05], { top: 70, left: 40, right: 40 });
+    expect(mockFitBounds).toHaveBeenCalledWith([121.517, 25.0408, 121.5654, 25.05], { top: 70, bottom: 40, left: 40, right: 40 });
     expect(mockGetAccessibleRoute.mock.calls[0][0]).toEqual({
       origin: { latitude: 25.0478, longitude: 121.517 },
       destination: { latitude: 25.0408, longitude: 121.5654 },

@@ -106,6 +106,7 @@ export function useNavigationEffects(): void {
     const cp = buildCumulativePath(route.legs);
     const firstLegType = route.legs[0]?.type;
     let following = false;
+    let disposed = false;
 
     const followNow = () => {
       const nav = useNavStore.getState();
@@ -136,6 +137,10 @@ export function useNavigationEffects(): void {
       if (gpsNearRoute(state.position, cp)) followNow();
     });
     const unsubscribeNav = useNavStore.subscribe((state, prev) => {
+      if (!state.isNavigating) {
+        dispose();
+        return;
+      }
       const stepChanged = state.currentStepIndex !== prev.currentStepIndex || state.instructions !== prev.instructions;
       const viewModeChanged = state.viewMode !== prev.viewMode;
       if (following && (stepChanged || viewModeChanged)) {
@@ -165,12 +170,16 @@ export function useNavigationEffects(): void {
         useNavStore.getState().setFollowPaused(true);
       }
     });
-    return () => {
+    // Stop synchronously before endNavigation fits the route; React cleanup may run later.
+    const dispose = () => {
+      if (disposed) return;
+      disposed = true;
       unsubscribeLocation();
       unsubscribeNav();
       unsubscribeInterrupt();
       mapCamera.stopFollow();
     };
+    return dispose;
   }, [isNavigating, selectedRoute]);
 
   // 導航中追蹤要搭的那段公車（Web useNavigationBusTracking）

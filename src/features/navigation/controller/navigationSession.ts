@@ -31,9 +31,9 @@ export function beginNavigation(texts: BackgroundLocationTexts): void {
   void run();
 }
 
-function stopEngineAndLocation(): void {
+function stopEngineAndLocation(): ReturnType<typeof mapCamera.stopFollow> {
   stopNavigation();
-  mapCamera.stopFollow();
+  const orientation = mapCamera.stopFollow();
   const run = async () => {
     try {
       await stopBackgroundLocation();
@@ -42,6 +42,7 @@ function stopEngineAndLocation(): void {
     }
   };
   void run();
+  return orientation;
 }
 
 /** Indoor handoff owns the next screen and camera; only stop outdoor tracking here. */
@@ -65,7 +66,7 @@ function navigatedRouteIndex(): number | null {
 export function endNavigation(): void {
   if (!useNavStore.getState().isNavigating) return;
   const routeIndex = navigatedRouteIndex();
-  stopEngineAndLocation();
+  const orientation = stopEngineAndLocation();
   // 從詳情開始導航時退回那一頁；從規劃路線開始時把導航頁換成詳情，堆疊變成「規劃 → 詳情」。
   // 結果裡找不到這條路線時只退掉導航頁。
   const backToDetail = () => {
@@ -74,5 +75,5 @@ export function endNavigation(): void {
   };
   // sheet 被蓋住期間開始又結束（語音）時導航頁從沒推上去：取代掉排隊中的導向，使用者留在原本那頁。
   sheetNavigation.whenVisible(sheetNavigation.hasPending() ? () => {} : backToDetail);
-  fitSelectedRoute();
+  fitSelectedRoute(orientation);
 }

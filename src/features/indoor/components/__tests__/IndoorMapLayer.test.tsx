@@ -92,7 +92,7 @@ it.each([false, true])('opens the building with the intended orientation and bou
     pitch: is3d ? 48 : 0, bearing: 0, duration: 800,
     padding: { top: 140, bottom: 300, left: 24, right: 76 },
   });
-  expect(camera.setStop).toHaveBeenLastCalledWith({ pitch: is3d ? 48 : 0, bearing: 0, duration: 0 });
+  expect(camera.setStop).not.toHaveBeenCalled();
   expect(camera.flyTo).not.toHaveBeenCalled();
   expect(useMapUiStore.getState().follow).toBeNull();
 });

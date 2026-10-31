@@ -77,42 +77,31 @@ it('preserves direct distant movement and bounds fitting in 2D', () => {
   controller.mapCamera.fitBounds(campusBounds);
   expect(native.setStop).not.toHaveBeenCalled();
   expect(native.flyTo).toHaveBeenCalledWith({ center: campus, zoom: 18, pitch: undefined, padding });
-  expect(native.fitBounds).toHaveBeenCalledWith(campusBounds, { padding, duration: 800 });
+  expect(native.fitBounds).toHaveBeenCalledWith(campusBounds, { pitch: 0, padding, duration: 800 });
 });
 
-it('moves near distant bounds while flat and applies the requested orientation before native fitting', async () => {
-  const flat = deferred();
-  const arrived = deferred();
-  const oriented = deferred();
-  native.setStop.mockReturnValueOnce(flat.promise).mockReturnValueOnce(arrived.promise).mockReturnValueOnce(oriented.promise);
+it('keeps a bottom margin for route lines and markers above the sheet', () => {
+  controller.mapCamera.fitBounds(taipeiBounds, { bottom: 40 });
+  expect(native.fitBounds).toHaveBeenCalledWith(taipeiBounds, {
+    pitch: 0, duration: 800, padding: { ...padding, bottom: 340 },
+  });
+});
+
+it('fits distant bounds in one transition at the requested orientation', () => {
   store.setState({ is3d: true });
 
   controller.mapCamera.fitBounds(campusBounds, { top: 140, left: 24, right: 76 }, { pitch: 48, bearing: 17 });
-  expect(native.fitBounds).not.toHaveBeenCalled();
-  flat.resolve();
-  await settleCommands();
-  expect(native.setStop).toHaveBeenLastCalledWith({ bounds: campusBounds, pitch: 0, duration: 0, padding: { top: 140, bottom: 300, left: 24, right: 76 } });
-  expect(native.fitBounds).not.toHaveBeenCalled();
-  arrived.resolve();
-  await settleCommands();
-  expect(native.setStop).toHaveBeenLastCalledWith({ pitch: 48, bearing: 17, duration: 0 });
-  expect(native.fitBounds).not.toHaveBeenCalled();
-  oriented.resolve();
-  await settleCommands();
+  expect(native.setStop).not.toHaveBeenCalled();
+  expect(native.fitBounds).toHaveBeenCalledTimes(1);
   expect(native.fitBounds).toHaveBeenCalledWith(campusBounds, {
     pitch: 48, bearing: 17, duration: 800, padding: { top: 140, bottom: 300, left: 24, right: 76 },
   });
 });
 
-it.each([0, 48])('applies explicit pitch %s before nearby fitting even if store preference already changed', async (pitch) => {
-  const accepted = deferred();
-  native.setStop.mockReturnValueOnce(accepted.promise);
+it.each([0, 48])('includes explicit pitch %s in nearby fitting even if store preference already changed', (pitch) => {
   store.setState({ is3d: pitch > 0 });
   controller.mapCamera.fitBounds(taipeiBounds, undefined, { pitch, bearing: 12 });
-  expect(native.setStop).toHaveBeenCalledWith({ pitch, bearing: 12, duration: 0 });
-  expect(native.fitBounds).not.toHaveBeenCalled();
-  accepted.resolve();
-  await settleCommands();
+  expect(native.setStop).not.toHaveBeenCalled();
   expect(native.fitBounds).toHaveBeenCalledWith(taipeiBounds, { pitch, bearing: 12, padding, duration: 800 });
 });
 
@@ -181,14 +170,22 @@ it('cancels queued follow when following is stopped before preparation finishes'
   store.setState({ is3d: false, follow: { mode: 'heading', zoom: 18, pitch: 45 } });
   controller.mapCamera.flyTo(campus, 18);
   controller.mapCamera.follow('course', 17, 45);
-  controller.mapCamera.stopFollow();
+  expect(controller.mapCamera.stopFollow()).toEqual({ pitch: 0, bearing: 0 });
   expect(store.getState().follow).toBeNull();
   expect(native.setStop).toHaveBeenCalledTimes(1);
   accepted.resolve();
   await settleCommands();
   expect(store.getState().follow).toBeNull();
   expect(native.flyTo).not.toHaveBeenCalled();
-  expect(native.setStop).toHaveBeenLastCalledWith({ pitch: 0, bearing: 0, duration: 600, easing: 'ease' });
+  expect(native.setStop).toHaveBeenCalledTimes(1);
+});
+
+it('releases active following without moving or tilting the camera', () => {
+  controller.mapCamera.follow('heading', 18, 60);
+  expect(store.getState().follow).not.toBeNull();
+  controller.mapCamera.stopFollow();
+  expect(store.getState().follow).toBeNull();
+  for (const command of Object.values(native)) expect(command).not.toHaveBeenCalled();
 });
 
 it('retains a live request when React replaces the native imperative handle', async () => {
@@ -275,15 +272,26 @@ it('preserves an explicit indoor angle across a later movement without an angle 
   expect(native.easeTo).toHaveBeenCalledWith({ center: campus, zoom: 18, duration: 500, pitch: 48, padding });
 });
 
-it.each([false, true])('fits the full extent flat when its center is visible but its corners are outside, starting in 3D=%s', async (is3d) => {
+it.each([false, true])('fits the full extent without an intermediate view when its corners are outside, starting in 3D=%s', (is3d) => {
   const wideBounds: LngLatBounds = [121.4, 24.9, 121.7, 25.2];
   store.setState({ is3d });
   controller.mapCamera.fitBounds(wideBounds, undefined, { pitch: 48, bearing: 0 });
-  await settleCommands();
-  expect(native.setStop).toHaveBeenNthCalledWith(1, { pitch: 0, duration: 0 });
-  expect(native.setStop).toHaveBeenNthCalledWith(2, { bounds: wideBounds, padding, pitch: 0, duration: 0 });
-  expect(native.setStop).toHaveBeenNthCalledWith(3, { pitch: 48, bearing: 0, duration: 0 });
+  expect(native.setStop).not.toHaveBeenCalled();
   expect(native.fitBounds).toHaveBeenCalledWith(wideBounds, { pitch: 48, bearing: 0, padding, duration: 800 });
+});
+
+it('waits for an older preparation before fitting bounds and cancels the older target', async () => {
+  const accepted = deferred();
+  native.setStop.mockReturnValueOnce(accepted.promise);
+  store.setState({ is3d: true });
+  controller.mapCamera.flyTo(campus, 18);
+  controller.mapCamera.fitBounds(taipeiBounds, undefined, { pitch: 0, bearing: 0 });
+  expect(native.fitBounds).not.toHaveBeenCalled();
+  accepted.resolve();
+  await settleCommands();
+  expect(native.flyTo).not.toHaveBeenCalled();
+  expect(native.setStop).toHaveBeenCalledTimes(1);
+  expect(native.fitBounds).toHaveBeenCalledWith(taipeiBounds, { pitch: 0, bearing: 0, padding, duration: 800 });
 });
 
 

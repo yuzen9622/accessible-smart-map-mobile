@@ -38,8 +38,8 @@ export type ComputeRouteResult =
   | { ok: true; routes: AccessibleRoute[]; indoorRoute?: VenueRoute }
   | { ok: false; failure: RouteFailureKind | 'missing-input' | 'superseded' };
 
-/** 對齊 Web `fitRouteBounds` 的 top 70／左右 40；底部由 sheet inset 決定。 */
-const ROUTE_EDGE_PADDING = { top: 70, left: 40, right: 40 };
+/** 頂部 70、左右與底部 40；底部另外加上 sheet inset，避免路線外框與標記被遮住。 */
+const ROUTE_EDGE_PADDING = { top: 70, bottom: 40, left: 40, right: 40 };
 
 let inflight: AbortController | null = null;
 
@@ -98,9 +98,11 @@ function isCurrent(seq: number): boolean {
   return useRouteSessionStore.getState().requestSeq === seq;
 }
 
-function fitCamera(route: AccessibleRoute, fallback: Parameters<typeof routeBounds>[1]): void {
+function fitCamera(route: AccessibleRoute, fallback: Parameters<typeof routeBounds>[1], orientation?: Parameters<typeof mapCamera.fitBounds>[2]): void {
   const bounds = routeBounds(route.legs, fallback);
-  if (bounds) mapCamera.fitBounds(ensureMinSpan(bounds), ROUTE_EDGE_PADDING);
+  if (!bounds) return;
+  if (orientation) mapCamera.fitBounds(ensureMinSpan(bounds), ROUTE_EDGE_PADDING, orientation);
+  else mapCamera.fitBounds(ensureMinSpan(bounds), ROUTE_EDGE_PADDING);
 }
 
 function fail(failure: RouteFailureKind): ComputeRouteResult {
@@ -363,9 +365,9 @@ export function previewLegGeometry(preview: LegGeometryPreview | null): void {
 }
 
 /** 「回到路線」pill（Web `RouteSessionPill`）：把相機框回選中的路線。 */
-export function fitSelectedRoute(): void {
+export function fitSelectedRoute(orientation?: Parameters<typeof mapCamera.fitBounds>[2]): void {
   const { selectRoute, origin, destination, routeWaypoints } = useRouteSessionStore.getState();
-  if (selectRoute) fitCamera(selectRoute.route, { origin, destination, waypoints: routeWaypoints });
+  if (selectRoute) fitCamera(selectRoute.route, { origin, destination, waypoints: routeWaypoints }, orientation);
 }
 
 /** 唯一的結束路線入口（pill 的 ✕、結束導航、AI「取消路線」）。 */

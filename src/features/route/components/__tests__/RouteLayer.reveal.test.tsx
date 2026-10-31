@@ -1,0 +1,152 @@
+import type { GeoJSONSourceProps } from '@maplibre/maplibre-react-native';
+import { Layer } from '@maplibre/maplibre-react-native';
+import { act, render } from '@testing-library/react-native';
+import type { FeatureCollection } from 'geojson';
+
+import { routePlanFixture } from '@/features/ai/domain/testing/routePlanFixture';
+
+import * as routeLayerData from '../../domain/routeLayerData';
+import * as routeReveal from '../../domain/routeReveal';
+import { useRouteReveal } from '../../hooks/useRouteReveal';
+import { useRouteSessionStore } from '../../store/routeSessionStore';
+import type { LngLatTuple } from '../../types/route';
+import RouteLayer from '../RouteLayer';
+
+const mockSources = new Map<string, GeoJSONSourceProps>();
+
+jest.mock('@maplibre/maplibre-react-native', () => {
+  const React = jest.requireActual<typeof import('react')>('react');
+  const Noop = () => null;
+  return {
+    Map: Noop, Camera: Noop, Layer: jest.fn(Noop), NativeUserLocation: Noop,
+    GeoJSONSource: React.memo(function MockGeoJSONSource(props: GeoJSONSourceProps) {
+      mockSources.set(props.id ?? '', props);
+      return React.Children.map(props.children, (child) =>
+        React.isValidElement<{ source?: string }>(child) ? React.cloneElement(child, { source: props.id }) : child);
+    }),
+  };
+});
+jest.mock('../../hooks/useRouteReveal', () => ({ useRouteReveal: jest.fn(() => 0) }));
+
+function sourceData(id: string): FeatureCollection {
+  const data = mockSources.get(id)?.data;
+  if (!data || typeof data === 'string' || data.type !== 'FeatureCollection') {
+    throw new Error(`Missing GeoJSON collection for ${id}`);
+  }
+  return data;
+}
+
+function selectBusRoute() {
+  const route = routePlanFixture().routes[0];
+  useRouteSessionStore.setState({ selectRoute: { index: 0, route } });
+  return route;
+}
+
+beforeEach(() => {
+  mockSources.clear();
+  jest.mocked(Layer).mockClear();
+  jest.mocked(useRouteReveal).mockReturnValue(0);
+  useRouteSessionStore.setState(useRouteSessionStore.getInitialState());
+});
+
+afterEach(() => { jest.restoreAllMocks(); });
+
+it('reuses route geometry and the distance index while successive frames extend the visible line', async () => {
+  selectBusRoute();
+  const build = jest.spyOn(routeLayerData, 'buildRouteLayerData');
+  const prepare = jest.spyOn(routeReveal, 'createRouteReveal');
+  const view = await render(<RouteLayer />);
+  expect(sourceData('route-lines').features).toEqual([]);
+
+  jest.mocked(useRouteReveal).mockReturnValue(0.2);
+  await view.rerender(<RouteLayer />);
+  const earlyLine = sourceData('route-lines');
+  jest.mocked(useRouteReveal).mockReturnValue(0.5);
+  await view.rerender(<RouteLayer />);
+  const laterLine = sourceData('route-lines');
+
+  expect(earlyLine).toMatchObject({ features: [{ geometry: { coordinates: [[120, 24], [expect.closeTo(120.02, 6), expect.closeTo(24.02, 6)]] } }] });
+  expect(laterLine).toMatchObject({ features: [{ geometry: { coordinates: [[120, 24], [expect.closeTo(120.05, 6), expect.closeTo(24.05, 6)]] } }] });
+  expect(build).toHaveBeenCalledTimes(1);
+  expect(prepare).toHaveBeenCalledTimes(1);
+});
+
+it('forwards the source to every memoized line layer without rerendering the styles per frame', async () => {
+  selectBusRoute();
+  const view = await render(<RouteLayer />);
+  const layers = jest.mocked(Layer);
+  const lineSources = layers.mock.calls.flatMap(([props]) => props.type === 'line' ? [props.source] : []);
+  expect(lineSources).toEqual(Array(5).fill('route-lines'));
+  const initialCalls = layers.mock.calls.length;
+
+  for (const progress of [0.2, 0.5]) {
+    jest.mocked(useRouteReveal).mockReturnValue(progress);
+    await view.rerender(<RouteLayer />);
+    expect(layers).toHaveBeenCalledTimes(initialCalls);
+  }
+});
+
+it('keeps the points source stable during drawing and exposes the destination when drawing finishes', async () => {
+  selectBusRoute();
+  const view = await render(<RouteLayer />);
+  const drawingPoints = sourceData('route-points');
+  expect(drawingPoints.features.map((feature) => feature.properties?.kind)).toEqual(['origin']);
+
+  for (const progress of [0.2, 0.5]) {
+    jest.mocked(useRouteReveal).mockReturnValue(progress);
+    await view.rerender(<RouteLayer />);
+    expect(sourceData('route-points')).toBe(drawingPoints);
+  }
+
+  jest.mocked(useRouteReveal).mockReturnValue(1);
+  await view.rerender(<RouteLayer />);
+  const finishedPoints = sourceData('route-points');
+  expect(finishedPoints).not.toBe(drawingPoints);
+  expect(finishedPoints.features.map((feature) => feature.properties?.kind)).toEqual(['origin', 'destination']);
+  await view.rerender(<RouteLayer />);
+  expect(sourceData('route-points')).toBe(finishedPoints);
+});
+
+it('keeps one destination pin when the route has not been planned and the layer rerenders', async () => {
+  jest.mocked(useRouteReveal).mockReturnValue(1);
+  useRouteSessionStore.setState({ destination: { lat: 24.1, lng: 120.1 } });
+  const view = await render(<RouteLayer />);
+  const points = sourceData('route-points');
+
+  await view.rerender(<RouteLayer />);
+  await view.rerender(<RouteLayer />);
+
+  expect(sourceData('route-points')).toBe(points);
+  expect(points.features).toHaveLength(1);
+  expect(points.features[0]).toMatchObject({
+    geometry: { type: 'Point', coordinates: [120.1, 24.1] },
+    properties: { id: 'destination', kind: 'destination' },
+  });
+});
+
+it('reuses a bus geometry preview between frames and rebuilds only when that preview changes', async () => {
+  const route = selectBusRoute();
+  const preview: LngLatTuple[] = [[120, 24], [120.2, 24.2]];
+  useRouteSessionStore.setState({ legGeometryPreview: { routeId: route.routeId, legIndex: 0, polyline: preview } });
+  const build = jest.spyOn(routeLayerData, 'buildRouteLayerData');
+  const prepare = jest.spyOn(routeReveal, 'createRouteReveal');
+  const view = await render(<RouteLayer />);
+
+  for (const progress of [0.2, 0.5, 1]) {
+    jest.mocked(useRouteReveal).mockReturnValue(progress);
+    await view.rerender(<RouteLayer />);
+  }
+  expect(build).toHaveBeenCalledTimes(1);
+  expect(prepare).toHaveBeenCalledTimes(1);
+  expect(sourceData('route-lines')).toMatchObject({ features: [{ geometry: { coordinates: preview } }] });
+
+  const replacement: LngLatTuple[] = [[120, 24], [120.3, 24.3]];
+  await act(async () => {
+    useRouteSessionStore.setState({ legGeometryPreview: { routeId: route.routeId, legIndex: 0, polyline: replacement } });
+  });
+  expect(build).toHaveBeenCalledTimes(2);
+  expect(prepare).toHaveBeenCalledTimes(2);
+  expect(sourceData('route-lines')).toMatchObject({ features: [{ geometry: { coordinates: replacement } }] });
+  expect(useRouteSessionStore.getState().selectRoute?.route).toBe(route);
+  expect(route.legs[0].polyline).toEqual([[120, 24], [120.1, 24.1]]);
+});

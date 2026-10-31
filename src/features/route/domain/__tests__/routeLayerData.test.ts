@@ -4,7 +4,7 @@ import { buildRouteLayerData } from '../routeLayerData';
 import { TRAFFIC_BASE_COLOR, TRAFFIC_LEVEL_COLORS } from '../routeDisplay';
 import { MODE, WALK_ROUTE, routeCasingColor } from '@/shared/theme/palettes';
 import { adaptRoutePreviewRoutes } from '../routePreviewAdapter';
-import { revealRouteLines } from '../routeReveal';
+import { createRouteReveal } from '../routeReveal';
 import type { AccessibleRoute, DriveLeg, LngLatTuple, MetroLeg, RouteLeg, WalkLeg } from '../../types/route';
 
 const DRIVE_POLYLINE: LngLatTuple[] = [
@@ -193,7 +193,7 @@ describe('walking route classification', () => {
 
   it('reveals green with the same progress as the rest of the path', () => {
     const data = build({ sidewalkSegments: [{ startIndex: 1, endIndex: 2 }] });
-    const halfway = revealRouteLines(data.lines, 0.5);
+    const halfway = createRouteReveal(data.lines)(0.5);
     expect(halfway.features.map((f) => f.properties.kind)).toEqual(['walk', 'sidewalk']);
     expect(halfway.features[1].geometry.coordinates[0]).toEqual(polyline[1]);
     expect(halfway.features[1].geometry.coordinates.at(-1)?.[0]).toBeCloseTo(121.0015, 6);

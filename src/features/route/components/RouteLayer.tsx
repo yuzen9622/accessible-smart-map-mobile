@@ -1,9 +1,10 @@
 import type { CircleLayerSpecification, LineLayerSpecification } from '@maplibre/maplibre-react-native';
 import { GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import type { Feature, Point } from 'geojson';
+import { memo, useMemo } from 'react';
 
 import { ROUTE_DESTINATION_COLOR, buildRouteLayerData, type RoutePointProps } from '../domain/routeLayerData';
-import { revealRouteLines } from '../domain/routeReveal';
+import { createRouteReveal } from '../domain/routeReveal';
 import { useRouteReveal } from '../hooks/useRouteReveal';
 import { useRouteSessionStore } from '../store/routeSessionStore';
 import { ROUTE_STROKE, WHITE } from '@/shared/theme';
@@ -50,95 +51,122 @@ export const ROUTE_POINT_COLOR_PAINT: Pick<NonNullable<CircleLayerSpecification[
   ],
 };
 
+// GeoJSONSource 會注入 source；固定樣式不隨每幀的幾何更新重新轉換。
+const RouteLineLayers = memo(function RouteLineLayers({ source }: { source?: string }) {
+  return (
+    <>
+      <Layer
+        source={source}
+        id="route-line-casing"
+        type="line"
+        filter={['match', ['get', 'kind'], ['walk', 'sidewalk', 'transit', 'drive'], true, false]}
+        layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+        paint={ROUTE_CASING_PAINT}
+      />
+      <Layer
+        source={source}
+        id="route-line-solid"
+        type="line"
+        filter={['match', ['get', 'kind'], ['walk', 'sidewalk', 'transit', 'drive'], true, false]}
+        layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+        paint={ROUTE_LINE_PAINT}
+      />
+      <Layer
+        source={source}
+        id="route-line-traffic-casing"
+        type="line"
+        filter={['==', ['get', 'kind'], 'traffic']}
+        layout={{ 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'order'] }}
+        paint={ROUTE_CASING_PAINT}
+      />
+      <Layer
+        source={source}
+        id="route-line-traffic"
+        type="line"
+        filter={['==', ['get', 'kind'], 'traffic']}
+        layout={{ 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'order'] }}
+        paint={ROUTE_LINE_PAINT}
+      />
+      <Layer
+        source={source}
+        id="route-line-incident"
+        type="line"
+        filter={['==', ['get', 'kind'], 'incident']}
+        layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+        paint={{ 'line-color': ['get', 'color'], 'line-width': 5, 'line-opacity': 0.9, 'line-dasharray': [1, 1.5] }}
+      />
+    </>
+  );
+});
+
+const ROUTE_LINE_LAYERS = <RouteLineLayers />;
+const ROUTE_POINT_LAYER = (
+  <Layer
+    id="route-point-circles"
+    type="circle"
+    paint={{
+      ...ROUTE_POINT_COLOR_PAINT,
+      'circle-radius': [
+        'match',
+        ['get', 'kind'],
+        'destination',
+        10,
+        'origin',
+        8,
+        'transfer',
+        7,
+        'a11yDot',
+        6,
+        8,
+      ],
+      'circle-stroke-width': ['match', ['get', 'kind'], ['origin', 'transfer'], 3.5, 2],
+    }}
+  />
+);
+
 export default function RouteLayer() {
   const selected = useRouteSessionStore((s) => s.selectRoute?.route ?? null);
   const preview = useRouteSessionStore((s) => s.legGeometryPreview);
   // 查看別班公車時，那段 leg 改畫那班的線形（只在這張圖層上替換，不寫回路線）
-  const previewLeg = preview && selected?.routeId === preview.routeId ? selected.legs[preview.legIndex] : undefined;
-  const route =
-    selected && preview && previewLeg?.type === 'BUS'
+  const route = useMemo(() => {
+    const previewLeg = preview && selected?.routeId === preview.routeId ? selected.legs[preview.legIndex] : undefined;
+    return selected && preview && previewLeg?.type === 'BUS'
       ? { ...selected, legs: selected.legs.map((leg, index) => (index === preview.legIndex ? { ...previewLeg, polyline: preview.polyline } : leg)) }
       : selected;
+  }, [selected, preview]);
   const waypoints = useRouteSessionStore((s) => s.routeWaypoints);
   const destination = useRouteSessionStore((s) => s.destination);
 
   const reveal = useRouteReveal(route?.routeId ?? null);
-  const data = buildRouteLayerData(route, waypoints);
+  const data = useMemo(() => {
+    const result = buildRouteLayerData(route, waypoints);
+    if (!route && destination) {
+      const pin: Feature<Point, RoutePointProps> = {
+        type: 'Feature',
+        id: 'destination',
+        geometry: { type: 'Point', coordinates: [destination.lng, destination.lat] },
+        properties: { id: 'destination', kind: 'destination', color: ROUTE_DESTINATION_COLOR },
+      };
+      return { ...result, points: { ...result.points, features: [pin] } };
+    }
+    return result;
+  }, [route, waypoints, destination]);
+  const revealLines = useMemo(() => createRouteReveal(data.lines), [data.lines]);
   // 繪出動畫期間只畫到進度位置；起點之外的點（轉乘、中繼、事故）等畫完再出現
-  const lines = revealRouteLines(data.lines, reveal);
-  const points = reveal >= 1 ? data.points : { ...data.points, features: data.points.features.filter((f) => f.properties.kind === 'origin') };
-  if (!route && destination) {
-    const pin: Feature<Point, RoutePointProps> = {
-      type: 'Feature',
-      id: 'destination',
-      geometry: { type: 'Point', coordinates: [destination.lng, destination.lat] },
-      properties: { id: 'destination', kind: 'destination', color: ROUTE_DESTINATION_COLOR },
-    };
-    data.points.features.push(pin);
-  }
+  const lines = revealLines(reveal);
+  const complete = reveal >= 1;
+  const points = useMemo(() => complete ? data.points : {
+    ...data.points, features: data.points.features.filter((f) => f.properties.kind === 'origin'),
+  }, [data.points, complete]);
   if (data.lines.features.length === 0 && data.points.features.length === 0) return null;
 
   return (
     <>
       <GeoJSONSource id="route-lines" data={lines}>
-        <Layer
-          id="route-line-casing"
-          type="line"
-          filter={['match', ['get', 'kind'], ['walk', 'sidewalk', 'transit', 'drive'], true, false]}
-          layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-          paint={ROUTE_CASING_PAINT}
-        />
-        <Layer
-          id="route-line-solid"
-          type="line"
-          filter={['match', ['get', 'kind'], ['walk', 'sidewalk', 'transit', 'drive'], true, false]}
-          layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-          paint={ROUTE_LINE_PAINT}
-        />
-        <Layer
-          id="route-line-traffic-casing"
-          type="line"
-          filter={['==', ['get', 'kind'], 'traffic']}
-          layout={{ 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'order'] }}
-          paint={ROUTE_CASING_PAINT}
-        />
-        <Layer
-          id="route-line-traffic"
-          type="line"
-          filter={['==', ['get', 'kind'], 'traffic']}
-          layout={{ 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'order'] }}
-          paint={ROUTE_LINE_PAINT}
-        />
-        <Layer
-          id="route-line-incident"
-          type="line"
-          filter={['==', ['get', 'kind'], 'incident']}
-          layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-          paint={{ 'line-color': ['get', 'color'], 'line-width': 5, 'line-opacity': 0.9, 'line-dasharray': [1, 1.5] }}
-        />
+        {ROUTE_LINE_LAYERS}
       </GeoJSONSource>
       <GeoJSONSource id="route-points" data={points}>
-        <Layer
-          id="route-point-circles"
-          type="circle"
-          paint={{
-            ...ROUTE_POINT_COLOR_PAINT,
-            'circle-radius': [
-              'match',
-              ['get', 'kind'],
-              'destination',
-              10,
-              'origin',
-              8,
-              'transfer',
-              7,
-              'a11yDot',
-              6,
-              8,
-            ],
-            'circle-stroke-width': ['match', ['get', 'kind'], ['origin', 'transfer'], 3.5, 2],
-          }}
-        />
+        {ROUTE_POINT_LAYER}
       </GeoJSONSource>
     </>
   );

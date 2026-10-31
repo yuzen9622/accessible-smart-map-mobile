@@ -4,51 +4,70 @@ import { haversineMeters } from '@/shared/geo';
 
 import type { RouteLineProps } from './routeLayerData';
 
-function segmentLength(a: Position, b: Position): number {
-  return haversineMeters({ lat: a[1], lng: a[0] }, { lat: b[1], lng: b[0] });
-}
+type RouteLines = FeatureCollection<LineString, RouteLineProps>;
 
-function lineLength(coords: Position[]): number {
-  let total = 0;
-  for (let i = 1; i < coords.length; i++) total += segmentLength(coords[i - 1], coords[i]);
-  return total;
-}
-
-function takeLength(coords: Position[], target: number): Position[] {
-  if (target <= 0) return [];
-  const out: Position[] = [coords[0]];
-  let walked = 0;
+function cumulativeDistances(coords: Position[]): number[] {
+  const distances = [0];
   for (let i = 1; i < coords.length; i++) {
-    const step = segmentLength(coords[i - 1], coords[i]);
-    if (walked + step >= target) {
-      const t = step === 0 ? 0 : (target - walked) / step;
-      out.push([coords[i - 1][0] + (coords[i][0] - coords[i - 1][0]) * t, coords[i - 1][1] + (coords[i][1] - coords[i - 1][1]) * t]);
-      return out;
-    }
-    out.push(coords[i]);
-    walked += step;
+    distances.push(distances[i - 1] + haversineMeters(
+      { lat: coords[i - 1][1], lng: coords[i - 1][0] },
+      { lat: coords[i][1], lng: coords[i][0] },
+    ));
   }
-  return out;
+  return distances;
+}
+
+function takeLength(coords: Position[], distances: number[], target: number): Position[] {
+  // 找到繪線前端所在的邊；每幀只內插這一個端點，不重算整條路線的距離。
+  let low = 1;
+  let high = distances.length - 1;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (distances[middle] < target) low = middle + 1;
+    else high = middle;
+  }
+  const start = coords[low - 1];
+  const end = coords[low];
+  const step = distances[low] - distances[low - 1];
+  const t = step === 0 ? 0 : (target - distances[low - 1]) / step;
+  const visible = coords.slice(0, low);
+  visible.push([start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t]);
+  return visible;
 }
 
 /**
- * 「路線繪出」動畫：只畫到整條路線 `progress`（0–1）的位置。底線（order 0）依各段累積長度裁切；
- * 疊色、事故等疊加線（order > 0）在畫完前不顯示，避免疊色比底線先出現。progress ≥ 1 原樣回傳。
+ * 路線變更時準備一次距離索引，之後各幀只裁切當前線段；完成段直接共用原始 feature。
+ * 底線依累積距離繪出，疊色與事故線等完成後才出現，避免超前於底線。
  */
-export function revealRouteLines(
-  lines: FeatureCollection<LineString, RouteLineProps>,
-  progress: number,
-): FeatureCollection<LineString, RouteLineProps> {
-  if (progress >= 1) return lines;
-  const base = lines.features.filter((f) => f.properties.order === 0);
-  const total = base.reduce((sum, f) => sum + lineLength(f.geometry.coordinates), 0);
-  let remaining = Math.max(0, progress) * total;
-  const features = base.flatMap((feature) => {
-    const length = lineLength(feature.geometry.coordinates);
-    const take = Math.min(remaining, length);
-    remaining -= take;
-    const coordinates = takeLength(feature.geometry.coordinates, take);
-    return coordinates.length >= 2 ? [{ ...feature, geometry: { ...feature.geometry, coordinates } }] : [];
+export function createRouteReveal(lines: RouteLines): (progress: number) => RouteLines {
+  let total = 0;
+  const base = lines.features.filter((feature) => feature.properties.order === 0).map((feature) => {
+    const distances = cumulativeDistances(feature.geometry.coordinates);
+    const length = distances[distances.length - 1];
+    const start = total;
+    total += length;
+    return { feature, distances, length, start };
   });
-  return { ...lines, features };
+  const empty: RouteLines = { ...lines, features: [] };
+
+  return (progress) => {
+    if (progress >= 1) return lines;
+    if (progress <= 0 || total === 0) return empty;
+    const target = progress * total;
+    const features: RouteLines['features'] = [];
+    for (const { feature, distances, length, start } of base) {
+      if (start >= target) break;
+      if (length === 0) continue;
+      if (start + length <= target) {
+        features.push(feature);
+        continue;
+      }
+      features.push({
+        ...feature,
+        geometry: { ...feature.geometry, coordinates: takeLength(feature.geometry.coordinates, distances, target - start) },
+      });
+      break;
+    }
+    return { ...lines, features };
+  };
 }

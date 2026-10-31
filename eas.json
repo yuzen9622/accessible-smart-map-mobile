@@ -21,7 +21,9 @@
       "environment": "preview"
     },
     "production": {
-      "autoIncrement": true,
+      "ios": {
+        "autoIncrement": true
+      },
       "channel": "production",
       "environment": "production"
     }

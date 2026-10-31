@@ -1,7 +1,8 @@
 import type { GeoJSONSourceProps } from '@maplibre/maplibre-react-native';
 import { Layer } from '@maplibre/maplibre-react-native';
-import { act, render } from '@testing-library/react-native';
+import { act, fireEvent, render } from '@testing-library/react-native';
 import type { FeatureCollection } from 'geojson';
+import * as ReactNative from 'react-native';
 
 import { routePlanFixture } from '@/features/ai/domain/testing/routePlanFixture';
 
@@ -9,7 +10,8 @@ import * as routeLayerData from '../../domain/routeLayerData';
 import * as routeReveal from '../../domain/routeReveal';
 import { useRouteReveal } from '../../hooks/useRouteReveal';
 import { useRouteSessionStore } from '../../store/routeSessionStore';
-import type { LngLatTuple } from '../../types/route';
+import type { AccessibleRoute, LngLatTuple, TravelMode } from '../../types/route';
+import { ROUTE_ALTERNATIVE } from '@/shared/theme';
 import RouteLayer from '../RouteLayer';
 
 const mockSources = new Map<string, GeoJSONSourceProps>();
@@ -21,8 +23,8 @@ jest.mock('@maplibre/maplibre-react-native', () => {
     Map: Noop, Camera: Noop, Layer: jest.fn(Noop), NativeUserLocation: Noop,
     GeoJSONSource: React.memo(function MockGeoJSONSource(props: GeoJSONSourceProps) {
       mockSources.set(props.id ?? '', props);
-      return React.Children.map(props.children, (child) =>
-        React.isValidElement<{ source?: string }>(child) ? React.cloneElement(child, { source: props.id }) : child);
+      return React.createElement('GeoJSONSource', { ...props, testID: props.id }, React.Children.map(props.children, (child) =>
+        React.isValidElement<{ source?: string }>(child) ? React.cloneElement(child, { source: props.id }) : child));
     }),
   };
 });
@@ -50,6 +52,78 @@ beforeEach(() => {
 });
 
 afterEach(() => { jest.restoreAllMocks(); });
+
+function selectCandidates(travelMode: TravelMode = 'drive') {
+  const routes: AccessibleRoute[] = ['a', 'b'].map((routeId) => ({
+    routeId, routeName: routeId, totalMinutes: 10, transferCount: 0, accessibilityHighlights: [],
+    legs: [{ type: 'DRIVE', from: 'A', to: 'B', distanceM: 1000, durationMin: 10, polyline: [[120, 24], [120.1, 24.1]] }],
+  }));
+  useRouteSessionStore.setState({ computeRoutes: routes, selectRoute: { route: routes[0], index: 0 }, travelMode });
+  return routes;
+}
+
+it('switches the shared selection on a candidate tap and makes the previous selection the candidate', async () => {
+  const routes = selectCandidates();
+  const view = await render(<RouteLayer />);
+  expect([...mockSources.keys()]).toEqual(['route-alternatives', 'route-lines', 'route-points']);
+  const stopPropagation = jest.fn();
+  await fireEvent(view.getByTestId('route-alternatives'), 'press', {
+    stopPropagation, nativeEvent: { features: sourceData('route-alternatives').features },
+  });
+  expect(stopPropagation).toHaveBeenCalled();
+  expect(useRouteSessionStore.getState().selectRoute).toEqual({ route: routes[1], index: 1 });
+  expect(useRouteSessionStore.getState().selectedRouteId).toBe('b');
+  expect(sourceData('route-alternatives').features[0].properties).toEqual({ routeId: 'a' });
+});
+
+it('does not switch an overlapping selected line or accept a stale candidate hit', async () => {
+  const routes = selectCandidates();
+  const view = await render(<RouteLayer />);
+  await fireEvent(view.getByTestId('route-lines'), 'press', { stopPropagation: jest.fn() });
+  await fireEvent(view.getByTestId('route-alternatives'), 'press', {
+    stopPropagation: jest.fn(), nativeEvent: { features: [{ properties: { routeId: 'removed' } }] },
+  });
+  expect(useRouteSessionStore.getState().selectRoute?.route).toBe(routes[0]);
+});
+
+it.each(['light', 'dark'] as const)('uses the %s candidate palette', async (theme) => {
+  jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue(theme);
+  selectCandidates();
+  await render(<RouteLayer />);
+  const paints = jest.mocked(Layer).mock.calls.map(([props]) => props);
+  expect(paints.find((props) => props.id === 'route-alternative-line')?.paint).toMatchObject({ 'line-color': ROUTE_ALTERNATIVE[theme].line });
+  expect(paints.find((props) => props.id === 'route-alternative-casing')?.paint).toMatchObject({ 'line-color': ROUTE_ALTERNATIVE[theme].casing });
+  expect(paints.filter((props) => props.id?.startsWith('route-alternative-'))).toEqual([
+    expect.objectContaining({ source: 'route-alternatives', beforeId: 'route-line-casing' }),
+    expect.objectContaining({ source: 'route-alternatives', beforeId: 'route-line-casing' }),
+  ]);
+});
+
+it('does not rebuild candidates or their layers on each selected-route animation frame', async () => {
+  selectCandidates();
+  const build = jest.spyOn(routeLayerData, 'buildAlternativeRouteLines');
+  const view = await render(<RouteLayer />);
+  const data = sourceData('route-alternatives');
+  const candidateLayerCalls = () => jest.mocked(Layer).mock.calls.filter(([props]) => 'source' in props && props.source === 'route-alternatives').length;
+  const initialLayers = candidateLayerCalls();
+  for (const progress of [0.2, 0.5, 1]) {
+    jest.mocked(useRouteReveal).mockReturnValue(progress);
+    await view.rerender(<RouteLayer />);
+    expect(sourceData('route-alternatives')).toBe(data);
+    expect(candidateLayerCalls()).toBe(initialLayers);
+  }
+  expect(build).toHaveBeenCalledTimes(1);
+});
+
+it('hides candidates in transit and when navigation disables alternatives', async () => {
+  selectCandidates('transit');
+  const view = await render(<RouteLayer />);
+  expect(view.queryByTestId('route-alternatives')).toBeNull();
+  await act(async () => { useRouteSessionStore.setState({ travelMode: 'drive' }); });
+  expect(view.queryByTestId('route-alternatives')).not.toBeNull();
+  await view.rerender(<RouteLayer showAlternatives={false} />);
+  expect(view.queryByTestId('route-alternatives')).toBeNull();
+});
 
 it('reuses route geometry and the distance index while successive frames extend the visible line', async () => {
   selectBusRoute();

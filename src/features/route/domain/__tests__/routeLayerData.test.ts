@@ -1,11 +1,12 @@
 // 移植自 Web `src/components/Wrapper/__tests__/RouteWrapper.test.tsx`（commit 5eadc71）的行為：
 // Web 斷言 renderToStaticMarkup 產生的 Polyline／Marker id；原生改斷言 GeoJSON feature。
-import { buildRouteLayerData } from '../routeLayerData';
+import { buildAlternativeRouteLines, buildRouteLayerData } from '../routeLayerData';
 import { TRAFFIC_BASE_COLOR, TRAFFIC_LEVEL_COLORS } from '../routeDisplay';
 import { MODE, WALK_ROUTE, routeCasingColor } from '@/shared/theme/palettes';
 import { adaptRoutePreviewRoutes } from '../routePreviewAdapter';
 import { createRouteReveal } from '../routeReveal';
 import type { AccessibleRoute, DriveLeg, LngLatTuple, MetroLeg, RouteLeg, WalkLeg } from '../../types/route';
+import { routePlanFixture } from '@/features/ai/domain/testing/routePlanFixture';
 
 const DRIVE_POLYLINE: LngLatTuple[] = [
   [121.5, 25.03],
@@ -33,6 +34,34 @@ function ids(route: AccessibleRoute) {
     points: data.points.features.map((f) => f.properties),
   };
 }
+
+describe('alternative route lines', () => {
+  it.each(['walk', 'drive', 'motorcycle'] as const)('draws unselected base geometry only in %s mode', (mode) => {
+    const other = { ...driveRoute({
+      type: mode === 'motorcycle' ? 'MOTORCYCLE' : 'DRIVE',
+      trafficSegments: [{ fromIndex: 0, toIndex: 2, trafficLevel: 'heavy', congestionLevel: 4 }],
+    }), routeId: 'd2' };
+    if (mode === 'walk') other.legs = [{
+      type: 'WALK', from: 'A', to: 'B', distanceM: 2000, minutesEst: 25,
+      polyline: DRIVE_POLYLINE, a11yFacilities: [],
+    }];
+    const selected = { ...other, routeId: 'd1' };
+    const transit = routePlanFixture().routes[0];
+    const result = buildAlternativeRouteLines([selected, other, transit], selected.routeId, mode);
+    expect(result.features).toEqual([expect.objectContaining({
+      id: 'd2:leg-0', properties: { routeId: 'd2' },
+      geometry: { type: 'LineString', coordinates: DRIVE_POLYLINE },
+    })]);
+  });
+
+  it('does not draw candidates for transit, missing selection or cleared results', () => {
+    const routes = [driveRoute(), { ...driveRoute(), routeId: 'd2' }];
+    expect(buildAlternativeRouteLines(routes, 'd1', 'transit').features).toEqual([]);
+    expect(buildAlternativeRouteLines(routes, null, 'drive').features).toEqual([]);
+    expect(buildAlternativeRouteLines(null, 'd1', 'drive').features).toEqual([]);
+    expect(buildAlternativeRouteLines([driveRoute()], 'd1', 'drive').features).toEqual([]);
+  });
+});
 
 describe('buildRouteLayerData', () => {
   it('returns empty collections without a route', () => {

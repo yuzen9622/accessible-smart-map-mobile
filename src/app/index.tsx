@@ -62,7 +62,7 @@ export default function Index() {
           <HazardLayer />
           <PlacePinLayer />
           <BusStopLayer />
-          <RouteLayer />
+          <RouteLayer showAlternatives={!isNavigating && !indoorGuiding} />
           <RouteFacilityLayer />
           <AIResultLayer />
           <LiveBusLayer />

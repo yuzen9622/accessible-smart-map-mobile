@@ -15,7 +15,7 @@ import type { LatLng } from '@/shared/geo';
 
 import { filterIncidentsAlongRoute, isIncidentClosed } from './geo';
 import { A11Y_FEATURE_COLOR, TRAFFIC_LEVEL_COLORS, getLegColor, legEdgeColor, visibleTrafficSegments } from './routeDisplay';
-import type { AccessibleRoute, LngLatTuple, WalkLeg } from '../types/route';
+import type { AccessibleRoute, LngLatTuple, TravelMode, WalkLeg } from '../types/route';
 import { ROUTE_MARKER, WALK_ROUTE, routeCasingColor } from '@/shared/theme/palettes';
 
 export type RouteLineKind = 'walk' | 'sidewalk' | 'transit' | 'drive' | 'traffic' | 'incident';
@@ -45,6 +45,27 @@ export interface RoutePointProps {
 export interface RouteLayerData {
   lines: FeatureCollection<LineString, RouteLineProps>;
   points: FeatureCollection<Point, RoutePointProps>;
+}
+
+export function buildAlternativeRouteLines(
+  routes: readonly AccessibleRoute[] | null,
+  selectedRouteId: string | null,
+  travelMode: TravelMode,
+): FeatureCollection<LineString, { routeId: string }> {
+  return {
+    type: 'FeatureCollection',
+    features: !selectedRouteId || travelMode === 'transit' ? [] : (routes ?? []).flatMap((route) => {
+      if (route.routeId === selectedRouteId || !route.legs.every((leg) =>
+        leg.type === 'WALK' || leg.type === 'DRIVE' || leg.type === 'MOTORCYCLE')) return [];
+      return buildRouteLayerData(route).lines.features
+        .filter((feature) => feature.properties.order === 0)
+        .map((feature) => ({
+          ...feature,
+          id: `${route.routeId}:${feature.id}`,
+          properties: { routeId: route.routeId },
+        }));
+    }),
+  };
 }
 
 export const ROUTE_ORIGIN_COLOR = ROUTE_MARKER.origin;

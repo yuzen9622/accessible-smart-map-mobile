@@ -1,13 +1,15 @@
-import type { CircleLayerSpecification, LineLayerSpecification } from '@maplibre/maplibre-react-native';
+import type { CircleLayerSpecification, GeoJSONSourceProps, LineLayerSpecification } from '@maplibre/maplibre-react-native';
 import { GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import type { Feature, Point } from 'geojson';
-import { memo, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
+import { useColorScheme } from 'react-native';
 
-import { ROUTE_DESTINATION_COLOR, buildRouteLayerData, type RoutePointProps } from '../domain/routeLayerData';
+import { selectRouteAt } from '../controller/routeSessionPort';
+import { ROUTE_DESTINATION_COLOR, buildAlternativeRouteLines, buildRouteLayerData, type RoutePointProps } from '../domain/routeLayerData';
 import { createRouteReveal } from '../domain/routeReveal';
 import { useRouteReveal } from '../hooks/useRouteReveal';
 import { useRouteSessionStore } from '../store/routeSessionStore';
-import { ROUTE_STROKE, WHITE } from '@/shared/theme';
+import { ROUTE_ALTERNATIVE, ROUTE_STROKE, WHITE } from '@/shared/theme';
 
 /**
  * 路線圖層：所有運具使用實色內線與同色系外框，步行依人行道分類使用藍／綠線。
@@ -100,6 +102,7 @@ const RouteLineLayers = memo(function RouteLineLayers({ source }: { source?: str
 });
 
 const ROUTE_LINE_LAYERS = <RouteLineLayers />;
+const stopRoutePress: GeoJSONSourceProps['onPress'] = (event) => event.stopPropagation();
 const ROUTE_POINT_LAYER = (
   <Layer
     id="route-point-circles"
@@ -124,8 +127,30 @@ const ROUTE_POINT_LAYER = (
   />
 );
 
-export default function RouteLayer() {
+export default function RouteLayer({ showAlternatives = true }: { showAlternatives?: boolean }) {
   const selected = useRouteSessionStore((s) => s.selectRoute?.route ?? null);
+  const routes = useRouteSessionStore((s) => s.computeRoutes);
+  const travelMode = useRouteSessionStore((s) => s.effectivePreferences?.travelMode ?? s.travelMode);
+  const theme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const alternativeColor = ROUTE_ALTERNATIVE[theme];
+  const alternatives = useMemo(() => buildAlternativeRouteLines(
+    showAlternatives ? routes : null, selected?.routeId ?? null, travelMode,
+  ), [routes, selected?.routeId, travelMode, showAlternatives]);
+  const onAlternativePress = useCallback<NonNullable<GeoJSONSourceProps['onPress']>>((event) => {
+    event.stopPropagation();
+    const routeId = event.nativeEvent.features[0]?.properties?.routeId;
+    if (typeof routeId !== 'string' || !alternatives.features.some((feature) => feature.properties.routeId === routeId)) return;
+    const index = useRouteSessionStore.getState().computeRoutes?.findIndex((route) => route.routeId === routeId) ?? -1;
+    if (index >= 0) selectRouteAt(index);
+  }, [alternatives]);
+  const alternativeLayers = useMemo(() => [
+    <Layer key="casing" id="route-alternative-casing" type="line" beforeId="route-line-casing"
+      layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+      paint={{ 'line-color': alternativeColor.casing, 'line-width': ROUTE_STROKE.casingWidth }} />,
+    <Layer key="line" id="route-alternative-line" type="line" beforeId="route-line-casing"
+      layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+      paint={{ 'line-color': alternativeColor.line, 'line-width': ROUTE_STROKE.lineWidth }} />,
+  ], [alternativeColor]);
   const preview = useRouteSessionStore((s) => s.legGeometryPreview);
   // 查看別班公車時，那段 leg 改畫那班的線形（只在這張圖層上替換，不寫回路線）
   const route = useMemo(() => {
@@ -158,11 +183,16 @@ export default function RouteLayer() {
   const points = useMemo(() => complete ? data.points : {
     ...data.points, features: data.points.features.filter((f) => f.properties.kind === 'origin'),
   }, [data.points, complete]);
-  if (data.lines.features.length === 0 && data.points.features.length === 0) return null;
+  if (data.lines.features.length === 0 && data.points.features.length === 0 && alternatives.features.length === 0) return null;
 
   return (
     <>
-      <GeoJSONSource id="route-lines" data={lines}>
+      {alternatives.features.length > 0 ? (
+        <GeoJSONSource id="route-alternatives" data={alternatives} onPress={onAlternativePress}>
+          {alternativeLayers}
+        </GeoJSONSource>
+      ) : null}
+      <GeoJSONSource id="route-lines" data={lines} onPress={stopRoutePress}>
         {ROUTE_LINE_LAYERS}
       </GeoJSONSource>
       <GeoJSONSource id="route-points" data={points}>

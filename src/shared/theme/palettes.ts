@@ -31,6 +31,12 @@ export const WALK_ROUTE = {
   sidewalkCasing: '#83D4A7',
 } as const;
 
+/** 未選候選線：低彩度實線，深色底圖提高亮度以保留辨識度。 */
+export const ROUTE_ALTERNATIVE = {
+  light: { line: '#3F4C5E', casing: '#8796A8' },
+  dark: { line: '#3C526C', casing: '#71869D' },
+} as const;
+
 export const FACILITY = {
   elevator: { line: '#1B7F3B', text: '#1B7F3B' },
   ramp: { line: '#C45A00', text: '#A64B00' },

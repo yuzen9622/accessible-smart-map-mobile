@@ -173,3 +173,22 @@ it('載入場景優先選擇有發布平面圖的樓層', async () => {
   await store.getState().selectVenue(detail.venueId);
   expect(store.getState().floor).toEqual({ buildingId: 'a', levelRef: '2F' });
 });
+
+
+it('只有明確清除路線才發布清除版本，正常載入及採用不會冒充取消', async () => {
+  const store = createIndoorStore();
+  const pending = deferred<VenueDetail>();
+  detailApi.mockReturnValueOnce(pending.promise);
+  const adoption = store.getState().adoptRoute(createVenueRoute());
+  expect(store.getState().venue.status).toBe('loading');
+  expect(store.getState().routeClearRevision).toBe(0);
+  pending.resolve(createVenueDetail());
+  expect(await adoption).toBe(true);
+  expect(store.getState().routeClearRevision).toBe(0);
+  store.getState().clearRoute();
+  const cleared = store.getState().routeClearRevision;
+  expect(cleared).toBeGreaterThan(0);
+  expect(await store.getState().adoptRoute(createVenueRoute())).toBe(true);
+  await store.getState().selectVenue('test-venue');
+  expect(store.getState().routeClearRevision).toBe(cleared);
+});

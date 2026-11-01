@@ -28,6 +28,7 @@ export interface IndoorState {
   selectedPlaceId: string | null;
   plan: Resource<VenueRoute>;
   guidance: IndoorGuidance;
+  routeClearRevision: number;
   notice: string | null;
   loadCatalog: () => Promise<void>;
   selectVenue: (venueId: string) => Promise<void>;
@@ -69,7 +70,7 @@ export function createIndoorStore() {
   return create<IndoorState>((set, get) => ({
     active: false, catalog: { status: 'idle' }, venue: { status: 'idle' },
     selectedVenueId: null, floor: { buildingId: null, levelRef: null }, selectedPlaceId: null,
-    plan: { status: 'idle' }, guidance: { status: 'idle' }, notice: null,
+    plan: { status: 'idle' }, guidance: { status: 'idle' }, routeClearRevision: 0, notice: null,
     loadCatalog: async () => {
       catalogController?.abort();
       const controller = new AbortController();
@@ -121,7 +122,7 @@ export function createIndoorStore() {
       const place = venue.data.places.find((p) => p.id === id);
       if (place) set({ selectedPlaceId: id, floor: displayFloor({ buildingId: place.buildingId, levelRef: place.levelRef }, get().floor) });
     },
-    clearRoute: () => { adoptionGeneration += 1; set({ plan: { status: 'idle' }, guidance: { status: 'idle' }, notice: null }); },
+    clearRoute: () => { adoptionGeneration += 1; set({ plan: { status: 'idle' }, guidance: { status: 'idle' }, routeClearRevision: adoptionGeneration, notice: null }); },
     startGuidance: () => {
       const { plan } = get();
       if (plan.status !== 'ready' || plan.data.steps.length === 0) return;

@@ -2,6 +2,7 @@
 // 只搬路線／導航相關的型別；危險通報、福利機構、停車、公車到站等型別隨各自 feature 移植。
 // 型別對齊後端 OpenAPI（POST /a11y/accessible-route）；後端為 Zod `.strict()`，request 多帶欄位即 400。
 
+import type { LatLng } from '@/shared/geo';
 import type { VenueRoute } from '@/shared/venue';
 
 export type LngLatTuple = [number, number]; // [lng, lat]
@@ -399,8 +400,8 @@ export interface DriveIncident {
 export interface DriveLeg {
   type: 'DRIVE' | 'MOTORCYCLE';
   label?: string;
-  from: string;
-  to: string;
+  from: string | LatLng;
+  to: string | LatLng;
   distanceM: number;
   durationMinutes?: number;
   durationMin: number;
@@ -524,7 +525,7 @@ export interface EffectiveRoutePreferences extends RoutingPreferences {
   needsHandrail?: boolean;
   maxSlopePercent?: number;
 }
-export interface AiRoutePlan extends AccessibleRouteData {
+interface AiRoutePlanBase extends Omit<AccessibleRouteData, 'venueArrival' | 'venueLeg'> {
   routeContractVersion: 1;
   ok: true;
   planId: string;
@@ -533,6 +534,15 @@ export interface AiRoutePlan extends AccessibleRouteData {
   destination: { name: string; lat: number; lng: number };
   effectivePreferences: EffectiveRoutePreferences;
 }
+
+export type AiRoutePlan = AiRoutePlanBase & (
+  | { journeyKind: 'indoor'; originVenuePlace: VenueDestination; destinationVenuePlace: VenueDestination;
+      indoorRoute: VenueRoute; venueArrival?: never; venueLeg?: VenueRoute }
+  | { journeyKind: 'mixed'; originVenuePlace?: never; destinationVenuePlace: VenueDestination;
+      indoorRoute?: never; venueArrival: VenueArrival; venueLeg: VenueRoute }
+  | { journeyKind?: 'outdoor'; originVenuePlace?: never; destinationVenuePlace?: never;
+      indoorRoute?: never; venueArrival?: never; venueLeg?: never }
+);
 
 export interface RouteIntent {
   from: string;
@@ -646,7 +656,7 @@ export interface NavInstruction {
   relativeDirection: RelativeDirection;
   distanceM: number | null;
   streetName: string | null;
-  legType: 'WALK' | 'BUS' | 'METRO' | 'THSR' | 'TRA' | 'DRIVE' | 'MOTORCYCLE';
+  legType: 'WALK' | 'BUS' | 'METRO' | 'THSR' | 'TRA' | 'DRIVE' | 'MOTORCYCLE' | 'VENUE';
   /** 在 route.legs 的來源索引；舊版與語音指令沒有。 */
   legIndex?: number;
   /** 抵達此 maneuver 起點前已累積的可量測行進距離（可作進度顯示）；舊版與語音指令沒有。 */
@@ -657,6 +667,12 @@ export interface NavInstruction {
   polylineIndex: number | null;
   /** 路線引擎的步行動作；非步行指引為 null；舊後端沒有此欄位。和使用者朝向無關，不要和 `relativeDirection` 混用。 */
   maneuver?: WalkRelativeDirection | null;
+  driver?: 'manual';
+  venueStepType?: import('@/shared/venue').VenueRouteStep['type'];
+  buildingId?: string | null;
+  levelRef?: string | null;
+  fromLevelRef?: string;
+  toLevelRef?: string;
 }
 
 export type NavWarning = 'WALK_STEPS_UNAVAILABLE' | 'ORS_STEPS_UNAVAILABLE' | 'ROAD_STEPS_UNAVAILABLE';

@@ -58,9 +58,13 @@ export function planRouteRequest(params: ComputeRouteParams, userLocation: LatLn
     if (params.originVenuePlace.sourceVersion !== undefined && destinationVenuePlace.sourceVersion !== undefined &&
       params.originVenuePlace.sourceVersion !== destinationVenuePlace.sourceVersion) return { ok: false, reason: 'stale-venue' };
     if (query || waypoints?.length) return { ok: false, reason: 'unsupported-venue-direction' };
+    const avoidStairs = params.avoidStairs || params.canonicalPreferences?.avoidStairs;
+    const requireElevator = params.requireElevator || params.canonicalPreferences?.requireElevator;
     return { ok: true, venueRequest: {
       venueId: params.originVenuePlace.venueId, fromPlaceId: params.originVenuePlace.placeId,
       toPlaceId: destinationVenuePlace.placeId, mode: mode ?? 'normal',
+      ...(avoidStairs === undefined ? {} : { avoidStairs }),
+      ...(requireElevator === undefined ? {} : { requireElevator }),
       ...(params.language ? { language: params.language } : {}),
     } };
   }

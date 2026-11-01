@@ -229,6 +229,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const requestKey = planRequestKey(requestInputs);
   const localizedRequestKey = planRequestKey({ ...requestInputs, language: getAppLanguage() });
   const aiRequestKey = aiPlan ? planRequestKey({ origin: aiPlan.origin, destination: aiPlan.destination,
+    originVenuePlace: aiPlan.originVenuePlace, destinationVenuePlace: aiPlan.destinationVenuePlace,
     travelMode: aiPlan.effectivePreferences.travelMode, routeMode: aiPlan.effectivePreferences.mode,
     avoidStairs: aiPlan.effectivePreferences.avoidStairs, requireElevator: aiPlan.effectivePreferences.requireElevator,
     canonicalPreferences: aiPlan.effectivePreferences }) : null;

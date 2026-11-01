@@ -20,7 +20,7 @@ jest.mock('@/shared/api', () => ({ ...jest.requireActual('@/shared/api'), fetchR
 function endpoint(placeId: string): VenueEndpoint {
   return {
     venueId: 'test-venue', placeId, name: `Room ${placeId}`,
-    position: { lat: 24.1, lng: 120.6 }, buildingId: 'info', levelRef: '2F', sourceVersion: 3,
+    position: { lat: 24.1, lng: 120.6 }, buildingId: placeId === 'gate' ? null : 'building', levelRef: placeId === 'gate' ? null : '1F', sourceVersion: 3,
   };
 }
 const from = endpoint('gate');
@@ -58,13 +58,24 @@ it('plans two authored places without GPS using the real shared parser and no ou
   expect(hasActiveRouteSession()).toBe(true);
 });
 
+it('sends confirmed indoor constraints through the real request builder and shared API transport', async () => {
+  jest.mocked(fetchRequest).mockResolvedValue(response({ ...sourceRoute(), mode: 'normal' }));
+  const result = await computeRoute({ ...input(), mode: 'normal', avoidStairs: true, requireElevator: true });
+  expect(result.ok).toBe(true);
+  expect(fetchRequest).toHaveBeenCalledWith('/api/v1/a11y/venues/test-venue/route', expect.objectContaining({
+    body: { fromPlaceId: 'gate', toPlaceId: 'meeting', mode: 'normal', language: 'zh-TW', avoidStairs: true, requireElevator: true },
+  }));
+  expect(getAccessibleRoute).not.toHaveBeenCalled();
+});
+
 it('swaps room identities and metadata, clears the old route, then requests the reverse direction', async () => {
   jest.mocked(fetchRequest).mockResolvedValue(response());
   await computeRoute(input());
   useRouteSessionStore.getState().swapEndpoints();
   const state = useRouteSessionStore.getState();
   expect(state).toMatchObject({ originVenuePlace: to, destinationVenuePlace: from, originName: to.name, destinationName: from.name, indoorRoute: null });
-  jest.mocked(fetchRequest).mockResolvedValue(response({ ...sourceRoute(), fromPlaceId: to.placeId, toPlaceId: from.placeId }));
+  jest.mocked(fetchRequest).mockResolvedValue(response({ ...sourceRoute(), fromPlaceId: to.placeId, toPlaceId: from.placeId,
+    path: { coordinates: [...sourceRoute().path.coordinates].reverse(), buildingIds: [...sourceRoute().path.buildingIds].reverse(), levelRefs: [...sourceRoute().path.levelRefs].reverse() } }));
   const result = await computeRoute({ originVenuePlace: state.originVenuePlace!, destinationVenuePlace: state.destinationVenuePlace!, mode: 'wheelchair' });
   expect(result.ok).toBe(true);
   expect(jest.mocked(fetchRequest).mock.calls.at(-1)?.[1]?.body).toEqual({

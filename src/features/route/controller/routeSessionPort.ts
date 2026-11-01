@@ -16,8 +16,9 @@ import {
   type RouteFailureKind,
 } from '../domain/routeRequest';
 import { adaptRoutePreviewRoutes } from '../domain/routePreviewAdapter';
+import { indoorRouteFailure, venueArrivalFailure } from '../domain/venueJourney';
 import { hasRouteSession, planRequestKey } from '../domain/routeSession';
-import { useRouteSessionStore, type LegGeometryPreview } from '../store/routeSessionStore';
+import { useRouteSessionStore, type LegGeometryPreview, type RouteSessionState } from '../store/routeSessionStore';
 import type { AiRoutePlan, AccessibleRoute, EffectiveRoutePreferences, RouteMode, VenueDestination, VenueEndpoint, VenueHandoff } from '../types/route';
 
 /**
@@ -119,6 +120,35 @@ function fail(failure: RouteFailureKind): ComputeRouteResult {
   return { ok: false, failure };
 }
 
+function commitJourneyResult(input: {
+  params: ComputeRouteParams;
+  routes: AccessibleRoute[] | null;
+  selectedIndex?: number;
+  indoorRoute?: VenueRoute;
+  venueArrival?: RouteSessionState['venueArrival'];
+  venueLeg?: VenueRoute;
+  fields?: Partial<RouteSessionState>;
+}): RouteFailureKind | null {
+  const failure = input.indoorRoute
+    ? indoorRouteFailure(input.indoorRoute, input.params)
+    : venueArrivalFailure(input.params.destinationVenuePlace, input.venueArrival ?? undefined, input.venueLeg, input.params.mode);
+  if (failure) return failure;
+  const index = input.selectedIndex ?? 0;
+  const selected = input.routes?.[index];
+  useRouteSessionStore.setState((state) => ({
+    isLoading: false, lastFailure: null, computedFor: null,
+    selectionGeneration: state.selectionGeneration + 1,
+    computeRoutes: input.routes,
+    selectRoute: selected ? { index, route: selected } : null,
+    selectedRouteId: selected?.routeId ?? null,
+    indoorRoute: input.indoorRoute ?? null,
+    venueArrival: input.venueArrival ?? null,
+    venueLeg: input.indoorRoute ? null : input.venueLeg ?? null,
+    ...input.fields,
+  }));
+  return null;
+}
+
 export async function computeRoute(params: ComputeRouteParams): Promise<ComputeRouteResult> {
   if (params.signal?.aborted) return { ok: false, failure: 'superseded' };
   const language = getAppLanguage();
@@ -151,16 +181,8 @@ export async function computeRoute(params: ComputeRouteParams): Promise<ComputeR
     if ('venueRequest' in plan) {
       const indoorRoute = await planVenueRoute(plan.venueRequest, signal);
       if (!isCurrent(seq)) return { ok: false, failure: 'superseded' };
-      if ([params.originVenuePlace, params.destinationVenuePlace].some((place) =>
-        place?.sourceVersion !== undefined && place.sourceVersion !== indoorRoute.venueVersion)) return fail('stale-venue');
-      const avoidStairs = params.avoidStairs || params.canonicalPreferences?.avoidStairs;
-      const requireElevator = params.requireElevator || params.canonicalPreferences?.requireElevator;
-      if ((avoidStairs || requireElevator) && indoorRoute.steps.some((step) =>
-        step.type === 'stairs' || step.type === 'steps' || step.type === 'escalator')) return fail('no-accessible-route');
-      useRouteSessionStore.setState({
-        isLoading: false, lastFailure: null, indoorRoute, computedFor: null,
-        selectionGeneration: useRouteSessionStore.getState().selectionGeneration + 1,
-      });
+      const failure = commitJourneyResult({ params, routes: null, indoorRoute });
+      if (failure) return fail(failure);
       return { ok: true, routes: [], indoorRoute };
     }
     const response = await getAccessibleRoute(plan.request, signal);
@@ -169,33 +191,18 @@ export async function computeRoute(params: ComputeRouteParams): Promise<ComputeR
     const data = response.data;
     if (!data?.routes.length) return fail('empty');
     const indoorDestination = params.destinationVenuePlace;
-    if (indoorDestination && (!data.venueArrival || !data.venueLeg ||
-      data.venueArrival.venueId !== indoorDestination.venueId || data.venueArrival.placeId !== indoorDestination.placeId ||
-      data.venueLeg.venueId !== indoorDestination.venueId || data.venueLeg.toPlaceId !== indoorDestination.placeId)) {
-      return fail('failed');
-    }
-    if (indoorDestination?.sourceVersion !== undefined && data.venueLeg?.venueVersion !== indoorDestination.sourceVersion) {
-      return fail('stale-venue');
-    }
-
     const routes = data.routes;
     const waypoints = normalizeWaypoints(data.waypoints);
-    useRouteSessionStore.setState({
-      isLoading: false,
-      lastFailure: null,
-      selectionGeneration: useRouteSessionStore.getState().selectionGeneration + 1,
-      computeRoutes: routes,
-      computedFor: null,
-      metroAlerts: data.metroAlerts ?? null,
-      transitAlerts: data.transitAlerts ?? null,
-      slopeConstraint: data.slopeConstraint ?? null,
-      selectRoute: { index: 0, route: routes[0] },
-      selectedRouteId: routes[0].routeId,
-      routeWaypoints: waypoints,
-      venueArrival: data.venueArrival ?? null,
-      venueLeg: data.venueLeg ?? null,
-      ...(indoorDestination ? { destination: coordToLatLng(data.destination) } : {}),
+    const failure = commitJourneyResult({ params, routes, venueArrival: data.venueArrival, venueLeg: data.venueLeg,
+      fields: {
+        metroAlerts: data.metroAlerts ?? null,
+        transitAlerts: data.transitAlerts ?? null,
+        slopeConstraint: data.slopeConstraint ?? null,
+        routeWaypoints: waypoints,
+        ...(indoorDestination ? { destination: coordToLatLng(data.destination) } : {}),
+      },
     });
+    if (failure) return fail(failure);
     fitCamera(routes[0], {
       origin: coordToLatLng(data.origin),
       destination: coordToLatLng(data.destination),
@@ -387,21 +394,27 @@ export function applyAiRoutePlan(plan: AiRoutePlan): void {
   if (index < 0) throw new Error('INVALID_ROUTE_PLAN');
   inflight?.abort();
   inflight = null;
-  useRouteSessionStore.setState((state) => ({
-    requestSeq: state.requestSeq + 1,
-    selectionGeneration: state.selectionGeneration + 1,
-    plan, planId: plan.planId, selectedRouteId: plan.selectedRouteId,
-    effectivePreferences: plan.effectivePreferences,
-    planningPreferences: plan.effectivePreferences,
-    origin: plan.origin, originName: plan.origin.name,
-    destination: plan.destination, destinationName: plan.destination.name,
-    computeRoutes: plan.routes, selectRoute: { index, route: plan.routes[index] },
-    metroAlerts: plan.metroAlerts ?? null, transitAlerts: plan.transitAlerts ?? null,
-    slopeConstraint: plan.slopeConstraint ?? null, routeWaypoints: plan.waypoints ?? [],
-    travelMode: plan.effectivePreferences.travelMode, routeMode: plan.effectivePreferences.mode,
-    computedFor: null, isLoading: false, lastFailure: null,
-    originVenuePlace: null, destinationVenuePlace: null, venueArrival: null, venueLeg: null, indoorRoute: null,
-  }));
+  const failure = commitJourneyResult({
+    params: { originVenuePlace: plan.originVenuePlace, destinationVenuePlace: plan.destinationVenuePlace,
+      ...plan.effectivePreferences },
+    routes: plan.routes, selectedIndex: index,
+    indoorRoute: plan.journeyKind === 'indoor' ? plan.indoorRoute : undefined,
+    venueArrival: plan.venueArrival,
+    venueLeg: plan.journeyKind === 'mixed' ? plan.venueLeg : undefined,
+    fields: {
+      requestSeq: useRouteSessionStore.getState().requestSeq + 1,
+      plan, planId: plan.planId,
+      effectivePreferences: plan.effectivePreferences,
+      planningPreferences: plan.effectivePreferences,
+      origin: plan.origin, originName: plan.origin.name,
+      destination: plan.destination, destinationName: plan.destination.name,
+      metroAlerts: plan.metroAlerts ?? null, transitAlerts: plan.transitAlerts ?? null,
+      slopeConstraint: plan.slopeConstraint ?? null, routeWaypoints: plan.waypoints ?? [],
+      travelMode: plan.effectivePreferences.travelMode, routeMode: plan.effectivePreferences.mode,
+      originVenuePlace: plan.originVenuePlace ?? null, destinationVenuePlace: plan.destinationVenuePlace ?? null,
+    },
+  });
+  if (failure) throw new Error(failure);
 }
 
 export function invalidateRouteConversations(): void {

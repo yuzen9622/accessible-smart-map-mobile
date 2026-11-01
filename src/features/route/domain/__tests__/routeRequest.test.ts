@@ -28,6 +28,24 @@ describe('planRouteRequest', () => {
     expect(planRouteRequest({ destinationVenuePlace, destination: CITY_HALL }, TAIPEI_MAIN).ok).toBe(false);
     expect(planRouteRequest({ destinationVenuePlace, query: 'to station' }, TAIPEI_MAIN).ok).toBe(false);
   });
+  it.each([{ avoidStairs: true }, { requireElevator: true }])('sends indoor step-free conditions to the shared planner for %j', (constraints) => {
+    const plan = planRouteRequest({
+      originVenuePlace: { venueId: 'v', placeId: 'a' }, destinationVenuePlace: { venueId: 'v', placeId: 'b' },
+      mode: 'normal', ...constraints,
+    }, null);
+    expect(plan.ok && 'venueRequest' in plan && plan.venueRequest).toEqual({
+      venueId: 'v', fromPlaceId: 'a', toPlaceId: 'b', mode: 'normal', ...constraints,
+    });
+  });
+  it('retains canonical indoor constraints without sending the previous outdoor travel mode', () => {
+    const plan = planRouteRequest({
+      originVenuePlace: { venueId: 'v', placeId: 'a' }, destinationVenuePlace: { venueId: 'v', placeId: 'b' },
+      mode: 'normal', canonicalPreferences: { ...routePlanFixture().effectivePreferences, mode: 'normal', travelMode: 'drive', avoidStairs: true, requireElevator: true },
+    }, null);
+    expect(plan.ok && 'venueRequest' in plan && plan.venueRequest).toEqual({
+      venueId: 'v', fromPlaceId: 'a', toPlaceId: 'b', mode: 'normal', avoidStairs: true, requireElevator: true,
+    });
+  });
   it('keeps local venue metadata out of the strict outdoor request body', () => {
     const destinationVenuePlace = { venueId: 'test-venue', placeId: 'room', buildingId: 'info', levelRef: '2F', sourceVersion: 3 };
     const plan = planRouteRequest({ destinationVenuePlace }, TAIPEI_MAIN);

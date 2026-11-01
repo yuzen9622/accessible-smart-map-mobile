@@ -1,8 +1,8 @@
 import { fetchRequest, getAccessToken, type ApiResponse } from '@/shared/api';
 import { getAppConfig } from '@/shared/config';
-import { parseVenueRoute } from '@/shared/venue';
 
 import { recordRouteNameLanguage } from '../domain/routeNames';
+import { parseVenueFields } from '../domain/venueJourney';
 
 import type {
   AccessibleRoute,
@@ -14,7 +14,6 @@ import type {
   NavInstructionsRequest,
   RouteLeg,
   RoutePreviewPageData,
-  VenueArrival,
 } from '../types/route';
 
 /**
@@ -81,31 +80,6 @@ export function parseAccessibleRouteData(value: unknown): AccessibleRouteData | 
   // SAFETY: value is a record with routes[]; only shape-checked routes with defaults survive above.
   // Other envelope fields are preserved under the backend DTO contract, without deep validation.
   return { ...(value as unknown as AccessibleRouteData), routes, ...parseVenueFields(value) };
-}
-
-/** Venue metadata is an inseparable handoff; malformed data must not become a gate-only success. */
-function parseVenueFields(value: Record<string, unknown>): Pick<AccessibleRouteData, 'venueArrival' | 'venueLeg'> {
-  if (value.venueArrival === undefined && value.venueLeg === undefined) return {};
-  const raw = value.venueArrival;
-  if (!isRecord(raw) || typeof raw.venueId !== 'string' || !raw.venueId ||
-      typeof raw.placeId !== 'string' || !raw.placeId || typeof raw.gateId !== 'string' || !raw.gateId ||
-      !isRecord(raw.gateLocation) || !isFiniteNumber(raw.gateLocation.lat) || !isFiniteNumber(raw.gateLocation.lng) ||
-      Math.abs(raw.gateLocation.lat) > 90 || Math.abs(raw.gateLocation.lng) > 180 ||
-      !Number.isSafeInteger(raw.venueVersion) || typeof raw.venueVersion !== 'number' || raw.venueVersion < 1 ||
-      (raw.mode !== 'normal' && raw.mode !== 'wheelchair' && raw.mode !== 'elderly' && raw.mode !== 'visual_impaired')) {
-    throw new Error('INVALID_VENUE_ARRIVAL');
-  }
-  const venueArrival: VenueArrival = {
-    venueId: raw.venueId, placeId: raw.placeId, gateId: raw.gateId,
-    gateLocation: { lat: raw.gateLocation.lat, lng: raw.gateLocation.lng },
-    mode: raw.mode, venueVersion: raw.venueVersion,
-  };
-  const venueLeg = parseVenueRoute(value.venueLeg, {
-    venueId: venueArrival.venueId, fromPlaceId: venueArrival.gateId,
-    toPlaceId: venueArrival.placeId, mode: venueArrival.mode,
-  });
-  if (venueLeg.venueVersion !== venueArrival.venueVersion) throw new Error('VENUE_VERSION_MISMATCH');
-  return { venueArrival, venueLeg };
 }
 
 function isNavInstruction(value: unknown): boolean {

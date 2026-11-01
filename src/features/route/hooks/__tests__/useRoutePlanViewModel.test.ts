@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { changeAppLanguage } from '@/shared/i18n';
 import { useRouteSessionStore } from '../../store/routeSessionStore';
 import { act, renderHook } from '@testing-library/react-native';
-import { routePlanFixture } from '@/features/ai/domain/testing/routePlanFixture';
+import { indoorRoutePlanFixture, mixedRoutePlanFixture, routePlanFixture } from '@/features/ai/domain/testing/routePlanFixture';
 import { getAccessibleRoute } from '../../api/route';
 import { applyAiRoutePlan, endRouteSession, replaceSelectedRoute } from '../../controller/routeSessionPort';
 import { useRoutePlanViewModel } from '../useRoutePlanViewModel';
@@ -263,4 +263,16 @@ it('only the explicit replan action requests a new route', async () => {
   }), expect.any(AbortSignal));
   expect(selectSheetDetent).toHaveBeenCalledTimes(2);
   expect(useMapUiStore.getState().sheetDetentIndex).toBe(1);
+});
+
+it.each([indoorRoutePlanFixture, mixedRoutePlanFixture])('shows an assistant journey immediately with its room identity and no second request', async (fixture) => {
+  const plan = fixture();
+  applyAiRoutePlan(plan);
+  const { result } = await renderHook(() => useRoutePlanViewModel({}));
+  expect(result.current.destinationLabel).toBe(plan.destination.name);
+  expect(result.current.isIndoorJourney).toBe(plan.journeyKind === 'indoor');
+  if (plan.journeyKind === 'indoor') expect(result.current.indoorRoute).toEqual(plan.indoorRoute);
+  else expect(result.current.venueHandoff?.leg).toEqual(plan.venueLeg);
+  expect(planVenueRoute).not.toHaveBeenCalled();
+  expect(getAccessibleRoute).not.toHaveBeenCalled();
 });

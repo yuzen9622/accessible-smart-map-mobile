@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { PINNED_FACILITY_CATEGORIES, type PinnedFacilityCategory } from '@/features/map';
+import { PINNED_FACILITY_CATEGORIES, type PinnedFacilityCategory } from '@/features/map/domain/facilities';
 import type { LatLng } from '@/shared/geo';
 
 import type { RouteFailureKind } from '../domain/routeRequest';

@@ -1,6 +1,7 @@
 // 新寫（Web 的 toolActionMapper 沒有測試）。
 import { mapToolToActions } from '../toolActionMapper';
-import { routePlanFixture } from '../testing/routePlanFixture';
+import { indoorRoutePlanFixture, mixedRoutePlanFixture, routePlanFixture } from '../testing/routePlanFixture';
+import { isRouteTool } from '../routePlan';
 import { t } from '../testing/translate';
 
 const ORIGIN = { lat: 25.04, lng: 121.51 };
@@ -67,4 +68,43 @@ describe('mapToolToActions', () => {
     delete plan.routes[0].routeToken;
     expect(mapToolToActions('plan_route', plan, undefined, t)[0].type).toBe('show-route');
   });
+});
+
+it.each([
+  ['planIndoorRoute', indoorRoutePlanFixture],
+  ['planAccessibleRoute', mixedRoutePlanFixture],
+  ['planAccessibleRoute', routePlanFixture],
+] as const)('maps %s with its complete indoor or outdoor payload', (name, fixture) => {
+  const plan = fixture();
+  const actions = mapToolToActions(name, plan, undefined, t);
+  expect(actions).toEqual([{ type: 'show-route', origin: plan.origin, destination: plan.destination, routes: plan.routes, plan }]);
+  expect(isRouteTool(name)).toBe(true);
+});
+
+it('accepts legacy v1 outdoor results while recognizing indoor errors as route errors', () => {
+  const legacy = { ...routePlanFixture(), journeyKind: undefined };
+  expect(mapToolToActions('planAccessibleRoute', legacy, undefined, t)[0].type).toBe('show-route');
+  expect(mapToolToActions('planIndoorRoute', { ok: false, reason: 'NO_ACCESSIBLE_ROUTE' }, undefined, t)[0].type).toBe('route-error');
+});
+
+it.each([
+  (p: ReturnType<typeof indoorRoutePlanFixture>) => ({ ...p, indoorRoute: undefined }),
+  (p: ReturnType<typeof indoorRoutePlanFixture>) => ({ ...p, originVenuePlace: undefined }),
+  (p: ReturnType<typeof indoorRoutePlanFixture>) => ({ ...p, destinationVenuePlace: { ...p.destinationVenuePlace, buildingId: 'wrong-building' } }),
+  (p: ReturnType<typeof indoorRoutePlanFixture>) => ({ ...p, destinationVenuePlace: { ...p.destinationVenuePlace, levelRef: '9F' } }),
+  (p: ReturnType<typeof indoorRoutePlanFixture>) => ({ ...p, destinationVenuePlace: { ...p.destinationVenuePlace, placeId: 'other' } }),
+  (p: ReturnType<typeof indoorRoutePlanFixture>) => ({ ...p, destinationVenuePlace: { ...p.destinationVenuePlace, sourceVersion: 4 } }),
+  (p: ReturnType<typeof indoorRoutePlanFixture>) => ({ ...p, routes: [{ ...p.routes[0], routeToken: undefined }] }),
+  (p: ReturnType<typeof indoorRoutePlanFixture>) => ({ ...p, effectivePreferences: { ...p.effectivePreferences, travelMode: 'drive' } }),
+])('rejects incomplete or mismatched indoor journeys', (mutate) => {
+  expect(mapToolToActions('planIndoorRoute', mutate(indoorRoutePlanFixture()), undefined, t)).toEqual([{ type: 'route-error' }]);
+});
+
+it.each([
+  (p: ReturnType<typeof mixedRoutePlanFixture>) => ({ ...p, venueLeg: undefined }),
+  (p: ReturnType<typeof mixedRoutePlanFixture>) => ({ ...p, venueArrival: undefined }),
+  (p: ReturnType<typeof mixedRoutePlanFixture>) => ({ ...p, destinationVenuePlace: { ...p.destinationVenuePlace, placeId: 'wrong-room' } }),
+  (p: ReturnType<typeof mixedRoutePlanFixture>) => ({ ...p, destinationVenuePlace: { ...p.destinationVenuePlace, sourceVersion: 4 } }),
+])('rejects mixed routes that lose or mismatch their room handoff', (mutate) => {
+  expect(mapToolToActions('planAccessibleRoute', mutate(mixedRoutePlanFixture()), undefined, t)).toEqual([{ type: 'route-error' }]);
 });

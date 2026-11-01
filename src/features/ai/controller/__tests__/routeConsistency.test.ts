@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { applyAiRoutePlan, applyComputedRoutes, computeRoute, endRouteSession, getRouteConversationInput, getRouteSessionSnapshot, markRouteTokenInvalid, pinNavigationRoute, replaceNavigationRoute, selectRouteAt } from '@/features/route';
 import { getAccessibleRoute } from '@/features/route/api/route';
 import { useRouteSessionStore } from '@/features/route/store/routeSessionStore';
-import { routePlanFixture } from '../../domain/testing/routePlanFixture';
+import { indoorRoutePlanFixture, mixedRoutePlanFixture, routePlanFixture } from '../../domain/testing/routePlanFixture';
 import { presentRouteNames } from '@/features/route/domain';
 import { ChatHttpError, streamChat } from '../../api/aiApi';
 import { clearChat, sendChatMessage, stopChatStreaming } from '../chatController';
@@ -182,4 +182,25 @@ it('sends the active UI language with each chat request even when the input and 
     expect(request.mock.calls.at(-1)?.[0]).toMatchObject({ language: 'en' });
     expect(JSON.stringify(request.mock.calls.at(-1)?.[0].messages)).toContain('我要去車站');
   } finally { await changeAppLanguage('zh-TW'); }
+});
+
+it.each([
+  ['planIndoorRoute', indoorRoutePlanFixture],
+  ['planAccessibleRoute', mixedRoutePlanFixture],
+  ['planAccessibleRoute', routePlanFixture],
+] as const)('text assistant applies %s through the shared journey port without replanning', async (name, fixture) => {
+  const plan = fixture();
+  request.mockImplementation(async (_input, emit) => {
+    emit({ ...call, name }); emit({ ...result(), name, result: plan });
+  });
+  await sendChatMessage('規劃路線', t);
+  const state = getRouteSessionSnapshot();
+  expect(state.planId).toBe(plan.planId);
+  expect(state.originVenuePlace).toEqual(plan.originVenuePlace ?? null);
+  expect(state.destinationVenuePlace).toEqual(plan.destinationVenuePlace ?? null);
+  expect(state.indoorRoute).toEqual(plan.journeyKind === 'indoor' ? plan.indoorRoute : null);
+  expect(state.venueLeg).toEqual(plan.journeyKind === 'mixed' ? plan.venueLeg : null);
+  expect(state.selectRoute?.route.routeToken).toBe(plan.routes.find((route) => route.routeId === plan.selectedRouteId)?.routeToken);
+  expect(getAccessibleRoute).not.toHaveBeenCalled();
+  expect(JSON.stringify(useChatStore.getState())).not.toContain('token-bus');
 });

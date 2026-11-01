@@ -2,12 +2,12 @@
 import { a11yPlacesToMarkers, googlePlacesToMarkers, isOk, isRec } from './aiResults';
 import type { Translate } from './types';
 import type { AiMarker, UIAction } from './uiAction';
-import { parseAiRoutePlan } from './routePlan';
+import { isRouteTool, parseAiRoutePlan } from './routePlan';
 import { backendErrorText } from './backendError';
 import { getToolResultGroup } from './toolResultCards';
 
 export function mapToolToActions(toolName: string, result: unknown, _args: unknown, t: Translate): UIAction[] {
-  if (!isOk(result) && !['plan_route', 'planAccessibleRoute'].includes(toolName)) return [];
+  if (!isOk(result) && !isRouteTool(toolName)) return [];
   switch (toolName) {
     case 'findA11yPlaces':
     case 'findGooglePlaces': {
@@ -31,6 +31,7 @@ export function mapToolToActions(toolName: string, result: unknown, _args: unkno
 
     case 'plan_route':
     case 'planAccessibleRoute':
+    case 'planIndoorRoute':
       return mapRouteResult(result, t);
 
     default:

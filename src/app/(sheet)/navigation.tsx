@@ -1,5 +1,5 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { IndoorNavigationContent, useIndoorStore } from '@/features/indoor';
@@ -37,6 +37,7 @@ export default function NavigationSheet() {
   const [attempt, setAttempt] = useState(0);
   const controllerRef = useRef<AbortController | null>(null);
   const stoppedJourney = useRef<Journey | null>(null);
+  const dismissedJourney = useRef<Journey | null | undefined>(undefined);
   const colors = useThemeColors();
   const replaced = Boolean(journey && (journey.requestSeq !== sessionSeq || (journey.kind === 'start' && journey.route !== indoorRoute)));
   const currentOutcome = outcome?.journey === journey && outcome.attempt === attempt ? outcome : null;
@@ -81,8 +82,9 @@ export default function NavigationSheet() {
     };
   }, [journey, attempt, replaced]);
 
-  if (!indoor && guidance.status === 'idle') return <NavigationStepsScreen onContinueVenue={() => router.setParams({ indoor: 'handoff' })} />;
-  const end = () => {
+  const end = useCallback(() => {
+    if (dismissedJourney.current === journey) return;
+    dismissedJourney.current = journey;
     useIndoorStore.getState().endGuidance();
     const session = getRouteSessionSnapshot();
     if (journey?.kind === 'start' && session.indoorRoute === journey.route) {
@@ -94,8 +96,15 @@ export default function NavigationSheet() {
       selectRouteAt(index);
       router.dismissTo({ pathname: '/routes/[index]', params: { index: String(index) } });
     } else router.dismissTo('/plan');
-  };
+  }, [journey]);
+
+  useEffect(() => {
+    if (currentOutcome?.status === 'ready' && !replaced && guidance.status === 'idle') end();
+  }, [currentOutcome?.status, replaced, guidance.status, end]);
+
+  if (!indoor && guidance.status === 'idle') return <NavigationStepsScreen onContinueVenue={() => router.setParams({ indoor: 'handoff' })} />;
   const returnToPlan = () => {
+    dismissedJourney.current = journey;
     controllerRef.current?.abort();
     useIndoorStore.getState().clearRoute();
     if (stale && !replaced) endRouteSession();

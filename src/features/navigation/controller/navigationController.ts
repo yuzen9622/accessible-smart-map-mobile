@@ -70,6 +70,12 @@ export interface SpeechPort {
 
 export const silentSpeech: SpeechPort = { speak: () => {}, stop: () => {} };
 
+function outdoorInstructions(instructions: NavInstruction[]): NavInstruction[] | null {
+  const outdoor = instructions.some((step) => step.driver === 'manual')
+    ? instructions.filter((step) => step.driver !== 'manual') : instructions;
+  return outdoor.some((step) => step.legType === 'VENUE') ? null : outdoor;
+}
+
 export interface NavigationControllerDeps {
   location: Pick<LocationPort, 'getCurrent'>;
   visibility: VisibilitySource;
@@ -466,7 +472,9 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
   function applyCarriedInstructions(route: AccessibleRoute): void {
     const nav = useNavStore.getState();
     const cp = buildCumulativePath(route.legs);
-    const patched = withSyntheticPolylineIndices(nav.instructions, cp);
+    const outdoor = outdoorInstructions(nav.instructions);
+    if (!outdoor) { useNavStore.setState({ instructionError: 'unavailable' }); return; }
+    const patched = withSyntheticPolylineIndices(outdoor, cp);
     if (patched !== nav.instructions) {
       const carriedAdvisories = nav.advisories;
       const carriedStepIndex = Math.max(0, Math.min(nav.currentStepIndex, patched.length - 1));
@@ -523,9 +531,10 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       ) {
         return;
       }
-      if (!res.ok || !res.data?.instructions.length) { useNavStore.setState({ instructionError: 'unavailable' }); return; }
+      const instructions = res.ok && res.data ? outdoorInstructions(res.data.instructions) : null;
+      if (!instructions?.length || !res.data) { useNavStore.setState({ instructionError: 'unavailable' }); return; }
       loadedLanguage = requestedLanguage;
-      replaceNavigationGeometryRuntime(geometry, route, res.data.instructions);
+      replaceNavigationGeometryRuntime(geometry, route, instructions);
       const cp = geometry.path;
       if (!cp) return;
       const nav = useNavStore.getState();
@@ -535,11 +544,11 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       const carriedReason = afterReroute ? nav.lastRerouteReason : null;
       if (languageOnly) {
         // Same route, same indices: replace copy without resetting progress or advisories.
-        useNavStore.setState({ instructions: res.data.instructions, warnings: res.data.warnings ?? [], instructionError: null });
-      } else nav.setInstructions(res.data.instructions, res.data.warnings ?? []);
+        useNavStore.setState({ instructions: instructions, warnings: res.data.warnings ?? [], instructionError: null });
+      } else nav.setInstructions(instructions, res.data.warnings ?? []);
       if (carriedAdvisories.length > 0) useNavStore.getState().pushAdvisories(carriedAdvisories);
       if (carriedReason) useNavStore.getState().setLastRerouteReason(carriedReason);
-      useNavStore.getState().setRouteTotalM(instructionProgress(res.data.instructions, 0)?.totalM ?? cp.cumM[cp.cumM.length - 1] ?? null);
+      useNavStore.getState().setRouteTotalM(instructionProgress(instructions, 0)?.totalM ?? cp.cumM[cp.cumM.length - 1] ?? null);
       if (tookOverFromVoice) queuePosition();
     } catch (error) {
       if (controller.signal.aborted || !running || currentRoute() !== route) return;

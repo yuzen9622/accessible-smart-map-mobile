@@ -880,3 +880,22 @@ it.each(['INVALID_ROUTE_TOKEN', 'BAD_INPUT', 'INTERNAL_ERROR'])('surfaces %s and
   expect(speech.speak).not.toHaveBeenCalled(); expect(useNavStore.getState().arrived).toBe(false);
   controller.stop();
 });
+
+it('keeps authored indoor manual steps out of the outdoor GPS lifecycle', async () => {
+  const indoor = step('搭乘電梯至2F', null, { legType: 'VENUE', driver: 'manual', venueStepType: 'elevator', buildingId: 'info', levelRef: '1F', toLevelRef: '2F' });
+  const { controller, fetchInstructions } = setup();
+  fetchInstructions.mockResolvedValue(ok([...INSTRUCTIONS, indoor]));
+  controller.start();
+  await flush();
+  expect(useNavStore.getState().instructions).toEqual(INSTRUCTIONS);
+  controller.stop();
+});
+
+it('rejects an indoor instruction that is missing its manual driver before GPS can adopt it', async () => {
+  const { controller, fetchInstructions } = setup();
+  fetchInstructions.mockResolvedValue(ok([...INSTRUCTIONS, step('樓層未知', null, { legType: 'VENUE' })]));
+  controller.start();
+  await flush();
+  expect(useNavStore.getState().instructionError).toBe('unavailable');
+  controller.stop();
+});

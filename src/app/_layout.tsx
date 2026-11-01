@@ -6,6 +6,8 @@ import { BackHandler, Platform, View, useColorScheme, useWindowDimensions } from
 
 import { useAiBootstrap } from '@/features/ai';
 import { useAuthBootstrap } from '@/features/auth';
+import { beginJourneyNavigation } from '@/composition/journeyNavigation';
+import { configureVoiceJourneyNavigation } from '@/features/voice/controller/voiceNavigationBridge';
 import { useIndoorStore } from '@/features/indoor';
 import {
   SHEET_UNDIMMED_DETENT_INDEX,
@@ -30,6 +32,8 @@ import { TYPE } from '@/shared/theme';
 
 // 深層連結（例如 accessiblesmartmap://place/123）直接開 sheet 路由時，底下仍要有地圖。
 export const unstable_settings = { initialRouteName: 'index' };
+
+configureVoiceJourneyNavigation(beginJourneyNavigation);
 
 // 擋住原生 Splash 自動隱藏；交給 `SplashIntro` 接手並接動畫過渡（模組層級、越早越好）。
 void SplashScreen.preventAutoHideAsync();

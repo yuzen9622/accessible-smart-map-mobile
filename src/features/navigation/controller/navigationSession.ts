@@ -8,6 +8,7 @@ import { logger } from '@/shared/logger';
 import { useNavStore } from '../store/navStore';
 import { startNavigation, stopNavigation } from './navigationLifecycle';
 import { haptic } from '@/shared/haptics';
+import { localRerouteCoordinator } from './localRerouteCoordinator';
 
 /**
  * 「開始導航」的完整流程（Web `RouteContent.handleStartNav` + `NavigationController` 掛載）：
@@ -31,8 +32,8 @@ export function beginNavigation(texts: BackgroundLocationTexts): void {
   void run();
 }
 
-function stopEngineAndLocation(): ReturnType<typeof mapCamera.stopFollow> {
-  stopNavigation();
+function stopEngineAndLocation(stop = stopNavigation): ReturnType<typeof mapCamera.stopFollow> {
+  stop();
   const orientation = mapCamera.stopFollow();
   const run = async () => {
     try {
@@ -47,7 +48,13 @@ function stopEngineAndLocation(): ReturnType<typeof mapCamera.stopFollow> {
 
 /** Indoor handoff owns the next screen and camera; only stop outdoor tracking here. */
 export function stopNavigationForVenueHandoff(): void {
-  if (useNavStore.getState().isNavigating) stopEngineAndLocation();
+  const nav = useNavStore.getState();
+  if (!nav.isNavigating) return;
+  const manualVoice = nav.navigationSource === 'voice' && nav.instructions[nav.currentStepIndex]?.driver === 'manual';
+  stopEngineAndLocation(manualVoice ? () => {
+    localRerouteCoordinator.stopSession();
+    nav.setIsNavigating(false);
+  } : stopNavigation);
 }
 
 /** 導航用的那條路線在結果中的位置；結果裡已沒有它（例：語音直接開的導航）時為 null。 */

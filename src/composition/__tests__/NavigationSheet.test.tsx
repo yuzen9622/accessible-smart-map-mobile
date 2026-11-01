@@ -90,6 +90,7 @@ it('starts the route-session indoor result in the existing navigation screen and
   await fireEvent.press(view.getByRole('button', { name: '結束導航' }));
   expect(router.dismissTo).toHaveBeenCalledWith({ pathname: '/routes/[index]', params: { index: '0' } });
   expect(useRouteSessionStore.getState().indoorRoute).toBe(route);
+  expect(router.dismissTo).toHaveBeenCalledTimes(1);
 });
 
 it('captures the outdoor-to-indoor leg before stopping GPS, then continues in the same screen', async () => {
@@ -175,4 +176,46 @@ it('aborts adoption when the navigation screen unmounts before the detail respon
   await view.unmount();
   await act(async () => { pending.resolve(createVenueDetail()); await pending.promise; });
   expect(useIndoorStore.getState()).toMatchObject({ plan: { status: 'idle' }, guidance: { status: 'idle' } });
+});
+
+
+it('returns to indoor route details when voice stops guidance outside the navigation screen', async () => {
+  const route = createVenueRoute();
+  useRouteSessionStore.setState({ indoorRoute: route });
+  await render(<NavigationSheet />);
+  await waitFor(() => expect(useIndoorStore.getState().guidance.status).toBe('guiding'));
+  await act(async () => { useIndoorStore.getState().confirmStep(); });
+  await act(async () => { useIndoorStore.getState().endGuidance(); });
+  await waitFor(() => expect(router.dismissTo).toHaveBeenCalledWith({ pathname: '/routes/[index]', params: { index: '0' } }));
+  expect(router.dismissTo).toHaveBeenCalledTimes(1);
+  expect(useRouteSessionStore.getState().indoorRoute).toBe(route);
+});
+
+it('returns voice-stopped handoff guidance to the pinned outdoor candidate', async () => {
+  const { routes } = handoffSession();
+  await render(<NavigationSheet />);
+  await waitFor(() => expect(useIndoorStore.getState().guidance.status).toBe('guiding'));
+  await act(async () => { useIndoorStore.getState().endGuidance(); });
+  await waitFor(() => expect(router.dismissTo).toHaveBeenCalledWith({ pathname: '/routes/[index]', params: { index: '2' } }));
+  expect(selectRouteAt).toHaveBeenCalledWith(2);
+  expect(useRouteSessionStore.getState().selectRoute?.route).toBe(routes[2]);
+  expect(router.dismissTo).toHaveBeenCalledTimes(1);
+});
+
+it('keeps the navigation screen while adoption is pending and after indoor arrival', async () => {
+  const pending = deferred<VenueDetail>();
+  const route = createVenueRoute();
+  useRouteSessionStore.setState({ indoorRoute: route });
+  jest.mocked(loadVenue).mockReturnValueOnce(pending.promise);
+  const view = await render(<NavigationSheet />);
+  expect(useIndoorStore.getState().guidance.status).toBe('idle');
+  expect(router.dismissTo).not.toHaveBeenCalled();
+  await act(async () => { pending.resolve(createVenueDetail()); await pending.promise; });
+  await waitFor(() => expect(useIndoorStore.getState().guidance.status).toBe('guiding'));
+  await act(async () => {
+    for (let i = 0; i < route.steps.length; i += 1) useIndoorStore.getState().confirmStep();
+  });
+  expect(useIndoorStore.getState().guidance.status).toBe('complete');
+  expect(view.getByRole('button', { name: '結束導航' })).toBeTruthy();
+  expect(router.dismissTo).not.toHaveBeenCalled();
 });

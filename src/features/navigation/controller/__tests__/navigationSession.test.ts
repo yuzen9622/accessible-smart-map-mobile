@@ -4,6 +4,9 @@ import { sheetNavigation } from '@/features/map';
 import { fitSelectedRoute, getRouteSessionSnapshot, type RouteSessionView } from '@/features/route';
 
 import { beginNavigation, endNavigation, stopNavigationForVenueHandoff } from '../navigationSession';
+import { useNavStore } from '../../store/navStore';
+import { stopNavigation } from '../navigationLifecycle';
+import { localRerouteCoordinator } from '../localRerouteCoordinator';
 
 jest.mock('expo-router', () => ({ router: { navigate: jest.fn(), dismiss: jest.fn(), dismissTo: jest.fn() } }));
 jest.mock('@/features/map', () => ({
@@ -13,6 +16,7 @@ jest.mock('@/features/map', () => ({
 jest.mock('@/features/route', () => ({ fitSelectedRoute: jest.fn(), getRouteSessionSnapshot: jest.fn() }));
 jest.mock('@/shared/location', () => ({ startBackgroundLocation: async () => {}, stopBackgroundLocation: async () => {} }));
 jest.mock('@/shared/logger', () => ({ logger: { warn: () => {} } }));
+jest.mock('../localRerouteCoordinator', () => ({ localRerouteCoordinator: { stopSession: jest.fn() } }));
 jest.mock('../navigationLifecycle', () => {
   const setNavigating = (isNavigating: boolean) => {
     const { useNavStore: store }: typeof import('../../store/navStore') = jest.requireActual('../../store/navStore');
@@ -23,7 +27,7 @@ jest.mock('../navigationLifecycle', () => {
       setNavigating(true);
       return true;
     },
-    stopNavigation: () => setNavigating(false),
+    stopNavigation: jest.fn(() => setNavigating(false)),
   };
 });
 
@@ -42,6 +46,9 @@ function withoutRoute(): void {
 }
 
 beforeEach(() => {
+  useNavStore.getState().reset();
+  jest.mocked(stopNavigation).mockClear();
+  jest.mocked(localRerouteCoordinator.stopSession).mockClear();
   jest.mocked(router.navigate).mockClear();
   jest.mocked(router.dismiss).mockClear();
   jest.mocked(router.dismissTo).mockClear();
@@ -100,4 +107,22 @@ it('stays on the current screen after the modal closes when the navigation panel
   expect(router.navigate).not.toHaveBeenCalled();
   expect(router.dismiss).not.toHaveBeenCalled();
   expect(router.dismissTo).not.toHaveBeenCalled();
+});
+
+
+it('stops outdoor tracking at a voice venue step while retaining the voice navigation identity and instructions', () => {
+  useNavStore.setState({ isNavigating: true, navigationSource: 'voice', navigationId: 'voice-trip', routeVersion: 4,
+    currentStepIndex: 1, instructions: [
+      { text: '前往校門', type: 'turn', legType: 'WALK', distanceM: 20, legIndex: 0, bearing: null,
+        relativeDirection: null, streetName: null, polylineIndex: null },
+      { text: '進入建築', type: 'turn', legType: 'VENUE', distanceM: 5, legIndex: 0, bearing: null,
+        relativeDirection: null, streetName: null, polylineIndex: null, driver: 'manual', venueStepType: 'enter' },
+    ],
+  });
+  const instructions = useNavStore.getState().instructions;
+  stopNavigationForVenueHandoff();
+  expect(useNavStore.getState()).toMatchObject({ isNavigating: false, navigationSource: 'voice', navigationId: 'voice-trip', routeVersion: 4 });
+  expect(useNavStore.getState().instructions).toBe(instructions);
+  expect(stopNavigation).not.toHaveBeenCalled();
+  expect(localRerouteCoordinator.stopSession).toHaveBeenCalledTimes(1);
 });

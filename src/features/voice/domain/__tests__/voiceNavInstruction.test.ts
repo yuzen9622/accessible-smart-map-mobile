@@ -40,3 +40,9 @@ describe('toNavInstruction', () => {
     expect(toNavInstruction(base)).not.toHaveProperty('maneuver');
   });
 });
+
+it('preserves authored indoor manual progress and floor metadata', () => {
+  expect(toNavInstruction({ index: 1, instruction: '搭乘電梯至2F', legType: 'VENUE', distanceM: 0, isTransit: false,
+    driver: 'manual', venueStepType: 'elevator', buildingId: 'info', levelRef: '1F', fromLevelRef: '1F', toLevelRef: '2F',
+  })).toMatchObject({ driver: 'manual', venueStepType: 'elevator', buildingId: 'info', levelRef: '1F', fromLevelRef: '1F', toLevelRef: '2F' });
+});

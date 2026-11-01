@@ -1626,3 +1626,53 @@ describe('voice location synchronization', () => {
     expect(h.lastStatus()?.status).toBe('listening');
   });
 });
+
+
+describe('listening waits for both the server turn and native playback', () => {
+  it.each(['complete-first', 'drain-first'] as const)('handles %s without announcing listening before playback finishes', async (order) => {
+    const h = createHarness();
+    h.controller.start();
+    await bringToListening(h);
+    const socket = h.sockets[0];
+    socket.triggerMessage(new ArrayBuffer(8));
+    h.playback.isPlaying.mockReturnValue(true);
+    h.onStatusChange.mockClear();
+    if (order === 'complete-first') {
+      socket.triggerMessage(JSON.stringify({ type: 'turn.complete' }));
+      expect(h.controller.getStatus().status).toBe('model-speaking');
+      expect(h.onTurnComplete).toHaveBeenCalledTimes(1);
+      h.playback.isPlaying.mockReturnValue(false);
+      h.playback.drain();
+    } else {
+      h.playback.isPlaying.mockReturnValue(false);
+      h.playback.drain();
+      expect(h.controller.getStatus().status).toBe('model-speaking');
+      socket.triggerMessage(JSON.stringify({ type: 'turn.complete' }));
+    }
+    expect(h.controller.getStatus().status).toBe('listening');
+    h.playback.drain();
+    expect(h.onStatusChange.mock.calls).toEqual([[{ status: 'listening' }]]);
+    h.controller.end();
+  });
+
+  it.each(['interrupt', 'end', 'close', 'mute'] as const)('does not leave the tail pending after %s or revive a closed session', async (action) => {
+    const h = createHarness();
+    h.controller.start();
+    await bringToListening(h);
+    const socket = h.sockets[0];
+    socket.triggerMessage(new ArrayBuffer(8));
+    h.playback.isPlaying.mockReturnValue(true);
+    socket.triggerMessage(JSON.stringify({ type: 'turn.complete' }));
+    expect(h.controller.getStatus().status).toBe('model-speaking');
+    h.playback.isPlaying.mockReturnValue(false);
+    if (action === 'interrupt') socket.triggerMessage(JSON.stringify({ type: 'interrupted' }));
+    if (action === 'end') h.controller.end();
+    if (action === 'close') socket.triggerClose(1000);
+    if (action === 'mute') h.controller.setMuted(true);
+    const expected = action === 'close' ? 'error' : action === 'end' ? 'ended' : 'listening';
+    expect(h.controller.getStatus().status).toBe(expected);
+    h.playback.drain();
+    expect(h.controller.getStatus().status).toBe(expected);
+    h.controller.end();
+  });
+});

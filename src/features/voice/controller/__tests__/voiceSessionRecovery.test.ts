@@ -4,6 +4,7 @@ import { useVoiceStore } from '@/features/voice/store/voiceStore';
 import { isVoiceSessionActive, shouldShowVoicePill } from '@/features/voice/domain/voiceStatus';
 import { registerChatDismiss } from '@/features/ai/controller/actionExecutor';
 import { routePlanFixture } from '@/features/ai/domain/testing/routePlanFixture';
+import { roadRoutePlanFixture } from '@/features/ai/domain/testing/roadRoutePlanFixture';
 import { useAuthStore } from '@/features/auth';
 import { appendVoiceTurns } from '@/features/ai';
 import { useUserLocationStore } from '@/features/map';
@@ -158,6 +159,22 @@ describe('voice session recovery through the production controller', () => {
     toolResult(routePlanFixture());
     expect(state()).toMatchObject({ status: 'model-speaking', visible: true, sentEnd: false, routeSync: 'pending' });
     expect(mockApply).not.toHaveBeenCalled();
+  });
+  it.each(['DRIVE', 'MOTORCYCLE'] as const)('applies a %s coordinate route once and keeps voice usable', async (type) => {
+    const plan = roadRoutePlanFixture(type);
+    await speaking(); toolCall(); toolResult(plan);
+    expect(mockApply).toHaveBeenCalledTimes(1);
+    expect(mockApply.mock.calls[0][0]).toEqual(plan);
+    expect(state()).toMatchObject({ status: 'model-speaking', visible: true, sentEnd: false, dismissed: true, navigated: true });
+    expect(useVoiceStore.getState().status.code).not.toBe('ROUTE_RESPONSE_INVALID');
+    toolResult(plan);
+    expect(mockApply).toHaveBeenCalledTimes(1);
+    event({ type: 'turn.complete' });
+    const input = new ArrayBuffer(480);
+    mockCaptureFrame(input);
+    expect(socket().sent).toContain(input);
+    expect(state()).toMatchObject({ status: 'listening', visible: true, sentEnd: false });
+    expect(mockSockets).toHaveLength(1);
   });
   it('valid result immediately dismisses chat while audio is still speaking', async () => {
     await speaking(); toolCall(); toolResult(routePlanFixture());

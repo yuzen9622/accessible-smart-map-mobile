@@ -1,12 +1,15 @@
 import { create } from 'zustand';
 
-import type { AccessibleRoute } from '@/features/route/domain';
+import type { AccessibleRoute, VenueHandoff } from '@/features/route/domain';
+import type { VenueRoute } from '@/shared/venue';
 
 type FakeRoute = { route: Pick<AccessibleRoute, 'navigationId' | 'routeVersion' | 'routeToken'> & Partial<AccessibleRoute> };
 
 export interface FakeRouteState {
   selectRoute: FakeRoute | null;
   navigationRoute: FakeRoute | null;
+  indoorRoute?: VenueRoute | null;
+  navigationVenueHandoff?: VenueHandoff | null;
   computeRoutes?: FakeRoute['route'][] | null;
 }
 
@@ -14,6 +17,14 @@ export const fakeRouteStore = create<FakeRouteState>(() => ({ selectRoute: null,
 
 export const routeModule = {
   getRouteSessionSnapshot: () => fakeRouteStore.getState(),
+  getVenueHandoff: () => fakeRouteStore.getState().navigationVenueHandoff ?? null,
+  clearNavigationRoute: () => fakeRouteStore.setState({ navigationRoute: null, navigationVenueHandoff: null }),
+  pinNavigationRoute: () => {
+    const selected = fakeRouteStore.getState().selectRoute;
+    if (!selected?.route.routeToken) return false;
+    fakeRouteStore.setState({ navigationRoute: selected });
+    return true;
+  },
   selectRouteAt: (index: number) => {
     const route = fakeRouteStore.getState().computeRoutes?.[index];
     if (route) fakeRouteStore.setState({ selectRoute: { route } });

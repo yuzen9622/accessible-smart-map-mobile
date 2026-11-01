@@ -40,5 +40,7 @@ export function toNavInstruction(step: VoiceNavStep): NavInstruction {
     ...(step.cumulativeDistanceM != null ? { cumulativeDistanceM: step.cumulativeDistanceM } : {}),
     ...(step.stairs != null ? { stairs: step.stairs } : {}),
     ...(maneuver !== undefined ? { maneuver } : {}),
+    ...(step.driver === 'manual' ? { driver: step.driver, venueStepType: step.venueStepType,
+      buildingId: step.buildingId, levelRef: step.levelRef, fromLevelRef: step.fromLevelRef, toLevelRef: step.toLevelRef } : {}),
   };
 }

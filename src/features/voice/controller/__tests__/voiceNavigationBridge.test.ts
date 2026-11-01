@@ -6,6 +6,8 @@ import { useUserLocationStore } from '@/features/map';
 import { toNavInstruction } from '../../domain/voiceNavInstruction';
 import type { VoiceNavigationEvent } from '../../domain/voiceSession';
 import {
+  configureVoiceJourneyNavigation,
+  prepareIndoorVoiceNavigation,
   getVoiceNavigationResumeState,
   handleVoiceNavigationEvent,
   installVoiceNavigationBridge,
@@ -14,6 +16,8 @@ import {
 } from '../voiceNavigationBridge';
 import { fakeRouteStore } from '../testing/fakeRouteSession';
 import { useVoiceStore } from '../../store/voiceStore';
+import { useIndoorStore } from '@/features/indoor';
+import { venueHandoffFixture } from '@/features/route/domain/testing/venueHandoffFixture';
 
 // jest.mock 會被 babel 提升到最上方，上面的 import 拿到的是替身
 // navigation：真的 navStore＋純函式，副作用（開導航畫面、改道）換成 spy
@@ -22,6 +26,7 @@ const mockEnd = jest.fn();
 const mockStart = jest.fn();
 const mockReroute = jest.fn();
 const mockAutoReroute = jest.fn();
+const mockStopHandoff = jest.fn();
 jest.mock('@/features/navigation', () => {
   const { useNavStore } = jest.requireActual('@/features/navigation/store/navStore');
   const { geminiOwnsNavigationSpeech } = jest.requireActual('@/features/navigation/domain/navigationAudio');
@@ -32,6 +37,10 @@ jest.mock('@/features/navigation', () => {
       mockBegin(...args);
       useNavStore.getState().setIsNavigating(true);
       useNavStore.getState().setVoiceEnabled(true);
+    },
+    stopNavigationForVenueHandoff: () => {
+      mockStopHandoff();
+      useNavStore.getState().setIsNavigating(false);
     },
     endNavigation: () => {
       mockEnd();
@@ -50,6 +59,8 @@ jest.mock('@/features/map', () => {
 });
 
 jest.mock('@/features/route', () => jest.requireActual('../testing/fakeRouteSession').routeModule);
+jest.mock('@/features/route/controller/routeSessionPort', () => jest.requireActual('../testing/fakeRouteSession').routeModule);
+jest.mock('@/features/route/hooks/useRouteSession', () => jest.requireActual('../testing/fakeRouteSession').routeModule);
 
 jest.mock('@/shared/polling', () => ({ appStateVisibility: { subscribe: () => () => {} } }));
 
@@ -66,6 +77,7 @@ const uplink = {
   startNavigation: jest.fn(),
   sendNavigationPosition: jest.fn(),
   previewNavigationStep: jest.fn(),
+  advanceNavigationStep: jest.fn(),
   cancelNavigation: jest.fn(),
   setMuted: jest.fn(),
   getStatus: jest.fn((): import('../../domain/voiceSession').VoiceStatusName => 'listening'),
@@ -75,7 +87,7 @@ function setPosition(position: LatLng | null): void {
   useUserLocationStore.setState({ position });
 }
 
-const start: VoiceNavigationEvent = {
+const start: Extract<VoiceNavigationEvent, { type: 'nav.start' }> = {
   type: 'nav.start',
   currentStepIndex: 0,
   totalSteps: 2,
@@ -94,7 +106,9 @@ beforeEach(() => {
   useNavStore.getState().setIsNavigating(false);
   useNavStore.getState().reset();
   setPosition({ lat: 25.04, lng: 121.52 });
-  fakeRouteStore.setState({ navigationRoute: null, computeRoutes: null, selectRoute: { route: { navigationId: 'nav-1', routeVersion: 3, routeToken: 'tok-3' } } });
+  useIndoorStore.getState().clearRoute();
+  configureVoiceJourneyNavigation(jest.requireMock('@/features/navigation').beginNavigation);
+  fakeRouteStore.setState({ indoorRoute: null, navigationVenueHandoff: null, navigationRoute: null, computeRoutes: null, selectRoute: { route: { navigationId: 'nav-1', routeVersion: 3, routeToken: 'tok-3' } } });
   jest.clearAllMocks();
 });
 
@@ -382,4 +396,167 @@ describe('backend navigation recovery', () => {
     }, 'listening');
     expect(useNavStore.getState()).toMatchObject({ voiceTransit: null });
   });
+});
+
+describe('indoor voice journey uses the existing manual guidance', () => {
+  function indoorStart(stepIndex = 0) {
+    const route = venueHandoffFixture().leg;
+    fakeRouteStore.setState({ indoorRoute: route });
+    useIndoorStore.setState({ plan: { status: 'ready', data: route }, guidance: { status: 'idle' } });
+    const begin = jest.fn();
+    configureVoiceJourneyNavigation(begin);
+    const steps = route.steps.map((step, index) => ({ index, instruction: step.instruction, legType: 'VENUE' as const,
+      distanceM: step.distanceM, isTransit: false, driver: 'manual' as const, venueStepType: step.type,
+      buildingId: step.buildingId, levelRef: step.levelRef,
+    }));
+    handleVoiceNavigationEvent({ type: 'nav.start', routeToken: 'tok-3', totalSteps: steps.length, currentStepIndex: stepIndex, steps }, 'listening');
+    return { route, begin };
+  }
+
+  it('starts the same indoor navigation page without enabling the outdoor GPS lifecycle', () => {
+    const { begin } = indoorStart();
+    expect(begin).toHaveBeenCalledTimes(1);
+    expect(mockBegin).not.toHaveBeenCalled();
+    expect(useNavStore.getState().isNavigating).toBe(false);
+    expect(useNavStore.getState().instructions[1]).toMatchObject({ driver: 'manual', buildingId: 'building', levelRef: '1F' });
+    expect(uplink.sendNavigationPosition).not.toHaveBeenCalled();
+  });
+
+  it('sends a local manual confirmation once and uses server progress without an echo or GPS advancement', () => {
+    indoorStart();
+    useIndoorStore.getState().startGuidance();
+    useIndoorStore.getState().confirmStep();
+    expect(uplink.advanceNavigationStep).toHaveBeenCalledWith(0, 'nav-1', 3);
+    expect(uplink.advanceNavigationStep).toHaveBeenCalledTimes(1);
+    handleVoiceNavigationEvent({ type: 'nav.step', currentStepIndex: 1, instruction: '公共走道', remainingM: 30 }, 'listening');
+    handleVoiceNavigationEvent({ type: 'nav.step', currentStepIndex: 2, instruction: '已到走道', remainingM: 0 }, 'listening');
+    expect(useIndoorStore.getState()).toMatchObject({ guidance: { status: 'guiding', stepIndex: 2 }, floor: { buildingId: 'building', levelRef: '1F' } });
+    expect(uplink.advanceNavigationStep).toHaveBeenCalledTimes(1);
+    expect(getVoiceNavigationResumeState()).toMatchObject({ navigationId: 'nav-1', routeVersion: 3, lastKnownStepIndex: 2 });
+    expect(getVoiceNavigationResumeState()).not.toHaveProperty('currentPosition');
+    setPosition({ lat: 24.151, lng: 120.681 });
+    expect(uplink.sendNavigationPosition).not.toHaveBeenCalled();
+  });
+
+  it('waits for indoor adoption then catches up through the original confirmStep method', () => {
+    indoorStart(2);
+    useIndoorStore.getState().startGuidance();
+    expect(useIndoorStore.getState().guidance).toMatchObject({ status: 'guiding', stepIndex: 2 });
+    expect(uplink.advanceNavigationStep).not.toHaveBeenCalled();
+    handleVoiceNavigationEvent({ type: 'nav.arrived' }, 'listening');
+    expect(useIndoorStore.getState().guidance.status).toBe('complete');
+  });
+
+  it('arms a selected indoor token from the manual start button without an outdoor position', () => {
+    const route = venueHandoffFixture().leg;
+    fakeRouteStore.setState({ indoorRoute: route });
+    prepareIndoorVoiceNavigation();
+    expect(uplink.startNavigation).toHaveBeenCalledWith('tok-3');
+  });
+});
+
+
+describe('mixed voice journey continues through the original indoor guidance', () => {
+  function mixedStart(stepIndex = 0) {
+    const handoff = venueHandoffFixture();
+    const selected = fakeRouteStore.getState().selectRoute;
+    fakeRouteStore.setState({ navigationRoute: selected, navigationVenueHandoff: handoff });
+    const begin = jest.fn();
+    configureVoiceJourneyNavigation(begin);
+    const steps = [
+      ...start.steps,
+      ...handoff.leg.steps.map((step, index) => ({ index: start.steps.length + index,
+        instruction: step.instruction, legType: 'VENUE' as const, distanceM: step.distanceM,
+        isTransit: false, driver: 'manual' as const, venueStepType: step.type,
+        buildingId: step.buildingId, levelRef: step.levelRef,
+      })),
+    ];
+    handleVoiceNavigationEvent({ type: 'nav.start', routeToken: 'tok-3', totalSteps: steps.length,
+      currentStepIndex: stepIndex, steps }, 'listening');
+    return { handoff, begin, steps };
+  }
+
+  it('switches at the first manual venue step while keeping the pinned voice identity', () => {
+    const { handoff, begin } = mixedStart();
+    handleVoiceNavigationEvent({ type: 'nav.step', currentStepIndex: 2,
+      instruction: handoff.leg.steps[0].instruction, remainingM: 30 }, 'listening');
+    expect(begin).toHaveBeenCalledWith(expect.any(Object), 'handoff');
+    expect(mockStopHandoff).toHaveBeenCalledTimes(1);
+    expect(useNavStore.getState()).toMatchObject({ isNavigating: false, navigationSource: 'voice',
+      navigationId: 'nav-1', routeVersion: 3, currentStepIndex: 2, arrived: false });
+    expect(fakeRouteStore.getState().navigationRoute?.route.routeToken).toBe('tok-3');
+    expect(uplink.cancelNavigation).not.toHaveBeenCalled();
+    useIndoorStore.setState({ plan: { status: 'ready', data: handoff.leg }, guidance: { status: 'idle' } });
+    useIndoorStore.getState().startGuidance();
+    expect(useIndoorStore.getState().guidance).toMatchObject({ status: 'guiding', stepIndex: 0 });
+    useIndoorStore.getState().confirmStep();
+    expect(uplink.advanceNavigationStep).toHaveBeenCalledWith(2, 'nav-1', 3);
+    expect(uplink.advanceNavigationStep).toHaveBeenCalledTimes(1);
+    handleVoiceNavigationEvent({ type: 'nav.step', currentStepIndex: 4,
+      instruction: handoff.leg.steps[2].instruction, remainingM: 0 }, 'listening');
+    expect(useIndoorStore.getState()).toMatchObject({ guidance: { status: 'guiding', stepIndex: 2 },
+      floor: { buildingId: 'building', levelRef: '1F' } });
+    expect(uplink.advanceNavigationStep).toHaveBeenCalledTimes(1);
+    handleVoiceNavigationEvent({ type: 'nav.step', currentStepIndex: 1, instruction: '舊戶外指引', remainingM: 100 }, 'listening');
+    expect(useNavStore.getState().currentStepIndex).toBe(4);
+    expect(getVoiceNavigationResumeState()).toMatchObject({ navigationId: 'nav-1', routeVersion: 3, lastKnownStepIndex: 4 });
+    expect(getVoiceNavigationResumeState()).not.toHaveProperty('currentPosition');
+    uplink.sendNavigationPosition.mockClear();
+    setPosition({ lat: 24.151, lng: 120.681 });
+    expect(uplink.sendNavigationPosition).not.toHaveBeenCalled();
+    handleVoiceNavigationEvent({ type: 'nav.arrived' }, 'listening');
+    expect(useIndoorStore.getState().guidance.status).toBe('complete');
+    expect(uplink.advanceNavigationStep).toHaveBeenCalledTimes(1);
+  });
+
+  it('can resume into the indoor suffix without starting the outdoor lifecycle', () => {
+    const { handoff, begin } = mixedStart(3);
+    expect(mockBegin).not.toHaveBeenCalled();
+    expect(begin).toHaveBeenCalledWith(expect.any(Object), 'handoff');
+    useIndoorStore.setState({ plan: { status: 'ready', data: handoff.leg }, guidance: { status: 'idle' } });
+    useIndoorStore.getState().startGuidance();
+    expect(useIndoorStore.getState().guidance).toMatchObject({ status: 'guiding', stepIndex: 1 });
+    expect(uplink.advanceNavigationStep).not.toHaveBeenCalled();
+    useIndoorStore.getState().endGuidance();
+    expect(uplink.cancelNavigation).toHaveBeenCalledTimes(1);
+    expect(useNavStore.getState().navigationSource).toBe('local');
+    expect(fakeRouteStore.getState().navigationRoute).toBeNull();
+  });
+
+  it('restores a mixed journey already inside the venue through the same handoff page', () => {
+    const { handoff, begin, steps } = mixedStart();
+    handleVoiceNavigationEvent({ type: 'nav.resume_ok', navigationId: 'nav-1', routeVersion: 3,
+      routeToken: 'tok-resumed', currentStepIndex: 3, totalSteps: steps.length, onVehicle: false, steps }, 'listening');
+    expect(begin).toHaveBeenCalledWith(expect.any(Object), 'handoff');
+    expect(fakeRouteStore.getState().navigationRoute?.route.routeToken).toBe('tok-resumed');
+    expect(useNavStore.getState()).toMatchObject({ isNavigating: false, navigationSource: 'voice', currentStepIndex: 3 });
+    useIndoorStore.setState({ plan: { status: 'ready', data: handoff.leg }, guidance: { status: 'idle' } });
+    useIndoorStore.getState().startGuidance();
+    expect(useIndoorStore.getState().guidance).toMatchObject({ status: 'guiding', stepIndex: 1 });
+    expect(uplink.advanceNavigationStep).not.toHaveBeenCalled();
+    expect(uplink.cancelNavigation).not.toHaveBeenCalled();
+    handleVoiceNavigationEvent({ type: 'nav.stop', reason: 'user_ui' }, 'listening');
+    expect(useIndoorStore.getState().guidance.status).toBe('idle');
+    expect(useNavStore.getState().navigationSource).toBe('local');
+    expect(fakeRouteStore.getState().navigationRoute).toBeNull();
+    expect(uplink.cancelNavigation).not.toHaveBeenCalled();
+  });
+
+
+  it.each(['loading', 'error'] as const)('cancels once when the user clears the indoor route while venue data is %s', phase => {
+    mixedStart(3);
+    useIndoorStore.setState({ plan: { status: 'idle' }, guidance: { status: 'idle' },
+      venue: phase === 'loading' ? { status: 'loading' } : { status: 'error', message: '無法載入建築地圖' },
+    });
+    expect(uplink.cancelNavigation).not.toHaveBeenCalled();
+    expect(getVoiceNavigationResumeState()).toMatchObject({ navigationId: 'nav-1', lastKnownStepIndex: 3 });
+    useIndoorStore.getState().clearRoute();
+    expect(uplink.cancelNavigation).toHaveBeenCalledTimes(1);
+    expect(fakeRouteStore.getState().navigationRoute).toBeNull();
+    expect(useNavStore.getState().navigationSource).toBe('local');
+    expect(getVoiceNavigationResumeState()).toBeNull();
+    useIndoorStore.getState().clearRoute();
+    expect(uplink.cancelNavigation).toHaveBeenCalledTimes(1);
+  });
+
 });

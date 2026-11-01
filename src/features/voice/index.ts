@@ -7,3 +7,5 @@ export { useVoiceStore } from './store/voiceStore';
 
 // 純邏輯；其他 feature 的 domain 層請直接從 `@/features/voice/domain` 引用。
 export * from './domain';
+
+export { configureVoiceJourneyNavigation, prepareIndoorVoiceNavigation } from './controller/voiceNavigationBridge';

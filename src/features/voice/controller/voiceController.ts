@@ -196,6 +196,7 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
     startNavigation: (token, position) => c.startNavigation(token, position),
     sendNavigationPosition: (position) => c.sendNavigationPosition(position),
     previewNavigationStep: (index) => c.previewNavigationStep(index),
+    advanceNavigationStep: (index, navigationId, routeVersion) => c.advanceNavigationStep(index, navigationId, routeVersion),
     cancelNavigation: () => c.cancelNavigation(),
     setMuted: setVoiceMuted,
     getStatus: () => c.getStatus().status,

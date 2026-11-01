@@ -148,7 +148,7 @@ export interface VoiceNavStep {
   stairs?: boolean;
   index: number;
   instruction: string;
-  legType: 'WALK' | 'DRIVE' | 'MOTORCYCLE' | 'BUS' | 'METRO' | 'THSR' | 'TRA';
+  legType: 'WALK' | 'DRIVE' | 'MOTORCYCLE' | 'BUS' | 'METRO' | 'THSR' | 'TRA' | 'VENUE';
   distanceM: number | null;
   isTransit: boolean;
   type?: string;
@@ -156,6 +156,12 @@ export interface VoiceNavStep {
   streetName?: string | null;
   bearing?: number | null;
   maneuver?: string | null;
+  driver?: 'manual';
+  venueStepType?: import('@/shared/venue').VenueRouteStep['type'];
+  buildingId?: string | null;
+  levelRef?: string | null;
+  fromLevelRef?: string;
+  toLevelRef?: string;
 }
 
 export type VoiceRerouteReason =
@@ -570,6 +576,11 @@ export class VoiceSessionController {
     return this.startCuePending || this.modelTurnActive || Boolean(this.playback?.isPlaying?.());
   }
 
+  private maybeFinishModelPlayback(): void {
+    if (!this.sessionActive || this.ending || this.modelTurnActive || this.playback?.isPlaying?.()) return;
+    if (this.status.status === 'model-speaking') this.setStatus({ status: 'listening' });
+  }
+
   private flushRouteChanges(): void {
     if (!this.sessionActive || this.ending || !this.socketReady || this.responseInProgress()) return;
     if (this.pendingLanguage) {
@@ -649,6 +660,7 @@ export class VoiceSessionController {
     playback.onDrained?.(() => {
       if (this.playback !== playback) return;
       this.finishFarewell();
+      this.maybeFinishModelPlayback();
       this.flushRouteChanges();
       this.maybePlayStartCue();
     });
@@ -675,6 +687,7 @@ export class VoiceSessionController {
     this.muted = muted;
     this.playback?.setMuted?.(muted);
     this.finishFarewell();
+    this.maybeFinishModelPlayback();
     this.flushRouteChanges();
     this.maybePlayStartCue();
   }
@@ -736,6 +749,10 @@ export class VoiceSessionController {
     this.sendControl({ type: 'nav.cancel' });
   }
 
+  advanceNavigationStep(fromStepIndex: number, navigationId: string, routeVersion: number): void {
+    this.sendControl({ type: 'nav.advance', fromStepIndex, navigationId, routeVersion });
+  }
+
   /** 預覽中使用者切到第 `index` 步：請後端讓助理念那一步（後端自己的指令文字）。 */
   previewNavigationStep(index: number): void {
     this.sendControl({ type: 'nav.previewStep', index });
@@ -759,6 +776,7 @@ export class VoiceSessionController {
       | NavCancelMessage
       | { type: 'nav.start' }
       | { type: 'nav.previewStep'; index: number }
+      | { type: 'nav.advance'; fromStepIndex: number; navigationId: string; routeVersion: number }
       | NavResumeMessage,
   ): void {
     if (!this.sessionActive || !this.socket) return;
@@ -1119,9 +1137,7 @@ export class VoiceSessionController {
       case 'turn.complete': {
         this.modelTurnActive = false;
         this.deps.onTurnComplete?.();
-        if (this.status.status === 'model-speaking') {
-          this.setStatus({ status: 'listening' });
-        }
+        this.maybeFinishModelPlayback();
         this.flushRouteChanges();
         this.maybePlayStartCue();
         return;

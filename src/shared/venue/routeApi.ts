@@ -13,6 +13,8 @@ export async function planVenueRoute(
     body: {
       fromPlaceId: request.fromPlaceId, toPlaceId: request.toPlaceId, mode: request.mode,
       language: request.language ?? 'zh-TW',
+      ...(request.avoidStairs === undefined ? {} : { avoidStairs: request.avoidStairs }),
+      ...(request.requireElevator === undefined ? {} : { requireElevator: request.requireElevator }),
     },
   });
   return parseVenueRoute(response.data, request);

@@ -39,4 +39,6 @@ export interface VenueRouteRequest {
   fromPlaceId: string;
   toPlaceId: string;
   mode: VenueMode;
+  avoidStairs?: boolean;
+  requireElevator?: boolean;
 }

@@ -12,6 +12,7 @@ import { useAppTranslation } from '@/shared/i18n';
 
 import { buildAccessibilityChecklist, type ChecklistItem } from '../domain/accessibilityChecklist';
 import { nearbyFacilityRows, type NearbyFacilityRow } from '../domain/nearbyFacilityRows';
+import { toApiLang } from '../domain/lang';
 import { buildPlaceBadges, type PlaceBadge } from '../domain/placeBadges';
 import { SAVED_PLACE_CATEGORIES, placeKey, savedCategoryLabel, type SavedPlaceCategory } from '../domain/placeKey';
 import { evidenceLines } from '../domain/reviewEvidence';
@@ -128,7 +129,7 @@ export interface PlaceDetailModel {
   badges: PlaceDetailBadge[];
   nearbyTitle: string;
   nearbyEmptyLabel: string;
-  /** coordinate 地點為 [] */
+  /** 室內場館地點不顯示附近設施清單。 */
   nearbyRows: PlaceDetailNearbyRow[];
 }
 
@@ -165,8 +166,8 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     distanceText,
   });
 
-  const nearbySummary = useNearbyA11ySummary(place);
-  const checklistItems = place ? buildAccessibilityChecklist(place, nearbySummary) : [];
+  const nearby = useNearbyA11ySummary(entry.kind === 'venue-place' ? null : entry.position, place?.bounds, toApiLang(i18n.language));
+  const checklistItems = place ? buildAccessibilityChecklist(place, nearby.data?.summary ?? null) : [];
   const reviews = useReviews(place?.reviewKey?.placeId ?? '', place?.reviewKey?.placeType ?? 'osm');
   const hasReviewKey = Boolean(place?.reviewKey);
   const shareUrl = entry.kind === 'venue-place' ? '' : buildPlaceShareUrl(getAppConfig().shareBaseUrl, entry);
@@ -360,6 +361,11 @@ export function usePlaceDetailViewModel(entry: PlaceDetail): PlaceDetailModel {
     badges: buildPlaceBadges(place, t),
     nearbyTitle: t('nearbyA11y'),
     nearbyEmptyLabel: t('noNearbyA11y'),
-    nearbyRows: nearbyFacilityRows(place, mapFeature.formatDistance),
+    nearbyRows: nearbyFacilityRows(nearby.data, mapFeature.formatDistance, {
+      toilet: t('accessibleToilet'),
+      elevator: t('elevator'),
+      ramp: t('a11yFeatureRamp'),
+      other: t('facility'),
+    }),
   };
 }

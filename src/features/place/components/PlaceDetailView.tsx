@@ -73,9 +73,10 @@ const CHECKLIST_ICON: Partial<Record<string, IconName>> = {
 
 // render 時才讀 `FACILITY_COLORS`：map ↔ place 之間有 require cycle，模組頂層讀取時 map 可能尚未初始化
 function nearbyKindStyle(kind: PlaceDetailNearbyRow['kind']): { color: string; icon: IconName } {
-  return kind === 'toilet'
-    ? { color: FACILITY_COLORS.toilet, icon: 'toilet' }
-    : { color: FACILITY_COLORS.elevator, icon: 'elevator' };
+  if (kind === 'toilet') return { color: FACILITY_COLORS.toilet, icon: 'toilet' };
+  if (kind === 'elevator') return { color: FACILITY_COLORS.elevator, icon: 'elevator' };
+  if (kind === 'ramp') return { color: FACILITY_COLORS.ramp, icon: 'ramp' };
+  return { color: FACILITY_COLORS.elevator, icon: 'accessibility' };
 }
 
 /** 「我知道 ›」文字只有 16pt 高，hitSlop 補到 44pt 觸控目標 */

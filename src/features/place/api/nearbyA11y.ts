@@ -2,7 +2,7 @@ import { fetchRequest } from '@/shared/api';
 
 import type { NearbyA11yCategoryStat, NearbyA11ySummary, PlaceBounds } from '../types/place';
 
-// 後端 `GET /a11y/nearby-a11y`：帶 bbox 時以地點範圍查詢，否則為座標 150 m 內。
+// 地點詳情只使用地點範圍查詢，不送出沒有 bbox 的附近設施請求。
 const NEARBY_A11Y_PATH = '/api/v1/a11y/nearby-a11y';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -23,14 +23,37 @@ export function parseNearbyA11ySummary(value: unknown): NearbyA11ySummary | null
   return elevator && ramp && toilet ? { elevator, ramp, toilet } : null;
 }
 
-/** 部署 summary 之前的後端不回這個欄位，此時回傳 null（清單維持「未確認」）。 */
-export async function fetchNearbyA11ySummary(
-  point: { lat: number; lng: number },
-  bounds: PlaceBounds | null | undefined,
-  signal?: AbortSignal,
-): Promise<NearbyA11ySummary | null> {
-  const query = new URLSearchParams({ lat: String(point.lat), lng: String(point.lng) });
-  if (bounds) query.set('bbox', bounds.join(','));
+export interface NearbyA11yData {
+  summary: NearbyA11ySummary | null;
+  nearbyBathroom: unknown[];
+  nearbyMetroA11y: unknown[];
+}
+
+/** 列表與摘要共用同一個查詢；舊回應缺少摘要時仍保留設施列表。 */
+export async function fetchNearbyA11y({
+  point,
+  bounds,
+  lang,
+  signal,
+}: {
+  point: { lat: number; lng: number };
+  bounds: PlaceBounds;
+  lang?: string;
+  signal?: AbortSignal;
+}): Promise<NearbyA11yData> {
+  if (!Array.isArray(bounds) || bounds.length !== 4 || !bounds.every(Number.isFinite)) {
+    throw new Error('Valid place bounds are required for nearby accessibility facilities');
+  }
+  const query = new URLSearchParams({ lat: String(point.lat), lng: String(point.lng), bbox: bounds.join(',') });
+  if (lang) query.set('lang', lang);
   const response = await fetchRequest(`${NEARBY_A11Y_PATH}?${query.toString()}`, { signal });
-  return isRecord(response.data) ? parseNearbyA11ySummary(response.data.summary) : null;
+  const data = response.data;
+  if (!isRecord(data) || Array.isArray(data)) {
+    throw new Error('Invalid nearby accessibility facilities response');
+  }
+  return {
+    summary: parseNearbyA11ySummary(data.summary),
+    nearbyBathroom: Array.isArray(data.nearbyBathroom) ? data.nearbyBathroom : [],
+    nearbyMetroA11y: Array.isArray(data.nearbyMetroA11y) ? data.nearbyMetroA11y : [],
+  };
 }

@@ -1,80 +1,85 @@
 import { nearbyFacilityRows } from '../nearbyFacilityRows';
-import type { NearbyFacilityBrief, PlaceResult } from '../../types/place';
 
-const format = (meters: number) => `${meters} m`;
-
-function brief(id: string, category: string, distanceMeters: number): NearbyFacilityBrief {
-  return { id, name: `n-${id}`, address: null, category, typeLabel: `type-${category}`, distanceMeters };
-}
-
-function place(nearbyFacilities: PlaceResult['nearbyFacilities']): PlaceResult {
-  return {
-    id: 'osm:node:1',
-    source: 'osm',
-    name: 'X',
-    fullAddress: null,
-    addressComponents: { road: null, district: null, city: null, postcode: null },
-    location: { type: 'Point', coordinates: [121, 25] },
-    placeClass: null,
-    placeType: null,
-    typeLabel: null,
-    distanceMeters: null,
-    rating: null,
-    accessibility: { status: 'unknown', wheelchair: null, nearbyFacilityCount: 0, source: 'none' },
-    nearbyFacilities,
-    reviewKey: null,
-    externalLinks: { osm: null, google: null },
-    attribution: null,
-  };
-}
+const format = (meters: number) => `${Math.round(meters)} m`;
+const labels = { toilet: '廁所', elevator: '電梯', ramp: '坡道', other: '無障礙設施' };
 
 describe('nearbyFacilityRows', () => {
-  it('returns [] for null place', () => {
-    expect(nearbyFacilityRows(null, format)).toEqual([]);
+  it('returns an empty list when no response is available', () => {
+    expect(nearbyFacilityRows(null, format, labels)).toEqual([]);
   });
 
-  it('returns [] when nearbyFacilities is undefined', () => {
-    const broken = { ...place({ toilets: [], metro: [] }), nearbyFacilities: undefined } as unknown as PlaceResult;
-    expect(nearbyFacilityRows(broken, format)).toEqual([]);
+  it('displays real campus entries without treating every facility as an elevator', () => {
+    const rows = nearbyFacilityRows({
+      nearbyBathroom: [],
+      nearbyMetroA11y: [
+        { '項次': 'toilet-1', facType: 'accessible_toilet', facTypeLabel: '無障礙廁所', '出入口電梯/無障礙坡道名稱': '無障礙廁所', distanceMeters: 12.4 },
+        { '項次': 'path-1', facType: 'outdoor_path', facTypeLabel: '室外通路', '出入口電梯/無障礙坡道名稱': '無障礙坡道', distanceMeters: 13.86 },
+        { '項次': 'ramp-1', facType: 'ramp', facTypeLabel: '無障礙坡道', '出入口電梯/無障礙坡道名稱': '無障礙坡道', distanceMeters: 15.15 },
+        { '項次': 'stairs-1', facType: 'accessible_stairs', facTypeLabel: '無障礙樓梯', '出入口電梯/無障礙坡道名稱': '無障礙樓梯', distanceMeters: 22.63 },
+      ],
+    }, format, labels);
+
+    expect(rows.map(({ name, typeLabel, kind, distanceText }) => ({ name, typeLabel, kind, distanceText }))).toEqual([
+      { name: '無障礙廁所', typeLabel: '無障礙廁所', kind: 'toilet', distanceText: '12 m' },
+      { name: '無障礙坡道', typeLabel: '室外通路', kind: 'other', distanceText: '14 m' },
+      { name: '無障礙坡道', typeLabel: '無障礙坡道', kind: 'ramp', distanceText: '15 m' },
+      { name: '無障礙樓梯', typeLabel: '無障礙樓梯', kind: 'other', distanceText: '23 m' },
+    ]);
   });
 
-  it('tolerates a missing inner array', () => {
-    const partial = { ...place({ toilets: [], metro: [] }), nearbyFacilities: { toilets: [brief('a', 'toilet', 5)] } } as unknown as PlaceResult;
-    expect(nearbyFacilityRows(partial, format).map((r) => r.name)).toEqual(['n-a']);
+  it('uses at most four records per API list in the same source order as Web', () => {
+    const rows = nearbyFacilityRows({
+      nearbyBathroom: Array.from({ length: 6 }, (_, i) => ({ _id: `bath-${i}`, name: `廁所 ${i}`, distanceMeters: 50 - i })),
+      nearbyMetroA11y: Array.from({ length: 6 }, (_, i) => ({ '項次': `facility-${i}`, '出入口電梯/無障礙坡道名稱': `設施 ${i}`, category: 'elevator', distanceMeters: i })),
+    }, format, labels);
+
+    expect(rows.map((row) => row.name)).toEqual(['廁所 0', '廁所 1', '廁所 2', '廁所 3', '設施 0', '設施 1', '設施 2', '設施 3']);
+    expect(new Set(rows.map((row) => row.key)).size).toBe(8);
   });
 
-  it('ignores malformed nearby payloads rather than crashing Detail', () => {
-    const malformed = {
-      ...place({ toilets: [], metro: [] }),
-      nearbyFacilities: { toilets: 'not an array', metro: [null, {}, brief('ok', 'metro', 42), { ...brief('bad', 'toilet', 5), distanceMeters: NaN }] },
-    } as unknown as PlaceResult;
-    expect(nearbyFacilityRows(malformed, format).map((row) => row.key)).toEqual(['metro-ok']);
+  it('prefers display fields and preserves records without a distance', () => {
+    const rows = nearbyFacilityRows({
+      nearbyBathroom: [{ _id: 'b1', name: '原名', displayName: '顯示名稱', address: '原地址', displayAddress: '顯示地址' }],
+      nearbyMetroA11y: [{ osmId: '123', category: 'elevator', name: '無障礙電梯', distanceMeters: Number.NaN }],
+    }, format, labels);
+
+    expect(rows[0]).toMatchObject({ name: '顯示名稱', address: '顯示地址', kind: 'toilet', typeLabel: '廁所', distanceText: '' });
+    expect(rows[1]).toMatchObject({ name: '無障礙電梯', kind: 'elevator', typeLabel: '電梯', distanceText: '' });
   });
 
-  it('merges toilets and metro sorted by ascending distance', () => {
-    const rows = nearbyFacilityRows(
-      place({ toilets: [brief('t1', 'toilet', 300), brief('t2', 'toilet', 50)], metro: [brief('m1', 'metro', 120)] }),
-      format,
-    );
-    expect(rows.map((r) => r.name)).toEqual(['n-t2', 'n-m1', 'n-t1']);
-    expect(rows[0]).toEqual({ key: 'toilet-t2', name: 'n-t2', address: null, typeLabel: 'type-toilet', distanceText: '50 m', kind: 'toilet' });
-    expect(rows[1]?.kind).toBe('metro');
+  it('shows metro exit information when no address is available', () => {
+    const rows = nearbyFacilityRows({ nearbyBathroom: [], nearbyMetroA11y: [
+      { source: 'metro', '項次': 'e1', '出入口電梯/無障礙坡道名稱': '無障礙電梯', '出入口編號': '出口 1', distanceMeters: 30 },
+    ] }, format, labels);
+    expect(rows[0]).toMatchObject({ name: '無障礙電梯', address: '出口 1', kind: 'elevator' });
   });
 
-  it('prefers nonblank display fields while retaining canonical row keys', () => {
-    const first = { ...brief('a', 'toilet', 5), displayName: 'Restroom', displayAddress: 'Address' };
-    const second = { ...brief('b', 'toilet', 6), displayName: '  ', displayAddress: ' ' };
-    const rows = nearbyFacilityRows(place({ toilets: [first, second], metro: [] }), format);
-    expect(rows[0]).toMatchObject({ key: 'toilet-a', name: 'Restroom', address: 'Address' });
-    expect(rows[1]).toMatchObject({ key: 'toilet-b', name: 'n-b', address: null });
-    expect(first.name).toBe('n-a');
+  it('classifies metro names without reclassifying campus records', () => {
+    const rows = nearbyFacilityRows({
+      nearbyBathroom: [],
+      nearbyMetroA11y: [
+        { source: 'metro', '項次': '1', '出入口電梯/無障礙坡道名稱': '捷運站出口電梯', distanceMeters: 10 },
+        { source: 'metro', '項次': '2', '出入口電梯/無障礙坡道名稱': '捷運站無障礙坡道', distanceMeters: 20 },
+        { source: 'metro', '項次': '3', '出入口電梯/無障礙坡道名稱': '電梯及坡道', distanceMeters: 30 },
+        { source: 'campus', facType: 'outdoor_path', facTypeLabel: '室外通路', '項次': '4', '出入口電梯/無障礙坡道名稱': '無障礙坡道', distanceMeters: 40 },
+      ],
+    }, format, labels);
+
+    expect(rows.map(({ kind, typeLabel }) => ({ kind, typeLabel }))).toEqual([
+      { kind: 'elevator', typeLabel: '電梯' },
+      { kind: 'ramp', typeLabel: '坡道' },
+      { kind: 'elevator', typeLabel: '電梯' },
+      { kind: 'other', typeLabel: '室外通路' },
+    ]);
   });
 
-  it('keeps only the nearest 5', () => {
-    const toilets = [1, 2, 3, 4].map((i) => brief(`t${i}`, 'toilet', i * 100));
-    const metro = [1, 2, 3].map((i) => brief(`m${i}`, 'metro', i * 100 + 50));
-    const rows = nearbyFacilityRows(place({ toilets, metro }), format);
-    expect(rows).toHaveLength(5);
-    expect(rows.map((r) => r.name)).toEqual(['n-t1', 'n-m1', 'n-t2', 'n-m2', 'n-t3']);
+  it('ignores malformed records and does not invent a facility type', () => {
+    const rows = nearbyFacilityRows({
+      nearbyBathroom: [null, {}, 'bad'],
+      nearbyMetroA11y: [{ '項次': 'one', '出入口電梯/無障礙坡道名稱': '某出入口', distanceMeters: -1 }],
+    }, format, labels);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ name: '某出入口', typeLabel: '無障礙設施', kind: 'other', distanceText: '' });
   });
 });

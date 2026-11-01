@@ -23,6 +23,7 @@
   ],
   "exclude": [
     "plugins",
-    "app.config.ts"
+    "app.config.ts",
+    "output"
   ]
 }

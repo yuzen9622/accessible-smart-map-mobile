@@ -43,7 +43,7 @@ beforeEach(async () => {
 
 function indoorModel(): RoutePlanModel {
   return {
-    originLabel: '2101', originIsMyLocation: false, destinationLabel: '2201',
+    originLabel: '2101', originIsMyLocation: false, destinationLabel: '2201', stops: [], onMoveStop: jest.fn(), onAddStop: null, stopsFullHint: null,
     indoorRoute: createVenueRoute(), isIndoorJourney: true,
     travelModes: [], facilityFilters: [],
     routeModes: [{ value: 'wheelchair', label: '輪椅', selected: true, disabled: false, accessibilityLabel: '輪椅', onSelect: jest.fn() }],
@@ -55,6 +55,7 @@ function indoorModel(): RoutePlanModel {
       clear: '清除', cancel: '取消', useMyLocation: '使用目前位置', searchPlaceholder: '搜尋', travelMode: '交通方式',
       a11yMode: '通行模式', start: '規劃', replan: '重新規劃', loading: '規劃中', chooseDestination: '選擇終點',
       startNav: '開始導航', routeOptions: '建議路線', close: '關閉', facilityFilterTitle: '沿途設施',
+      addStop: '新增停靠點', removeStop: '移除停靠點', moveUp: '往前移', moveDown: '往後移', reorderHint: '長按拖曳',
     },
   };
 }

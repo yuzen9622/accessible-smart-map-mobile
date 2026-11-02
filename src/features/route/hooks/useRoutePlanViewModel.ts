@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo, Platform } from 'react-native';
 
 import {
   PINNED_FACILITY_CATEGORIES,
@@ -24,10 +24,24 @@ import {
   hasGatedTravelModes,
   isTravelModeAllowed,
 } from '../domain/travelModes';
-import { useRouteSessionStore } from '../store/routeSessionStore';
+import { MAX_ROUTE_STOPS, useRouteSessionStore } from '../store/routeSessionStore';
 import type { AccessibleRoute, RouteMode, TravelMode, VenueHandoff } from '../types/route';
 
 export type PlanField = 'origin' | 'destination';
+/** 路線地點搜尋的目標：起點、終點，或某個停靠點（`stopIndex` 為 null 代表新增）。 */
+export type RouteSearchTarget = { field: PlanField } | { field: 'stop'; stopIndex: number | null };
+
+export interface PlanStop {
+  key: string;
+  /** 跟地圖上停靠點標記的編號一致（從 1 開始）。 */
+  badge: string;
+  label: string;
+  accessibilityLabel: string;
+  onEdit: () => void;
+  onRemove: () => void;
+  onMoveUp: (() => void) | null;
+  onMoveDown: (() => void) | null;
+}
 
 const FACILITY_CATEGORY_LABEL_KEY: Record<PinnedFacilityCategory, string> = {
   elevator: 'elevator',
@@ -49,6 +63,14 @@ export interface RoutePlanModel {
   originLabel: string;
   originIsMyLocation: boolean;
   destinationLabel: string | null;
+  /** 起點與終點之間依序經過的停靠點（Web 的中繼站，最多 5 個）。 */
+  stops: PlanStop[];
+  /** 拖曳排序：`to` 是移除 `from` 之後的插入位置。 */
+  onMoveStop: (from: number, to: number) => void;
+  /** 可以新增停靠點時才有值；室內路線與從場館內出發不支援停靠點。 */
+  onAddStop: (() => void) | null;
+  /** 停靠點已滿時的提示（取代「新增停靠點」列）。 */
+  stopsFullHint: string | null;
   venueHandoff?: VenueHandoff | null;
   indoorRoute?: VenueRoute | null;
   isIndoorJourney?: boolean;
@@ -97,6 +119,11 @@ export interface RoutePlanModel {
     routeOptions: string;
     close: string;
     facilityFilterTitle: string;
+    addStop: string;
+    removeStop: string;
+    moveUp: string;
+    moveDown: string;
+    reorderHint: string;
   };
 }
 
@@ -119,7 +146,7 @@ function parseCoord(value: string | undefined): number | null {
  * 路線規劃面板（`(sheet)/plan`）的 view-model，移植自 Web `RoutePlanContent.tsx`（commit 5eadc71）：
  * 起點預設「我的位置」、目的地 chip／搜尋、交換、交通方式與無障礙模式（含閘控）、開始規劃。
  *
- * 差異：Web 的中繼站（最多 5 個）暫不做，後端與 RouteSessionPort 已支援 `waypoints`，UI 留待之後；
+ * 停靠點（Web 的中繼站，最多 5 個）列在起訖點之間，點列重新搜尋、✕ 移除，長按拖曳或 VoiceOver 動作調整順序。
  * Web 錯誤以 toast 呈現，這裡顯示在面板內並以 VoiceOver 播報（iOS 沒有系統 toast）。
  */
 export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
@@ -130,6 +157,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const destination = useRouteSessionStore((s) => s.destination);
   const destinationName = useRouteSessionStore((s) => s.destinationName);
   const destinationVenuePlace = useRouteSessionStore((s) => s.destinationVenuePlace);
+  const stops = useRouteSessionStore((s) => s.stops);
   const venueArrival = useRouteSessionStore((s) => s.venueArrival);
   const venueLeg = useRouteSessionStore((s) => s.venueLeg);
   const indoorRoute = useRouteSessionStore((s) => s.indoorRoute);
@@ -219,6 +247,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     originVenuePlace,
     destination,
     destinationVenuePlace,
+    stops: stops.map((stop) => stop.position),
     travelMode,
     routeMode,
     avoidStairs: profileAvoidStairs,
@@ -229,7 +258,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
   const requestKey = planRequestKey(requestInputs);
   const localizedRequestKey = planRequestKey({ ...requestInputs, language: getAppLanguage() });
   const aiRequestKey = aiPlan ? planRequestKey({ origin: aiPlan.origin, destination: aiPlan.destination,
-    originVenuePlace: aiPlan.originVenuePlace, destinationVenuePlace: aiPlan.destinationVenuePlace,
+    originVenuePlace: aiPlan.originVenuePlace, destinationVenuePlace: aiPlan.destinationVenuePlace, stops: aiPlan.waypoints,
     travelMode: aiPlan.effectivePreferences.travelMode, routeMode: aiPlan.effectivePreferences.mode,
     avoidStairs: aiPlan.effectivePreferences.avoidStairs, requireElevator: aiPlan.effectivePreferences.requireElevator,
     canonicalPreferences: aiPlan.effectivePreferences }) : null;
@@ -255,6 +284,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
     const pending = computeRoute({
       ...(originVenuePlace ? { originVenuePlace } : { origin: originIsMyLocation ? (position ?? undefined) : origin ?? undefined }),
       ...(destinationVenuePlace ? { destinationVenuePlace } : destination ? { destination } : {}),
+      ...(stops.length ? { waypoints: stops.map((stop) => stop.position) } : {}),
       mode: routeMode,
       travelMode,
       avoidStairs: profileAvoidStairs,
@@ -308,11 +338,40 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
 
   const failureText = lastFailure ? t(ROUTE_FAILURE_I18N[lastFailure].key, { defaultValue: ROUTE_FAILURE_I18N[lastFailure].fallback }) : null;
   const routeModeLabel = t(ROUTE_MODE_LABEL_KEY[routeMode]);
+  const openSearch = (target: RouteSearchTarget) => {
+    setInputError(null);
+    router.push({
+      pathname: '/route-location-search',
+      params: target.field === 'stop'
+        ? { field: 'stop', ...(target.stopIndex === null ? {} : { stopIndex: String(target.stopIndex) }) }
+        : { field: target.field },
+    });
+  };
+  // 場館內出發的路線由室內路網規劃，後端不接受停靠點（`unsupported-venue-direction`）。
+  const stopsSupported = !isIndoorJourney && !originVenuePlace;
 
   return {
     originLabel: originIsMyLocation ? t('myLocation') : originName || t('origin'),
     originIsMyLocation,
     destinationLabel: hasDestination ? destinationName || t('destination') : null,
+    stops: stops.map((stop, index) => {
+      const badge = String(index + 1);
+      const label = stop.name || t('nativeRouteStopNumber', { n: badge });
+      const store = useRouteSessionStore.getState;
+      return {
+        key: stop.id,
+        badge,
+        label,
+        accessibilityLabel: t('nativeRouteStopA11y', { n: badge, name: label }),
+        onEdit: () => openSearch({ field: 'stop', stopIndex: index }),
+        onRemove: () => store().removeStop(index),
+        onMoveUp: index > 0 ? () => store().moveStop(index, index - 1) : null,
+        onMoveDown: index < stops.length - 1 ? () => store().moveStop(index, index + 1) : null,
+      };
+    }),
+    onMoveStop: (from, to) => useRouteSessionStore.getState().moveStop(from, to),
+    onAddStop: stopsSupported && stops.length < MAX_ROUTE_STOPS ? () => openSearch({ field: 'stop', stopIndex: null }) : null,
+    stopsFullHint: stopsSupported && stops.length >= MAX_ROUTE_STOPS ? t('nativeRouteStopsFull', { max: MAX_ROUTE_STOPS }) : null,
     venueHandoff: venueArrival && venueLeg ? { arrival: venueArrival, leg: venueLeg, destinationName } : null,
     indoorRoute: resultsFresh ? indoorRoute : null,
     isIndoorJourney,
@@ -361,10 +420,7 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       router.navigate({ pathname: '/routes/[index]', params: { index: indoorRoute ? '0' : String(index) } });
     },
     error: resolvingVenueParam ? null : inputError ?? failureText,
-    onEdit: (field) => {
-      setInputError(null);
-      router.push({ pathname: '/route-location-search', params: { field } });
-    },
+    onEdit: (field) => openSearch({ field }),
     onClearOrigin: () => useRouteSessionStore.getState().setOrigin(null),
     onClearDestination: () => useRouteSessionStore.getState().setDestination(null),
     onSwap: () => useRouteSessionStore.getState().swapEndpoints(),
@@ -390,6 +446,12 @@ export function useRoutePlanViewModel(params: RoutePlanParams): RoutePlanModel {
       routeOptions: t('nativeRouteSuggested'),
       close: t('close'),
       facilityFilterTitle: t('nativeRouteFacilityFilterTitle'),
+      addStop: t('nativeRouteAddStop'),
+      removeStop: t('nativeRouteRemoveStop'),
+      moveUp: t('nativeRouteMoveStopUp'),
+      moveDown: t('nativeRouteMoveStopDown'),
+      // Android 的拖曳把手對 TalkBack 隱藏，只能用動作選單排序。
+      reorderHint: t(Platform.OS === 'android' ? 'nativeRouteReorderStopHintActions' : 'nativeRouteReorderStopHint'),
     },
   };
 }

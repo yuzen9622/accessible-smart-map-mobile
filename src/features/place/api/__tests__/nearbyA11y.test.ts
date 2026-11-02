@@ -78,9 +78,13 @@ describe('fetchNearbyA11y', () => {
     await expect(fetchNearbyA11y({ point: { lat: 25, lng: 121.5 }, bounds })).rejects.toThrow('Invalid nearby accessibility facilities response');
   });
 
-  it.each([undefined, null, [], [120, 24, Number.NaN, 25]])('does not issue a request without valid bounds', async (invalid) => {
-    await expect(fetchNearbyA11y({ point: { lat: 25, lng: 121.5 }, bounds: invalid as unknown as PlaceBounds })).rejects.toThrow('Valid place bounds are required');
-    expect(mockFetchRequest).not.toHaveBeenCalled();
+  it.each([undefined, null, [], [120, 24, Number.NaN, 25]])('queries around the point without bbox when bounds are missing or invalid', async (invalid) => {
+    respond({ nearbyBathroom: [], nearbyMetroA11y: [], summary });
+    await fetchNearbyA11y({ point: { lat: 25, lng: 121.5 }, bounds: invalid as unknown as PlaceBounds });
+    const query = new URLSearchParams(String(mockFetchRequest.mock.calls[0][0]).split('?')[1]);
+    expect(query.get('lat')).toBe('25');
+    expect(query.get('lng')).toBe('121.5');
+    expect(query.has('bbox')).toBe(false);
   });
 
   it('propagates request errors so callers can distinguish failures from empty results', async () => {

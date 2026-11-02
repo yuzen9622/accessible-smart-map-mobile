@@ -2,8 +2,14 @@ import { fetchRequest } from '@/shared/api';
 
 import type { NearbyA11yCategoryStat, NearbyA11ySummary, PlaceBounds } from '../types/place';
 
-// 地點詳情只使用地點範圍查詢，不送出沒有 bbox 的附近設施請求。
+// 有地點範圍時以 bbox 查詢；地圖點擊、OSM 等沒有範圍的地點只是一個點，由後端查詢點周圍的固定半徑。
 const NEARBY_A11Y_PATH = '/api/v1/a11y/nearby-a11y';
+
+export function isValidPlaceBounds(bounds: PlaceBounds | null | undefined): bounds is PlaceBounds {
+  if (!Array.isArray(bounds) || bounds.length !== 4 || !bounds.every(Number.isFinite)) return false;
+  const [west, south, east, north] = bounds;
+  return west >= -180 && east <= 180 && south >= -90 && north <= 90 && west < east && south < north;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -37,14 +43,12 @@ export async function fetchNearbyA11y({
   signal,
 }: {
   point: { lat: number; lng: number };
-  bounds: PlaceBounds;
+  bounds?: PlaceBounds | null;
   lang?: string;
   signal?: AbortSignal;
 }): Promise<NearbyA11yData> {
-  if (!Array.isArray(bounds) || bounds.length !== 4 || !bounds.every(Number.isFinite)) {
-    throw new Error('Valid place bounds are required for nearby accessibility facilities');
-  }
-  const query = new URLSearchParams({ lat: String(point.lat), lng: String(point.lng), bbox: bounds.join(',') });
+  const query = new URLSearchParams({ lat: String(point.lat), lng: String(point.lng) });
+  if (isValidPlaceBounds(bounds)) query.set('bbox', bounds.join(','));
   if (lang) query.set('lang', lang);
   const response = await fetchRequest(`${NEARBY_A11Y_PATH}?${query.toString()}`, { signal });
   const data = response.data;

@@ -131,22 +131,34 @@ it('renders the actual NUTC response through the query, model and detail view', 
   expect(view.queryByText('附近暫無無障礙設施資料')).toBeNull();
 });
 
-it('does not request nearby facilities for a coordinate without place bounds', async () => {
+function nearbyQuery(call = 0) {
+  return new URLSearchParams(String(jest.mocked(fetchRequest).mock.calls[call][0]).split('?')[1]);
+}
+
+const pointResponse = { ok: true, data: {
+  nearbyBathroom: [{ _id: 'point', name: '點附近廁所' }], nearbyMetroA11y: [],
+  summary: { elevator: { count: 0, nearestMeters: null }, ramp: { count: 0, nearestMeters: null }, toilet: { count: 1, nearestMeters: 20 } },
+} } as Awaited<ReturnType<typeof fetchRequest>>;
+
+it('queries around a tapped coordinate without bbox', async () => {
+  jest.mocked(fetchRequest).mockResolvedValue(pointResponse);
   const coordinate: PlaceDetail = { kind: 'coordinate', address: 'clicked', position: { lat: 24.15, lng: 120.68 } };
   const { result } = await renderHook(() => usePlaceDetailViewModel(coordinate));
-  expect(fetchRequest).not.toHaveBeenCalled();
-  expect(result.current.nearbyRows).toEqual([]);
+  await waitFor(() => expect(result.current.nearbyRows[0]?.name).toBe('點附近廁所'));
+  expect(nearbyQuery().get('lat')).toBe('24.15');
+  expect(nearbyQuery().has('bbox')).toBe(false);
 });
 
 it.each([
   ['missing', undefined], ['null', null], ['inverted', [120.7, 24.1, 120.6, 24.2]],
   ['non-finite', [120.6, 24.1, Number.NaN, 24.2]], ['degenerate', [120.6, 24.1, 120.6, 24.2]],
-] as const)('does not request nearby facilities for %s bounds', async (_label, bounds) => {
+] as const)('queries around the point without bbox for %s bounds', async (_label, bounds) => {
+  jest.mocked(fetchRequest).mockResolvedValue(pointResponse);
   const placeBounds = bounds ? [...bounds] as PlaceResult['bounds'] : bounds;
   const { result } = await renderHook(() => usePlaceDetailViewModel(entry({ bounds: placeBounds })));
-  expect(fetchRequest).not.toHaveBeenCalled();
-  expect(result.current.nearbyRows).toEqual([]);
-  expect(result.current.checklist.filter((row) => row.key !== 'wheelchair').map((row) => row.tone)).toEqual(['unknown', 'unknown', 'unknown']);
+  await waitFor(() => expect(result.current.nearbyRows[0]?.name).toBe('點附近廁所'));
+  expect(fetchRequest).toHaveBeenCalledTimes(1);
+  expect(nearbyQuery().has('bbox')).toBe(false);
 });
 
 it('does not show a previous place when its request finishes after a place change', async () => {
@@ -167,17 +179,19 @@ it('does not show a previous place when its request finishes after a place chang
   expect(result.current.nearbyRows.map((row) => row.name)).toEqual(['新地點廁所']);
 });
 
-it('clears the prior result and does not query 150 metres when switching to a place without bounds', async () => {
-  jest.mocked(fetchRequest).mockResolvedValue({ ok: true, data: {
+it('clears the prior result and queries around the point when switching to a place without bounds', async () => {
+  jest.mocked(fetchRequest).mockResolvedValueOnce({ ok: true, data: {
     nearbyBathroom: [{ _id: 'old', name: '舊地點廁所' }], nearbyMetroA11y: [],
-  } } as Awaited<ReturnType<typeof fetchRequest>>);
+  } } as Awaited<ReturnType<typeof fetchRequest>>).mockResolvedValueOnce(pointResponse);
   const first = entry({ bounds: [121.5, 25, 121.6, 25.1] });
   const second = entry({ bounds: null });
   const { result, rerender } = await renderHook(({ selected }: { selected: PlaceDetail }) => usePlaceDetailViewModel(selected), { initialProps: { selected: first } });
   await waitFor(() => expect(result.current.nearbyRows[0]?.name).toBe('舊地點廁所'));
   await rerender({ selected: second });
-  expect(result.current.nearbyRows).toEqual([]);
-  expect(fetchRequest).toHaveBeenCalledTimes(1);
+  expect(result.current.nearbyRows.map((row) => row.name)).not.toContain('舊地點廁所');
+  await waitFor(() => expect(result.current.nearbyRows[0]?.name).toBe('點附近廁所'));
+  expect(fetchRequest).toHaveBeenCalledTimes(2);
+  expect(nearbyQuery(1).has('bbox')).toBe(false);
 });
 
 it('opens the CCTV sheet with the place coordinates', async () => {

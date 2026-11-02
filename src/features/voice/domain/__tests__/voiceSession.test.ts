@@ -3,7 +3,6 @@ import { createEchoGate } from '../echoGate';
 import {
   type VoiceCapture,
   type VoicePlayback,
-  type VoiceNavigationResumeState,
   VoiceSessionController,
   type VoiceSessionDeps,
   type VoiceSocket,
@@ -67,7 +66,8 @@ function createHarness(opts?: {
   identity?: string | null;
   token?: string | undefined;
   location?: { latitude: number; longitude: number } | null;
-  resumeState?: VoiceNavigationResumeState | null;
+  onUiCommand?: VoiceSessionDeps['onUiCommand'];
+  onSessionReady?: VoiceSessionDeps['onSessionReady'];
   history?: () => PriorTurn[];
   language?: VoiceSessionDeps['getLanguage'];
   conversation?: VoiceSessionDeps['getRouteConversation'];
@@ -84,8 +84,6 @@ function createHarness(opts?: {
   let token: string | undefined = opts?.token ?? 'token-1';
   let location: { latitude: number; longitude: number } | null =
     opts?.location ?? null;
-  let resumeState: VoiceNavigationResumeState | null =
-    opts?.resumeState ?? null;
 
   const onStatusChange = jest.fn();
   const onTranscript = jest.fn();
@@ -162,7 +160,8 @@ function createHarness(opts?: {
     onInterrupted,
     onToolEvent,
     onNavigationEvent,
-    getNavigationResumeState: () => resumeState,
+    onUiCommand: opts?.onUiCommand,
+    onSessionReady: opts?.onSessionReady,
   };
 
   const controller = new VoiceSessionController(deps);
@@ -191,9 +190,6 @@ function createHarness(opts?: {
     },
     setLocation: (v: { latitude: number; longitude: number } | null) => {
       location = v;
-    },
-    setResumeState: (v: VoiceNavigationResumeState | null) => {
-      resumeState = v;
     },
     triggerBlocked: () => blockedCb?.(),
     lastStatus: (): VoiceStatus | undefined =>
@@ -550,6 +546,7 @@ describe('VoiceSessionController', () => {
     expect(body).toEqual({
       type: 'session.start',
       token: 'tok-A',
+      clientNavigation: 1,
       userLocation: { latitude: 1, longitude: 2 },
     });
   });
@@ -1171,160 +1168,57 @@ describe('VoiceSessionController', () => {
     ).toBe(true);
   });
 
-  /* -------------------- WP4: nav.resume after reconnect ------------------- */
+  /* --------------- App-run navigation (clientNavigation: 1) --------------- */
 
-  const RESUME_STATE: VoiceNavigationResumeState = {
-    navigationId: 'nav-1',
-    routeVersion: 2,
-    routeToken: 'route-capability',
-    lastKnownStepIndex: 3,
-    currentPosition: { latitude: 25.0478, longitude: 121.517, heading: 90 },
-  };
-
-  function sentNavResume(socket: { sent: (string | ArrayBuffer)[] }) {
+  function sentJson(socket: { sent: (string | ArrayBuffer)[] }) {
     return socket.sent
       .filter((message): message is string => typeof message === 'string')
-      .map((message) => JSON.parse(message))
-      .filter((message) => message.type === 'nav.resume');
+      .map((message) => JSON.parse(message));
   }
 
-  it('WP4: the first session.ready never sends nav.resume', async () => {
-    const h = createHarness({ resumeState: RESUME_STATE });
-    h.controller.setNavigationRoute('route-capability');
+  it('declares App-run navigation in every session.start and reports each ready', async () => {
+    const onSessionReady = jest.fn();
+    const h = createHarness({ onSessionReady });
     h.controller.start();
     await bringToListening(h);
-
-    expect(sentNavResume(h.sockets[0])).toEqual([]);
-  });
-
-  it("WP4: a reconnect's session.ready sends nav.resume with the live snapshot", async () => {
-    const h = createHarness({ resumeState: RESUME_STATE });
-    h.controller.setNavigationRoute('route-capability');
-    h.controller.start();
-    await bringToListening(h);
-
+    expect(sentJson(h.sockets[0])[0]).toMatchObject({ type: 'session.start', clientNavigation: 1 });
     h.sockets[0].triggerClose(1006, '');
     await jest.advanceTimersByTimeAsync(1000);
-    expect(h.sockets).toHaveLength(2);
     h.sockets[1].triggerOpen();
     h.sockets[1].triggerMessage(readyMessage());
-
-    expect(sentNavResume(h.sockets[1])).toEqual([
-      {
-        type: 'nav.resume',
-        navigationId: 'nav-1',
-        routeVersion: 2,
-        routeToken: 'route-capability',
-        lastKnownStepIndex: 3,
-        currentPosition: { latitude: 25.0478, longitude: 121.517, heading: 90 },
-      },
-    ]);
-    // Route re-arm still precedes the resume request.
-    const types = h.sockets[1].sent
-      .filter((message): message is string => typeof message === 'string')
-      .map((message) => JSON.parse(message).type);
-    expect(types.indexOf('nav.setRoute')).toBeLessThan(
-      types.indexOf('nav.resume'),
-    );
+    expect(sentJson(h.sockets[1])[0]).toMatchObject({ clientNavigation: 1 });
+    expect(onSessionReady).toHaveBeenCalledTimes(2);
+    expect(sentJson(h.sockets[1]).some((message) => message.type === 'nav.resume')).toBe(false);
   });
 
-  it('WP4: nav.resume carries no currentPosition when there is no fix', async () => {
-    const h = createHarness({
-      resumeState: {
-        navigationId: 'nav-1',
-        routeVersion: 1,
-        routeToken: 'route-capability',
-        lastKnownStepIndex: 0,
-      },
-    });
+  it('runs ui.command through the App and acks what actually happened', async () => {
+    const onUiCommand = jest.fn((command) => command.action === 'start'
+      ? { ok: true as const, guidance: 'preview' as const }
+      : { ok: false as const, reason: 'NOT_AN_INDOOR_STEP' });
+    const h = createHarness({ onUiCommand });
     h.controller.start();
     await bringToListening(h);
-    h.sockets[0].triggerClose(4410, 'navigation-turn-timeout');
-    await jest.advanceTimersByTimeAsync(1000);
-    h.sockets[1].triggerOpen();
-    h.sockets[1].triggerMessage(readyMessage());
-
-    expect(sentNavResume(h.sockets[1])).toEqual([
-      {
-        type: 'nav.resume',
-        navigationId: 'nav-1',
-        routeVersion: 1,
-        routeToken: 'route-capability',
-        lastKnownStepIndex: 0,
-      },
+    h.sockets[0].triggerMessage(JSON.stringify({ type: 'ui.command', id: 'c1', action: 'start', routeToken: 'tok' }));
+    h.sockets[0].triggerMessage(JSON.stringify({ type: 'ui.command', id: 'c2', action: 'advance' }));
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(onUiCommand).toHaveBeenNthCalledWith(1, { action: 'start', routeToken: 'tok' });
+    const acks = sentJson(h.sockets[0]).filter((message) => message.type === 'ui.command.ack');
+    expect(acks).toEqual([
+      { type: 'ui.command.ack', id: 'c1', ok: true, guidance: 'preview' },
+      { type: 'ui.command.ack', id: 'c2', ok: false, reason: 'NOT_AN_INDOOR_STEP' },
     ]);
   });
 
-  it('WP4: no nav.resume when nothing is navigating on reconnect', async () => {
-    const h = createHarness({ resumeState: RESUME_STATE });
-    h.controller.start();
-    await bringToListening(h);
-
-    h.setResumeState(null); // navigation ended while the socket was down
-    h.sockets[0].triggerClose(1006, '');
-    await jest.advanceTimersByTimeAsync(1000);
-    h.sockets[1].triggerOpen();
-    h.sockets[1].triggerMessage(readyMessage());
-
-    expect(sentNavResume(h.sockets[1])).toEqual([]);
-  });
-
-  it('WP4: a restarted session treats its first ready as a first connect again', async () => {
-    const h = createHarness({ resumeState: RESUME_STATE });
-    h.controller.start();
-    await bringToListening(h);
-    h.sockets[0].triggerClose(1006, '');
-    await jest.advanceTimersByTimeAsync(1000);
-    h.sockets[1].triggerOpen();
-    h.sockets[1].triggerMessage(readyMessage());
-    expect(sentNavResume(h.sockets[1])).toHaveLength(1);
-
-    h.controller.end();
-    h.controller.start();
-    h.sockets[2].triggerOpen();
-    h.sockets[2].triggerMessage(readyMessage());
-    expect(sentNavResume(h.sockets[2])).toEqual([]);
-  });
-
-  it('WP4: nav.resume_ok and nav.resume_failed reach the navigation sink', () => {
+  it('sends engine state and cues', async () => {
     const h = createHarness();
     h.controller.start();
-    h.sockets[0].triggerOpen();
-
-    const events = [
-      {
-        type: 'nav.resume_ok',
-        navigationId: 'nav-1',
-        routeVersion: 2,
-        routeToken: 'token-v2',
-        currentStepIndex: 4,
-        totalSteps: 8,
-        onVehicle: false,
-        steps: [
-          {
-            index: 0,
-            instruction: '直行',
-            legType: 'WALK',
-            distanceM: 100,
-            isTransit: false,
-          },
-        ],
-      },
-      {
-        type: 'nav.resume_failed',
-        navigationId: 'nav-1',
-        code: 'SNAPSHOT_NOT_FOUND',
-        message: '導航階段已逾期',
-        retryable: false,
-      },
-    ];
-    for (const event of events) {
-      h.sockets[0].triggerMessage(JSON.stringify(event));
-    }
-
-    expect(h.onNavigationEvent.mock.calls.map((call) => call[0])).toEqual(
-      events,
-    );
+    await bringToListening(h);
+    h.controller.sendNavigationState({ active: true, currentStepIndex: 1 });
+    h.controller.sendNavigationCue('100 公尺後左轉');
+    expect(sentJson(h.sockets[0]).slice(-2)).toEqual([
+      { type: 'nav.state', active: true, currentStepIndex: 1 },
+      { type: 'nav.cue', text: '100 公尺後左轉' },
+    ]);
   });
 
   it('case 24: transcript events with final and utteranceId are passed to onTranscript', async () => {
@@ -1555,10 +1449,9 @@ describe('response language', () => {
     h.controller.end(); jest.useRealTimers();
   });
 
-  it('waits for the audio tail before changing language and resumes navigation without cancellation', async () => {
+  it('waits for the audio tail before changing language without cancelling navigation', async () => {
     let language: 'en' | 'zh-TW' = 'zh-TW';
-    const resumeState = { navigationId: 'nav-1', routeVersion: 2, routeToken: 'route-2', lastKnownStepIndex: 3 };
-    const h = createHarness({ language: () => language, resumeState });
+    const h = createHarness({ language: () => language });
     h.controller.start(); const old = h.sockets[0]; ready(old);
     h.captureCalls[0].resolve(); await Promise.resolve(); await Promise.resolve();
     old.triggerMessage(new ArrayBuffer(8)); h.playback.isPlaying.mockReturnValue(true);
@@ -1569,7 +1462,6 @@ describe('response language', () => {
     expect(old.closed).toBe(true); expect(h.captureCalls[0].stop).toHaveBeenCalledTimes(1);
     expect(h.sockets).toHaveLength(2); ready(h.sockets[1]);
     expect(start(h.sockets[1]).language).toBe('en');
-    expect(h.sockets[1].sent).toContain(JSON.stringify({ type: 'nav.resume', ...resumeState }));
     expect(old.sent.filter((m) => typeof m === 'string').join('')).not.toMatch(/session.end|nav.cancel/);
     h.controller.end();
   });

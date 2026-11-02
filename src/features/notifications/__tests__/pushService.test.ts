@@ -161,3 +161,29 @@ it('never retries POST under an account that replaced a refreshing session', asy
   expect(mockPost).toHaveBeenCalledTimes(1);
   expect(mockPost.mock.calls[0][1]).toBe('access-A');
 });
+it('a hung token request times out instead of blocking the sync queue', async () => {
+  jest.useFakeTimers();
+  try {
+    mockToken.mockImplementationOnce(() => new Promise(() => {}));
+    const hung = syncPushToken();
+    const next = syncPushToken();
+    expect(usePushStatus.getState().status).toBe('syncing');
+    await jest.advanceTimersByTimeAsync(15_000);
+    expect(await hung).toBe('tokenError');
+    expect(await next).toBe('registered');
+    expect(usePushStatus.getState().status).toBe('registered');
+  } finally {
+    jest.useRealTimers();
+  }
+});
+it('a superseded sync with no follow-up does not leave the status syncing', async () => {
+  const token = deferred<{ data: string }>();
+  const started = deferred<void>();
+  mockToken.mockImplementationOnce(() => { started.resolve(); return token.promise; });
+  const first = syncPushToken();
+  await started.promise;
+  login('A', 'access-rotated');
+  token.resolve({ data: 'Expo[token]' });
+  expect(await first).toBe('idle');
+  expect(usePushStatus.getState().status).toBe('idle');
+});

@@ -17,7 +17,7 @@ import { useAppTranslation } from '@/shared/i18n';
 import { logger } from '@/shared/logger';
 
 import { useRouteSessionStore } from '../store/routeSessionStore';
-import type { PlanField } from './useRoutePlanViewModel';
+import type { RouteSearchTarget } from './useRoutePlanViewModel';
 
 export interface RouteLocationRow {
   key: string;
@@ -26,7 +26,13 @@ export interface RouteLocationRow {
   onPress: () => void;
 }
 
-export function useRouteLocationSearchViewModel(field: PlanField, onClose: () => void) {
+const TITLE_KEY = { origin: 'nativeRouteSearchOrigin', destination: 'nativeRouteSearchDestination', stop: 'nativeRouteSearchStop' } as const;
+const UNRESOLVED_KEY = {
+  origin: 'selectOriginFromSuggestions', destination: 'selectDestinationFromSuggestions', stop: 'selectWaypointFromSuggestions',
+} as const;
+
+export function useRouteLocationSearchViewModel(target: RouteSearchTarget, onClose: () => void) {
+  const { field } = target;
   const { t } = useAppTranslation();
   const position = useUserLocationStore((state) => state.position);
   const history = useSavedPlacesStore((state) => state.searchHistory);
@@ -52,7 +58,9 @@ export function useRouteLocationSearchViewModel(field: PlanField, onClose: () =>
     useSavedPlacesStore.getState().addSearchHistory(entry);
     const store = useRouteSessionStore.getState();
     const name = placeDisplayName(entry);
-    if (entry.kind === 'venue-place') store.setVenueEndpoint(field, entry);
+    // 停靠點只送座標給後端；場館內的地點也以它的座標當停靠點。
+    if (target.field === 'stop') store.setStop(target.stopIndex, entry.position, name);
+    else if (entry.kind === 'venue-place') store.setVenueEndpoint(target.field, entry);
     else if (field === 'origin') store.setOrigin(entry.position, name);
     else store.setDestination(entry.position, name);
     close();
@@ -85,7 +93,7 @@ export function useRouteLocationSearchViewModel(field: PlanField, onClose: () =>
       const resolved = await resolveAutocompleteItem(item, autocomplete.sessionToken, controller.signal);
       if (controller.signal.aborted) return;
       if (!resolved) {
-        setResolveError(t(field === 'origin' ? 'selectOriginFromSuggestions' : 'selectDestinationFromSuggestions'));
+        setResolveError(t(UNRESOLVED_KEY[field]));
         return;
       }
       commit({ kind: 'coordinate', address: resolved.name, position: { lat: resolved.lat, lng: resolved.lng } });
@@ -135,7 +143,7 @@ export function useRouteLocationSearchViewModel(field: PlanField, onClose: () =>
       close();
     } : null,
     labels: {
-      title: t(field === 'origin' ? 'nativeRouteSearchOrigin' : 'nativeRouteSearchDestination'),
+      title: t(TITLE_KEY[field]),
       placeholder: t('nativeRouteLocationPlaceholder'),
       close: t('close'),
       clear: t('nativeRouteClearSearch'),

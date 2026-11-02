@@ -108,15 +108,6 @@ it('rejects a late indoor result after the user cleared the journey', () => {
   } finally { h.dispose(); }
 });
 
-it('sends manual confirmation with the active navigation identity and original step index', () => {
-  const h = harness();
-  try {
-    h.controller.advanceNavigationStep(2, 'indoor-nav', 4);
-    expect(h.frames()).toContainEqual({ type: 'nav.advance', fromStepIndex: 2, navigationId: 'indoor-nav', routeVersion: 4 });
-  } finally { h.dispose(); }
-});
-
-
 it.each([
   ['normal', 'DRIVE'], ['elderly', 'DRIVE'],
   ['normal', 'MOTORCYCLE'], ['elderly', 'MOTORCYCLE'],

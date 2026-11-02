@@ -410,6 +410,7 @@ export function applyAiRoutePlan(plan: AiRoutePlan): void {
       destination: plan.destination, destinationName: plan.destination.name,
       metroAlerts: plan.metroAlerts ?? null, transitAlerts: plan.transitAlerts ?? null,
       slopeConstraint: plan.slopeConstraint ?? null, routeWaypoints: plan.waypoints ?? [],
+      stops: (plan.waypoints ?? []).map((position, i) => ({ id: `ai-${plan.planId}-${i}`, position, name: '' })),
       travelMode: plan.effectivePreferences.travelMode, routeMode: plan.effectivePreferences.mode,
       originVenuePlace: plan.originVenuePlace ?? null, destinationVenuePlace: plan.destinationVenuePlace ?? null,
     },

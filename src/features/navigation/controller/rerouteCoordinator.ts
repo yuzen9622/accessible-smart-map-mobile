@@ -128,7 +128,6 @@ export function handleVoiceRerouteEvent(
   const currentVersion = currentRoute?.routeVersion ?? 0;
   const matchesCurrentVoiceRoute =
     !nav.arrived &&
-    nav.navigationSource === 'voice' &&
     currentNavigationId !== null &&
     nav.navigationId === currentNavigationId &&
     nav.routeVersion === currentVersion;

@@ -45,6 +45,15 @@ function fitMarkers(markers: AiMarker[]): void {
   mapCamera.fitBounds([west, south, east, north], MARKER_EDGE);
 }
 
+export type NavigationControl = (command: { action: 'start'; routeId?: string } | { action: 'stop' }) => Promise<{ ok: boolean }>;
+
+/** 導航的開始／結束由組裝層注入（ai 不 import navigation）；與按鈕走同一個流程。 */
+let navigationControl: NavigationControl | null = null;
+
+export function configureAiNavigationControl(control: NavigationControl): void {
+  navigationControl = control;
+}
+
 /** 開著的聊天畫面登記的「關掉自己」；沒登記＝聊天沒開（語音路徑）。 */
 let dismissChatScreen: (() => void) | null = null;
 
@@ -95,6 +104,16 @@ export function executeAction(action: UIAction): ActionResult {
     case 'close-chat':
       closeChat();
       return { ok: true };
+    case 'start-navigation':
+    case 'stop-navigation':
+      // 和按鈕同一個流程，稍後才完成；結果由導航畫面本身呈現
+      if (!navigationControl) return { ok: false, skipped: 'navigation-control-unavailable' };
+      return {
+        ok: true,
+        settled: navigationControl(action.type === 'start-navigation'
+          ? { action: 'start', ...(action.routeId ? { routeId: action.routeId } : {}) }
+          : { action: 'stop' }),
+      };
   }
 }
 

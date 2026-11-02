@@ -50,6 +50,7 @@ export type IconName =
   | 'loader'
   | 'swap'
   | 'plus'
+  | 'reorder'
   | 'chevronDown'
   | 'chevronUp'
   | 'route'

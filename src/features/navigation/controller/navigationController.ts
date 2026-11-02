@@ -86,6 +86,8 @@ export interface NavigationControllerDeps {
   arrivedText: () => string;
   /** 語音助理是否擁有導航播報（Phase 4 前沒有語音 feature，預設 false）。 */
   geminiOwnsSpeech?: () => boolean;
+  /** A live voice assistant takes announcements as cues, whatever the local toggle. */
+  cueChannelLive?: () => boolean;
   /** 播報擁有者改變時通知（Phase 4 由語音 feature 提供）；變成語音助理時立刻停掉本機 TTS。 */
   subscribeSpeechOwner?: (onChange: (geminiOwns: boolean) => void) => () => void;
   fetchInstructions?: (
@@ -156,6 +158,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
   const now = deps.now ?? Date.now;
   const fetchInstructions = deps.fetchInstructions ?? getRouteInstructions;
   const geminiOwnsSpeech = deps.geminiOwnsSpeech ?? (() => false);
+  const cueChannelLive = deps.cueChannelLive ?? (() => false);
 
   const geometry = createNavigationGeometryRuntime();
   let engine: Pick<EngineState, 'offRouteHits' | 'lastLegType'> = { offRouteHits: 0, lastLegType: null };
@@ -209,10 +212,10 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       && speech.language === deps.language() && speech.route === currentRoute()
       && speech.instructions === nav.instructions && speech.stepIndex === nav.currentStepIndex
       && speech.source === nav.navigationSource && speech.arrived === nav.arrived
-      && shouldSpeakLocally({
+      && (cueChannelLive() || shouldSpeakLocally({
       geminiOwnsSpeech: geminiOwnsSpeech(),
       localVoiceEnabled: nav.voiceEnabled,
-    });
+    }));
   }
 
   function deliverSpeech(speech: DeferredSpeech): void {

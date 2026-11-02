@@ -79,6 +79,8 @@ export function planRequestKey(args: {
   destination: { lat: number; lng: number } | null;
   destinationVenuePlace?: VenueDestination | null;
   originVenuePlace?: VenueDestination | null;
+  /** 停靠點依序經過，順序不同就是不同路線。 */
+  stops?: readonly { lat: number; lng: number }[];
   travelMode: string;
   routeMode: string;
   avoidStairs: boolean;
@@ -94,6 +96,7 @@ export function planRequestKey(args: {
     args.destinationVenuePlace
       ? venue(args.destinationVenuePlace)
       : args.destination ? point(args.destination) : '',
+    ...(args.stops?.length ? [`via:${args.stops.map(point).join(';')}`] : []),
     args.travelMode,
     args.routeMode,
     args.avoidStairs ? 'no-stairs' : 'stairs',

@@ -22,6 +22,7 @@ import { createPlayback } from '../audio/audioPlayback';
 import { beginVoiceAudio, releaseVoiceAudio } from '../audio/audioSession';
 import { createEchoGate } from '../domain/echoGate';
 import { buildVoiceTurns, toolMarkOf, voiceTurnsToPriorTurns, type VoiceToolMark } from '../domain/voiceConversation';
+import { logger } from '@/shared/logger';
 import { createVoiceBindings, type VoiceBindings } from '../domain/voiceSessionBindings';
 import { VoiceSessionController, type VoiceStatus } from '../domain/voiceSession';
 import { getVoiceStatusLabel } from '../domain/voiceStatus';
@@ -30,11 +31,10 @@ import { voiceLevels } from '../store/voiceLevels';
 import { useVoiceStore } from '../store/voiceStore';
 import { createVoiceSocket, voiceWsUrl } from '../transport/voiceSocket';
 import {
-  armCurrentRoute,
-  getVoiceNavigationResumeState,
   handleVoiceNavigationEvent,
+  handleVoiceUiCommand,
   installVoiceNavigationBridge,
-  onVoiceSessionTerminal,
+  onVoiceSessionReady,
   setBridgeTranslate,
 } from './voiceNavigationBridge';
 
@@ -98,7 +98,6 @@ function sharedHistory() {
 }
 
 function onStatus(status: VoiceStatus): void {
-  const muted = useVoiceStore.getState().isMuted;
   useVoiceStore.setState((state) => reduceStatus(state, status));
   // 只播報使用者需要知道的轉折，不逐一念 listening／model-speaking（會蓋過模型語音）
   if (['connecting', 'reconnecting', 'needs-login', 'ended', 'error'].includes(status.status)) announce(status);
@@ -106,7 +105,6 @@ function onStatus(status: VoiceStatus): void {
     useVoiceStore.setState({ activeTool: null, routeSyncState: 'idle' });
     mergeIntoChat();
     releaseVoiceAudio();
-    onVoiceSessionTerminal({ muted, reason: status.status === 'ended' ? 'ended' : 'lost' });
   }
 }
 
@@ -127,7 +125,8 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
     setMicLevel: (level) => voiceLevels.mic.set(level),
     executeAction,
     getRouteGeneration: () => getRouteSessionSnapshot().selectionGeneration,
-    onRouteError: () => controller?.rejectRouteResponse(),
+    // 對不上目前選路的結果只是不套用；語音對話繼續，之後的開始導航會如實回報找不到路線。
+    onRouteError: () => logger.warn('[voice] route tool result dropped: selection changed or invalid'),
     get t() {
       return translate;
     },
@@ -182,8 +181,9 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
     onTurnComplete: b.onTurnComplete,
     onInterrupted: b.onInterrupted,
     onToolEvent: b.onToolEvent,
-    onNavigationEvent: (event) => handleVoiceNavigationEvent(event, c.getStatus().status),
-    getNavigationResumeState: getVoiceNavigationResumeState,
+    onNavigationEvent: handleVoiceNavigationEvent,
+    onUiCommand: handleVoiceUiCommand,
+    onSessionReady: onVoiceSessionReady,
   });
   subscribeRouteSession((state, previous) => {
     if (state.selectRoute?.route !== previous.selectRoute?.route || state.isLoading !== previous.isLoading || state.invalidRouteTokens !== previous.invalidRouteTokens) c.syncRouteContext();
@@ -195,10 +195,9 @@ function ensureController(): { controller: VoiceSessionController; bindings: Voi
     setNavigationRoute: (token) => c.setNavigationRoute(token),
     startNavigation: (token, position) => c.startNavigation(token, position),
     sendNavigationPosition: (position) => c.sendNavigationPosition(position),
-    previewNavigationStep: (index) => c.previewNavigationStep(index),
-    advanceNavigationStep: (index, navigationId, routeVersion) => c.advanceNavigationStep(index, navigationId, routeVersion),
+    sendNavigationState: (state) => c.sendNavigationState(state),
+    sendNavigationCue: (text) => c.sendNavigationCue(text),
     cancelNavigation: () => c.cancelNavigation(),
-    setMuted: setVoiceMuted,
     getStatus: () => c.getStatus().status,
   });
   return { controller: c, bindings: b };
@@ -233,7 +232,6 @@ export function startVoiceSession(t: Translate): void {
   toolMarks = [];
   merged = false;
   useVoiceStore.setState((state) => ({ ...reduceSessionBoundary(state), routeSyncState: 'idle', activeTool: null, toolResults: [], viewMode: 'panel' }));
-  armCurrentRoute();
   c.start();
 }
 

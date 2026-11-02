@@ -35,7 +35,7 @@ jest.mock('@/features/map', () => ({
   ...jest.requireActual('../controller/sheetNavigation'),
   sheetController: { available: false },
 }));
-jest.mock('@/features/ai', () => ({ useAiBootstrap: () => {} }));
+jest.mock('@/features/ai', () => ({ useAiBootstrap: () => {}, configureAiNavigationControl: () => {} }));
 jest.mock('@/features/auth', () => ({ useAuthBootstrap: () => {} }));
 jest.mock('@/features/indoor', () => ({
   useIndoorStore: (select: (state: { guidance: { status: 'idle' } }) => unknown) => select({ guidance: { status: 'idle' } }),

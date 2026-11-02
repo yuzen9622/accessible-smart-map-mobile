@@ -4,10 +4,10 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
 import { BackHandler, Platform, View, useColorScheme, useWindowDimensions } from 'react-native';
 
-import { useAiBootstrap } from '@/features/ai';
+import { configureAiNavigationControl, useAiBootstrap } from '@/features/ai';
 import { useAuthBootstrap } from '@/features/auth';
 import { beginJourneyNavigation } from '@/composition/journeyNavigation';
-import { configureVoiceJourneyNavigation } from '@/features/voice/controller/voiceNavigationBridge';
+import { configureVoiceJourneyNavigation, runNavigationControl } from '@/features/voice/controller/voiceNavigationBridge';
 import { useIndoorStore } from '@/features/indoor';
 import {
   SHEET_UNDIMMED_DETENT_INDEX,
@@ -34,6 +34,7 @@ import { TYPE } from '@/shared/theme';
 export const unstable_settings = { initialRouteName: 'index' };
 
 configureVoiceJourneyNavigation(beginJourneyNavigation);
+configureAiNavigationControl(runNavigationControl);
 
 // 擋住原生 Splash 自動隱藏；交給 `SplashIntro` 接手並接動畫過渡（模組層級、越早越好）。
 void SplashScreen.preventAutoHideAsync();

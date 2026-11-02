@@ -4,230 +4,155 @@ import { closeChat, type Translate } from '@/features/ai';
 import { useUserLocationStore } from '@/features/map';
 import { useIndoorStore } from '@/features/indoor';
 import type { BackgroundLocationTexts } from '@/shared/location';
-import type { VenueRoute } from '@/shared/venue';
 import {
   beginNavigation,
   configureNavigationSpeechOwner,
   endNavigation,
-  geminiOwnsNavigationSpeech,
   handleVoiceRerouteEvent,
-  localRerouteCoordinator,
-  stopNavigationForVenueHandoff,
+  resolveStepMode,
   useNavStore,
 } from '@/features/navigation';
-import { clearNavigationRoute, getVenueHandoff, pinNavigationRoute, replaceNavigationRoute, selectRouteAt } from '@/features/route/controller/routeSessionPort';
+import { selectRouteAt } from '@/features/route/controller/routeSessionPort';
+import { buildCumulativePath } from '@/features/route/domain/geo';
 import { getRouteSessionSnapshot, subscribeRouteSession } from '@/features/route/hooks/useRouteSession';
 import { haversineMeters, type LatLng } from '@/shared/geo';
 import { appStateVisibility } from '@/shared/polling';
 
-import { toNavProgressUpdate } from '../domain/navProgress';
-import { toNavInstruction } from '../domain/voiceNavInstruction';
-import { handleNavigationExit } from '../domain/voiceNavigationExit';
 import {
-  filterApplicableNavigationEvents,
   isVoiceSpeechChannelLive,
   shouldAcceptAdvisoryEvent,
   type VoiceNavigationEvent,
   type VoiceNavigationPosition,
-  type VoiceNavigationResumeState,
+  type VoiceNavigationState,
   type VoiceStatusName,
+  type VoiceUiCommand,
+  type VoiceUiCommandResult,
 } from '../domain/voiceSession';
 import { useVoiceStore } from '../store/voiceStore';
 
 /**
- * 語音導航交接（移植自 Web `components/Voice/VoiceSessionHost.tsx` 的導航部分，commit f5027af）。
- * 後端（語音 gateway 的導航狀態機）負責 geofence 推進、改道與播報；這裡只把 `nav.*` 事件寫進 navigation 的 store，
- * 並把路線 token、節流過的位置、離開導航回報給後端。
- *
- * 與 Web 的差異：
- * - 語音叫出的導航用 `beginNavigation`（開導航畫面、背景定位），結束用 `endNavigation`；Web 只切 store。
- * - Web 的 toast 改為 `announceForAccessibility`（本 App 沒有 toast）。
- * - 喇叭仲裁經 navigation 的 `configureNavigationSpeechOwner` port 注入（navigation 不 import voice）。
+ * 語音助理與 App 導航的接點。導航只有一套：App 自己的引擎（預覽／即時、分段播報、偏航重算）。
+ * - 助理要開始／結束／確認室內一步時，後端送 `ui.command`，這裡呼叫和按鈕相同的函式，再回報實際結果。
+ * - 引擎狀態以 `nav.state` 回報，助理回答「何時轉彎」時讀它。
+ * - 引擎該播報時，語音通道活著就改送 `nav.cue` 讓助理以自然口語說，不另外開本機 TTS。
+ * - 後端只用路線與位置偵測危險、設施中斷與交通警報，回來的 advisory／改道套用到同一個引擎。
  */
 
 export interface VoiceNavigationUplink {
   setNavigationRoute(routeToken: string | null): void;
   startNavigation(routeToken: string, position?: VoiceNavigationPosition): void;
   sendNavigationPosition(position: VoiceNavigationPosition): void;
-  previewNavigationStep(index: number): void;
-  advanceNavigationStep?(fromStepIndex: number, navigationId: string, routeVersion: number): void;
+  sendNavigationState(state: VoiceNavigationState): void;
+  sendNavigationCue(text: string): void;
   cancelNavigation(): void;
-  setMuted(muted: boolean): void;
   getStatus(): VoiceStatusName;
 }
 
-/** 位置上行的距離節流（Web Host：與上次送出的點相距 < 10 m 不送）。 */
+/** 位置上行的距離節流（與上次送出的點相距 < 10 m 不送）。 */
 const POSITION_MIN_DISTANCE_M = 10;
+/** 只有距離在變的 `nav.state` 最多每 5 秒送一次；換步、開始、結束立即送。 */
+const STATE_MIN_INTERVAL_MS = 5_000;
 
 let uplink: VoiceNavigationUplink | null = null;
 let translate: Translate = (key) => key;
 let lastSent: LatLng | null = null;
-/** 後端以 `nav.stop(arrived)` 結束導航：離開導航時不再回送 `nav.cancel`。 */
-let serverStopped = false;
-let manualStartPending = false;
+let lastStateSentAt = 0;
 let installed = false;
 let beginJourney: (texts: BackgroundLocationTexts, kind?: 'handoff') => void = beginNavigation;
-type IndoorVoiceJourney =
-  | { kind: 'indoor'; route: VenueRoute; stepOffset: 0 }
-  | { kind: 'arrival'; route: VenueRoute; stepOffset: number; stage: 'handoff' | 'guiding' };
-let indoorVoiceJourney: IndoorVoiceJourney | null = null;
-let applyingIndoorStep = false;
 
 export function configureVoiceJourneyNavigation(start: typeof beginJourney): void {
   beginJourney = start;
 }
 
-function indoorVoiceActive(): boolean {
-  if (!indoorVoiceJourney || useNavStore.getState().navigationSource !== 'voice') return false;
-  const route = indoorVoiceJourney.kind === 'indoor'
-    ? getRouteSessionSnapshot().indoorRoute : getVenueHandoff()?.leg;
-  return route === indoorVoiceJourney.route;
-}
-
-function syncIndoorStep(index: number): void {
-  const journey = indoorVoiceJourney;
-  const state = useIndoorStore.getState();
-  if (!journey || !indoorVoiceActive() || state.plan.status !== 'ready' || state.plan.data !== journey.route) return;
-  const stepIndex = index - journey.stepOffset;
-  if (stepIndex < 0 || stepIndex > journey.route.steps.length) return;
-  applyingIndoorStep = true;
-  try {
-    let guidance = useIndoorStore.getState().guidance;
-    while (guidance.status === 'guiding' && guidance.stepIndex < stepIndex) {
-      useIndoorStore.getState().confirmStep();
-      guidance = useIndoorStore.getState().guidance;
-    }
-  } finally { applyingIndoorStep = false; }
-}
-
-function continueVenueArrival(index: number): boolean {
-  const handoff = getVenueHandoff();
-  if (!handoff) return false;
-  const nav = useNavStore.getState();
-  const steps = handoff.leg.steps;
-  const stepOffset = nav.instructions.length - steps.length;
-  if (!steps.length || stepOffset < 0 || index < stepOffset || index >= nav.instructions.length) return false;
-  if (!steps.every((step, localIndex) => {
-    const instruction = nav.instructions[stepOffset + localIndex];
-    return instruction?.driver === 'manual' && instruction.legType === 'VENUE' &&
-      instruction.venueStepType === step.type && (instruction.buildingId ?? null) === step.buildingId &&
-      (instruction.levelRef ?? null) === step.levelRef;
-  })) return false;
-  if (!getRouteSessionSnapshot().navigationRoute && !pinNavigationRoute()) return false;
-  indoorVoiceJourney = { kind: 'arrival', route: handoff.leg, stepOffset, stage: 'handoff' };
-  stopNavigationForVenueHandoff();
-  indoorVoiceJourney = { ...indoorVoiceJourney, stage: 'guiding' };
-  nav.setVoiceTransit(null);
-  lastSent = null;
-  beginJourney({ notificationTitle: translate('nativeNavNotificationTitle'), notificationBody: translate('nativeNavNotificationBody') }, 'handoff');
-  syncIndoorStep(index);
-  return true;
-}
-
-export function prepareIndoorVoiceNavigation(): void {
-  const session = getRouteSessionSnapshot();
-  const token = routeToken();
-  if (!session.indoorRoute || !token || indoorVoiceActive() || !uplink || !isVoiceSpeechChannelLive(uplink.getStatus())) return;
-  uplink.startNavigation(token);
+function voiceLive(): boolean {
+  return Boolean(uplink && isVoiceSpeechChannelLive(uplink.getStatus()));
 }
 
 function notice(message: string): void {
   if (message) AccessibilityInfo.announceForAccessibility(message);
 }
 
-function currentHeading(): number | null {
-  const nav = useNavStore.getState();
-  return nav.userHeading ?? nav.gpsHeading;
-}
-
 function positionPayload(position: LatLng): VoiceNavigationPosition {
-  const heading = currentHeading();
+  const nav = useNavStore.getState();
+  const heading = nav.userHeading ?? nav.gpsHeading;
   return { latitude: position.lat, longitude: position.lng, ...(heading == null ? {} : { heading }) };
 }
 
 function routeToken(): string | null {
-  const token = (getRouteSessionSnapshot().navigationRoute ?? getRouteSessionSnapshot().selectRoute)?.route.routeToken;
+  const session = getRouteSessionSnapshot();
+  const token = (session.navigationRoute ?? session.selectRoute)?.route.routeToken;
   return typeof token === 'string' && token.length > 0 ? token : null;
 }
 
 function routeIdentity(): { navigationId: string | null; routeVersion: number } {
-  const route = (getRouteSessionSnapshot().navigationRoute ?? getRouteSessionSnapshot().selectRoute)?.route;
+  const session = getRouteSessionSnapshot();
+  const route = (session.navigationRoute ?? session.selectRoute)?.route;
   const nav = useNavStore.getState();
   return { navigationId: route?.navigationId ?? nav.navigationId, routeVersion: route?.routeVersion ?? nav.routeVersion };
 }
 
-function voiceNavigationActive(): boolean {
-  const nav = useNavStore.getState();
-  return (nav.isNavigating || indoorVoiceActive()) && nav.navigationSource === 'voice' && !nav.arrived;
+function indoorGuiding(): boolean {
+  return useIndoorStore.getState().guidance.status === 'guiding';
 }
 
-/** 重連 `session.ready` 後的 `nav.resume` 內容；不是語音擁有的導航就回 null（不送 resume）。 */
-export function getVoiceNavigationResumeState(): VoiceNavigationResumeState | null {
-  if (!voiceNavigationActive()) return null;
+/** 與導航控制器開場相同的判斷：定位在路線附近＝即時，否則＝預覽。 */
+function startedGuidance(): 'preview' | 'live' {
+  const route = getRouteSessionSnapshot().navigationRoute?.route;
+  return resolveStepMode('preview', useUserLocationStore.getState().position, route ? buildCumulativePath(route.legs) : null);
+}
+
+/** App 導航引擎目前的狀態，給助理回答路線問題。 */
+export function currentNavigationState(): VoiceNavigationState {
+  const indoor = useIndoorStore.getState();
+  if (indoor.guidance.status === 'guiding' && indoor.plan.status === 'ready') {
+    const steps = indoor.plan.data.steps;
+    return {
+      active: true,
+      guidance: 'indoor',
+      travelMode: 'walk',
+      destination: getRouteSessionSnapshot().destinationName || null,
+      currentStepIndex: indoor.guidance.stepIndex,
+      distanceToNextM: steps[indoor.guidance.stepIndex]?.distanceM ?? null,
+      steps: steps.map((step, index) => ({
+        index, instruction: step.instruction, legType: 'VENUE', distanceM: step.distanceM, maneuver: step.maneuver ?? null,
+      })),
+    };
+  }
   const nav = useNavStore.getState();
-  const { navigationId, routeVersion } = routeIdentity();
-  const token = routeToken();
-  if (!navigationId || !token) return null;
-  const position = useUserLocationStore.getState().position;
+  if (!nav.isNavigating) return { active: false };
+  const session = getRouteSessionSnapshot();
   return {
-    navigationId,
-    routeVersion,
-    routeToken: token,
-    lastKnownStepIndex: nav.currentStepIndex,
-    ...(!indoorVoiceActive() && position ? { currentPosition: positionPayload(position) } : {}),
+    active: !nav.arrived,
+    arrived: nav.arrived,
+    guidance: nav.stepMode,
+    travelMode: session.effectivePreferences?.travelMode ?? session.travelMode,
+    destination: session.destinationName || null,
+    currentStepIndex: nav.currentStepIndex,
+    distanceToNextM: nav.distanceToNextM,
+    remainingDistanceM: nav.remainingM,
+    remainingDurationSec: nav.remainingDurationSec,
+    steps: nav.instructions.map((step, index) => ({
+      index,
+      instruction: step.text,
+      legType: step.legType,
+      distanceM: step.distanceM,
+      streetName: step.streetName,
+      maneuver: step.maneuver ?? null,
+    })),
   };
 }
 
-function resumedTransit(event: Extract<VoiceNavigationEvent, { type: 'nav.resume_ok' }>): ReturnType<typeof useNavStore.getState>['voiceTransit'] {
-  if (!event.onVehicle) return null;
-  const step = event.steps[event.currentStepIndex];
-  const route = getRouteSessionSnapshot().navigationRoute?.route;
-  const leg = route?.navigationId === event.navigationId && route.routeVersion === event.routeVersion && step?.legIndex != null
-    ? route.legs[step.legIndex]
-    : null;
-  if (!leg || leg.type !== step?.legType) return { onVehicle: true, leg: null };
-  switch (leg.type) {
-    case 'BUS':
-      return { onVehicle: true, leg: { mode: leg.type, from: leg.departureStop, to: leg.arrivalStop, routeName: leg.routeName } };
-    case 'METRO':
-      return { onVehicle: true, leg: { mode: leg.type, from: leg.departureStation, to: leg.arrivalStation, routeName: leg.lineName,
-        ...(leg.terminalStation ? { terminalStation: leg.terminalStation } : {}),
-        // 只帶標籤與來源英文名，不帶舊的 display 字：恢復後 HUD 依「現在」的介面語言重新選字。
-        ...Object.fromEntries(([
-          ['lineKey', leg.lineKey],
-          ['fromNameEn', leg.fromNameEn],
-          ['toNameEn', leg.toNameEn],
-          ['terminalNameEn', leg.terminalStation ? leg.terminalNameEn : undefined],
-        ] as const).filter(([, value]) => value?.trim())) } };
-    case 'TRA':
-    case 'THSR':
-      return { onVehicle: true, leg: { mode: leg.type, from: leg.departureStation, to: leg.arrivalStation, routeName: leg.trainNo } };
-    default:
-      return { onVehicle: true, leg: null };
-  }
+function publishState(force: boolean): void {
+  if (!voiceLive()) return;
+  const now = Date.now();
+  if (!force && now - lastStateSentAt < STATE_MIN_INTERVAL_MS) return;
+  lastStateSentAt = now;
+  uplink?.sendNavigationState(currentNavigationState());
 }
 
-function handBackToLocal(muted = useVoiceStore.getState().isMuted): void {
-  const arrival = indoorVoiceJourney?.kind === 'arrival';
-  const nav = useNavStore.getState();
-  nav.setVoiceEnabled(!muted);
-  nav.setVoiceTransit(null);
-  nav.setNavigationSource('local');
-  manualStartPending = false;
-  indoorVoiceJourney = null;
-  if (arrival) clearNavigationRoute();
-  lastSent = null;
-  serverStopped = false;
-}
-
-/**
- * 語音指定的候選（例：「導航 30 號那條」）不是畫面選的那條時，先切過去，地圖與 HUD 才會跟後端的步驟一致。
- * 正在導航別條（本機導航）或畫面沒有這條時切不過去，回 false。
- */
-function showStartedRoute(token: string | undefined): boolean {
-  if (!token) return true;
+/** 把畫面切到要導航的那條；畫面上沒有這條就回 false。 */
+function selectRouteByToken(token: string): boolean {
   const session = getRouteSessionSnapshot();
-  if (useNavStore.getState().isNavigating) return (session.navigationRoute ?? session.selectRoute)?.route.routeToken === token;
   if (session.selectRoute?.route.routeToken === token) return true;
   const index = session.computeRoutes?.findIndex((route) => route.routeToken === token) ?? -1;
   if (index < 0) return false;
@@ -235,124 +160,75 @@ function showStartedRoute(token: string | undefined): boolean {
   return true;
 }
 
-function startVoiceNavigation(event: Extract<VoiceNavigationEvent, { type: 'nav.start' }>): void {
-  manualStartPending = false;
-  if (!showStartedRoute(event.routeToken)) {
-    // 不接手畫面對不上的路線；請後端取消，免得它對著另一條路線播報
-    uplink?.cancelNavigation();
-    return;
-  }
-  const session = getRouteSessionSnapshot();
-  if (session.indoorRoute) {
-    indoorVoiceJourney = { kind: 'indoor', route: session.indoorRoute, stepOffset: 0 };
-    const nav = useNavStore.getState();
-    const route = session.selectRoute?.route;
-    nav.setNavigationSource('voice');
-    nav.setNavigationIdentity(route?.navigationId ?? null, route?.routeVersion ?? 0);
-    nav.setInstructions(event.steps.map(toNavInstruction), [], event.currentStepIndex);
-    nav.setVoiceEnabled(false);
-    serverStopped = false;
-    syncIndoorStep(event.currentStepIndex);
-    closeChat();
-    beginJourney({ notificationTitle: translate('nativeNavNotificationTitle'), notificationBody: translate('nativeNavNotificationBody') });
-    return;
-  }
-  indoorVoiceJourney = null;
+/** 開始導航有些部分稍後才完成（導航畫面接手室內步驟）；等到真的開始才回報。 */
+const START_SETTLE_MS = 6_000;
+
+function started(indoor: boolean): Promise<boolean> {
+  const done = () => (indoor ? indoorGuiding() : useNavStore.getState().isNavigating);
+  if (done()) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const finish = (ok: boolean) => {
+      clearTimeout(timer);
+      offNav();
+      offIndoor();
+      resolve(ok);
+    };
+    const timer = setTimeout(() => finish(false), START_SETTLE_MS);
+    const offNav = useNavStore.subscribe(() => { if (done()) finish(true); });
+    const offIndoor = useIndoorStore.subscribe(() => { if (done()) finish(true); });
+  });
+}
+
+async function startFromAssistant(token: string | undefined): Promise<VoiceUiCommandResult> {
   const nav = useNavStore.getState();
-  const instructions = event.steps.map(toNavInstruction);
-  const totalM = event.steps.reduce((sum, step) => sum + (step.distanceM ?? 0), 0);
-  const route = (getRouteSessionSnapshot().navigationRoute ?? getRouteSessionSnapshot().selectRoute)?.route;
-  // 先切來源再切 isNavigating：導航 controller 啟動時就看到「語音擁有」，不會搶播第一步
-  nav.setNavigationSource('voice');
-  nav.setVoiceTransit(null);
-  nav.setNavigationIdentity(route?.navigationId ?? null, route?.routeVersion ?? 0);
-  nav.setInstructions(instructions, [], event.currentStepIndex);
-  nav.setDistanceToNextM(event.steps[event.currentStepIndex]?.distanceM ?? null);
-  nav.setRouteTotalM(totalM || null);
-  nav.setRemainingM(totalM || null);
-  lastSent = null;
-  serverStopped = false;
-  // 與語音規劃路線（openRoutePanel）一致：關掉聊天 modal 讓使用者看到導航，語音改由浮動 pill 延續
+  if (nav.isNavigating && !nav.arrived && (!token || routeToken() === token)) return { ok: true, guidance: nav.stepMode };
+  if (!token) return { ok: false, reason: 'NO_ROUTE' };
+  if (nav.isNavigating) endNavigation();
+  if (!selectRouteByToken(token)) return { ok: false, reason: 'ROUTE_NOT_FOUND' };
   closeChat();
-  if (continueVenueArrival(event.currentStepIndex)) return;
-  if (!nav.isNavigating) {
-    beginNavigation({
-      notificationTitle: translate('nativeNavNotificationTitle'),
-      notificationBody: translate('nativeNavNotificationBody'),
-    });
-  }
-  useNavStore.getState().setVoiceEnabled(false);
-  const position = useUserLocationStore.getState().position;
-  if (position) {
-    lastSent = position;
-    uplink?.sendNavigationPosition(positionPayload(position));
+  const indoor = Boolean(getRouteSessionSnapshot().indoorRoute);
+  beginJourney({ notificationTitle: translate('nativeNavNotificationTitle'), notificationBody: translate('nativeNavNotificationBody') });
+  if (!(await started(indoor))) return { ok: false, reason: 'NAVIGATION_NOT_STARTED' };
+  return { ok: true, guidance: indoor ? 'indoor' : startedGuidance() };
+}
+
+/** 後端 `ui.command`：和按鈕走同一個函式，回報實際做了什麼。 */
+export async function handleVoiceUiCommand(command: VoiceUiCommand): Promise<VoiceUiCommandResult> {
+  switch (command.action) {
+    case 'start':
+      return startFromAssistant(command.routeToken);
+    case 'stop':
+      if (indoorGuiding()) useIndoorStore.getState().endGuidance();
+      endNavigation();
+      return { ok: true };
+    case 'advance':
+      if (!indoorGuiding()) return { ok: false, reason: 'NOT_AN_INDOOR_STEP' };
+      useIndoorStore.getState().confirmStep();
+      return { ok: true };
+    case 'repeat': {
+      const state = currentNavigationState();
+      const step = state.active ? state.steps?.[state.currentStepIndex ?? 0] : undefined;
+      if (!step) return { ok: false, reason: 'NO_ACTIVE_NAVIGATION' };
+      uplink?.sendNavigationCue(step.instruction);
+      return { ok: true };
+    }
   }
 }
 
-function handleEvent(event: VoiceNavigationEvent): void {
+/** 文字助理的開始／結束導航：`routeId` 省略＝目前選定路線。 */
+export function runNavigationControl(command: { action: 'start'; routeId?: string } | { action: 'stop' }): Promise<VoiceUiCommandResult> {
+  if (command.action === 'stop') return handleVoiceUiCommand({ action: 'stop' });
+  const session = getRouteSessionSnapshot();
+  const route = command.routeId
+    ? session.computeRoutes?.find((candidate) => candidate.routeId === command.routeId)
+    : (session.navigationRoute ?? session.selectRoute)?.route;
+  return startFromAssistant(route?.routeToken);
+}
+
+/** 後端只為警報送來的導航事件：advisory 與原因式改道，套用到 App 自己的引擎。 */
+export function handleVoiceNavigationEvent(event: VoiceNavigationEvent): void {
   const nav = useNavStore.getState();
-  if (indoorVoiceActive()) {
-    if (event.type === 'nav.step') {
-      if (event.currentStepIndex < (indoorVoiceJourney?.stepOffset ?? 0)) return;
-      nav.applyVoiceStep(event.currentStepIndex, event.instruction, event.remainingM);
-      syncIndoorStep(event.currentStepIndex);
-      return;
-    }
-    if (event.type === 'nav.resume_ok') {
-      if (event.navigationId !== nav.navigationId || event.routeVersion !== nav.routeVersion) return;
-      nav.setInstructions(event.steps.map(toNavInstruction), [], event.currentStepIndex);
-      syncIndoorStep(event.currentStepIndex);
-      return;
-    }
-    if (event.type === 'nav.arrived') {
-      syncIndoorStep((indoorVoiceJourney?.stepOffset ?? 0) + (indoorVoiceJourney?.route.steps.length ?? 0));
-      nav.setArrived(true);
-      return;
-    }
-    if (event.type === 'nav.stop') {
-      if (event.reason === 'arrived') {
-        syncIndoorStep((indoorVoiceJourney?.stepOffset ?? 0) + (indoorVoiceJourney?.route.steps.length ?? 0));
-        handBackToLocal();
-      } else {
-        handBackToLocal();
-        useIndoorStore.getState().endGuidance();
-      }
-      return;
-    }
-    if (event.type === 'nav.progress' || event.type === 'nav.offroute') return;
-  }
-  if (['nav.step', 'nav.transit', 'nav.offroute', 'nav.arrived', 'nav.stop'].includes(event.type) &&
-      (!nav.isNavigating || nav.navigationSource !== 'voice')) return;
   switch (event.type) {
-    case 'nav.start':
-      startVoiceNavigation(event);
-      return;
-    case 'nav.step': {
-      const step = nav.instructions[event.currentStepIndex];
-      if (!step || step.type === 'transit_alight' || !['BUS', 'METRO', 'TRA', 'THSR'].includes(step.legType)) nav.setVoiceTransit(null);
-      nav.applyVoiceStep(event.currentStepIndex, event.instruction, event.remainingM);
-      continueVenueArrival(event.currentStepIndex);
-      return;
-    }
-    case 'nav.progress': {
-      const { navigationId, routeVersion } = routeIdentity();
-      if (
-        nav.navigationSource === 'voice' &&
-        !nav.arrived &&
-        navigationId !== null &&
-        event.navigationId === navigationId &&
-        event.routeVersion === routeVersion
-      ) {
-        nav.setProgress(toNavProgressUpdate(event));
-      }
-      return;
-    }
-    case 'nav.transit':
-      nav.setVoiceTransit({ onVehicle: true, leg: event.leg });
-      return;
-    case 'nav.offroute':
-      nav.setIsOffRoute(true);
-      return;
     case 'nav.rerouting':
       handleVoiceRerouteEvent({
         type: 'nav.rerouting',
@@ -362,7 +238,6 @@ function handleEvent(event: VoiceNavigationEvent): void {
       });
       return;
     case 'nav.route_replaced':
-      if (nav.navigationId === event.navigationId && nav.routeVersion === event.previousRouteVersion) nav.setVoiceTransit(null);
       handleVoiceRerouteEvent({
         type: 'nav.route_replaced',
         replacement: {
@@ -371,7 +246,7 @@ function handleEvent(event: VoiceNavigationEvent): void {
           routeVersion: event.routeVersion,
           routeToken: event.routeToken,
           route: event.route,
-          instructions: event.instructions ?? event.steps.map(toNavInstruction),
+          instructions: event.instructions ?? [],
           warnings: event.warnings,
           currentStepIndex: event.currentStepIndex,
           reason: event.reason,
@@ -387,44 +262,6 @@ function handleEvent(event: VoiceNavigationEvent): void {
         retryable: event.retryable,
       });
       return;
-    case 'nav.resume_ok':
-      if (
-        !nav.isNavigating ||
-        nav.arrived ||
-        !nav.navigationId ||
-        event.navigationId !== nav.navigationId ||
-        event.routeVersion !== nav.routeVersion
-      ) {
-        return;
-      }
-      nav.setNavigationSource('voice');
-      nav.setVoiceEnabled(false);
-      nav.setInstructions(event.steps.map(toNavInstruction), [], event.currentStepIndex);
-      {
-        const active = getRouteSessionSnapshot().navigationRoute?.route;
-        if (active?.navigationId === event.navigationId && active.routeVersion === event.routeVersion) {
-          replaceNavigationRoute({ ...active, routeToken: event.routeToken });
-        }
-        const distances = event.steps.map((step) => step.distanceM);
-        const trustedDistances = distances.length > 0 && distances.every((distance) => distance != null && Number.isFinite(distance) && distance >= 0);
-        nav.setRouteTotalM(trustedDistances ? distances.reduce<number>((sum, distance) => sum + (distance ?? 0), 0) : null);
-        nav.setRemainingM(trustedDistances ? distances.slice(event.currentStepIndex).reduce<number>((sum, distance) => sum + (distance ?? 0), 0) : null);
-        const nextM = event.steps[event.currentStepIndex]?.distanceM;
-        nav.setDistanceToNextM(nextM != null && Number.isFinite(nextM) && nextM >= 0 ? nextM : null);
-        nav.setVoiceTransit(resumedTransit(event));
-      }
-      serverStopped = false;
-      lastSent = null;
-      continueVenueArrival(event.currentStepIndex);
-      return;
-    case 'nav.resume_failed': {
-      if (!voiceNavigationActive() || !nav.navigationId || event.navigationId !== nav.navigationId) return;
-      handBackToLocal();
-      notice(event.message);
-      const position = useUserLocationStore.getState().position;
-      if (position) void localRerouteCoordinator.triggerAutoReroute(position);
-      return;
-    }
     case 'nav.advisory': {
       const { navigationId, routeVersion } = routeIdentity();
       if (!shouldAcceptAdvisoryEvent(event, { isNavigating: nav.isNavigating, arrived: nav.arrived, navigationId, routeVersion })) return;
@@ -433,148 +270,83 @@ function handleEvent(event: VoiceNavigationEvent): void {
       if (critical) notice(critical.title);
       return;
     }
-    case 'nav.arrived':
-      nav.setArrived(true);
-      return;
-    case 'nav.stop':
-      lastSent = null;
-      if (event.reason === 'arrived') {
-        serverStopped = true;
-        nav.setArrived(true);
-      } else if (nav.isNavigating) {
-        // 先切回本機，離開導航時才不會回送 nav.cancel
-        nav.setNavigationSource('local');
-        endNavigation();
-      }
-      return;
-    case 'nav.error':
-      if (manualStartPending) handBackToLocal();
-      notice(event.message);
+    default:
       return;
   }
 }
 
-/** controller 的 `onNavigationEvent`：先依語音狀態過濾（語音通道不在時，播報型事件不接），再逐一套用。 */
-export function handleVoiceNavigationEvent(event: VoiceNavigationEvent, status: VoiceStatusName): void {
-  for (const applicable of filterApplicableNavigationEvents([event], status)) handleEvent(applicable);
-}
-
-/** 語音 session 結束（ended／needs-login／error）時，語音擁有的導航交回本機繼續（Web Host status effect）。 */
-export function onVoiceSessionTerminal(handoff?: { muted: boolean; reason: 'ended' | 'lost' }): void {
-  const nav = useNavStore.getState();
-  if (nav.navigationSource === 'voice' && (nav.isNavigating || indoorVoiceActive())) {
-    handBackToLocal(handoff?.muted);
-    if (handoff?.reason !== 'ended') notice(translate('voiceAssistantLostNavContinues'));
-  }
-}
-
-/**
- * 掛一次（controller 建立時）。位置供一般語音查詢及導航共用；session 閒置時不上傳。
- */
+/** 掛一次（controller 建立時）。 */
 export function installVoiceNavigationBridge(target: VoiceNavigationUplink): void {
   uplink = target;
   if (installed) return;
   installed = true;
 
-  // 選到的路線換了（含語音改道 replaceSelectedRoute）→ 重新 arm；controller 會在 session.ready 後補送
+  // 導航中的路線換了（偏航重算、警報改道）→ 讓後端跟上同一條路線偵測警報
   subscribeRouteSession((state, previous) => {
-    const next = state.navigationRoute ?? state.selectRoute;
-    const prev = previous.navigationRoute ?? previous.selectRoute;
-    if (next?.route.routeToken !== prev?.route.routeToken) uplink?.setNavigationRoute(routeToken());
-  });
-
-  useIndoorStore.subscribe((state, previous) => {
-    if (!indoorVoiceActive()) return;
-    const before = previous.guidance;
-    const after = state.guidance;
-    const cleared = state.routeClearRevision !== previous.routeClearRevision;
-    const ownsPlan = state.plan.status === 'ready' && state.plan.data === indoorVoiceJourney?.route;
-    if (cleared || (ownsPlan && !applyingIndoorStep && before.status === 'guiding' && after.status === 'idle')) {
-      uplink?.cancelNavigation();
-      handBackToLocal();
-      return;
-    }
-    if (state.plan.status !== 'ready' || state.plan.data !== indoorVoiceJourney?.route) return;
-    if (after.status === 'guiding' && before.status === 'idle') {
-      syncIndoorStep(useNavStore.getState().currentStepIndex);
-      return;
-    }
-    if (applyingIndoorStep || before.status !== 'guiding' || before === after) return;
-    const nextIndex = after.status === 'guiding' ? after.stepIndex : state.plan.data.steps.length;
-    if (nextIndex !== before.stepIndex + 1) return;
-    const { navigationId, routeVersion } = routeIdentity();
-    if (navigationId) uplink?.advanceNavigationStep?.(before.stepIndex + (indoorVoiceJourney?.stepOffset ?? 0), navigationId, routeVersion);
+    if (!useNavStore.getState().isNavigating) return;
+    if (state.navigationRoute?.route.routeToken !== previous.navigationRoute?.route.routeToken) uplink?.setNavigationRoute(routeToken());
   });
 
   useUserLocationStore.subscribe((state, previous) => {
     const position = state.position;
-    if (indoorVoiceActive() || !position || position === previous.position || !isVoiceSpeechChannelLive(uplink?.getStatus() ?? 'idle')) return;
+    if (!position || position === previous.position || !voiceLive()) return;
     if (lastSent && haversineMeters(lastSent, position) < POSITION_MIN_DISTANCE_M) return;
     lastSent = position;
     uplink?.sendNavigationPosition(positionPayload(position));
   });
 
-  // 回到前景：下一個位置一律送出（背景期間的 GPS 不一定都有上行）
   appStateVisibility.subscribe((active) => {
     if (active) lastSent = null;
   });
 
-  // 使用者離開導航：語音擁有且不是後端自己結束的，回報 nav.cancel 並解除靜音（Web handleNavigationExit）
   useNavStore.subscribe((state, previous) => {
-    if (!previous.isNavigating || state.isNavigating) return;
-    if (indoorVoiceJourney?.kind === 'arrival' && indoorVoiceJourney.stage === 'handoff') return;
-    handleNavigationExit(
-      { navigationSource: previous.navigationSource, serverStopped },
-      {
-        cancelNavigation: () => uplink?.cancelNavigation(),
-        setNavigationSource: (source) => useNavStore.getState().setNavigationSource(source),
-        setMuted: (muted) => uplink?.setMuted(muted),
-      },
-    );
-    lastSent = null;
-    serverStopped = false;
-    manualStartPending = false;
+    if (previous.isNavigating && !state.isNavigating) {
+      // 不論按鈕或助理結束：後端停止追蹤
+      if (voiceLive()) uplink?.cancelNavigation();
+      lastSent = null;
+    }
+    const changed = state.isNavigating !== previous.isNavigating || state.currentStepIndex !== previous.currentStepIndex
+      || state.stepMode !== previous.stepMode || state.arrived !== previous.arrived || state.instructions !== previous.instructions;
+    if (changed) publishState(true);
+    else if (state.distanceToNextM !== previous.distanceToNextM) publishState(false);
   });
 
-  // 喇叭仲裁：語音擁有導航且語音通道活著時，本機 TTS 讓位；HUD 喇叭鈕改切語音助理靜音
+  useIndoorStore.subscribe((state, previous) => {
+    if (state.guidance !== previous.guidance) publishState(true);
+  });
+
   configureNavigationSpeechOwner({
+    // 開始導航（按鈕或助理）：告訴後端這條路線與目前位置，以便偵測沿路警報
     prepareNavigation: () => {
-      const nav = useNavStore.getState();
       const token = routeToken();
-      if (nav.navigationSource === 'voice' || !token || !uplink || !isVoiceSpeechChannelLive(uplink.getStatus())) return;
-      nav.setNavigationSource('voice');
-      nav.setVoiceEnabled(false);
-      manualStartPending = true;
-      serverStopped = false;
+      if (!token || !voiceLive()) return;
       const position = useUserLocationStore.getState().position;
       lastSent = position;
-      uplink.startNavigation(token, position ? positionPayload(position) : undefined);
+      uplink?.startNavigation(token, position ? positionPayload(position) : undefined);
     },
-    previewStep: (index) => {
-      if (voiceNavigationActive() && isVoiceSpeechChannelLive(uplink?.getStatus() ?? 'idle')) uplink?.previewNavigationStep(index);
+    cueChannelLive: voiceLive,
+    // 助理靜音時吞掉這句，不改由本機 TTS 念（不會兩個聲音）
+    speakCue: (text) => {
+      if (!voiceLive()) return false;
+      if (!useVoiceStore.getState().isMuted) uplink?.sendNavigationCue(text);
+      return true;
     },
-    geminiOwnsSpeech: () => geminiOwnsNavigationSpeech(useNavStore.getState().navigationSource, useVoiceStore.getState().status.status),
+    geminiOwnsSpeech: () => false,
     geminiMuted: () => useVoiceStore.getState().isMuted,
-    subscribe: (onChange) => {
-      const offNav = useNavStore.subscribe((state, previous) => {
-        if (state.navigationSource !== previous.navigationSource) onChange();
-      });
-      const offVoice = useVoiceStore.subscribe((state, previous) => {
-        if (state.status.status !== previous.status.status || state.isMuted !== previous.isMuted) onChange();
-      });
-      return () => {
-        offNav();
-        offVoice();
-      };
-    },
-    toggleGeminiMute: () => uplink?.setMuted(!useVoiceStore.getState().isMuted),
+    subscribe: () => () => {},
+    toggleGeminiMute: () => {},
   });
 }
 
-/** 新 session 開始：arm 目前選到的路線（controller 保留到 session.ready 再送）。 */
-export function armCurrentRoute(): void {
+/** 語音 session 就緒（含重連）：補送目前路線與導航狀態。 */
+export function onVoiceSessionReady(): void {
   lastSent = null;
-  uplink?.setNavigationRoute(routeToken());
+  if (useNavStore.getState().isNavigating) {
+    const token = routeToken();
+    const position = useUserLocationStore.getState().position;
+    if (token) uplink?.startNavigation(token, position ? positionPayload(position) : undefined);
+  }
+  publishState(true);
 }
 
 export function setBridgeTranslate(t: Translate): void {

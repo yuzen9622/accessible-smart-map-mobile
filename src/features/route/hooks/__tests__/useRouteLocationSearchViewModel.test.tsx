@@ -46,7 +46,7 @@ beforeEach(async () => {
 afterEach(() => jest.useRealTimers());
 
 it.each(['origin', 'destination'] as const)('shows shared history immediately for %s, without input or a network request', async (field) => {
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel(field, close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: field }, close));
   expect(result.current.labels.title).toBe(field === 'origin' ? '選擇起點' : '選擇終點');
   expect(result.current.query).toBe('');
   expect(result.current.rows.map((row) => row.title)).toEqual(['台北車站', '大安森林公園']);
@@ -55,7 +55,7 @@ it.each(['origin', 'destination'] as const)('shows shared history immediately fo
 });
 
 it.each(['origin', 'destination'] as const)('selects history as %s, persists recency and leaves the other endpoint unchanged', async (field) => {
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel(field, close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: field }, close));
   await act(() => result.current.rows[1].onPress());
   expect(useRouteSessionStore.getState()[field]).toEqual(park.position);
   expect(useRouteSessionStore.getState()[field === 'origin' ? 'destination' : 'origin']).toBeNull();
@@ -65,7 +65,7 @@ it.each(['origin', 'destination'] as const)('selects history as %s, persists rec
 });
 
 it('finishes a history selection only once even when tapped repeatedly', async () => {
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel('destination', close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: 'destination' }, close));
   await act(() => { result.current.rows[0].onPress(); result.current.rows[1].onPress(); result.current.onClose(); });
   expect(useRouteSessionStore.getState().destination).toEqual(station.position);
   expect(close).toHaveBeenCalledTimes(1);
@@ -73,14 +73,14 @@ it('finishes a history selection only once even when tapped repeatedly', async (
 
 it('shows an explicit empty-history state', async () => {
   useSavedPlacesStore.getState().clearSearchHistory();
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel('destination', close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: 'destination' }, close));
   expect(result.current.rows).toEqual([]);
   expect(result.current.labels.empty).toContain('尚無搜尋紀錄');
   expect(result.current.loading).toBe(false);
 });
 
 it('cancels without changing either endpoint or history', async () => {
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel('destination', close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: 'destination' }, close));
   await act(() => { result.current.onQueryChange('unsaved'); result.current.onClose(); });
   expect(useRouteSessionStore.getState().destination).toBeNull();
   expect(loadPersistedPlaceState().searchHistory).toEqual([station, park]);
@@ -89,17 +89,17 @@ it('cancels without changing either endpoint or history', async () => {
 
 it('uses the current location only for origin without adding a fake history entry', async () => {
   useRouteSessionStore.getState().setOrigin(park.position, park.address);
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel('origin', close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: 'origin' }, close));
   await act(() => result.current.onUseMyLocation?.());
   expect(useRouteSessionStore.getState().origin).toBeNull();
   expect(loadPersistedPlaceState().searchHistory).toEqual([station, park]);
-  const destination = await renderHook(() => useRouteLocationSearchViewModel('destination', close));
+  const destination = await renderHook(() => useRouteLocationSearchViewModel({ field: 'destination' }, close));
   expect(destination.result.current.onUseMyLocation).toBeNull();
 });
 
 it('renders tappable history before typing, then suggestions, and saves the selected point', async () => {
   function Search() {
-    const model = useRouteLocationSearchViewModel('destination', close);
+    const model = useRouteLocationSearchViewModel({ field: 'destination' }, close);
     return <RouteLocationSearchPanel model={model} />;
   }
   await render(<Search />);
@@ -117,7 +117,7 @@ it('renders tappable history before typing, then suggestions, and saves the sele
 });
 
 it('hides stale suggestions during debounce and returns to history immediately after clearing', async () => {
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel('destination', close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: 'destination' }, close));
   await act(() => result.current.onQueryChange('101'));
   await act(async () => jest.advanceTimersByTime(400));
   expect(result.current.rows[0].title).toBe('台北101');
@@ -133,7 +133,7 @@ it('reuses the autocomplete token for details and ignores a response after dismi
   jest.mocked(getPlaceAutocomplete).mockResolvedValue(response([{ ...suggestion, location: null }]));
   let resolve: (value: Awaited<ReturnType<typeof getPlaceDetails>>) => void = () => {};
   jest.mocked(getPlaceDetails).mockImplementation(() => new Promise((done) => { resolve = done; }));
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel('destination', close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: 'destination' }, close));
   await act(() => result.current.onQueryChange('101'));
   await act(async () => jest.advanceTimersByTime(400));
   await act(() => { result.current.rows[0].onPress(); result.current.rows[0].onPress(); });
@@ -150,7 +150,7 @@ it('reuses the autocomplete token for details and ignores a response after dismi
 it('keeps resolution failures in the sheet and allows selecting again', async () => {
   jest.mocked(getPlaceAutocomplete).mockResolvedValue(response([{ ...suggestion, location: null }]));
   jest.mocked(getPlaceDetails).mockRejectedValueOnce(new Error('offline'));
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel('origin', close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: 'origin' }, close));
   await act(() => result.current.onQueryChange('101'));
   await act(async () => jest.advanceTimersByTime(400));
   await act(() => result.current.rows[0].onPress());
@@ -166,7 +166,7 @@ it('keeps resolution failures in the sheet and allows selecting again', async ()
 
 it('distinguishes network errors from no results and retries the same query', async () => {
   jest.mocked(getPlaceAutocomplete).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(response([]));
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel('destination', close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: 'destination' }, close));
   await act(() => result.current.onQueryChange('missing'));
   await act(async () => jest.advanceTimersByTime(400));
   expect(result.current.error).toContain('連線失敗');
@@ -183,7 +183,7 @@ it.each(['origin', 'destination'] as const)('keeps fresh venue identity when cho
   useSavedPlacesStore.getState().addSearchHistory(toVenuePlaceDetail(detail, detail.places[1]));
   const latest = createVenueDetail(); latest.version = 4;
   jest.mocked(loadVenue).mockResolvedValue(latest);
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel(field, close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: field }, close));
   expect(result.current.rows[0].subtitle).toBe('測試館・2F');
   await act(async () => result.current.rows[0].onPress());
   expect(useRouteSessionStore.getState()[field === 'origin' ? 'originVenuePlace' : 'destinationVenuePlace']).toMatchObject({
@@ -198,7 +198,7 @@ it('mixes rooms with ordinary endpoint suggestions and does not commit removed i
   const detail = createVenueDetail();
   jest.mocked(loadVenues).mockResolvedValue([{ ...detail, buildings: detail.buildings.map(({ id, name }) => ({ id, name })) }]);
   await refreshVenuePlaceCatalog();
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel('destination', close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: 'destination' }, close));
   await act(() => result.current.onQueryChange('空間'));
   await act(async () => jest.advanceTimersByTime(400));
   expect(result.current.rows.map((row) => row.title)).toEqual(['起點空間', '終點空間', '台北101']);
@@ -215,7 +215,7 @@ it('does not change an endpoint when an indoor resolution finishes after dismiss
   const historyBefore = loadPersistedPlaceState().searchHistory;
   let finish: (value: typeof detail) => void = () => {};
   jest.mocked(loadVenue).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
-  const { result } = await renderHook(() => useRouteLocationSearchViewModel('destination', close));
+  const { result } = await renderHook(() => useRouteLocationSearchViewModel({ field: 'destination' }, close));
   await act(() => result.current.rows[0].onPress());
   const signal = jest.mocked(loadVenue).mock.calls.at(-1)?.[1];
   await act(() => result.current.onDismiss());
@@ -224,4 +224,18 @@ it('does not change an endpoint when an indoor resolution finishes after dismiss
   expect(useRouteSessionStore.getState().destinationVenuePlace).toBeNull();
   expect(loadPersistedPlaceState().searchHistory).toEqual(historyBefore);
   expect(close).not.toHaveBeenCalled();
+});
+
+it('adds a chosen place as the next stop, then edits that stop in place', async () => {
+  useRouteSessionStore.getState().setDestination(station.position, '台北車站');
+  const added = await renderHook(() => useRouteLocationSearchViewModel({ field: 'stop', stopIndex: null }, close));
+  expect(added.result.current.labels.title).toBe('選擇停靠點');
+  expect(added.result.current.onUseMyLocation).toBeNull();
+  await act(() => added.result.current.rows[1].onPress());
+  expect(useRouteSessionStore.getState().stops.map(({ name, position }) => ({ name, position }))).toEqual([{ name: '大安森林公園', position: park.position }]);
+  expect(useRouteSessionStore.getState().destination).toEqual(station.position);
+
+  const edited = await renderHook(() => useRouteLocationSearchViewModel({ field: 'stop', stopIndex: 0 }, close));
+  await act(() => edited.result.current.rows.find((row) => row.title === '台北車站')?.onPress());
+  expect(useRouteSessionStore.getState().stops.map((stop) => stop.name)).toEqual(['台北車站']);
 });

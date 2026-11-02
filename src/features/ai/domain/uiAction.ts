@@ -62,6 +62,9 @@ interface CloseChatAction {
 
 export type UIAction =
   | { type: 'route-error'; message?: string }
+  /** 文字助理要 App 開始導航：和開始導航按鈕同一個流程（`routeId` 省略＝目前選定路線）。 */
+  | { type: 'start-navigation'; routeId?: string }
+  | { type: 'stop-navigation' }
   | ShowMarkersAction
   | ClearMarkersAction
   | FlyToAction
@@ -72,4 +75,6 @@ export type UIAction =
 export interface ActionResult {
   ok: boolean;
   skipped?: string;
+  /** 稍後才完成的動作（開始導航）完成時 resolve。 */
+  settled?: Promise<unknown>;
 }

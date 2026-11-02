@@ -1,5 +1,4 @@
 import { startVoiceSession, endVoiceSession, dismissVoiceSession, toggleVoiceMute } from '@/features/voice/controller/voiceController';
-import { onVoiceSessionTerminal } from '@/features/voice/controller/voiceNavigationBridge';
 import { useVoiceStore } from '@/features/voice/store/voiceStore';
 import { isVoiceSessionActive, shouldShowVoicePill } from '@/features/voice/domain/voiceStatus';
 import { registerChatDismiss } from '@/features/ai/controller/actionExecutor';
@@ -53,8 +52,8 @@ jest.mock('@/features/voice/audio/audioPlayback', () => ({ createPlayback: () =>
 jest.mock('@/features/voice/audio/audioSession', () => ({ beginVoiceAudio: jest.fn(), releaseVoiceAudio: jest.fn() }));
 jest.mock('@/features/voice/store/voiceLevels', () => ({ voiceLevels: { mic: { set: jest.fn() }, model: { set: jest.fn() } } }));
 jest.mock('@/features/voice/controller/voiceNavigationBridge', () => ({
-  armCurrentRoute: jest.fn(), getVoiceNavigationResumeState: () => null, handleVoiceNavigationEvent: jest.fn(),
-  installVoiceNavigationBridge: jest.fn(), onVoiceSessionTerminal: jest.fn(), setBridgeTranslate: jest.fn(),
+  handleVoiceNavigationEvent: jest.fn(), handleVoiceUiCommand: jest.fn(), onVoiceSessionReady: jest.fn(),
+  installVoiceNavigationBridge: jest.fn(), setBridgeTranslate: jest.fn(),
 }));
 jest.mock('@/features/voice/transport/voiceSocket', () => ({
   voiceWsUrl: () => 'wss://voice.test/voice',
@@ -125,17 +124,15 @@ describe('voice session recovery through the production controller', () => {
     ['missing result', undefined, {}],
     ['wrong turn', routePlanFixture(), { turnId: 'different-turn' }],
     ['invalid success shape', { ok: true, routes: [] }, {}],
-  ])('%s stops unsafe output but keeps an actionable voice error visible', async (_label, result, extra) => {
+  ])('drops a %s without applying it or hanging up the conversation', async (_label, result, extra) => {
     await speaking(); toolCall(); toolResult(result, extra);
-    expect(state()).toMatchObject({ status: 'error', visible: true, sentEnd: false, dismissed: false });
-    expect(mockPlayback.clear).toHaveBeenCalled();
-    expect(useVoiceStore.getState().status.code).toBe('ROUTE_RESPONSE_INVALID');
-    expect(useVoiceStore.getState().activeTool).toBeNull();
+    expect(state()).toMatchObject({ status: 'model-speaking', visible: true, sentEnd: false, dismissed: false });
     expect(mockApply).not.toHaveBeenCalled();
-    mockPlayback.play.mockClear(); event(new ArrayBuffer(480));
-    expect(mockPlayback.play).not.toHaveBeenCalled();
-    startVoiceSession(key => key); await ready();
-    expect(state()).toMatchObject({ status: 'listening', visible: true, routeSync: 'synced' });
+    expect(mockSockets).toHaveLength(1);
+    event({ type: 'turn.complete' });
+    event({ type: 'tool_call', name: 'planAccessibleRoute', callId: 'call-b', turnId: 'turn-b' });
+    toolResult(routePlanFixture(), { callId: 'call-b', turnId: 'turn-b' });
+    expect(mockApply).toHaveBeenCalledTimes(1);
   });
   it('accepts a later valid route after a failed request without restarting voice', async () => {
     await speaking(); toolCall(); toolResult({ ok: false, error: 'Starting point required' });
@@ -146,9 +143,9 @@ describe('voice session recovery through the production controller', () => {
     expect(state()).toMatchObject({ visible: true, sentEnd: false });
     expect(mockSockets).toHaveLength(1);
   });
-  it('never treats an uncorrelated failure as a safe continuation', async () => {
+  it('never applies an uncorrelated result', async () => {
     await speaking(); toolResult({ ok: false, error: 'Starting point required' });
-    expect(state()).toMatchObject({ status: 'error', visible: true, sentEnd: false });
+    expect(state()).toMatchObject({ visible: true, sentEnd: false });
     expect(mockApply).not.toHaveBeenCalled();
   });
   it('selection changes published through the real subscription suppress stale results without hanging up', async () => {
@@ -249,16 +246,7 @@ describe('voice session recovery through the production controller', () => {
   });
 });
 
-it('hands the pre-terminal mute preference to navigation before the voice UI resets it', async () => {
-  await speaking();
-  toggleVoiceMute();
-  expect(useVoiceStore.getState().isMuted).toBe(true);
-  endVoiceSession();
-  expect(useVoiceStore.getState().isMuted).toBe(false);
-  expect(onVoiceSessionTerminal).toHaveBeenLastCalledWith({ muted: true, reason: 'ended' });
-});
-
-it('holds audio release and navigation handoff until the end cue finishes, preserving mute', async () => {
+it('holds audio release until the end cue finishes, preserving mute', async () => {
   let finishEnd = () => {};
   mockPlayCue = jest.fn(kind => kind === 'start' ? Promise.resolve() : new Promise<void>(resolve => { finishEnd = resolve; }));
   await speaking();
@@ -267,14 +255,12 @@ it('holds audio release and navigation handoff until the end cue finishes, prese
   expect(useVoiceStore.getState().status.status).toBe('ending');
   expect(useVoiceStore.getState().isMuted).toBe(true);
   expect(releaseVoiceAudio).not.toHaveBeenCalled();
-  expect(onVoiceSessionTerminal).not.toHaveBeenCalled();
   expect(mockPlayback.dispose).not.toHaveBeenCalled();
   finishEnd(); await Promise.resolve(); await Promise.resolve();
   expect(useVoiceStore.getState().status.status).toBe('ended');
   expect(useVoiceStore.getState().isMuted).toBe(false);
   expect(releaseVoiceAudio).toHaveBeenCalledTimes(1);
   expect(mockPlayback.dispose).toHaveBeenCalledTimes(1);
-  expect(onVoiceSessionTerminal).toHaveBeenCalledWith({ muted: true, reason: 'ended' });
 });
 
 it.each(['findA11yPlaces', 'trackBuses'])('keeps only the latest successful %s snapshot on the live voice view while preserving chat history', async name => {

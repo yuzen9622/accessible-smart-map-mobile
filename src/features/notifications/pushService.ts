@@ -58,6 +58,20 @@ function projectId(): string | undefined {
   return typeof id === 'string' ? id : undefined;
 }
 
+const TOKEN_TIMEOUT_MS = 15_000;
+// APNs／Expo 推播服務不回應時 getExpoPushTokenAsync 永遠不 resolve；逾時才不會卡死整條同步序列。
+async function fetchExpoPushToken(): Promise<string> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('Expo push token timed out')), TOKEN_TIMEOUT_MS);
+  });
+  try {
+    return (await Promise.race([Notifications.getExpoPushTokenAsync({ projectId: projectId() }), timeout])).data;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export type PushSyncStatus = 'idle' | 'syncing' | 'registered' | 'disabled' | 'signedOut'
   | 'denied' | 'undetermined' | 'tokenError' | 'registrationError' | 'unregisterError';
 export const usePushStatus = create<{ status: PushSyncStatus }>(() => ({ status: 'idle' }));
@@ -66,6 +80,7 @@ type Binding = { token: string; accessToken: string; userId: string; locale: str
 // 包含「POST 已送出但回應失敗」的候選，停用時也要 DELETE。
 let binding: Binding | null = null;
 let queue: Promise<unknown> = Promise.resolve();
+let latestSync = 0;
 function enqueue<T>(run: () => Promise<T>): Promise<T> {
   const result = queue.then(run, run);
   queue = result.catch(() => {});
@@ -88,9 +103,15 @@ export function syncPushToken(): Promise<PushSyncStatus> {
     return (auth.user?._id ?? auth.user?.email) === userId && auth.session === session
       && usePreferencesStore.getState().notifications === enabled && i18n.language === locale;
   };
+  const sync = ++latestSync;
+  // 被取代的呼叫不發布結果；若之後沒有新的同步，不能把 syncing 留在畫面上。
+  const superseded = (): PushSyncStatus => {
+    if (sync === latestSync && usePushStatus.getState().status === 'syncing') usePushStatus.setState({ status: 'idle' });
+    return 'idle';
+  };
   if (restored) usePushStatus.setState({ status: 'syncing' });
   return enqueue(async () => {
-    if (!restored || !current()) return 'idle';
+    if (!restored || !current()) return superseded();
     const publish = (status: PushSyncStatus): PushSyncStatus => {
       if (current()) usePushStatus.setState({ status });
       return status;
@@ -121,7 +142,7 @@ export function syncPushToken(): Promise<PushSyncStatus> {
     let permission: PushPermission;
     try { permission = enabled || !cachedToken ? await getPushPermission() : 'undetermined'; }
     catch { return publish('tokenError'); }
-    if (!current()) return 'idle';
+    if (!current()) return superseded();
     const active = enabled && permission === 'granted' && user && session?.accessToken;
     if (binding && (!active || binding.accessToken !== session?.accessToken || binding.userId !== userId)) {
       try { await remove(binding); }
@@ -130,15 +151,15 @@ export function syncPushToken(): Promise<PushSyncStatus> {
         if (!active || !(error instanceof ApiError) || ![401, 403].includes(error.code)) return publish('unregisterError');
       }
     }
-    if (!current()) return 'idle';
+    if (!current()) return superseded();
     if (!active) {
       // 舊版尚未持久化 token：已有 OS 權限時取回識別後 DELETE，不彈權限視窗。
       if (!cachedToken && session?.accessToken && permission === 'granted') {
         try {
-          cachedToken = (await Notifications.getExpoPushTokenAsync({ projectId: projectId() })).data;
+          cachedToken = await fetchExpoPushToken();
           await setSecureItem(TOKEN_KEY, cachedToken);
         } catch { return publish('unregisterError'); }
-        if (!current()) return 'idle';
+        if (!current()) return superseded();
       }
       // 冷啟動也能停用上一輪註冊，不依賴記憶體中的 binding。
       if (cachedToken && session?.accessToken && (!enabled || permission !== 'granted')) {
@@ -150,16 +171,16 @@ export function syncPushToken(): Promise<PushSyncStatus> {
     let token: string;
     try {
       await ensureAndroidChannel();
-      token = (await Notifications.getExpoPushTokenAsync({ projectId: projectId() })).data;
+      token = await fetchExpoPushToken();
       cachedToken = token;
       await setSecureItem(TOKEN_KEY, token);
     } catch { return publish('tokenError'); }
-    if (!current()) return 'idle';
+    if (!current()) return superseded();
     if (binding && binding.token !== token) {
       try { await remove(binding); }
       catch { return publish('unregisterError'); }
     }
-    if (!current()) return 'idle';
+    if (!current()) return superseded();
     const candidate: Binding = { token, accessToken: session!.accessToken!, userId: user._id ?? user.email, locale };
     binding = candidate;
     let status: PushSyncStatus = 'registered';
@@ -174,7 +195,7 @@ export function syncPushToken(): Promise<PushSyncStatus> {
     if (!current()) {
       try { await removeBinding(candidate); }
       catch { /* 保留 binding，下個排程先重試註銷。 */ }
-      return 'idle';
+      return superseded();
     }
     return publish(status);
   });

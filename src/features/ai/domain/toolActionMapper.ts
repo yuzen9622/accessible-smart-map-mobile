@@ -29,6 +29,14 @@ export function mapToolToActions(toolName: string, result: unknown, _args: unkno
       return markers.length ? [{ type: 'show-markers', markers }] : [];
     }
 
+    // 只有文字助理的結果帶 clientAction；語音助理已由後端 `ui.command` 直接執行。
+    case 'startNavigation':
+      return isRec(result) && result.clientAction === 'start-navigation'
+        ? [{ type: 'start-navigation', ...(typeof result.routeId === 'string' ? { routeId: result.routeId } : {}) }]
+        : [];
+    case 'stopNavigation':
+      return isRec(result) && result.clientAction === 'stop-navigation' ? [{ type: 'stop-navigation' }] : [];
+
     case 'plan_route':
     case 'planAccessibleRoute':
     case 'planIndoorRoute':

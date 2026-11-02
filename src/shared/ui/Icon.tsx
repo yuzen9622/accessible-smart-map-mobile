@@ -50,6 +50,7 @@ import CircleCheck from 'lucide-react-native/icons/circle-check';
 import LoaderCircle from 'lucide-react-native/icons/loader-circle';
 import ArrowLeftRight from 'lucide-react-native/icons/arrow-left-right';
 import Plus from 'lucide-react-native/icons/plus';
+import Menu from 'lucide-react-native/icons/menu';
 import ChevronDown from 'lucide-react-native/icons/chevron-down';
 import ChevronUp from 'lucide-react-native/icons/chevron-up';
 import Route from 'lucide-react-native/icons/route';
@@ -163,6 +164,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   loader: LoaderCircle,
   swap: ArrowLeftRight,
   plus: Plus,
+  reorder: Menu,
   chevronDown: ChevronDown,
   chevronUp: ChevronUp,
   route: Route,

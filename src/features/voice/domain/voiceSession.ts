@@ -36,6 +36,8 @@ interface SessionStartMessage {
   userLocation?: { latitude: number; longitude: number };
   /** 先前的對話（使用者從打字切到語音、或語音重連）；後端放進 Live 的系統提示。 */
   history?: PriorTurn[];
+  /** App 自己執行導航：後端改送 `ui.command`、讀 `nav.state`、播 `nav.cue`。 */
+  clientNavigation: 1;
 }
 
 /** Client -> server: graceful end, server acks with close(1000, "client-end"). */
@@ -63,28 +65,41 @@ interface NavCancelMessage {
   type: 'nav.cancel';
 }
 
-/**
- * Client -> server: re-attach to an in-flight backend navigation after the
- * socket was rebuilt (§6.1 reconnect). Sent right after `session.ready` of a
- * *reconnect* — never of the first connect, where there is nothing to resume.
- * The server answers with `nav.resume_ok` or `nav.resume_failed`.
- */
-interface NavResumeMessage {
-  type: 'nav.resume';
-  navigationId: string;
-  routeVersion: number;
-  routeToken: string;
-  lastKnownStepIndex: number;
-  currentPosition?: VoiceNavigationPosition;
+/** Server -> client: the assistant asks the App to run its own navigation flow. */
+export interface VoiceUiCommand {
+  action: 'start' | 'stop' | 'advance' | 'repeat';
+  routeToken?: string;
 }
 
-/** Snapshot the adapter provides so the controller can build nav.resume. */
-export interface VoiceNavigationResumeState {
-  navigationId: string;
-  routeVersion: number;
-  routeToken: string;
-  lastKnownStepIndex: number;
-  currentPosition?: VoiceNavigationPosition;
+interface UiCommandMessage extends VoiceUiCommand {
+  type: 'ui.command';
+  id: string;
+}
+
+/** What the App actually did; answered as `ui.command.ack`. */
+export type VoiceUiCommandResult =
+  | { ok: true; guidance?: 'preview' | 'live' | 'indoor' }
+  | { ok: false; reason: string };
+
+/** Client -> server: the App navigation engine's state (`nav.state`). */
+export interface VoiceNavigationState {
+  active: boolean;
+  guidance?: 'preview' | 'live' | 'indoor';
+  travelMode?: string;
+  destination?: string | null;
+  currentStepIndex?: number;
+  distanceToNextM?: number | null;
+  remainingDistanceM?: number | null;
+  remainingDurationSec?: number | null;
+  arrived?: boolean;
+  steps?: {
+    index: number;
+    instruction: string;
+    legType?: string;
+    distanceM?: number | null;
+    streetName?: string | null;
+    maneuver?: string | null;
+  }[];
 }
 
 /** Server -> client: auth + Gemini connect done, client may now send audio. */
@@ -364,6 +379,7 @@ type ServerEventMessage =
   | TranscriptCorrectionMessage
   | ToolCallMessage
   | ToolResultMessage
+  | UiCommandMessage
   | InterruptedMessage
   | TurnCompleteMessage
   | ErrorMessage
@@ -500,12 +516,10 @@ export interface VoiceSessionDeps {
   onInterrupted?(): void;
   onToolEvent(event: VoiceToolEvent): void;
   onNavigationEvent(event: VoiceNavigationEvent): void;
-  /**
-   * Current backend-owned navigation, read synchronously right after a
-   * reconnect's `session.ready`. Returning `null` (not navigating, or the
-   * local engine owns navigation) skips `nav.resume` entirely.
-   */
-  getNavigationResumeState?(): VoiceNavigationResumeState | null;
+  /** Runs a `ui.command` through the App's own navigation functions. */
+  onUiCommand?(command: VoiceUiCommand): VoiceUiCommandResult | Promise<VoiceUiCommandResult>;
+  /** Every `session.ready` (first connect and reconnects). */
+  onSessionReady?(): void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -749,13 +763,13 @@ export class VoiceSessionController {
     this.sendControl({ type: 'nav.cancel' });
   }
 
-  advanceNavigationStep(fromStepIndex: number, navigationId: string, routeVersion: number): void {
-    this.sendControl({ type: 'nav.advance', fromStepIndex, navigationId, routeVersion });
+  sendNavigationState(state: VoiceNavigationState): void {
+    this.sendControl({ type: 'nav.state', ...state });
   }
 
-  /** 預覽中使用者切到第 `index` 步：請後端讓助理念那一步（後端自己的指令文字）。 */
-  previewNavigationStep(index: number): void {
-    this.sendControl({ type: 'nav.previewStep', index });
+  /** 導航引擎該播報的一句，交給助理以自然口語說。 */
+  sendNavigationCue(text: string): void {
+    this.sendControl({ type: 'nav.cue', text });
   }
 
   getStatus(): VoiceStatus {
@@ -775,9 +789,9 @@ export class VoiceSessionController {
       | NavPositionMessage
       | NavCancelMessage
       | { type: 'nav.start' }
-      | { type: 'nav.previewStep'; index: number }
-      | { type: 'nav.advance'; fromStepIndex: number; navigationId: string; routeVersion: number }
-      | NavResumeMessage,
+      | ({ type: 'nav.state' } & VoiceNavigationState)
+      | { type: 'nav.cue'; text: string }
+      | ({ type: 'ui.command.ack'; id: string } & VoiceUiCommandResult),
   ): void {
     if (!this.sessionActive || !this.socket) return;
     if (
@@ -955,7 +969,7 @@ export class VoiceSessionController {
 
     socket.onopen = () => {
       if (gen !== this.generation) return; // stale
-      const message: SessionStartMessage = { type: 'session.start', token, ...this.deps.getRouteConversation?.() };
+      const message: SessionStartMessage = { type: 'session.start', token, clientNavigation: 1, ...this.deps.getRouteConversation?.() };
       this.sessionLanguage = this.deps.getLanguage?.();
       this.pendingLanguage = false;
       if (this.sessionLanguage) message.language = this.sessionLanguage;
@@ -1047,7 +1061,6 @@ export class VoiceSessionController {
           // Legacy voice remains usable for general conversation, with route features disabled.
           if (!this.contextSupported && !this.deps.getRouteConversation().routeContext) this.contextBlocked = false;
         }
-        const isReconnect = this.hasBeenReady;
         this.hasBeenReady = true;
         this.reconnectDelay = RECONNECT_INITIAL_DELAY_MS; // reset backoff on success
         this.setStatus({ status: 'ready' });
@@ -1059,12 +1072,20 @@ export class VoiceSessionController {
             routeToken: this.routeToken,
           });
         }
-        // A rebuilt socket dropped the server-side navigation binding; ask to
-        // re-attach to it before any audio flows, so the assistant keeps
-        // announcing the same navigation instead of starting from scratch.
-        if (isReconnect) this.sendNavigationResume();
+        this.deps.onSessionReady?.();
         this.startCapture(gen);
         this.flushRouteChanges();
+        return;
+      }
+      case 'ui.command': {
+        const command = message as UiCommandMessage;
+        const run = this.deps.onUiCommand?.({ action: command.action, routeToken: command.routeToken });
+        // App 的流程確實完成後才回報；換了 socket 就不回舊的。
+        void Promise.resolve(run ?? { ok: false as const, reason: 'UNSUPPORTED' })
+          .catch(() => ({ ok: false as const, reason: 'CLIENT_ERROR' }))
+          .then((result) => {
+            if (gen === this.generation) this.sendControl({ type: 'ui.command.ack', id: command.id, ...result });
+          });
         return;
       }
       case 'location.request': {
@@ -1184,28 +1205,6 @@ export class VoiceSessionController {
           message.type,
         );
     }
-  }
-
-  /**
-   * Build and send `nav.resume` from the adapter's snapshot. Anything
-   * incomplete (no navigation, no route capability) means there is nothing to
-   * resume, so the message is skipped rather than sent half-filled.
-   */
-  private sendNavigationResume(): void {
-    const state = this.deps.getNavigationResumeState?.();
-    if (!state) return;
-    const routeToken = state.routeToken || this.routeToken;
-    if (!state.navigationId || !routeToken) return;
-
-    const message: NavResumeMessage = {
-      type: 'nav.resume',
-      navigationId: state.navigationId,
-      routeVersion: state.routeVersion,
-      routeToken,
-      lastKnownStepIndex: state.lastKnownStepIndex,
-    };
-    if (state.currentPosition) message.currentPosition = state.currentPosition;
-    this.sendControl(message);
   }
 
   private startCapture(gen: number): void {

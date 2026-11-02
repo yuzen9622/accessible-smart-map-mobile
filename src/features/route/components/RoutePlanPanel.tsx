@@ -11,6 +11,8 @@ import type { RouteMode, TravelMode } from '../types/route';
 
 import RouteCard from './RouteCard';
 import RouteSkeleton from './RouteSkeleton';
+import StopList from './StopList';
+import { RailDivider } from './StopList.shared';
 import {
   ROUTE_BORDER_COLOR,
   ROUTE_ON_ACCENT_COLOR,
@@ -138,14 +140,18 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
         </PressableScale>
       </View>
 
+      {/* 起點 → 停靠點 → 終點：Apple 地圖把停靠點列在同一張卡內、最後一列「新增停靠點」；
+          左側圖示之間用 Google Maps 那種虛線連起來，停靠點編號跟地圖上的標記一致。 */}
       <View style={[routeStyles.card, styles.endpoints, { backgroundColor: surface }]}>
         <View style={routeStyles.flex}>
           <View style={styles.endpointRow}>
-            {model.originIsMyLocation ? (
-              <Icon name="navigation" size={ICON_SIZE.body} color={ROUTE_ORIGIN_COLOR} />
-            ) : (
-              <View style={[styles.dot, { borderColor: ROUTE_ORIGIN_COLOR }]} />
-            )}
+            <View style={styles.markerSlot}>
+              {model.originIsMyLocation ? (
+                <Icon name="navigation" size={ICON_SIZE.body} color={ROUTE_ORIGIN_COLOR} />
+              ) : (
+                <View style={[styles.dot, { borderColor: ROUTE_ORIGIN_COLOR }]} />
+              )}
+            </View>
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={`${model.labels.origin}：${model.originLabel}，${model.labels.edit}`}
@@ -165,9 +171,16 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
               </PressableScale>
             ) : null}
           </View>
-          <View style={[styles.divider, { backgroundColor: ROUTE_BORDER_COLOR }]} />
+          <StopList
+            stops={model.stops}
+            labels={{ removeStop: model.labels.removeStop, moveUp: model.labels.moveUp, moveDown: model.labels.moveDown, reorderHint: model.labels.reorderHint }}
+            onMove={model.onMoveStop}
+          />
+          <RailDivider dotColor={colors.textSecondary} />
           <View style={styles.endpointRow}>
-            <View style={[styles.dot, styles.dotFilled, { backgroundColor: ROUTE_DESTINATION_COLOR, borderColor: ROUTE_DESTINATION_COLOR }]} />
+            <View style={styles.markerSlot}>
+              <View style={[styles.dot, styles.dotFilled, { backgroundColor: ROUTE_DESTINATION_COLOR, borderColor: ROUTE_DESTINATION_COLOR }]} />
+            </View>
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={
@@ -193,6 +206,31 @@ export default function RoutePlanPanel({ model, onStartNavigation }: RoutePlanPa
               </PressableScale>
             ) : null}
           </View>
+          {model.onAddStop || model.stopsFullHint ? (
+            <>
+              <View style={[styles.divider, { backgroundColor: ROUTE_BORDER_COLOR }]} />
+              {model.onAddStop ? (
+                <PressableScale
+                  accessibilityRole="button"
+                  accessibilityLabel={model.labels.addStop}
+                  onPress={model.onAddStop}
+                  style={styles.endpointRow}>
+                  <View style={styles.markerSlot}>
+                    <View style={[styles.addStopIcon, { backgroundColor: semantic.accentSoft }]}>
+                      <Icon name="plus" size={ICON_SIZE.caption} color={semantic.accent} />
+                    </View>
+                  </View>
+                  <Text style={[routeStyles.bodyText, styles.addStopText, { color: semantic.accent }]} numberOfLines={1}>
+                    {model.labels.addStop}
+                  </Text>
+                </PressableScale>
+              ) : (
+                <Text style={[routeStyles.metaText, styles.stopsFull, { color: colors.textSecondary }]}>
+                  {model.stopsFullHint}
+                </Text>
+              )}
+            </>
+          ) : null}
         </View>
         <PressableScale
           accessibilityRole="button"
@@ -300,7 +338,11 @@ const styles = StyleSheet.create({
   endpoints: { borderRadius: SHAPE.card, borderCurve: 'continuous', paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 8 },
   endpointRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
   endpointPress: { minHeight: 44, justifyContent: 'center' },
-  divider: { height: StyleSheet.hairlineWidth, marginLeft: 26 },
+  divider: { height: StyleSheet.hairlineWidth, marginLeft: 32 },
+  markerSlot: { width: 22, alignItems: 'center', justifyContent: 'center' },
+  addStopIcon: { width: 22, height: 22, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  addStopText: { flex: 1, fontWeight: '600' },
+  stopsFull: { minHeight: 44, textAlignVertical: 'center', paddingVertical: 12, marginLeft: 32 },
   dot: { width: 14, height: 14, borderRadius: SHAPE.pill, borderCurve: 'continuous', borderWidth: 3, marginHorizontal: 1 },
   dotFilled: { borderWidth: 0 },
   modeTabs: { flexDirection: 'row', borderRadius: SHAPE.card, borderCurve: 'continuous', padding: 4, gap: 4 },

@@ -33,6 +33,16 @@ export interface LegGeometryPreview {
   polyline: LngLatTuple[];
 }
 
+/** 規劃表單的停靠點（使用者輸入，依序經過）；跟回應的 `routeWaypoints`（後端校正後的座標）分開。 */
+export interface RouteStop {
+  id: string;
+  position: LatLng;
+  name: string;
+}
+
+/** 跟 Web `MAX_WAYPOINTS` 與後端 strict schema 的上限一致。 */
+export const MAX_ROUTE_STOPS = 5;
+
 export interface RouteSessionState {
   planId: string | null;
   selectedRouteId: string | null;
@@ -48,6 +58,7 @@ export interface RouteSessionState {
   destination: LatLng | null;
   destinationName: string;
   destinationVenuePlace: VenueDestination | null;
+  stops: RouteStop[];
   venueArrival: VenueArrival | null;
   venueLeg: VenueRoute | null;
   indoorRoute: VenueRoute | null;
@@ -84,6 +95,10 @@ export interface RouteSessionState {
   setDestination: (destination: LatLng | null, name?: string) => void;
   setVenueEndpoint: (field: 'origin' | 'destination', endpoint: VenueEndpoint) => void;
   swapEndpoints: () => void;
+  /** `index` 為 null 時新增在最後（已滿 `MAX_ROUTE_STOPS` 則忽略），否則取代該停靠點。 */
+  setStop: (index: number | null, position: LatLng, name: string) => void;
+  removeStop: (index: number) => void;
+  moveStop: (from: number, to: number) => void;
   selectRouteIndex: (index: number) => void;
   setTravelMode: (travelMode: TravelMode) => void;
   setRouteMode: (routeMode: RouteMode | null) => void;
@@ -113,6 +128,7 @@ const CLEARED_SESSION = {
   destination: null,
   destinationName: '',
   destinationVenuePlace: null,
+  stops: [],
   venueArrival: null,
   venueLeg: null,
   indoorRoute: null,
@@ -128,6 +144,8 @@ const CLEARED_SESSION = {
   lastFailure: null,
   computedFor: null,
 } satisfies Partial<RouteSessionState>;
+
+let stopSeq = 0;
 
 export const useRouteSessionStore = create<RouteSessionState>()((set, get) => ({
   ...CLEARED_SESSION,
@@ -162,8 +180,25 @@ export const useRouteSessionStore = create<RouteSessionState>()((set, get) => ({
     const { origin, originName, destination, destinationName } = state;
     set({ ...invalidateResult(state), origin: destination, originName: destinationName,
       originVenuePlace: state.destinationVenuePlace, destination: origin, destinationName: originName,
-      destinationVenuePlace: state.originVenuePlace });
+      destinationVenuePlace: state.originVenuePlace, stops: [...state.stops].reverse() });
   },
+  setStop: (index, position, name) => set((state) => {
+    if (index === null && state.stops.length >= MAX_ROUTE_STOPS) return {};
+    if (index !== null && !state.stops[index]) return {};
+    const stops = index === null
+      ? [...state.stops, { id: `stop-${++stopSeq}`, position, name }]
+      : state.stops.map((stop, i) => (i === index ? { ...stop, position, name } : stop));
+    return { stops, ...invalidateResult(state) };
+  }),
+  removeStop: (index) => set((state) => (state.stops[index]
+    ? { stops: state.stops.filter((_, i) => i !== index), ...invalidateResult(state) } : {})),
+  moveStop: (from, to) => set((state) => {
+    const moved = state.stops[from];
+    if (!moved || from === to || to < 0 || to >= state.stops.length) return {};
+    const stops = state.stops.filter((_, i) => i !== from);
+    stops.splice(to, 0, moved);
+    return { stops, ...invalidateResult(state) };
+  }),
   selectRouteIndex: (index) => {
     const routes = get().computeRoutes;
     const route = routes?.[index];

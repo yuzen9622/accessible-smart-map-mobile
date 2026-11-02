@@ -85,8 +85,12 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
   let ownGeneration = getRouteSessionSnapshot().selectionGeneration;
   const calls = new Map<string, { name: string; args: string }>();
   const applied = new Set<string>();
+  // 助理自己開始／結束導航時，按鈕流程在工具結果之後才完成；這段期間的換路線是它自己造成的。
+  let pendingActions = 0;
   const unsubscribe = subscribeRouteSession((state, previous) => {
-    if (!applying && state.selectionGeneration !== previous.selectionGeneration) controller.abort();
+    if (state.selectionGeneration === previous.selectionGeneration) return;
+    if (pendingActions > 0) ownGeneration = state.selectionGeneration;
+    else if (!applying) controller.abort();
   });
   const failRoute = (message?: string) => {
     const notice = message ?? t('nativeAiRouteUnavailable');
@@ -130,7 +134,12 @@ export async function sendChatMessage(rawText: string, t: Translate): Promise<vo
               if (action.type === 'show-route') {
                 action.routes.forEach((route) => recordRouteNameLanguage(route, language));
               }
-              if (!executeAction(action).ok) { failRoute(action.type === 'route-error' ? action.message : undefined); return; }
+              const result = executeAction(action);
+              if (!result.ok) { failRoute(action.type === 'route-error' ? action.message : undefined); return; }
+              if (result.settled) {
+                pendingActions += 1;
+                void result.settled.finally(() => { pendingActions -= 1; });
+              }
             }
             if (signal.callId) applied.add(signal.callId);
             // 這次套用如果是路線工具，自己的 generation 會往前推一格；同步基準值，

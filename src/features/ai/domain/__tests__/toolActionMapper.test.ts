@@ -8,6 +8,15 @@ const ORIGIN = { lat: 25.04, lng: 121.51 };
 const DEST = { lat: 25.03, lng: 121.56 };
 
 describe('mapToolToActions', () => {
+  it('text chat start/stop navigation → App navigation actions; voice results (no clientAction) map to nothing', () => {
+    expect(mapToolToActions('startNavigation', { ok: true, clientAction: 'start-navigation', routeId: 'r2' }, undefined, t))
+      .toEqual([{ type: 'start-navigation', routeId: 'r2' }]);
+    expect(mapToolToActions('startNavigation', { ok: true, clientAction: 'start-navigation' }, undefined, t))
+      .toEqual([{ type: 'start-navigation' }]);
+    expect(mapToolToActions('stopNavigation', { ok: true, clientAction: 'stop-navigation' }, undefined, t))
+      .toEqual([{ type: 'stop-navigation' }]);
+    expect(mapToolToActions('startNavigation', { ok: true, guidance: 'live' }, undefined, t)).toEqual([]);
+  });
   it('findA11yPlaces → show-markers（標記由結果轉出）', () => {
     const result = {
       ok: true,

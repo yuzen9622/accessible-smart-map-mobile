@@ -10,6 +10,10 @@ export interface NavigationSpeechOwner {
   prepareNavigation?(): void;
   /** 預覽中使用者切到第 `index` 步：由擁有播報的助理念這一步。 */
   previewStep?(index: number): void;
+  /** 語音助理活著時回 true：導航播報一律交給它（靜音時吞掉），不看本機播報開關。 */
+  cueChannelLive?(): boolean;
+  /** 導航引擎要播報一句：語音助理接得下就交給它用自然口語說並回 true，否則由本機 TTS 念。 */
+  speakCue?(text: string): boolean;
   /** 語音助理（Gemini）目前是否擁有導航播報（`geminiOwnsNavigationSpeech`）。 */
   geminiOwnsSpeech(): boolean;
   /** 語音助理的輸出是否被使用者靜音（只有 `geminiOwnsSpeech` 為真時有意義）。 */

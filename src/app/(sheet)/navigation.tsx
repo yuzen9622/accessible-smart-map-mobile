@@ -87,15 +87,9 @@ export default function NavigationSheet() {
     dismissedJourney.current = journey;
     useIndoorStore.getState().endGuidance();
     const session = getRouteSessionSnapshot();
-    if (journey?.kind === 'start' && session.indoorRoute === journey.route) {
-      router.dismissTo({ pathname: '/routes/[index]', params: { index: '0' } });
-      return;
-    }
     const index = journey?.outdoorRoute ? session.computeRoutes?.indexOf(journey.outdoorRoute.route) ?? -1 : -1;
-    if (index >= 0) {
-      selectRouteAt(index);
-      router.dismissTo({ pathname: '/routes/[index]', params: { index: String(index) } });
-    } else router.dismissTo('/plan');
+    if (index >= 0) selectRouteAt(index);
+    router.dismissTo('/plan');
   }, [journey]);
 
   useEffect(() => {

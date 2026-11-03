@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 
 import { mapCamera, sheetNavigation } from '@/features/map';
-import { fitSelectedRoute, getRouteSessionSnapshot } from '@/features/route';
+import { fitSelectedRoute } from '@/features/route';
 import { startBackgroundLocation, stopBackgroundLocation, type BackgroundLocationTexts } from '@/shared/location';
 import { logger } from '@/shared/logger';
 
@@ -57,30 +57,18 @@ export function stopNavigationForVenueHandoff(): void {
   } : stopNavigation);
 }
 
-/** 導航用的那條路線在結果中的位置；結果裡已沒有它（例：語音直接開的導航）時為 null。 */
-function navigatedRouteIndex(): number | null {
-  const { selectRoute, computeRoutes } = getRouteSessionSnapshot();
-  if (!selectRoute || computeRoutes?.[selectRoute.index] !== selectRoute.route) return null;
-  return selectRoute.index;
-}
-
 /**
  * 結束導航（HUD／收合列「結束」確認、抵達後「結束導航」、指示失效後「重新規劃」、語音 `nav.stop` 共用同一個出口）：
- * 停止引擎與背景定位、解除鏡頭跟隨，sheet 回到這條路線的「路線詳情」並把路線框回畫面；
- * 從詳情再返回就是規劃路線。路線 session 保留，離開規劃流程後由「回到路線」膠囊收尾。
+ * 停止引擎與背景定位、解除鏡頭跟隨，sheet 直接回到「規劃路線」並把路線框回畫面。
+ * 路線 session 保留，離開規劃流程後由「回到路線」膠囊收尾。
  * 已不在導航中就不動作：連點或語音與按鈕同時結束時，第二次呼叫不能再多退一頁。
  */
 export function endNavigation(): void {
   if (!useNavStore.getState().isNavigating) return;
-  const routeIndex = navigatedRouteIndex();
   const orientation = stopEngineAndLocation();
-  // 從詳情開始導航時退回那一頁；從規劃路線開始時把導航頁換成詳情，堆疊變成「規劃 → 詳情」。
-  // 結果裡找不到這條路線時只退掉導航頁。
-  const backToDetail = () => {
-    if (routeIndex === null) router.dismiss();
-    else router.dismissTo({ pathname: '/routes/[index]', params: { index: String(routeIndex) } });
-  };
+  // 不論從規劃路線或路線詳情開始導航，都退回規劃路線（不在堆疊裡時以它取代導航頁）。
+  const backToPlan = () => router.dismissTo('/plan');
   // sheet 被蓋住期間開始又結束（語音）時導航頁從沒推上去：取代掉排隊中的導向，使用者留在原本那頁。
-  sheetNavigation.whenVisible(sheetNavigation.hasPending() ? () => {} : backToDetail);
+  sheetNavigation.whenVisible(sheetNavigation.hasPending() ? () => {} : backToPlan);
   fitSelectedRoute(orientation);
 }

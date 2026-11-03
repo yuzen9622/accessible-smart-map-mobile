@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 
 import { sheetNavigation } from '@/features/map';
-import { fitSelectedRoute, getRouteSessionSnapshot, type RouteSessionView } from '@/features/route';
+import { fitSelectedRoute } from '@/features/route';
 
 import { beginNavigation, endNavigation, stopNavigationForVenueHandoff } from '../navigationSession';
 import { useNavStore } from '../../store/navStore';
@@ -13,7 +13,7 @@ jest.mock('@/features/map', () => ({
   ...jest.requireActual('@/features/map/controller/sheetNavigation'),
   mapCamera: { stopFollow: () => {} },
 }));
-jest.mock('@/features/route', () => ({ fitSelectedRoute: jest.fn(), getRouteSessionSnapshot: jest.fn() }));
+jest.mock('@/features/route', () => ({ fitSelectedRoute: jest.fn() }));
 jest.mock('@/shared/location', () => ({ startBackgroundLocation: async () => {}, stopBackgroundLocation: async () => {} }));
 jest.mock('@/shared/logger', () => ({ logger: { warn: () => {} } }));
 jest.mock('../localRerouteCoordinator', () => ({ localRerouteCoordinator: { stopSession: jest.fn() } }));
@@ -32,19 +32,6 @@ jest.mock('../navigationLifecycle', () => {
 });
 
 const texts = { notificationTitle: 'title', notificationBody: 'body' };
-const navigatedRoute = { routeName: 'second' };
-
-/** 結果裡有兩條路線、導航用第二條（只放 `endNavigation` 讀的欄位）。 */
-function withSelectedRoute(): void {
-  const snapshot = { computeRoutes: [{ routeName: 'first' }, navigatedRoute], selectRoute: { index: 1, route: navigatedRoute } };
-  jest.mocked(getRouteSessionSnapshot).mockReturnValue(snapshot as unknown as RouteSessionView);
-}
-
-function withoutRoute(): void {
-  const snapshot = { computeRoutes: null, selectRoute: null };
-  jest.mocked(getRouteSessionSnapshot).mockReturnValue(snapshot as unknown as RouteSessionView);
-}
-
 beforeEach(() => {
   useNavStore.getState().reset();
   jest.mocked(stopNavigation).mockClear();
@@ -53,16 +40,15 @@ beforeEach(() => {
   jest.mocked(router.dismiss).mockClear();
   jest.mocked(router.dismissTo).mockClear();
   jest.mocked(fitSelectedRoute).mockClear();
-  withSelectedRoute();
 });
 
-it('shows the navigation panel, then lands on the detail of the navigated route and keeps it on the map', () => {
+it('shows the navigation panel, then returns to route planning and keeps the route on the map', () => {
   sheetNavigation.setVisible(true);
   beginNavigation(texts);
   endNavigation();
 
   expect(router.navigate).toHaveBeenCalledWith('/navigation');
-  expect(router.dismissTo).toHaveBeenCalledWith({ pathname: '/routes/[index]', params: { index: '1' } });
+  expect(router.dismissTo).toHaveBeenCalledWith('/plan');
   expect(fitSelectedRoute).toHaveBeenCalledTimes(1);
 });
 
@@ -76,16 +62,6 @@ it('stops outdoor navigation for an indoor handoff without dismissing the new sc
   expect(router.dismiss).not.toHaveBeenCalled();
   expect(router.dismissTo).not.toHaveBeenCalled();
   expect(fitSelectedRoute).not.toHaveBeenCalled();
-});
-
-it('only pops the navigation panel when the navigated route is not among the results', () => {
-  withoutRoute();
-  sheetNavigation.setVisible(true);
-  beginNavigation(texts);
-  endNavigation();
-
-  expect(router.dismiss).toHaveBeenCalledTimes(1);
-  expect(router.dismissTo).not.toHaveBeenCalled();
 });
 
 it('navigates back only once when navigation is ended twice', () => {

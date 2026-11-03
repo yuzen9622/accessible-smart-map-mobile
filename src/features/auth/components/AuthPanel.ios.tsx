@@ -3,14 +3,8 @@ import { Picker, RNHostView, SecureField, Text, TextField } from '@expo/ui/swift
 import { Button, Form, Section, useSecondaryForeground } from '@/shared/ui/form/PreferenceForm.ios';
 import {
   autocorrectionDisabled,
-  bold,
-  buttonBorderShape,
-  buttonStyle,
-  controlSize,
-  disabled,
   font,
   foregroundStyle,
-  frame,
   keyboardType,
   onSubmit,
   pickerStyle,
@@ -27,6 +21,7 @@ import { openLegalDocument } from '@/shared/privacy';
 import { FormPrimaryButton, FormSecondaryButton, KeyboardAvoidingHost } from '@/shared/ui';
 
 import AppleSignInButton from './AppleSignInButton';
+import GoogleSignInButton from './GoogleSignInButton';
 import type { AuthPanelProps } from './AuthPanel.types';
 
 
@@ -101,17 +96,16 @@ export default function AuthPanel({ model }: AuthPanelProps) {
               </RNHostView>
             ) : null}
             {model.showGoogle ? (
-              // 與上面的 Apple 按鈕同寬、同高、同圓角（Apple 規範的 8pt）；以前是靠左的一顆小藥丸，像次要連結
-              <Button
-                onPress={model.signInWithGoogle}
-                modifiers={[
-                  buttonStyle('bordered'),
-                  controlSize('large'),
-                  buttonBorderShape('roundedRectangle', 8),
-                  disabled(model.loading),
-                ]}>
-                <Text modifiers={[frame({ maxWidth: 10000 }), bold()]}>{t('nativeAuthContinueWithGoogle')}</Text>
-              </Button>
+              // 與 Apple 按鈕同寬、同高、同圓角、同字重；白底＋彩色 G
+              <RNHostView matchContents>
+                <View style={{ width: width - 72, height: 48 }}>
+                  <GoogleSignInButton
+                    label={t('nativeAuthContinueWithGoogle')}
+                    onPress={model.signInWithGoogle}
+                    disabled={model.loading}
+                  />
+                </View>
+              </RNHostView>
             ) : null}
           </Section>
         ) : null}

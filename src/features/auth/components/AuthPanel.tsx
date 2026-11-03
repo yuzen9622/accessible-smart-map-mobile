@@ -2,6 +2,7 @@ import { useAppTranslation } from '@/shared/i18n';
 import { openLegalDocument } from '@/shared/privacy';
 import { FormButton, FormInput, FormScreen, FormSection, FormSegmented, FormText } from '@/shared/ui';
 
+import GoogleSignInButton from './GoogleSignInButton';
 import type { AuthPanelProps } from './AuthPanel.types';
 
 /** Android／fallback：RN 表單（見 `shared/ui/form`）。Apple 登入只在 iOS 提供。 */
@@ -53,7 +54,7 @@ export default function AuthPanel({ model }: AuthPanelProps) {
             onChange={model.setMode}
           />
           {model.showGoogle ? (
-            <FormButton label={t('nativeAuthContinueWithGoogle')} variant="secondary" disabled={model.loading} onPress={model.signInWithGoogle} />
+            <GoogleSignInButton label={t('nativeAuthContinueWithGoogle')} disabled={model.loading} onPress={model.signInWithGoogle} />
           ) : null}
         </FormSection>
       ) : null}

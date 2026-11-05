@@ -1,6 +1,6 @@
 // 移植自 Web `src/lib/__tests__/geo-incidents.test.ts`（commit 5eadc71），案例逐一保留。
 import type { DriveIncident } from '../../types/route';
-import { filterIncidentsAlongRoute, pointToPolylineDistanceM } from '../geo';
+import { filterIncidentsAlongRoute, filterPointsAlongRoute, pointToPolylineDistanceM } from '../geo';
 
 describe('pointToPolylineDistanceM', () => {
   const polyline: [number, number][] = [
@@ -72,5 +72,35 @@ describe('filterIncidentsAlongRoute', () => {
     expect(filterIncidentsAlongRoute(undefined, taichungPolyline)).toEqual([]);
     expect(filterIncidentsAlongRoute(sampleIncidents, undefined)).toEqual([]);
     expect(filterIncidentsAlongRoute([], [])).toEqual([]);
+  });
+});
+
+describe('filterPointsAlongRoute', () => {
+  // 跨越多個格子的長線段（約 11 km）、轉折與格線附近的點，結果要與逐段比對一致。
+  const polyline: [number, number][] = [
+    [120.68, 24.13],
+    [120.79, 24.13],
+    [120.795, 24.2001],
+    [120.7951, 24.2002],
+  ];
+  const points = Array.from({ length: 400 }, (_, i) => ({
+    id: i,
+    lng: 120.67 + (i % 20) * 0.007 + (i % 7) * 0.0003,
+    lat: 24.125 + Math.floor(i / 20) * 0.0042 + (i % 3) * 0.0004,
+  }));
+  points.push({ id: 400, lng: 120.735, lat: 24.13 + 0.0008 }, { id: 401, lng: 120.735, lat: 24.13 + 0.0011 });
+
+  it('matches the per-point polyline distance check', () => {
+    const expected = points.filter((point) => pointToPolylineDistanceM(point, polyline) <= 100).map((point) => point.id);
+    expect(expected.length).toBeGreaterThan(5);
+    expect(filterPointsAlongRoute(points, polyline, 100).map((point) => point.id)).toEqual(expected);
+  });
+
+  it('includes a point about 89 m from a long segment and excludes one about 122 m away', () => {
+    expect(filterPointsAlongRoute(points.slice(400), polyline, 100).map((point) => point.id)).toEqual([400]);
+  });
+
+  it('handles a single-point polyline', () => {
+    expect(filterPointsAlongRoute([{ lat: 24.13, lng: 120.68 }], [[120.68, 24.1305]], 100)).toHaveLength(1);
   });
 });

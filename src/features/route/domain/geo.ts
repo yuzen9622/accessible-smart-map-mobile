@@ -180,6 +180,21 @@ export function resolveWaypoints(
   });
 }
 
+/** 點到線段 a→b 的垂直距離（公尺），以點的緯度做局部平面投影；不配置物件，供大量比對使用。 */
+function segmentDistanceM(point: LatLng, mPerLng: number, a: LngLatTuple, b: LngLatTuple): number {
+  const ax = a[0] * mPerLng;
+  const ay = a[1] * M_PER_DEG_LAT;
+  const abx = b[0] * mPerLng - ax;
+  const aby = b[1] * M_PER_DEG_LAT - ay;
+  const apx = point.lng * mPerLng - ax;
+  const apy = point.lat * M_PER_DEG_LAT - ay;
+  const lenSq = abx * abx + aby * aby;
+  const t = lenSq > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / lenSq)) : 0;
+  const dx = apx - t * abx;
+  const dy = apy - t * aby;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 /** 點到 polyline 的最小垂直距離（公尺），用局部平面投影。 */
 export function pointToPolylineDistanceM(point: LatLng, polyline: LngLatTuple[]): number {
   if (polyline.length === 0) return Infinity;
@@ -187,30 +202,60 @@ export function pointToPolylineDistanceM(point: LatLng, polyline: LngLatTuple[])
     return haversineMeters(point, { lng: polyline[0][0], lat: polyline[0][1] });
   }
 
-  const refLat = point.lat;
-  const P = toXY(point, refLat);
+  const mPerLng = M_PER_DEG_LAT * Math.cos(toRad(point.lat));
   let minDistance = Infinity;
-
   for (let i = 0; i < polyline.length - 1; i++) {
-    const A = toXY({ lng: polyline[i][0], lat: polyline[i][1] }, refLat);
-    const B = toXY({ lng: polyline[i + 1][0], lat: polyline[i + 1][1] }, refLat);
-    const abx = B.x - A.x;
-    const aby = B.y - A.y;
-    const apx = P.x - A.x;
-    const apy = P.y - A.y;
-    const lenSq = abx * abx + aby * aby;
-    const t = lenSq > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / lenSq)) : 0;
-    const cx = A.x + t * abx;
-    const cy = A.y + t * aby;
-    const dx = P.x - cx;
-    const dy = P.y - cy;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < minDistance) {
-      minDistance = dist;
+    const dist = segmentDistanceM(point, mPerLng, polyline[i], polyline[i + 1]);
+    if (dist < minDistance) minDistance = dist;
+  }
+  return minDistance;
+}
+
+/** 約 1 km 的格子；線段依外擴後的範圍登記到格子，查詢點只需比對所在格子的線段。 */
+const PROXIMITY_CELL_DEG = 0.01;
+
+/** 經度格 ±18000、緯度格 ±9000，平移成非負後組成單一整數 key。 */
+function cellKey(x: number, y: number): number {
+  return (x + 20_000) * 40_000 + y + 20_000;
+}
+
+/**
+ * 回傳「點是否在 polyline `maxDistanceM` 內」的判斷式。長途路線（數千點）對全台設施（近萬點）
+ * 逐一比對整條線會卡住 JS thread 數秒，所以先把線段登記到格網，查詢時只算附近線段。
+ * 判斷結果與 `pointToPolylineDistanceM(point, polyline) <= maxDistanceM` 相同。
+ */
+function createPolylineProximity(polyline: LngLatTuple[], maxDistanceM: number): (point: LatLng) => boolean {
+  if (polyline.length === 1) return (point) => pointToPolylineDistanceM(point, polyline) <= maxDistanceM;
+  const cells = new Map<number, number[]>();
+  const latPad = maxDistanceM / M_PER_DEG_LAT;
+  for (let i = 0; i < polyline.length - 1; i++) {
+    const [aLng, aLat] = polyline[i];
+    const [bLng, bLat] = polyline[i + 1];
+    if (![aLng, aLat, bLng, bLat].every(Number.isFinite)) continue;
+    const minLat = Math.min(aLat, bLat) - latPad;
+    const maxLat = Math.max(aLat, bLat) + latPad;
+    // 用範圍內最高緯度的經度長度外擴，確保不漏掉格子。
+    const lngPad = maxDistanceM / (M_PER_DEG_LAT * Math.cos(toRad(Math.min(89, Math.max(Math.abs(minLat), Math.abs(maxLat))))));
+    const x0 = Math.floor((Math.min(aLng, bLng) - lngPad) / PROXIMITY_CELL_DEG);
+    const x1 = Math.floor((Math.max(aLng, bLng) + lngPad) / PROXIMITY_CELL_DEG);
+    const y0 = Math.floor(minLat / PROXIMITY_CELL_DEG);
+    const y1 = Math.floor(maxLat / PROXIMITY_CELL_DEG);
+    for (let x = x0; x <= x1; x++) {
+      for (let y = y0; y <= y1; y++) {
+        const key = cellKey(x, y);
+        const bucket = cells.get(key);
+        if (bucket) bucket.push(i);
+        else cells.set(key, [i]);
+      }
     }
   }
-
-  return minDistance;
+  return (point) => {
+    if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return false;
+    const segments = cells.get(cellKey(Math.floor(point.lng / PROXIMITY_CELL_DEG), Math.floor(point.lat / PROXIMITY_CELL_DEG)));
+    if (!segments) return false;
+    const mPerLng = M_PER_DEG_LAT * Math.cos(toRad(point.lat));
+    return segments.some((i) => segmentDistanceM(point, mPerLng, polyline[i], polyline[i + 1]) <= maxDistanceM);
+  };
 }
 
 /**
@@ -243,7 +288,8 @@ export function filterPointsAlongRoute<T extends { lat: number; lng: number }>(
   maxDistanceM = 100,
 ): T[] {
   if (!points?.length || !polyline?.length) return [];
-  return points.filter((point) => pointToPolylineDistanceM(point, polyline) <= maxDistanceM);
+  const isNear = createPolylineProximity(polyline, maxDistanceM);
+  return points.filter(isNear);
 }
 
 /** 道路是否封閉：優先採後端的 `roadClosed`，缺欄位才看 `severity`。 */

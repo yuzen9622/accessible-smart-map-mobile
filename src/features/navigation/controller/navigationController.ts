@@ -99,6 +99,8 @@ export interface NavigationControllerDeps {
   onStepChange?: (stepIndex: number) => void;
   /** 「X 公尺後，{instruction}」的播報文字（i18n）；沒有時只念指令。 */
   maneuverAheadText?: (distanceM: number, instruction: string) => string;
+  /** 抵達前的距離預告；完成抵達由 arrivedText 單獨播報。 */
+  arrivalAheadText?: (distanceM: number) => string;
   /** 長直線進度提醒「繼續直行 N」的播報文字（i18n）；沒有時不提醒。 */
   continueText?: (distanceM: number) => string;
   /** 公車段等車／搭乘的播報文字（i18n）；沒有時不播報公車段情境。 */
@@ -302,7 +304,10 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     }
     announcer.spoken.add(stage);
     if (stage === 'advance') announcer.advanceDistanceM = distanceM;
-    const body = stage === 'now' ? step.text : aheadText(distanceM, stripStepDistance(step.text));
+    const body = step.type === 'arrive'
+      ? deps.arrivalAheadText?.(distanceM)
+      : stage === 'now' ? step.text : aheadText(distanceM, stripStepDistance(step.text));
+    if (!body) return;
     const text = announcer.prefix ? `${announcer.prefix} ${body}` : body;
     announcer.prefix = null;
     speak(text);
@@ -581,7 +586,8 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
           // 換了一份指令（重算、換語言）不一定伴隨新定位，主動用目前位置重算一次。
           resetAnnouncer(state.instructions, state.currentStepIndex, prefix);
           if (state.instructions !== previous.instructions) queuePosition();
-        } else if (step && !transit.ownsStepSpeech(state.currentStepIndex)) {
+        } else if (step && !transit.ownsStepSpeech(state.currentStepIndex) &&
+          (step.type !== 'arrive' || state.stepMode === 'preview')) {
           // 公車段的上車／下車指令改由等車／搭乘導引播報（含即時分鐘數），不念後端的靜態文字。
           speak(prefix ? `${prefix} ${step.text}` : step.text, state.stepMode === 'preview');
         }

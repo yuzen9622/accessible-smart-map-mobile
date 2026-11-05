@@ -1,3 +1,5 @@
+import zh from '@/shared/i18n/locale/zh-TW/translation.json';
+import { spokenDistance } from '../../domain/maneuverAnnouncement';
 import { markRouteTokenInvalid, replaceNavigationRoute } from '@/features/route';
 import type { AccessibleRoute, NavInstruction, NavInstructionsData } from '@/features/route/domain';
 import { ApiError, type ApiResponse } from '@/shared/api';
@@ -349,6 +351,46 @@ describe('NavigationController', () => {
     expect(reroute.triggerAutoReroute).toHaveBeenCalledTimes(3);
     controller.stop();
   });
+
+  it.each(['WALK', 'DRIVE', 'MOTORCYCLE'] as const)(
+    '%s announces distance to arrival, then confirms arrival only once at the destination', async (legType) => {
+      const route = makeRoute();
+      if (legType !== 'WALK') route.legs = [{ type: legType, from: 'A', to: 'B', distanceM: 500, durationMin: 2, polyline }];
+      useMapStore.setState({ selectRoute: { index: 0, route }, computeRoutes: [route] });
+      const instructions = [
+        step('出發', 0, { type: 'depart', legType }),
+        step('您已抵達目的地', 5, { type: 'arrive', legType }),
+      ];
+      const { controller, speech } = setup({
+        fetchInstructions: jest.fn(async () => ok(instructions)),
+        arrivedText: () => zh.arrivedDesc,
+        arrivalAheadText: meters => zh.navSpeechArrivalAhead.replace('{{distance}}',
+          zh.navSpeechMeters.replace('{{value}}', String(spokenDistance(meters).value))),
+        maneuverAheadText: (meters, text) => `${meters} 公尺後，${text}`,
+      });
+      fix(25.05, 121.50073); // 430 m remain on the real test geometry.
+      controller.start();
+      try {
+        await flush();
+        expect(useNavStore.getState().arrived).toBe(false);
+        expect(speech.speak).toHaveBeenLastCalledWith('出發 430 公尺後抵達目的地', 'zh-TW');
+        fix(25.05, legType === 'WALK' ? 121.5046 : 121.5025);
+        await flush();
+        expect(useNavStore.getState().arrived).toBe(false);
+        expect(speech.speak).toHaveBeenLastCalledWith(
+          legType === 'WALK' ? '40 公尺後抵達目的地' : '出發 430 公尺後抵達目的地', 'zh-TW');
+        expect(speech.speak.mock.calls.some(([text]) => text.includes('已抵達'))).toBe(false);
+        fix(25.05, 121.505);
+        await flush();
+        fix(25.05, 121.50501);
+        await flush();
+        expect(useNavStore.getState().arrived).toBe(true);
+        expect(speech.speak.mock.calls.filter(([text]) => text === '您已抵達目的地')).toHaveLength(1);
+      } finally {
+        controller.stop();
+      }
+    },
+  );
 
   it('arrives exactly once and says so once', async () => {
     const { controller, speech } = setup();

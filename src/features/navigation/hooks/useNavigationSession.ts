@@ -61,6 +61,7 @@ export function useNavigationSession(speech: SpeechPort = silentSpeech): void {
         const text = env.current.language === 'en' ? instruction.charAt(0).toLowerCase() + instruction.slice(1) : instruction;
         return env.current.translate('navSpeechAhead', { distance: spokenDistanceText(meters), instruction: text });
       },
+      arrivalAheadText: (meters) => env.current.translate('navSpeechArrivalAhead', { distance: spokenDistanceText(meters) }),
       continueText: (meters) => env.current.translate('navSpeechContinue', { distance: spokenDistanceText(meters) }),
       transitSpeechText: (speech) => transitSpeechText(env.current.translate, speech),
       // 喇叭仲裁：語音助理擁有播報時本機 TTS 不發聲（port 由語音 feature 注入，見 speechOwnerPort.ts）

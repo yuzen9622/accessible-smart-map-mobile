@@ -101,6 +101,19 @@ function startedGuidance(): 'preview' | 'live' {
   return resolveStepMode('preview', useUserLocationStore.getState().position, route ? buildCumulativePath(route.legs) : null);
 }
 
+/** 等車卡片的內容（前往或等候公車時）；搭乘中或不在公車段沒有。 */
+function busWaitOf(guide: ReturnType<typeof useNavStore.getState>['transitGuide']): Pick<VoiceNavigationState, 'busWait'> {
+  if (!guide || guide.phase === 'riding') return {};
+  return {
+    busWait: {
+      routeName: guide.routeName,
+      stop: guide.boardStop,
+      waitMinutes: guide.waitMinutes,
+      ...(guide.waitMinutes === null && guide.scheduledAt ? { expectedAt: guide.scheduledAt } : {}),
+    },
+  };
+}
+
 /** App 導航引擎目前的狀態，給助理回答路線問題。 */
 export function currentNavigationState(): VoiceNavigationState {
   const indoor = useIndoorStore.getState();
@@ -131,6 +144,7 @@ export function currentNavigationState(): VoiceNavigationState {
     distanceToNextM: nav.distanceToNextM,
     remainingDistanceM: nav.remainingM,
     remainingDurationSec: nav.remainingDurationSec,
+    ...busWaitOf(nav.transitGuide),
     steps: nav.instructions.map((step, index) => ({
       index,
       instruction: step.text,
@@ -306,7 +320,9 @@ export function installVoiceNavigationBridge(target: VoiceNavigationUplink): voi
       lastSent = null;
     }
     const changed = state.isNavigating !== previous.isNavigating || state.currentStepIndex !== previous.currentStepIndex
-      || state.stepMode !== previous.stepMode || state.arrived !== previous.arrived || state.instructions !== previous.instructions;
+      || state.stepMode !== previous.stepMode || state.arrived !== previous.arrived || state.instructions !== previous.instructions
+      // 等車卡片的分鐘數或預計時間變了：助理被問到時要跟畫面一致。
+      || state.transitGuide !== previous.transitGuide;
     if (changed) publishState(true);
     else if (state.distanceToNextM !== previous.distanceToNextM) publishState(false);
   });

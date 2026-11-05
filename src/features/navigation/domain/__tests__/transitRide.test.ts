@@ -1,8 +1,11 @@
 import { buildCumulativePath, type BusLeg, type NavInstruction, type RouteLeg } from '@/features/route/domain';
 
-import { transitHeadline, transitInstruction, transitLiveText, type Translate } from '../transitCopy';
+import { transitHeadline, transitInstruction, transitLiveText, transitSpeechText, type Translate } from '../transitCopy';
 import {
+  boardReadySeconds,
+  buildTransitGuide,
   findActiveBusRun,
+  plannedWalkPaceMps,
   hasBoarded,
   plannedRideMinutes,
   rideStops,
@@ -146,5 +149,48 @@ describe('transit copy', () => {
     expect(transitInstruction(t, ride)).toBe('navBusRideInstruction{"count":7,"stop":"D"}');
     expect(transitInstruction(t, { ...ride, stopsLeft: 1 })).toBe('navBusNextStopAlight{"stop":"D"}');
     expect(transitLiveText(t, ride)).toBe('navBusStopsLeft{"count":3} · navBusRideInstruction{"count":7,"stop":"D"}');
+  });
+
+  it('shows the timetable time instead of "no live info" when the selected trip only has a schedule', () => {
+    const guide: TransitGuide = { phase: 'waiting', routeName: '26', boardStop: 'A', waitMinutes: null, scheduledAt: '10:30' };
+    expect(transitHeadline(t, guide)).toBe('navBusScheduledAt{"time":"10:30"}');
+    expect(transitLiveText(t, guide)).toContain('navBusWaitLineScheduled{"route":"26","time":"10:30"}');
+    expect(transitSpeechText(t, { kind: 'atStop', routeName: '26', boardStop: 'A', waitMinutes: null, scheduledAt: '10:30' })).toBe(
+      'navBusSpeakAtStop{"stop":"A"} navBusSpeakScheduled{"route":"26","time":"10:30"}',
+    );
+    // 沒有表定時刻時維持原本的「暫無即時」。
+    const unknown: TransitGuide = { phase: 'waiting', routeName: '26', boardStop: 'A', waitMinutes: null };
+    expect(transitLiveText(t, unknown)).toContain('navBusWaitLineUnknown');
+  });
+});
+
+describe('waiting guide timetable time', () => {
+  const run = { ordinal: 0, boardIndex: 1, alightIndex: 2, legIndex: 1 };
+  const input = (liveMinutes: number | null, scheduledAt: string | null) => ({
+    run, leg: busLeg(), boarded: false, alongM: 100, boardAlongM: 100, stops: null, legEndAlongM: 900, liveMinutes, scheduledAt,
+  });
+  it('carries the timetable time only while there are no live minutes', () => {
+    expect(buildTransitGuide(input(null, '10:30'), 1)).toEqual({ phase: 'waiting', routeName: '307', boardStop: 'A', waitMinutes: null, scheduledAt: '10:30' });
+    expect(buildTransitGuide(input(4, '10:30'), 1)).toEqual({ phase: 'waiting', routeName: '307', boardStop: 'A', waitMinutes: 4 });
+    expect(buildTransitGuide(input(null, null), 1)).toEqual({ phase: 'waiting', routeName: '307', boardStop: 'A', waitMinutes: null });
+  });
+});
+
+describe('board readiness reported to the backend', () => {
+  it('is 0 at the stop, else the remaining walk at the planned pace in 30 s steps', () => {
+    expect(boardReadySeconds(980, 1000, 1)).toBe(0);
+    expect(boardReadySeconds(900, 1000, 1)).toBe(120); // 100 m ÷ 1 m/s = 100 s → 120 s
+    expect(boardReadySeconds(400, 1000, 1)).toBe(600);
+  });
+  it('reports nothing without a position or a usable pace', () => {
+    expect(boardReadySeconds(null, 1000, 1)).toBeNull();
+    expect(boardReadySeconds(500, 1000, null)).toBeNull();
+    expect(boardReadySeconds(500, 1000, 0)).toBeNull();
+  });
+  it('takes the pace from the walk that ends at the boarding stop', () => {
+    const walk = { type: 'WALK', distanceM: 300, minutesEst: 5 } as RouteLeg;
+    expect(plannedWalkPaceMps([walk, busLeg()], 1)).toBeCloseTo(1);
+    expect(plannedWalkPaceMps([busLeg(), busLeg()], 1)).toBeNull();
+    expect(plannedWalkPaceMps([{ ...walk, minutesEst: 0 } as RouteLeg, busLeg()], 1)).toBeNull();
   });
 });

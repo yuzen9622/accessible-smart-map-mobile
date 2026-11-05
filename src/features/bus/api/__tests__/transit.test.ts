@@ -231,6 +231,12 @@ it('sends only the route capability and full leg index for a planned bus', async
   expect(res.data?.directions[0].stops[0].plateNumb).toBe('BUS-10');
 });
 
+it('adds the navigating rider readiness to the planned bus query', async () => {
+  mockFetchRequest.mockResolvedValue(envelope({ directions: [] }));
+  await getBusRouteDetail('99', 'Taipei', undefined, 'branch', { routeToken: 'plan-token', legIndex: 2, readyInSeconds: 0 });
+  expect(mockFetchRequest.mock.calls[0][0]).toBe('https://api.test/api/v1/a11y/accessible-route/bus-arrivals?routeToken=plan-token&legIndex=2&readyInSeconds=0');
+});
+
 it('preserves endpoint-specific display fields and aligned route labels without changing IDs', async () => {
   mockFetchRequest.mockResolvedValue(envelope({ stops: [
     { stopUid: 'id-a', stopName: '同名', stopDisplayName: 'A', coordinates: [121, 25], routes: ['1', 42, '2'], routeDisplayNames: ['One', 'bad', 'Two'] },

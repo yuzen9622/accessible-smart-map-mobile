@@ -43,7 +43,7 @@ export function useLiveBusTracking(): void {
         ({ buses, arrival }) => {
           const s = useBusStore.getState();
           s.setLiveBusPositions(buses);
-          s.setLegArrival({ stop: 'board', eta: arrival.eta });
+          s.setLegArrival(arrival.scheduledAt ? { stop: 'board', eta: arrival.eta, scheduledAt: arrival.scheduledAt } : { stop: 'board', eta: arrival.eta });
         },
         appStateVisibility,
         lang,

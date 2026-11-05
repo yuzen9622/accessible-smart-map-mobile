@@ -7,11 +7,13 @@ import {
   AT_STOP_RADIUS_M,
   BOARD_CONFIRM_SAMPLES,
   BOARD_FAR_PAST_M,
+  boardReadySeconds,
   buildTransitGuide,
   findActiveBusRun,
   findBusRuns,
   hasBoarded,
   legAlongRange,
+  plannedWalkPaceMps,
   rideStops,
   transitAnnouncement,
   type BusRun,
@@ -121,11 +123,23 @@ export function createTransitRideRuntime(deps: TransitRideDeps): TransitRideRunt
     syncBoardedToBus(run);
   }
 
-  function liveMinutes(run: BusRun): number | null {
-    if (!trackedKey(run)) return null;
+  function liveArrival(run: BusRun): { minutes: number | null; scheduledAt: string | null } {
+    if (!trackedKey(run)) return { minutes: null, scheduledAt: null };
     const arrival = useBusStore.getState().legArrival;
     const want = boarded.has(run.boardIndex) ? 'alight' : 'board';
-    return arrival?.stop === want ? arrival.eta : null;
+    if (arrival?.stop !== want) return { minutes: null, scheduledAt: null };
+    return { minutes: arrival.eta, scheduledAt: arrival.scheduledAt ?? null };
+  }
+
+  /**
+   * 還沒上車時告訴公車 feature 使用者還要幾秒到站牌：後端據此挑趕得上的那班，而不是沿用規劃當下的預估。
+   * 算不出來（沒有步速）就清掉，讓後端沿用規劃。
+   */
+  function reportReadiness(run: BusRun, alongM: number, boardAlongM: number): void {
+    const key = trackedKey(run);
+    if (!key || boarded.has(run.boardIndex)) return;
+    const legs = deps.route()?.legs ?? [];
+    useBusStore.getState().setBoardReadiness(key, boardReadySeconds(alongM, boardAlongM, plannedWalkPaceMps(legs, run.legIndex)));
   }
 
   function stopsFor(run: BusRun, route: AccessibleRoute): RideStop[] | null {
@@ -158,6 +172,7 @@ export function createTransitRideRuntime(deps: TransitRideDeps): TransitRideRunt
       const at = deps.now();
       const alongM = projectToPath(position, cp.path, cp.cumM).alongM;
       const boardAlongM = run ? deps.geometry.waypoints[run.boardIndex]?.alongM : undefined;
+      if (run && boardAlongM != null && liveLocal()) reportReadiness(run, alongM, boardAlongM);
       if (run && boardAlongM != null && nav.currentStepIndex >= run.boardIndex) {
         const pastStopM = alongM - boardAlongM;
         leftStop = pastStopM > AT_STOP_RADIUS_M;
@@ -180,7 +195,11 @@ export function createTransitRideRuntime(deps: TransitRideDeps): TransitRideRunt
     sync() {
       const nav = useNavStore.getState();
       if (!liveLocal()) {
-        // 預覽（手動切步驟）或語音接手：沒有等車／搭乘狀態，不留舊導引、不播報。
+        // 預覽（手動切步驟）或語音接手：沒有等車／搭乘狀態，不留舊導引、不播報；
+        // 也不再替使用者回報到站秒數（沒有在追蹤他的位置）。
+        const pending = activeRun();
+        const key = pending ? trackedKey(pending) : null;
+        if (key) useBusStore.getState().setBoardReadiness(key, null);
         if (nav.transitGuide) nav.setTransitGuide(null);
         prevGuide = null;
         return;
@@ -192,6 +211,7 @@ export function createTransitRideRuntime(deps: TransitRideDeps): TransitRideRunt
       const leg = run && route ? route.legs[run.legIndex] : undefined;
       let guide: TransitGuide | null = null;
       if (run && route && cp && leg?.type === 'BUS') {
+        const arrival = liveArrival(run);
         const range = legAlongRange(cp, run.legIndex);
         const boardAlongM = deps.geometry.waypoints[run.boardIndex]?.alongM ?? range?.startM ?? 0;
         guide = buildTransitGuide(
@@ -203,7 +223,8 @@ export function createTransitRideRuntime(deps: TransitRideDeps): TransitRideRunt
             boardAlongM,
             stops: stopsFor(run, route),
             legEndAlongM: range?.endM ?? boardAlongM,
-            liveMinutes: liveMinutes(run),
+            liveMinutes: arrival.minutes,
+            scheduledAt: arrival.scheduledAt,
           },
           nav.currentStepIndex,
         );

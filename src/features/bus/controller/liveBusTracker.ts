@@ -1,5 +1,6 @@
 import { getAppLanguage, type AppLanguage } from '@/shared/i18n';
 import type { BusLeg } from '@/features/route';
+import type { BusDepartureCandidate } from '@/features/route/domain';
 
 import { fetchRouteDetailCached } from '../api/busRouteDetailCache';
 import { getBusArrival, getLiveBusPositions } from '../api/transit';
@@ -48,6 +49,8 @@ export interface LegArrival {
   eta: number | null;
   /** 與 {@link eta} 同一筆到站紀錄的車牌；TDX 尚未派車時沒有。 */
   plate?: string;
+  /** 沒有即時分鐘數時，後端選定那班在上車站的表定時刻（HH:mm）。 */
+  scheduledAt?: string;
 }
 
 export interface LegSnapshot {
@@ -57,18 +60,43 @@ export interface LegSnapshot {
 
 const NO_ARRIVAL: LegArrival = { eta: null };
 
-/** 實際營運的支線與方向（GTFS 方向不可信）；認不出唯一乘車區間就回 null。 */
-async function resolveSelection(leg: BusLeg, lang: AppLanguage): Promise<{ selection: RideSelection; stops: RouteDetailStop[] } | null> {
+/**
+ * 後端選定那班只有時刻表時，它在上車站的表定時刻（HH:mm）；即時、不知道、或後端改選了別條路線
+ * （同一對站牌有其他路線行駛）都回 undefined——畫面寫的是這段 leg 的路線，不能配上別條線的時刻。
+ */
+function scheduledBoarding(leg: BusLeg, candidates: readonly BusDepartureCandidate[] | undefined): string | undefined {
+  const selected = candidates?.find((c) => c.selected);
+  if (selected?.boardingTimeSource !== 'schedule' || !selected.boardingTime) return undefined;
+  if (!leg.subRouteUid || selected.subRouteUid !== leg.subRouteUid) return undefined;
+  if (leg.departureStopId && selected.departureStopId !== leg.departureStopId) return undefined;
+  const at = Date.parse(selected.boardingTime);
+  if (!Number.isFinite(at)) return undefined;
+  return new Date(at).toLocaleTimeString('en-GB', { timeZone: 'Asia/Taipei', hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * 實際營運的支線與方向（GTFS 方向不可信）；認不出唯一乘車區間時 `ride` 為 null。
+ * `scheduledAt` 與乘車區間無關：後端選定的班次只有時刻表時就有。
+ */
+async function resolveSelection(
+  leg: BusLeg,
+  lang: AppLanguage,
+): Promise<{ ride: { selection: RideSelection; stops: RouteDetailStop[] } | null; scheduledAt?: string } | null> {
   if (!leg.planContext) return null;
   // route-detail 已被站序預熱，通常是讀快取。
   const city = leg.tdxCity ?? leg.cityCode ?? '';
   const detail = city ? await fetchRouteDetailCached(tdxRouteName(leg), city, { subRouteUid: leg.subRouteUid, planContext: leg.planContext, lang }) : null;
-  const ride = resolveLegRide(detail?.directions, leg);
-  if (!ride) return null;
+  if (!detail) return null;
+  const scheduledAt = scheduledBoarding(leg, detail.departureCandidates);
+  const ride = resolveLegRide(detail.directions, leg);
+  if (!ride) return { ride: null, scheduledAt };
   // 站序資料沒有帶支線 ID 時，退回規劃器訂的那一支：回傳紀錄若自稱別的支線就能被排除。
   return {
-    selection: { direction: ride.direction, subRouteUid: ride.subRouteUid ?? leg.subRouteUid, exclusive: false },
-    stops: ride.stops,
+    ride: {
+      selection: { direction: ride.direction, subRouteUid: ride.subRouteUid ?? leg.subRouteUid, exclusive: false },
+      stops: ride.stops,
+    },
+    scheduledAt,
   };
 }
 
@@ -81,11 +109,15 @@ export async function fetchLegSnapshot(leg: BusLeg, signal: AbortSignal, lang: A
   if (signal.aborted) return { buses: [], arrival: NO_ARRIVAL };
   const resolved = await resolveSelection(leg, lang);
   if (!resolved || signal.aborted) return { buses: [], arrival: NO_ARRIVAL };
-  const { selection, stops } = resolved;
+  const scheduled: LegArrival = resolved.scheduledAt ? { eta: null, scheduledAt: resolved.scheduledAt } : NO_ARRIVAL;
+  if (!resolved.ride) return { buses: [], arrival: scheduled };
+  const { selection, stops } = resolved.ride;
 
   const board = stops[0];
   const arrival = { plate: board?.plateNumb, eta: board?.estimateMinutes ?? null };
-  if (!arrival.plate || arrival.eta === null) return { buses: [], arrival: NO_ARRIVAL };
+  // 表定時刻只在上車站真的沒有分鐘數時才用；有分鐘數卻沒車牌＝認不出是哪台車，維持「沒有」。
+  if (arrival.eta === null) return { buses: [], arrival: scheduled };
+  if (!arrival.plate) return { buses: [], arrival: NO_ARRIVAL };
   const posRes = await getLiveBusPositions({ routeName: tdxRouteName(leg), city: leg.tdxCity, direction: selection.direction }, signal, lang);
   if (signal.aborted) return { buses: [], arrival: NO_ARRIVAL };
   const legArrival: LegArrival = arrival.plate ? { eta: arrival.eta, plate: arrival.plate } : { eta: arrival.eta };
@@ -131,8 +163,8 @@ export async function fetchLeg(leg: BusLeg, signal: AbortSignal, lang: AppLangua
  */
 export async function fetchRideArrival(leg: BusLeg, plate: string, signal: AbortSignal, lang: AppLanguage = getAppLanguage()): Promise<number | null> {
   const resolved = await resolveSelection(leg, lang);
-  if (!resolved) return null;
-  const { selection } = resolved;
+  if (!resolved?.ride) return null;
+  const { selection } = resolved.ride;
   try {
     const res = await getBusArrival(
       { routeName: tdxRouteName(leg), stopName: leg.arrivalStop, direction: selection.direction, city: leg.tdxCity },

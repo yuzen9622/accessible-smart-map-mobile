@@ -3,7 +3,7 @@
 // HUD 直接跳到「到站後請下車」。這裡把公車段拆成「前往站牌 → 等車 → 搭乘」三個階段，
 // 上車由定位判斷（離開站牌、沿公車路線前進），等車／搭乘的分鐘數由公車 feature 的即時資料提供。
 
-import { projectToPath, type BusLeg, type CumulativePath, type NavInstruction } from '@/features/route/domain';
+import { projectToPath, type BusLeg, type CumulativePath, type NavInstruction, type RouteLeg } from '@/features/route/domain';
 
 /** 一段連續的 BUS 步驟：上車指令到下車指令。`ordinal` 是第幾段公車（0 起算，與 route.legs 中 BUS leg 的順序一致）。 */
 export interface BusRun {
@@ -144,6 +144,8 @@ export type TransitGuide =
       boardStop: string;
       /** 上車站下一班的即時分鐘數；查不到為 null。 */
       waitMinutes: number | null;
+      /** 沒有即時分鐘數時，選定那班在上車站的表定時刻（HH:mm）。 */
+      scheduledAt?: string;
     }
   | {
       phase: 'riding';
@@ -167,6 +169,8 @@ export interface TransitGuideInput {
   legEndAlongM: number;
   /** 公車 feature 的即時分鐘數：等車時是上車站、上車後是下車站。 */
   liveMinutes: number | null;
+  /** 等車時沒有即時分鐘數：選定那班在上車站的表定時刻（HH:mm）。 */
+  scheduledAt?: string | null;
 }
 
 /** 目前步驟落在公車段（含上車指令）時的導引；不在公車段回 null。 */
@@ -176,7 +180,8 @@ export function buildTransitGuide(input: TransitGuideInput, currentStepIndex: nu
   if (currentStepIndex < run.boardIndex || currentStepIndex > run.alightIndex) return null;
   if (!input.boarded) {
     const atStop = input.alongM !== null && input.alongM >= input.boardAlongM - AT_STOP_RADIUS_M;
-    return { phase: atStop ? 'waiting' : 'approaching', routeName, boardStop: leg.departureStop, waitMinutes: input.liveMinutes };
+    const guide = { phase: atStop ? ('waiting' as const) : ('approaching' as const), routeName, boardStop: leg.departureStop, waitMinutes: input.liveMinutes };
+    return input.liveMinutes === null && input.scheduledAt ? { ...guide, scheduledAt: input.scheduledAt } : guide;
   }
   const along = input.alongM ?? input.boardAlongM;
   const stopsLeft = input.stops ? stopsAhead(input.stops, along).count : null;
@@ -194,8 +199,8 @@ export function buildTransitGuide(input: TransitGuideInput, currentStepIndex: nu
 }
 
 export type TransitSpeech =
-  | { kind: 'approach'; routeName: string; boardStop: string; waitMinutes: number | null }
-  | { kind: 'atStop'; routeName: string; boardStop: string; waitMinutes: number | null }
+  | { kind: 'approach'; routeName: string; boardStop: string; waitMinutes: number | null; scheduledAt?: string }
+  | { kind: 'atStop'; routeName: string; boardStop: string; waitMinutes: number | null; scheduledAt?: string }
   | { kind: 'busSoon'; routeName: string; waitMinutes: number }
   | { kind: 'busArriving'; routeName: string }
   | { kind: 'boarded'; alightStop: string; stopsLeft: number | null; minutes: number | null }
@@ -242,12 +247,13 @@ export function transitAnnouncement(
     ...(minutes !== null && minutes <= BUS_SOON_MINUTES ? ['soon'] : []),
     ...(minutes !== null && minutes <= BUS_ARRIVING_MINUTES ? ['arriving'] : []),
   ];
+  const scheduled = next.scheduledAt ? { scheduledAt: next.scheduledAt } : {};
   if (next.phase === 'approaching' && prev === null) {
-    return { speech: { kind: 'approach', routeName: next.routeName, boardStop: next.boardStop, waitMinutes: wait }, remember: [] };
+    return { speech: { kind: 'approach', routeName: next.routeName, boardStop: next.boardStop, waitMinutes: wait, ...scheduled }, remember: [] };
   }
   if (next.phase === 'waiting' && prev?.phase !== 'waiting') {
     return {
-      speech: { kind: 'atStop', routeName: next.routeName, boardStop: next.boardStop, waitMinutes: wait },
+      speech: { kind: 'atStop', routeName: next.routeName, boardStop: next.boardStop, waitMinutes: wait, ...scheduled },
       remember: covered(wait),
     };
   }
@@ -261,6 +267,28 @@ export function transitAnnouncement(
     return { speech: { kind: 'busSoon', routeName: next.routeName, waitMinutes: wait }, remember: ['soon'] };
   }
   return { speech: null, remember: [] };
+}
+
+/** 回報給後端的到站秒數以此為單位取整：數值不必每個定位樣本都變，快取與輪詢才不會被打散。 */
+export const BOARD_READY_STEP_S = 30;
+
+/**
+ * 使用者還要幾秒到上車站：在站牌半徑內為 0，否則剩餘沿線距離除以規劃器給這段步行的速度，
+ * 向上取整到 {@link BOARD_READY_STEP_S}。沒有定位樣本或沒有可用的步速回 null（不回報，後端沿用規劃）。
+ */
+export function boardReadySeconds(alongM: number | null, boardAlongM: number, walkPaceMps: number | null): number | null {
+  if (alongM === null) return null;
+  const remainingM = boardAlongM - alongM;
+  if (remainingM <= AT_STOP_RADIUS_M) return 0;
+  if (walkPaceMps === null || !(walkPaceMps > 0)) return null;
+  return Math.ceil(remainingM / walkPaceMps / BOARD_READY_STEP_S) * BOARD_READY_STEP_S;
+}
+
+/** 走到上車站那段步行的規劃步速（m/s）：這段公車前一段是步行、且距離與時間都有效時才有。 */
+export function plannedWalkPaceMps(legs: readonly RouteLeg[], busLegIndex: number): number | null {
+  const walk = legs[busLegIndex - 1];
+  if (walk?.type !== 'WALK' || !(walk.distanceM > 0) || !(walk.minutesEst > 0)) return null;
+  return walk.distanceM / (walk.minutesEst * 60);
 }
 
 /** 沿線速度（m/s）：兩個樣本的沿線距離差除以時間；時間太短或倒退回 null。 */

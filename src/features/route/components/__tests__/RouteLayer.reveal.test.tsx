@@ -91,8 +91,8 @@ it.each(['light', 'dark'] as const)('uses the %s candidate palette', async (them
   selectCandidates();
   await render(<RouteLayer />);
   const paints = jest.mocked(Layer).mock.calls.map(([props]) => props);
-  expect(paints.find((props) => props.id === 'route-alternative-line')?.paint).toMatchObject({ 'line-color': ROUTE_ALTERNATIVE[theme].line });
-  expect(paints.find((props) => props.id === 'route-alternative-casing')?.paint).toMatchObject({ 'line-color': ROUTE_ALTERNATIVE[theme].casing });
+  expect(paints.find((props) => props.id === 'route-alternative-line')?.paint).toMatchObject({ 'line-color': ROUTE_ALTERNATIVE[theme].line, 'line-opacity': ROUTE_ALTERNATIVE[theme].lineOpacity });
+  expect(paints.find((props) => props.id === 'route-alternative-casing')?.paint).toMatchObject({ 'line-color': ROUTE_ALTERNATIVE[theme].casing, 'line-opacity': ROUTE_ALTERNATIVE[theme].casingOpacity });
   expect(paints.filter((props) => props.id?.startsWith('route-alternative-'))).toEqual([
     expect.objectContaining({ source: 'route-alternatives', beforeId: 'route-line-casing' }),
     expect.objectContaining({ source: 'route-alternatives', beforeId: 'route-line-casing' }),
@@ -150,7 +150,7 @@ it('forwards the source to every memoized line layer without rerendering the sty
   const view = await render(<RouteLayer />);
   const layers = jest.mocked(Layer);
   const lineSources = layers.mock.calls.flatMap(([props]) => props.type === 'line' ? [props.source] : []);
-  expect(lineSources).toEqual(Array(5).fill('route-lines'));
+  expect(lineSources).toEqual(Array(3).fill('route-lines'));
   const initialCalls = layers.mock.calls.length;
 
   for (const progress of [0.2, 0.5]) {
@@ -223,4 +223,37 @@ it('reuses a bus geometry preview between frames and rebuilds only when that pre
   expect(sourceData('route-lines')).toMatchObject({ features: [{ geometry: { coordinates: replacement } }] });
   expect(useRouteSessionStore.getState().selectRoute?.route).toBe(route);
   expect(route.legs[0].polyline).toEqual([[120, 24], [120.1, 24.1]]);
+});
+
+it('mounts continuous traffic after reveal, above the base and below incidents', async () => {
+  const routes = selectCandidates();
+  const route: AccessibleRoute = { ...routes[0], legs: [{
+    type: 'DRIVE', from: 'A', to: 'B', distanceM: 1000, durationMin: 10,
+    polyline: [[121, 25], [121.001, 25], [121.002, 25]],
+    trafficSegments: [{ fromIndex: 1, toIndex: 2, trafficLevel: 'heavy', congestionLevel: 4 }],
+  }] };
+  useRouteSessionStore.setState({ selectRoute: { route, index: 0 } });
+  const view = await render(<RouteLayer />);
+  expect(view.queryByTestId('route-traffic-0')).toBeNull();
+  jest.mocked(useRouteReveal).mockReturnValue(1);
+  await view.rerender(<RouteLayer />);
+  expect(mockSources.get('route-traffic-0')).toMatchObject({
+    lineMetrics: true, tolerance: 0,
+    data: { geometry: { coordinates: route.legs[0].polyline } },
+  });
+  const paints = jest.mocked(Layer).mock.calls.map(([props]) => props).filter((props) => props.id?.startsWith('route-traffic-0'));
+  expect(paints.map((props) => props.id)).toEqual(['route-traffic-0-casing', 'route-traffic-0-line']);
+  const originalCasing = jest.mocked(Layer).mock.calls.find(([props]) => props.id === 'route-line-casing')?.[0];
+  if (paints[0].type !== 'line' || paints[1].type !== 'line' || originalCasing?.type !== 'line') throw new Error('Missing road line or casing');
+  expect(paints[0].paint?.['line-width']).toBe(originalCasing.paint?.['line-width']);
+  expect(Number(paints[1].paint?.['line-width'])).toBeLessThan(Number(paints[0].paint?.['line-width']));
+  for (const props of paints) {
+    expect(props).toMatchObject({ source: 'route-traffic-0', beforeId: 'route-line-incident' });
+    expect(props.paint).toHaveProperty('line-gradient');
+  }
+  const stopPropagation = jest.fn();
+  await fireEvent(view.getByTestId('route-traffic-0'), 'press', { stopPropagation });
+  expect(stopPropagation).toHaveBeenCalled();
+  await act(async () => { useRouteSessionStore.setState({ selectRoute: { route: routes[1], index: 1 } }); });
+  expect(view.queryByTestId('route-traffic-0')).toBeNull();
 });

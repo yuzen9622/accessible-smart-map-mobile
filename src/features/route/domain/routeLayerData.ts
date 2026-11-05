@@ -5,7 +5,7 @@
 // 規則逐條對齊 Web：
 // - 所有運具採實色內線與同色系外框；步行依已確認的人行道區間分成藍／綠實線。
 // - 步行 `a11ySegments` 保留點狀設施；線段資訊在詳情呈現，不蓋掉步行線的分類色。
-// - 開車 `trafficSegments` 經 `visibleTrafficSegments` 過濾後疊在底線上（unknown／越界不畫）。
+// - 開車路況由 routeTrafficGradient 組裝連續漸層，完成底線繪出後疊上。
 // - 起點＝第一段 leg 的第一點；終點＝最後一段 leg 的最後一點；運具改變處畫轉乘點；中繼站；
 //   沿線 150 m 內的開車事故（`filterIncidentsAlongRoute`）。
 
@@ -14,11 +14,11 @@ import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 import type { LatLng } from '@/shared/geo';
 
 import { filterIncidentsAlongRoute, isIncidentClosed } from './geo';
-import { A11Y_FEATURE_COLOR, TRAFFIC_LEVEL_COLORS, getLegColor, legEdgeColor, visibleTrafficSegments } from './routeDisplay';
+import { A11Y_FEATURE_COLOR, getLegColor, legEdgeColor } from './routeDisplay';
 import type { AccessibleRoute, LngLatTuple, TravelMode, WalkLeg } from '../types/route';
 import { ROUTE_MARKER, WALK_ROUTE, routeCasingColor } from '@/shared/theme/palettes';
 
-export type RouteLineKind = 'walk' | 'sidewalk' | 'transit' | 'drive' | 'traffic' | 'incident';
+export type RouteLineKind = 'walk' | 'sidewalk' | 'transit' | 'drive' | 'incident';
 
 export interface RouteLineProps {
   id: string;
@@ -26,7 +26,7 @@ export interface RouteLineProps {
   color: string;
   /** 地圖線條的同色系外框；與標記／徽章的對比字色分開。 */
   casing?: string;
-  /** 疊放順序：底線 0、疊色 1（line-sort-key）。 */
+  /** 疊放順序：底線為 0；事故等疊加圖層在繪線動畫完成後才顯示。 */
   order: number;
 }
 
@@ -146,19 +146,6 @@ export function buildRouteLayerData(route: AccessibleRoute | null, waypoints: re
     }
 
     if (leg.type === 'DRIVE' || leg.type === 'MOTORCYCLE') {
-      visibleTrafficSegments(leg.trafficSegments, coords.length).forEach((segment, i) => {
-        const slice = coords.slice(segment.fromIndex, segment.toIndex + 1);
-        if (slice.length >= 2) {
-          lines.push(
-            line(`${base}-traffic-${segment.trafficLevel}-${segment.fromIndex}-${segment.toIndex}-${i}`, slice, {
-              kind: 'traffic',
-              color: TRAFFIC_LEVEL_COLORS[segment.trafficLevel],
-              casing: routeCasingColor(TRAFFIC_LEVEL_COLORS[segment.trafficLevel]),
-              order: 1,
-            }),
-          );
-        }
-      });
       filterIncidentsAlongRoute(leg.incidents, coords).forEach((incident) => {
         const closure = isIncidentClosed(incident);
         const extent = (incident.points ?? []).filter(isFiniteTuple);

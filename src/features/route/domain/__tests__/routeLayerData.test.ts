@@ -75,7 +75,7 @@ describe('buildRouteLayerData', () => {
     expect(lines).toEqual(['leg-0']);
   });
 
-  it('draws the solid base line plus one line per visible segment, sorted by fromIndex', () => {
+  it('keeps traffic out of the solid layers so a continuous gradient can cover the road', () => {
     const { lines } = ids(
       driveRoute({
         trafficSegments: [
@@ -84,7 +84,7 @@ describe('buildRouteLayerData', () => {
         ],
       }),
     );
-    expect(lines).toEqual(['leg-0', 'leg-0-traffic-heavy-0-1-0', 'leg-0-traffic-severe-2-4-1']);
+    expect(lines).toEqual(['leg-0']);
   });
 
   it('skips out-of-range and unknown segments', () => {
@@ -147,8 +147,8 @@ describe('buildRouteLayerData', () => {
     expect(points.some((p) => p.kind === 'incidentAdvisory')).toBe(false);
   });
 
-  it('exposes both the dimmed base colour and the segment colours', () => {
-    expect(TRAFFIC_BASE_COLOR).toBe('#475569');
+  it('exposes the shared blue base and the existing segment colours', () => {
+    expect(TRAFFIC_BASE_COLOR).toBe(MODE.walk.line);
     expect(TRAFFIC_LEVEL_COLORS.severe).not.toBe(TRAFFIC_LEVEL_COLORS.heavy);
   });
 
@@ -275,13 +275,6 @@ describe('unified transit and vehicle lines', () => {
     const data = buildRouteLayerData(route);
     const color = expectedFill[type];
     expect(data.lines.features[0].properties).toMatchObject({ color, casing: routeCasingColor(color), order: 0 });
-  });
-
-  it.each<DriveLeg['type']>(['DRIVE', 'MOTORCYCLE'])('%s preserves each traffic color with its own casing', (type) => {
-    const data = buildRouteLayerData(driveRoute({ type, trafficSegments: [{ fromIndex: 1, toIndex: 3, trafficLevel: 'heavy', congestionLevel: 4 }] }));
-    expect(data.lines.features.find((f) => f.properties.kind === 'traffic')?.properties).toMatchObject({
-      color: TRAFFIC_LEVEL_COLORS.heavy, casing: routeCasingColor(TRAFFIC_LEVEL_COLORS.heavy), order: 1,
-    });
   });
 
   it('does not turn a bus transfer point into a filled marker when adding the bus line casing', () => {

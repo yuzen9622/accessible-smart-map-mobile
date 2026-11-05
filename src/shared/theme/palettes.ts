@@ -11,14 +11,16 @@ export interface DomainColor {
   text: string;
 }
 
+const ROAD_BLUE = { line: '#007AFF', text: '#0066D6' } as const;
+
 export const MODE = {
-  walk: { line: '#007AFF', text: '#0066D6' },
+  walk: ROAD_BLUE,
   bus: { line: '#1B9A4B', text: '#1B7F3B' },
   metro: { line: '#0C8599', text: '#0B6577' },
   hsr: { line: '#E8590C', text: '#B34700' },
   tra: { line: '#1864AB', text: '#1864AB' },
-  car: { line: '#475569', text: '#475569' },
-  scooter: { line: '#C2255C', text: '#A61E4D' },
+  car: ROAD_BLUE,
+  scooter: ROAD_BLUE,
 } as const satisfies Record<string, DomainColor>;
 
 export type ModeKey = keyof typeof MODE;
@@ -31,10 +33,10 @@ export const WALK_ROUTE = {
   sidewalkCasing: '#83D4A7',
 } as const;
 
-/** 未選候選線：低彩度實線，深色底圖提高亮度以保留辨識度。 */
+/** 未選候選線沿用既有淺藍外框色，以透明度降低視覺權重。 */
 export const ROUTE_ALTERNATIVE = {
-  light: { line: '#3F4C5E', casing: '#8796A8' },
-  dark: { line: '#3C526C', casing: '#71869D' },
+  light: { line: WALK_ROUTE.casing, casing: WALK_ROUTE.casing, lineOpacity: 0.85, casingOpacity: 0.45 },
+  dark: { line: WALK_ROUTE.casing, casing: WALK_ROUTE.casing, lineOpacity: 1, casingOpacity: 0.55 },
 } as const;
 
 export const FACILITY = {
@@ -61,10 +63,10 @@ export type FeatureKey = keyof typeof FEATURE;
 export const WHITE = '#FFFFFF';
 export const BLACK = '#000000';
 
-/** 地圖專用同色系外框；淺色線用深框，其餘用亮框。徽章與標記的字色另由原色票決定。 */
-export function routeCasingColor(fill: string): string {
+/** 地圖同色系外框；路況指定 light 一律變淺，其餘維持原本對比策略。 */
+export function routeCasingColor(fill: string, tone: 'contrast' | 'light' = 'contrast'): string {
   const { r, g, b } = hexToRgb(fill);
-  const pale = contrastRatio(fill, WHITE) < 3;
+  const pale = tone === 'contrast' && contrastRatio(fill, WHITE) < 3;
   const target = pale ? 0 : 255;
   const amount = pale ? 0.55 : 0.47;
   return '#' + [r, g, b]
@@ -127,7 +129,7 @@ export const TRAFFIC = {
   severe: '#991B1B',
   closed: '#4B5563',
   unknown: '#3B82F6',
-  base: '#475569',
+  base: MODE.car.line,
 } as const;
 
 /** 路線地圖上的起點、終點、途經點與事件標記。 */

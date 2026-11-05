@@ -4,15 +4,16 @@ import { ROUTE_CASING_PAINT, ROUTE_POINT_COLOR_PAINT, ROUTE_LINE_PAINT } from '.
 import { MODE, ROUTE_ALTERNATIVE, WALK_ROUTE, WHITE, routeCasingColor } from '@/shared/theme/palettes';
 import { contrastRatio } from '@/shared/theme/contrast';
 
-it.each(Object.values(ROUTE_ALTERNATIVE))('keeps candidates darker than every supported primary route with a visible dark-map edge: %j', (alternative) => {
-  for (const color of [WALK_ROUTE.line, WALK_ROUTE.sidewalk, MODE.car.line, MODE.scooter.line]) {
-    expect(contrastRatio(alternative.line, WHITE)).toBeGreaterThan(contrastRatio(color, WHITE));
+it.each(Object.values(ROUTE_ALTERNATIVE))('uses the existing light blue for candidates: %j', (alternative) => {
+  for (const color of [WALK_ROUTE.line, MODE.car.line, MODE.scooter.line]) {
+    expect(contrastRatio(alternative.line, WHITE)).toBeLessThan(contrastRatio(color, WHITE));
   }
+  expect(alternative.line).toBe(WALK_ROUTE.casing);
   expect(contrastRatio(alternative.casing, '#111111')).toBeGreaterThan(3);
 });
 
 function evaluate(value: unknown, spec: unknown, properties: Record<string, unknown>): string {
-  const parsed = createExpression(value, spec as never);
+  const parsed = createExpression(value, 'paint', spec as never);
   if (parsed.result !== 'success') throw new Error(JSON.stringify(parsed.value));
   return String(parsed.value.evaluate({ zoom: 14 }, { type: 'Point', properties } as never));
 }

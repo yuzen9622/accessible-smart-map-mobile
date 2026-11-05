@@ -6,6 +6,7 @@ import { useColorScheme } from 'react-native';
 
 import { selectRouteAt } from '../controller/routeSessionPort';
 import { ROUTE_DESTINATION_COLOR, buildAlternativeRouteLines, buildRouteLayerData, type RoutePointProps } from '../domain/routeLayerData';
+import { buildTrafficGradients } from '../domain/routeTrafficGradient';
 import { createRouteReveal } from '../domain/routeReveal';
 import { useRouteReveal } from '../hooks/useRouteReveal';
 import { useRouteSessionStore } from '../store/routeSessionStore';
@@ -17,7 +18,7 @@ import { ROUTE_ALTERNATIVE, ROUTE_STROKE, WHITE } from '@/shared/theme';
  *
  * 只有目的地、還沒算出路線時也畫目的地 pin（對齊 `hasRouteSession` 的定義：它也需要 pill 當出口）。
  */
-/** 全運具共用；traffic 的外框與內線另疊在底線上，保持路況顏色完整。 */
+/** 全運具共用；路況內線與同色系淺色外框使用相同停點同步漸層。 */
 export const ROUTE_CASING_PAINT: LineLayerSpecification['paint'] = {
   'line-color': ['coalesce', ['get', 'casing'], WHITE],
   'line-width': ROUTE_STROKE.casingWidth,
@@ -71,22 +72,6 @@ const RouteLineLayers = memo(function RouteLineLayers({ source }: { source?: str
         type="line"
         filter={['match', ['get', 'kind'], ['walk', 'sidewalk', 'transit', 'drive'], true, false]}
         layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-        paint={ROUTE_LINE_PAINT}
-      />
-      <Layer
-        source={source}
-        id="route-line-traffic-casing"
-        type="line"
-        filter={['==', ['get', 'kind'], 'traffic']}
-        layout={{ 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'order'] }}
-        paint={ROUTE_CASING_PAINT}
-      />
-      <Layer
-        source={source}
-        id="route-line-traffic"
-        type="line"
-        filter={['==', ['get', 'kind'], 'traffic']}
-        layout={{ 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'order'] }}
         paint={ROUTE_LINE_PAINT}
       />
       <Layer
@@ -146,10 +131,10 @@ export default function RouteLayer({ showAlternatives = true }: { showAlternativ
   const alternativeLayers = useMemo(() => [
     <Layer key="casing" id="route-alternative-casing" type="line" beforeId="route-line-casing"
       layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-      paint={{ 'line-color': alternativeColor.casing, 'line-width': ROUTE_STROKE.casingWidth }} />,
+      paint={{ 'line-color': alternativeColor.casing, 'line-opacity': alternativeColor.casingOpacity, 'line-width': ROUTE_STROKE.casingWidth }} />,
     <Layer key="line" id="route-alternative-line" type="line" beforeId="route-line-casing"
       layout={{ 'line-cap': 'round', 'line-join': 'round' }}
-      paint={{ 'line-color': alternativeColor.line, 'line-width': ROUTE_STROKE.lineWidth }} />,
+      paint={{ 'line-color': alternativeColor.line, 'line-opacity': alternativeColor.lineOpacity, 'line-width': ROUTE_STROKE.lineWidth }} />,
   ], [alternativeColor]);
   const preview = useRouteSessionStore((s) => s.legGeometryPreview);
   // 查看別班公車時，那段 leg 改畫那班的線形（只在這張圖層上替換，不寫回路線）
@@ -159,6 +144,7 @@ export default function RouteLayer({ showAlternatives = true }: { showAlternativ
       ? { ...selected, legs: selected.legs.map((leg, index) => (index === preview.legIndex ? { ...previewLeg, polyline: preview.polyline } : leg)) }
       : selected;
   }, [selected, preview]);
+  const trafficGradients = useMemo(() => buildTrafficGradients(route), [route]);
   const waypoints = useRouteSessionStore((s) => s.routeWaypoints);
   const destination = useRouteSessionStore((s) => s.destination);
 
@@ -195,6 +181,16 @@ export default function RouteLayer({ showAlternatives = true }: { showAlternativ
       <GeoJSONSource id="route-lines" data={lines} onPress={stopRoutePress}>
         {ROUTE_LINE_LAYERS}
       </GeoJSONSource>
+      {complete ? trafficGradients.map(({ id, data: trafficData, gradient, casingGradient }) => (
+        <GeoJSONSource key={id} id={id} data={trafficData} lineMetrics tolerance={0} onPress={stopRoutePress}>
+          <Layer id={`${id}-casing`} type="line" beforeId="route-line-incident"
+            layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+            paint={{ 'line-gradient': casingGradient, 'line-width': ROUTE_STROKE.casingWidth }} />
+          <Layer id={`${id}-line`} type="line" beforeId="route-line-incident"
+            layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+            paint={{ 'line-gradient': gradient, 'line-width': ROUTE_STROKE.lineWidth }} />
+        </GeoJSONSource>
+      )) : null}
       <GeoJSONSource id="route-points" data={points}>
         {ROUTE_POINT_LAYER}
       </GeoJSONSource>

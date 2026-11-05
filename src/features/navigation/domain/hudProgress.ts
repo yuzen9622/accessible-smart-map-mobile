@@ -63,7 +63,7 @@ export function rerouteStripText(args: {
 const ZH_NUM = String.raw`約?\s*[\d.,]+\s*(?:公尺|公里|米)`;
 const EN_NUM = String.raw`(?:for\s+)?(?:about\s+|approximately\s+|approx\.\s+)?[\d.,]+\s*(?:m|meters?|metres?|km|kilometers?|kilometres?)\b`;
 // 整個子句只是「動詞＋距離」（「，續行約 130 公尺」「, then continue for 40 m」）：連逗號一起拿掉，不留半截動詞。
-const ZH_CLAUSE = new RegExp(String.raw`[，,]\s*[^，,。]{0,3}?${ZH_NUM}\s*(?=[，,。]|$)`, 'g');
+const ZH_CLAUSE = new RegExp(String.raw`[，,]\s*(?:繼續直行|[^，,。]{0,3}?)${ZH_NUM}\s*(?=[，,。]|$)`, 'g');
 const EN_CLAUSE = new RegExp(String.raw`,\s*(?:then\s+)?(?:continue|walk|go|keep going)\s+${EN_NUM}\s*(?=[,.]|$)`, 'gi');
 const ZH_DISTANCE = new RegExp(ZH_NUM, 'g');
 const EN_DISTANCE = new RegExp(String.raw`\s*\b${EN_NUM}`, 'gi');

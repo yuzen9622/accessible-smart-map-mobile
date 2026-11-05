@@ -39,6 +39,11 @@ describe('stripStepDistance', () => {
     expect(stripStepDistance('向右轉，續行約 40 公尺，注意路口')).toBe('向右轉，注意路口');
   });
 
+  it('removes the full continuation clause while preserving turn and warning', () => {
+    expect(stripStepDistance('向右轉，繼續直行約 400 公尺，注意路口')).toBe('向右轉，注意路口');
+    expect(stripStepDistance('沿「信義路」繼續直行約 400 公尺')).toBe('沿「信義路」繼續直行');
+  });
+
   it('drops the baked-in distance from English steps', () => {
     expect(stripStepDistance('Continue for about 110 m onto Songshan Rd')).toBe('Continue onto Songshan Rd');
     expect(stripStepDistance('Walk 1.2 km to the station')).toBe('Walk to the station');

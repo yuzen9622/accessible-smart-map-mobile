@@ -78,7 +78,7 @@ function handoffSession() {
   return { leg, routes };
 }
 
-it('starts the route-session indoor result in the existing navigation screen and returns to its original details', async () => {
+it('starts the route-session indoor result in the existing navigation screen and returns to planning with the route preserved', async () => {
   const route = createVenueRoute();
   useRouteSessionStore.setState({ indoorRoute: route });
   const view = await render(<NavigationSheet />);
@@ -88,7 +88,7 @@ it('starts the route-session indoor result in the existing navigation screen and
   await fireEvent.press(view.getByRole('button', { name: '確認已在起點' }));
   expect(useIndoorStore.getState().guidance).toMatchObject({ stepIndex: 1 });
   await fireEvent.press(view.getByRole('button', { name: '結束導航' }));
-  expect(router.dismissTo).toHaveBeenCalledWith({ pathname: '/routes/[index]', params: { index: '0' } });
+  expect(router.dismissTo).toHaveBeenCalledWith('/plan');
   expect(useRouteSessionStore.getState().indoorRoute).toBe(route);
   expect(router.dismissTo).toHaveBeenCalledTimes(1);
 });
@@ -125,7 +125,7 @@ it('invalidates stale results and endpoints before returning to planning on a ch
   expect(router.dismissTo).toHaveBeenCalledWith('/plan');
 });
 
-it('retries the captured pinned handoff and returns to its navigated route, not the visible candidate', async () => {
+it('retries the captured pinned handoff and returns to planning with the navigated route selected, not the visible candidate', async () => {
   const { leg, routes } = handoffSession();
   jest.mocked(loadVenue).mockRejectedValueOnce(new Error('offline'));
   const view = await render(<NavigationSheet />);
@@ -138,7 +138,7 @@ it('retries the captured pinned handoff and returns to its navigated route, not 
   await fireEvent.press(view.getByRole('button', { name: '結束導航' }));
   expect(selectRouteAt).toHaveBeenCalledWith(2);
   expect(useRouteSessionStore.getState().selectRoute?.route).toBe(routes[2]);
-  expect(router.dismissTo).toHaveBeenCalledWith({ pathname: '/routes/[index]', params: { index: '2' } });
+  expect(router.dismissTo).toHaveBeenCalledWith('/plan');
 });
 
 it('returns to planning when the navigated outdoor route is no longer in the current results', async () => {
@@ -179,24 +179,24 @@ it('aborts adoption when the navigation screen unmounts before the detail respon
 });
 
 
-it('returns to indoor route details when voice stops guidance outside the navigation screen', async () => {
+it('returns to planning with the indoor route preserved when voice stops guidance outside the navigation screen', async () => {
   const route = createVenueRoute();
   useRouteSessionStore.setState({ indoorRoute: route });
   await render(<NavigationSheet />);
   await waitFor(() => expect(useIndoorStore.getState().guidance.status).toBe('guiding'));
   await act(async () => { useIndoorStore.getState().confirmStep(); });
   await act(async () => { useIndoorStore.getState().endGuidance(); });
-  await waitFor(() => expect(router.dismissTo).toHaveBeenCalledWith({ pathname: '/routes/[index]', params: { index: '0' } }));
+  await waitFor(() => expect(router.dismissTo).toHaveBeenCalledWith('/plan'));
   expect(router.dismissTo).toHaveBeenCalledTimes(1);
   expect(useRouteSessionStore.getState().indoorRoute).toBe(route);
 });
 
-it('returns voice-stopped handoff guidance to the pinned outdoor candidate', async () => {
+it('returns voice-stopped handoff guidance to planning with the pinned outdoor candidate selected', async () => {
   const { routes } = handoffSession();
   await render(<NavigationSheet />);
   await waitFor(() => expect(useIndoorStore.getState().guidance.status).toBe('guiding'));
   await act(async () => { useIndoorStore.getState().endGuidance(); });
-  await waitFor(() => expect(router.dismissTo).toHaveBeenCalledWith({ pathname: '/routes/[index]', params: { index: '2' } }));
+  await waitFor(() => expect(router.dismissTo).toHaveBeenCalledWith('/plan'));
   expect(selectRouteAt).toHaveBeenCalledWith(2);
   expect(useRouteSessionStore.getState().selectRoute?.route).toBe(routes[2]);
   expect(router.dismissTo).toHaveBeenCalledTimes(1);

@@ -29,6 +29,8 @@ export interface ActiveBusLeg {
 export interface LegArrival {
   stop: 'board' | 'alight';
   eta: number | null;
+  /** 沒有即時分鐘數時，後端選定那班在上車站的表定時刻（HH:mm）；有即時或不知道就沒有。 */
+  scheduledAt?: string;
 }
 
 interface BusState {
@@ -40,6 +42,17 @@ interface BusState {
   setLegArrival: (arrival: LegArrival | null) => void;
   /** 只標記目前這段（`key` 相同）；leg 已換掉的晚到判定不得套到新的 leg。 */
   markBoarded: (key: string, plate: string | null) => void;
+  /**
+   * 導航回報使用者還要幾秒到上車站（null＝不知道、不帶）。只改 `key` 相同且還沒上車的那段，
+   * key 不變所以輪詢不重啟，下一輪讀到新的值。
+   */
+  setBoardReadiness: (key: string, readyInSeconds: number | null) => void;
+}
+
+function withReadiness(leg: BusLeg, readyInSeconds: number | null): BusLeg {
+  if (!leg.planContext) return leg;
+  const { readyInSeconds: _old, ...rest } = leg.planContext;
+  return { ...leg, planContext: readyInSeconds === null ? rest : { ...rest, readyInSeconds } };
 }
 
 export const useBusStore = create<BusState>()((set) => ({
@@ -55,12 +68,20 @@ export const useBusStore = create<BusState>()((set) => ({
     ),
   setLiveBusPositions: (liveBusPositions) => set({ liveBusPositions }),
   setLegArrival: (legArrival) => set({ legArrival }),
+  // 上車後不再帶到站秒數：搭乘中後端不得換成別班。
   markBoarded: (key, plate) =>
     set((state) =>
       state.activeBusLeg?.key === key && !state.activeBusLeg.boarded
-        ? { activeBusLeg: { ...state.activeBusLeg, boarded: { plate } } }
+        ? { activeBusLeg: { ...state.activeBusLeg, leg: withReadiness(state.activeBusLeg.leg, null), boarded: { plate } } }
         : state,
     ),
+  setBoardReadiness: (key, readyInSeconds) =>
+    set((state) => {
+      const active = state.activeBusLeg;
+      if (active?.key !== key || active.boarded || !active.leg.planContext) return state;
+      if ((active.leg.planContext.readyInSeconds ?? null) === readyInSeconds) return state;
+      return { activeBusLeg: { ...active, leg: withReadiness(active.leg, readyInSeconds) } };
+    }),
 }));
 
 /**

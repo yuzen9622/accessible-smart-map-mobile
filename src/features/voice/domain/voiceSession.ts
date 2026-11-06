@@ -100,6 +100,11 @@ export interface VoiceNavigationState {
     streetName?: string | null;
     maneuver?: string | null;
   }[];
+  /**
+   * 前往或等候公車時，等車卡片正在顯示的內容：即時分鐘數，或沒有即時資料時選定班次的預計到站時間（HH:mm）。
+   * 助理回答「那班公車多久來」時以它為準，與畫面一致。
+   */
+  busWait?: { routeName: string; stop: string; waitMinutes: number | null; expectedAt?: string };
 }
 
 /** Server -> client: auth + Gemini connect done, client may now send audio. */

@@ -33,7 +33,9 @@ const cache = new Map<string, Entry>();
 
 /** 只有實際對後端送出 subRouteUid 時 key 才帶它：不同子路線的 payload 不共用。 */
 export function routeDetailKey(routeName: string, city: string, subRouteUid?: string, planContext?: BusPlanContext, lang: AppLanguage = getAppLanguage()): string {
-  return JSON.stringify([lang, city, routeName, subRouteUid ?? null, planContext?.routeToken ?? null, planContext?.legIndex ?? null]);
+  // 導航帶到站秒數，後端可能因此挑別班：導航與規劃畫面的回應不得互用。秒數本身不進 key——
+  // 導航中每 30 秒換一次值，最新的回應直接取代上一個，不必每次都重新開一筆快取。
+  return JSON.stringify([lang, city, routeName, subRouteUid ?? null, planContext?.routeToken ?? null, planContext?.legIndex ?? null, planContext?.readyInSeconds !== undefined]);
 }
 
 /** The cached payload when a fresh entry exists, else null. Never fetches. */

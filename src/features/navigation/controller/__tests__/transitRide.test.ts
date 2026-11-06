@@ -107,8 +107,8 @@ async function at(lng: number, seconds = 10): Promise<void> {
 const spoken = (speech: { speak: jest.Mock }) => speech.speak.mock.calls.map((c: unknown[]) => String(c[0]));
 const lastSpoken = (speech: { speak: jest.Mock }) => spoken(speech).at(-1) ?? '';
 
-function trackBus(eta: number | null, stop: 'board' | 'alight' = 'board') {
-  const active: ActiveBusLeg = { key: 'nav:0:r1:0:1:小18:0:上車站', leg: busLeg, route };
+function trackBus(eta: number | null, stop: 'board' | 'alight' = 'board', scheduledAt?: string) {
+  const active: ActiveBusLeg = { key: 'nav:0:r1:0:1:小18:0:上車站', leg: { ...busLeg, planContext: { routeToken: 'token-1', legIndex: 1 } }, route };
   const current = useBusStore.getState().activeBusLeg;
   useBusStore.setState({
     activeBusLeg: current?.key === active.key ? current : active,
@@ -116,7 +116,7 @@ function trackBus(eta: number | null, stop: 'board' | 'alight' = 'board') {
       stop === 'board'
         ? [{ plateNumb: 'KKA-1234', isTarget: true, direction: 0, lat: LAT, lng: 121.5, speed: 0, gpsTime: '', isLowFloor: '是', hasLiftOrRamp: '是', vehicleClass: '' }]
         : [],
-    legArrival: { stop, eta },
+    legArrival: scheduledAt ? { stop, eta, scheduledAt } : { stop, eta },
   });
 }
 
@@ -227,6 +227,51 @@ describe('bus segment: waiting at the stop', () => {
     await at(121.5026, 30);
     expect(useNavStore.getState().currentStepIndex).toBe(1);
     expect(useNavStore.getState().transitGuide?.phase).toBe('waiting');
+  });
+});
+
+describe('bus segment: telling the backend when the rider reaches the stop', () => {
+  const readiness = () => useBusStore.getState().activeBusLeg?.leg.planContext?.readyInSeconds;
+
+  it('reports the remaining walk at the planned pace, then 0 at the stop', async () => {
+    await startAtOrigin();
+    trackBus(4);
+    // 規劃步行 200 m／3 分鐘 ≈ 1.11 m/s；離站約 101 m → 91 s → 120 s。
+    await at(121.501);
+    expect(readiness()).toBe(120);
+    await at(121.5019);
+    expect(readiness()).toBe(0);
+  });
+
+  it('stops reporting in route preview', async () => {
+    await startAtOrigin();
+    trackBus(4);
+    await at(121.5019);
+    expect(readiness()).toBe(0);
+    useNavStore.setState({ stepMode: 'preview' });
+    await flushPromises();
+    expect(readiness()).toBeUndefined();
+  });
+
+  it('stops reporting once the rider is on the bus', async () => {
+    await startAtOrigin();
+    trackBus(1);
+    await at(121.5019);
+    expect(readiness()).toBe(0);
+    await at(121.5027, 6);
+    await at(121.503, 3);
+    expect(useBusStore.getState().activeBusLeg?.boarded).toBeTruthy();
+    expect(readiness()).toBeUndefined();
+    await at(121.504, 10);
+    expect(readiness()).toBeUndefined();
+  });
+
+  it('shows and says the timetable time when the selected trip has no live minutes', async () => {
+    const { speech } = await startAtOrigin();
+    trackBus(null, 'board', '10:30');
+    await at(121.5019);
+    expect(useNavStore.getState().transitGuide).toEqual({ phase: 'waiting', routeName: '小18', boardStop: '上車站', waitMinutes: null, scheduledAt: '10:30' });
+    expect(lastSpoken(speech)).toContain('navBusSpeakScheduled{"route":"小18","time":"10:30"}');
   });
 });
 

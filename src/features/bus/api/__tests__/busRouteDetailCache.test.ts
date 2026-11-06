@@ -196,6 +196,19 @@ it("isolates different plans and repeated legs of the same line", async () => {
   expect(peekRouteDetail("99", "Taipei")).toBeNull();
 });
 
+it("never serves a planning-screen answer to navigation that reported readiness", async () => {
+  getBusRouteDetail.mockResolvedValue(ok());
+  await fetchRouteDetailCached("99", "Taipei", { planContext: { routeToken: "one", legIndex: 1 } });
+  await fetchRouteDetailCached("99", "Taipei", { planContext: { routeToken: "one", legIndex: 1, readyInSeconds: 0 } });
+  expect(getBusRouteDetail).toHaveBeenCalledTimes(2);
+  // 導航中的新秒數沿用同一筆導航快取（輪詢以 force 取新值）。
+  await fetchRouteDetailCached("99", "Taipei", { planContext: { routeToken: "one", legIndex: 1, readyInSeconds: 120 } });
+  expect(getBusRouteDetail).toHaveBeenCalledTimes(2);
+  await fetchRouteDetailCached("99", "Taipei", { force: true, planContext: { routeToken: "one", legIndex: 1, readyInSeconds: 120 } });
+  expect(getBusRouteDetail).toHaveBeenCalledTimes(3);
+  expect(getBusRouteDetail).toHaveBeenLastCalledWith("99", "Taipei", undefined, undefined, { routeToken: "one", legIndex: 1, readyInSeconds: 120 }, expect.anything());
+});
+
 it('isolates both coalescing and settled values by language', async () => {
   let resolveEn!: (value: unknown) => void;
   const en = [{ direction: 0, stops: [{ name: '站', displayName: 'Stop' }] }];

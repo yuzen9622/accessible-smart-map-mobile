@@ -221,6 +221,11 @@ export interface BusPlanContext {
   routeToken: string;
   /** Index in the complete route.legs array, including walking legs. */
   legIndex: number;
+  /**
+   * 導航中、還沒上車時：使用者預估還要幾秒到上車站（0＝已在站牌）。後端用它挑「趕得上的那班」，
+   * 取代規劃當下預估的到站時間。規劃畫面與上車後不帶。
+   */
+  readyInSeconds?: number;
 }
 
 export type BusVehicleAccessibility = 'low_floor' | 'high_floor' | 'unknown';

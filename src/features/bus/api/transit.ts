@@ -382,6 +382,12 @@ export async function getLiveBusPositions(
   return narrow(await withTimeout(`/api/v1/transit/bus/positions?${params.toString()}`, signal), parsePositions);
 }
 
+function planArrivalsQuery(planContext: BusPlanContext): string {
+  const params = new URLSearchParams({ routeToken: planContext.routeToken, legIndex: String(planContext.legIndex) });
+  if (typeof planContext.readyInSeconds === 'number') params.set('readyInSeconds', String(planContext.readyInSeconds));
+  return params.toString();
+}
+
 export async function getBusRouteDetail(
   routeName: string,
   city: string,
@@ -395,7 +401,7 @@ export async function getBusRouteDetail(
   if (subRouteUid) params.set('subRouteUid', subRouteUid);
   if (lang) params.set('lang', lang);
   const endpoint = planContext
-    ? `/api/v1/a11y/accessible-route/bus-arrivals?${new URLSearchParams({ routeToken: planContext.routeToken, legIndex: String(planContext.legIndex) })}`
+    ? `/api/v1/a11y/accessible-route/bus-arrivals?${planArrivalsQuery(planContext)}`
     : `/api/v1/transit/bus/route-detail?${params.toString()}`;
   return narrow(await withTimeout(endpoint, signal), parseRouteDetail);
 }

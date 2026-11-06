@@ -7,10 +7,12 @@ export type Translate = (key: string, options?: Record<string, string | number>)
 type WaitingGuide = Extract<TransitGuide, { phase: 'approaching' | 'waiting' }>;
 type RidingGuide = Extract<TransitGuide, { phase: 'riding' }>;
 
-/** 等車的分鐘數句子（「小18 約 4 分鐘到站」／「即將進站」／「暫無即時到站資訊」）。 */
+/** 等車的分鐘數句子（「小18 約 4 分鐘到站」／「即將進站」／「小18 表定 10:30 到站」／「暫無即時到站資訊」）。 */
 export function waitLine(t: Translate, guide: WaitingGuide): string {
   const wait = guide.waitMinutes;
-  if (wait === null) return t('navBusWaitLineUnknown');
+  if (wait === null) {
+    return guide.scheduledAt ? t('navBusWaitLineScheduled', { route: guide.routeName, time: guide.scheduledAt }) : t('navBusWaitLineUnknown');
+  }
   if (wait <= BUS_ARRIVING_MINUTES) return t('navBusWaitLineArriving', { route: guide.routeName });
   return t('navBusWaitLine', { route: guide.routeName, count: wait });
 }
@@ -20,7 +22,7 @@ export function transitHeadline(t: Translate, guide: TransitGuide): string | nul
   if (guide.phase !== 'riding') {
     if (guide.phase === 'approaching') return null;
     const wait = guide.waitMinutes;
-    if (wait === null) return t('navBusWaitUnknown');
+    if (wait === null) return guide.scheduledAt ? t('navBusScheduledAt', { time: guide.scheduledAt }) : t('navBusWaitUnknown');
     if (wait === 0) return t('navBusArrivingNow');
     if (wait <= BUS_ARRIVING_MINUTES) return t('navBusArrivingSoon');
     return t('navBusWaitMinutes', { count: wait });
@@ -58,8 +60,8 @@ export function transitLiveText(t: Translate, guide: TransitGuide): string {
   return `${transitInstruction(t, guide)} · ${waitLine(t, guide)}`;
 }
 
-function waitSpeech(t: Translate, routeName: string, wait: number | null): string {
-  if (wait === null) return t('navBusSpeakNoLive');
+function waitSpeech(t: Translate, routeName: string, wait: number | null, scheduledAt?: string): string {
+  if (wait === null) return scheduledAt ? t('navBusSpeakScheduled', { route: routeName, time: scheduledAt }) : t('navBusSpeakNoLive');
   if (wait <= BUS_ARRIVING_MINUTES) return t('navBusSpeakArriving', { route: routeName });
   return t('navBusSpeakWait', { route: routeName, count: wait });
 }
@@ -68,9 +70,9 @@ function waitSpeech(t: Translate, routeName: string, wait: number | null): strin
 export function transitSpeechText(t: Translate, speech: TransitSpeech | { kind: 'alight'; alightStop: string }): string {
   switch (speech.kind) {
     case 'approach':
-      return t('navBusSpeakApproach', { stop: speech.boardStop, route: speech.routeName }) + ' ' + waitSpeech(t, speech.routeName, speech.waitMinutes);
+      return t('navBusSpeakApproach', { stop: speech.boardStop, route: speech.routeName }) + ' ' + waitSpeech(t, speech.routeName, speech.waitMinutes, speech.scheduledAt);
     case 'atStop':
-      return t('navBusSpeakAtStop', { stop: speech.boardStop }) + ' ' + waitSpeech(t, speech.routeName, speech.waitMinutes);
+      return t('navBusSpeakAtStop', { stop: speech.boardStop }) + ' ' + waitSpeech(t, speech.routeName, speech.waitMinutes, speech.scheduledAt);
     case 'busSoon':
       return waitSpeech(t, speech.routeName, speech.waitMinutes);
     case 'busArriving':

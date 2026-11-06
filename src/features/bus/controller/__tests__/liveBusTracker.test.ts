@@ -94,6 +94,50 @@ it("keeps the matched ETA when GPS is unavailable", async () => {
   mockApi.getLiveBusPositions.mockResolvedValue(positions());
   expect(await fetchLegSnapshot(leg, signal)).toEqual({ buses: [], arrival: { eta: 8, plate: "BUS-10" } });
 });
+describe("timetable time when the selected trip has no live data", () => {
+  const candidate = (source: "schedule" | "realtime", selected = true) => ({
+    candidateId: "c", routeName: "99", subRouteUid: "BRANCH", direction: 1, departureStopId: "A", arrivalStopId: "C",
+    boardingTime: "2030-01-01T10:30:00+08:00", alightingTime: null, boardingTimeSource: source, alightingTimeSource: "unknown",
+    estimatedWaitMinutes: 30, vehicleAccessibility: "unknown", hasLiftOrRamp: null, selected,
+  });
+  const withCandidates = (minutes: number | null, ...departureCandidates: unknown[]) => {
+    const response = detail(undefined, minutes);
+    return { ...response, data: { ...response.data, departureCandidates } };
+  };
+  it("reports the selected trip's scheduled boarding time when the stop has no live minutes", async () => {
+    mockApi.getBusRouteDetail.mockResolvedValue(withCandidates(null, candidate("schedule")));
+    expect((await fetchLegSnapshot(leg, signal)).arrival).toEqual({ eta: null, scheduledAt: "10:30" });
+  });
+  it("still reports it when the ride cannot be matched to the stop list", async () => {
+    const response = withCandidates(null, candidate("schedule"));
+    response.data.directions = [];
+    mockApi.getBusRouteDetail.mockResolvedValue(response);
+    expect((await fetchLegSnapshot(leg, signal)).arrival).toEqual({ eta: null, scheduledAt: "10:30" });
+  });
+  it("never pairs this leg's line with another line's timetable at the same stops", async () => {
+    mockApi.getBusRouteDetail.mockResolvedValue(withCandidates(null, { ...candidate("schedule"), subRouteUid: "OTHER-LINE" }));
+    expect((await fetchLegSnapshot(leg, signal)).arrival).toEqual({ eta: null });
+  });
+  it("never labels a live or unselected candidate as the timetable", async () => {
+    mockApi.getBusRouteDetail.mockResolvedValue(withCandidates(null, candidate("realtime")));
+    expect((await fetchLegSnapshot(leg, signal)).arrival).toEqual({ eta: null });
+    __clearRouteDetailCache();
+    mockApi.getBusRouteDetail.mockResolvedValue(withCandidates(null, candidate("schedule", false)));
+    expect((await fetchLegSnapshot(leg, signal)).arrival).toEqual({ eta: null });
+  });
+  it("does not fall back to the timetable when the stop has minutes but no identifiable vehicle", async () => {
+    mockApi.getBusRouteDetail.mockResolvedValue(withCandidates(6, candidate("schedule")));
+    const response = withCandidates(6, candidate("schedule"));
+    response.data.directions[0].stops[0].plateNumb = undefined;
+    mockApi.getBusRouteDetail.mockResolvedValue(response);
+    expect((await fetchLegSnapshot(leg, signal)).arrival).toEqual({ eta: null });
+  });
+  it("keeps live minutes without a timetable time", async () => {
+    mockApi.getBusRouteDetail.mockResolvedValue(withCandidates(8, candidate("schedule")));
+    mockApi.getLiveBusPositions.mockResolvedValue(positions());
+    expect((await fetchLegSnapshot(leg, signal)).arrival).toEqual({ eta: 8, plate: "BUS-10" });
+  });
+});
 describe("already-boarded vehicle", () => {
   const arrivals = (plate: string, minutes: number | null, direction = 1) => ({ ok: true, data: { arrivals: [{ stopName: "C", direction, subRouteUid: "BRANCH", plateNumb: plate as string | undefined, estimateMinutes: minutes }] } });
   it("queries the alighting stop for the boarded plate", async () => {

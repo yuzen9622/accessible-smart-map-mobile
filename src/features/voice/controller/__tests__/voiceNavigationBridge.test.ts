@@ -153,6 +153,20 @@ describe('engine state and speech', () => {
     expect(uplink.sendNavigationState).toHaveBeenLastCalledWith(expect.objectContaining({ active: true }));
   });
 
+  it('tells the assistant what the waiting card shows, and resends when it changes', async () => {
+    await handleVoiceUiCommand({ action: 'start', routeToken: 'tok-walk' });
+    useNavStore.getState().setTransitGuide({ phase: 'waiting', routeName: '26', boardStop: '黎明文心南五路口', waitMinutes: null, scheduledAt: '10:30' });
+    expect(uplink.sendNavigationState).toHaveBeenLastCalledWith(expect.objectContaining({
+      busWait: { routeName: '26', stop: '黎明文心南五路口', waitMinutes: null, expectedAt: '10:30' },
+    }));
+    useNavStore.getState().setTransitGuide({ phase: 'waiting', routeName: '26', boardStop: '黎明文心南五路口', waitMinutes: 3 });
+    expect(uplink.sendNavigationState).toHaveBeenLastCalledWith(expect.objectContaining({
+      busWait: { routeName: '26', stop: '黎明文心南五路口', waitMinutes: 3 },
+    }));
+    useNavStore.getState().setTransitGuide({ phase: 'riding', routeName: '26', alightStop: 'B', stopsLeft: 3, minutes: 8, minutesSource: 'realtime' });
+    expect(currentNavigationState()).not.toHaveProperty('busWait');
+  });
+
   it('hands engine announcements to the live assistant (swallowed while muted), and to local TTS without voice', async () => {
     expect(speechOwner.cueChannelLive?.()).toBe(true);
     expect(speechOwner.speakCue?.('100 公尺後左轉')).toBe(true);

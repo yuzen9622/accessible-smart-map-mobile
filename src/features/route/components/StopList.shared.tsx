@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { haptic } from '@/shared/haptics';
-import { ICON_SIZE, SHAPE, TYPE, useThemeColors } from '@/shared/theme';
+import { ICON_SIZE, SHAPE, TYPE, WHITE, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 import PressableScale from '@/shared/ui/PressableScale';
 import { Text } from '@/shared/ui/typography/Text';
@@ -92,5 +92,5 @@ const styles = StyleSheet.create({
   markerSlot: { width: STOP_MARKER_WIDTH, alignItems: 'center', justifyContent: 'center' },
   press: { minHeight: STOP_ROW_MIN_HEIGHT, justifyContent: 'center' },
   badge: { width: 20, height: 20, borderRadius: SHAPE.pill, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
-  badgeText: { color: '#FFFFFF', fontSize: TYPE.caption, fontWeight: '700' },
+  badgeText: { color: WHITE, fontSize: TYPE.caption, fontWeight: '700' },
 });

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Animated, PanResponder, StyleSheet, View } from 'react-native';
 
 import { haptic } from '@/shared/haptics';
-import { ICON_SIZE, SHAPE, useThemeColors } from '@/shared/theme';
+import { ELEVATION, ICON_SIZE, SHAPE, useThemeColors } from '@/shared/theme';
 import { Icon } from '@/shared/ui';
 
 import { STOP_ROW_MIN_HEIGHT, StopRow } from './StopList.shared';
@@ -130,6 +130,6 @@ export default function StopList({ stops, labels, onMove }: StopListProps) {
 }
 
 const styles = StyleSheet.create({
-  dragging: { zIndex: 1, elevation: 4, borderRadius: SHAPE.control },
+  dragging: { zIndex: 1, boxShadow: ELEVATION.raised, borderRadius: SHAPE.control },
   handle: { minWidth: 32, minHeight: STOP_ROW_MIN_HEIGHT, alignItems: 'center', justifyContent: 'center' },
 });

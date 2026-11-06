@@ -63,6 +63,17 @@ export type FeatureKey = keyof typeof FEATURE;
 export const WHITE = '#FFFFFF';
 export const BLACK = '#000000';
 
+/** Google 登入品牌色；白底按鈕與四色 G 不隨 App 主題變色。 */
+export const GOOGLE_SIGN_IN = {
+  red: '#EA4335',
+  blue: '#4285F4',
+  yellow: '#FBBC05',
+  green: '#34A853',
+  border: '#DADCE0',
+  background: WHITE,
+  text: '#1F1F1F',
+} as const;
+
 /** 地圖同色系外框；路況指定 light 一律變淺，其餘維持原本對比策略。 */
 export function routeCasingColor(fill: string, tone: 'contrast' | 'light' = 'contrast'): string {
   const { r, g, b } = hexToRgb(fill);

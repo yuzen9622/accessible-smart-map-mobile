@@ -106,6 +106,8 @@ export const TYPE = {
   subhead: 15,
   footnote: 13,
   caption: 12,
+  /** 登入供應商按鈕：與 Apple 原生按鈕標籤對齊。 */
+  authButton: 19,
   /** 導航 HUD 的距離數字。 */
   display: 30,
   numeralS: 40,
@@ -160,6 +162,8 @@ export const TEXT_STYLE = {
 export const SHAPE = {
   badge: 6,
   control: 10,
+  /** 登入供應商按鈕：與 Apple 原生按鈕圓角對齊。 */
+  authButton: 12,
   card: 16,
   floating: 22,
   pill: 999,

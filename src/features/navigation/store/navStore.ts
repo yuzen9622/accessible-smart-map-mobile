@@ -14,6 +14,7 @@ import type {
   RerouteStatus,
   VoiceTransit,
 } from '../domain/types';
+import type { NavLaneGuidance, NavSpeedLimit } from '../domain/roadGuidance';
 import type { TransitGuide } from '../domain/transitRide';
 
 /**
@@ -95,6 +96,10 @@ interface NavState {
   /** 公車段的等車／搭乘導引（`domain/transitRide.ts`）；目前步驟不在公車段時為 null。 */
   transitGuide: TransitGuide | null;
   voiceTransit: VoiceTransit | null;
+  /** 車行 leg 依路線進度選出的目前路段速限；非車行、無有效進度、到達時為 null。 */
+  speedLimit: NavSpeedLimit | null;
+  /** 進度落在目前步驟的車道進場段時的建議選道；其他時候為 null。 */
+  laneGuidance: NavLaneGuidance | null;
 }
 
 interface NavAction {
@@ -147,6 +152,7 @@ interface NavAction {
   setStepCoord: (c: LatLng | null) => void;
   setTransitGuide: (guide: TransitGuide | null) => void;
   setVoiceTransit: (transit: VoiceTransit | null) => void;
+  setRoadGuidance: (speedLimit: NavSpeedLimit | null, laneGuidance: NavLaneGuidance | null) => void;
   reset: () => void;
 }
 
@@ -188,6 +194,8 @@ const initialState: NavState = {
   stepCoord: null,
   transitGuide: null,
   voiceTransit: null,
+  speedLimit: null,
+  laneGuidance: null,
 };
 
 export const useNavStore = create<NavStore>()((set) => ({
@@ -213,6 +221,8 @@ export const useNavStore = create<NavStore>()((set) => ({
       etaSource: null,
       etaUpdatedAt: null,
       transitGuide: null,
+      speedLimit: null,
+      laneGuidance: null,
     }),
   setCurrentStepIndex: (currentStepIndex) => set({ currentStepIndex }),
   setStepMode: (stepMode) => set({ stepMode }),
@@ -275,6 +285,8 @@ export const useNavStore = create<NavStore>()((set) => ({
         ? {
             advisories: [],
             voiceTransit: null,
+            speedLimit: null,
+            laneGuidance: null,
             remainingM: 0,
             distanceToNextM: 0,
             remainingDurationSec: 0,
@@ -322,6 +334,7 @@ export const useNavStore = create<NavStore>()((set) => ({
   setStepCoord: (stepCoord) => set({ stepCoord }),
   setTransitGuide: (transitGuide) => set({ transitGuide }),
   setVoiceTransit: (voiceTransit) => set({ voiceTransit }),
+  setRoadGuidance: (speedLimit, laneGuidance) => set({ speedLimit, laneGuidance }),
   // 對齊 Web：reset 不動導航開關（Web 的 isNavigating 在另一個 store），只有 stopNavigation 會關。
   reset: () => set((s) => ({ ...initialState, isNavigating: s.isNavigating })),
 }));

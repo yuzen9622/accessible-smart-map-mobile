@@ -122,6 +122,8 @@ export interface ProgressResult {
   legHandoff: boolean;
   activeLegType: NavLegType | null;
   progress: ProgressUpdate;
+  /** 定位投影到的串接路徑線段索引（`legProgressAt` 換成 leg-local 線段，用來查速限與車道）。 */
+  pathSegmentIndex: number;
   /** 第一次抵達（`arrived` 只會從 false 變 true 一次）。 */
   arrivedNow: boolean;
 }
@@ -213,6 +215,7 @@ export function advanceNavigation(input: ProgressInput): ProgressResult | null {
       estimatedArrivalAt: remainingDurationSec != null ? now + remainingDurationSec * 1000 : null,
       etaSource: 'local',
     },
+    pathSegmentIndex: proj.segIndex,
     arrivedNow,
   };
 }

@@ -3,7 +3,7 @@
 // 的唯一入口），所以這裡回傳名稱，保持 domain 純淨。名稱與 Lucide 元件一一對應（`cornerUpRight` → `CornerUpRight`），
 // HUD 接上時在 `shared/ui` 的 Icon 名稱表補上這些名稱。
 
-import type { NavInstruction, WalkRelativeDirection } from '@/features/route/domain';
+import type { NavInstruction, RoadLane, RoadLaneDirection, WalkRelativeDirection } from '@/features/route/domain';
 
 import { isVehicleLegType } from './legMode';
 
@@ -117,4 +117,27 @@ export function stepIcon(step: NavInstruction | undefined): NavStepIconName {
     default:
       return directionIcon(step);
   }
+}
+
+// 車道示意的箭頭沿用轉向圖示；`none`（無標線）不畫箭頭，不從車道數或轉向方向推測。
+const LANE_ICONS: Record<RoadLaneDirection, NavStepIconName | null> = {
+  none: null,
+  straight: 'arrowUp',
+  left: 'cornerUpLeft',
+  right: 'cornerUpRight',
+  slight_left: 'arrowUpLeft',
+  slight_right: 'arrowUpRight',
+  sharp_left: 'undo2',
+  sharp_right: 'redo2',
+  uturn: 'arrowDown',
+  merge_left: 'arrowUpLeft',
+  merge_right: 'arrowUpRight',
+};
+
+/** 一條車道的箭頭：建議／可用車道畫本次轉向使用的方向，其他車道畫它的第一個標線方向。 */
+export function laneIcon(lane: RoadLane): NavStepIconName | null {
+  const direction = lane.recommendation !== 'not_recommended' && lane.maneuverDirection
+    ? lane.maneuverDirection
+    : lane.directions[0];
+  return direction ? LANE_ICONS[direction] ?? null : null;
 }

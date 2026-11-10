@@ -76,3 +76,46 @@ it('does not offer the arrival continuation before reaching the outdoor endpoint
   const view = await render(<NavigationHUD onContinueVenue={jest.fn()} />);
   expect(view.queryByRole('button', { name: 'Continue indoors' })).toBeNull();
 });
+
+describe('driving lane and speed-limit guidance', () => {
+  const turn = {
+    text: '向右轉進入「民生東路」，請靠右側兩個車道', type: 'turn', bearing: null, relativeDirection: null, distanceM: 300,
+    streetName: '民生東路', legType: 'DRIVE', legIndex: 0, polylineIndex: 88,
+  } as const;
+  const lanes = [
+    { directions: ['straight'], recommendation: 'not_recommended', maneuverDirection: null },
+    { directions: ['straight'], recommendation: 'not_recommended', maneuverDirection: null },
+    { directions: ['right'], recommendation: 'usable', maneuverDirection: 'right' },
+    { directions: ['right'], recommendation: 'preferred', maneuverDirection: 'right' },
+  ] as const;
+
+  beforeEach(async () => {
+    await act(async () => { await changeAppLanguage('zh-TW'); });
+    useNavStore.setState({ isNavigating: true, instructions: [{ ...turn }], currentStepIndex: 0 });
+  });
+
+  it('draws the lanes for the current turn with a screen-reader summary and shows the known limit', async () => {
+    useNavStore.getState().setRoadGuidance(
+      { kind: 'known', limitKph: 50 },
+      { stepIndex: 0, lanes: lanes.map((lane) => ({ ...lane, directions: [...lane.directions] })) },
+    );
+    const view = await render(<NavigationHUD />);
+    expect(view.getByLabelText('4 條車道，建議走左起第 4 車道，左起第 3 車道也可以')).toBeTruthy();
+    expect(view.getByText('限速 50 km/h')).toBeTruthy();
+    expect(view.getByLabelText('限速每小時 50 公里')).toBeTruthy();
+  });
+
+  it('shows the unlimited marking as text and hides unknown limits and lanes of another step', async () => {
+    useNavStore.getState().setRoadGuidance(
+      { kind: 'unlimited', limitKph: null },
+      { stepIndex: 1, lanes: lanes.map((lane) => ({ ...lane, directions: [...lane.directions] })) },
+    );
+    const view = await render(<NavigationHUD />);
+    expect(view.getByText('資料標示不限速')).toBeTruthy();
+    expect(view.queryByLabelText(/條車道/)).toBeNull();
+    await act(async () => { useNavStore.getState().setRoadGuidance({ kind: 'unknown', limitKph: null }, null); });
+    await view.rerender(<NavigationHUD />);
+    expect(view.queryByText(/限速/)).toBeNull();
+    expect(view.getByText('開車')).toBeTruthy();
+  });
+});

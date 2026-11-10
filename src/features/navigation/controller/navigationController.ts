@@ -34,7 +34,16 @@ import {
   smoothingFactor,
   withSyntheticPolylineIndices,
   type EngineState,
+  type ProgressResult,
 } from '../domain/navigationEngine';
+import {
+  legProgressAt,
+  sameLaneGuidance,
+  sameSpeedLimit,
+  selectLaneGuidance,
+  selectSpeedLimit,
+  speedLimitCueValue,
+} from '../domain/roadGuidance';
 import { useNavStore } from '../store/navStore';
 import type { LocalRerouteCoordinator } from './localRerouteCoordinator';
 import {
@@ -105,6 +114,8 @@ export interface NavigationControllerDeps {
   continueText?: (distanceM: number) => string;
   /** 公車段等車／搭乘的播報文字（i18n）；沒有時不播報公車段情境。 */
   transitSpeechText?: TransitRideDeps['speechText'];
+  /** 車行目前段的速限換成另一個已知數值時的播報（i18n）；沒有時不播。 */
+  speedLimitText?: (limitKph: number) => string;
 }
 
 export interface NavigationController {
@@ -181,6 +192,8 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
 
   const spokenAdvisoryKeys = new Set<string>();
   let announcer = freshAnnouncer();
+  /** 這次導航上一個已知速限（播報「進入限速 N」的比較基準）。 */
+  let lastKnownSpeedLimitKph: number | null = null;
   const transit = createTransitRideRuntime({
     geometry,
     route: () => currentRoute(),
@@ -366,6 +379,29 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     return isVehicleLegType(resolveActiveLegType(nav.instructions, nav.currentStepIndex));
   }
 
+  /**
+   * 車行速限與建議選道：只由這個定位樣本沿選定路線的進度決定（不用 step index、不沿用上一段）。
+   * 沒有有效進度（離路線太遠、偏航、預覽、語音後端驅動、已抵達、接縫線段）一律清除。
+   */
+  function syncRoadGuidance(result: ProgressResult | null): void {
+    const nav = useNavStore.getState();
+    const route = currentRoute();
+    const progress = result && route && geometry.path && !result.state.isOffRoute && !nav.arrived
+      ? legProgressAt(geometry.path, result.pathSegmentIndex)
+      : null;
+    const speedLimit = route ? selectSpeedLimit(route.legs, progress) : null;
+    const laneGuidance = selectLaneGuidance(nav.instructions, nav.currentStepIndex, progress);
+    const cue = speedLimitCueValue(lastKnownSpeedLimitKph, speedLimit);
+    if (speedLimit?.kind === 'known') lastKnownSpeedLimitKph = speedLimit.limitKph;
+    if (!sameSpeedLimit(nav.speedLimit, speedLimit) || !sameLaneGuidance(nav.laneGuidance, laneGuidance)) {
+      nav.setRoadGuidance(
+        sameSpeedLimit(nav.speedLimit, speedLimit) ? nav.speedLimit : speedLimit,
+        sameLaneGuidance(nav.laneGuidance, laneGuidance) ? nav.laneGuidance : laneGuidance,
+      );
+    }
+    if (cue != null && deps.speedLimitText) speak(deps.speedLimitText(cue));
+  }
+
   function processPosition(): void {
     positionQueued = false;
     if (useNavStore.getState().instructionError) return;
@@ -382,11 +418,18 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       if (nav.stepMode === 'preview' && route && resolveStepMode('preview', position, buildCumulativePath(route.legs)) === 'live') {
         nav.setStepMode('live');
       }
+      syncRoadGuidance(null);
       return;
     }
-    if (!geometry.path) return;
+    if (!geometry.path) {
+      syncRoadGuidance(null);
+      return;
+    }
     // 預覽（人不在路線附近）：步驟由使用者手動切換，定位不驅動進度。
-    if (resolveStepMode(nav.stepMode, position, geometry.path) === 'preview') return;
+    if (resolveStepMode(nav.stepMode, position, geometry.path) === 'preview') {
+      syncRoadGuidance(null);
+      return;
+    }
     // 預覽中定位來到路線附近 → 升級成實際導航；手動選的步驟作廢，改從第 0 步由定位重新推算
     // （引擎只會往前推，不從 0 起算會停在使用者預覽到的那一步）。
     const promoted = nav.stepMode === 'preview';
@@ -405,6 +448,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     if (nav.isOffRoute) {
       const proj = projectToPath(position, geometry.path.path, geometry.path.cumM);
       if (proj.perpDistM > FOLLOW_GPS_MAX_M) {
+        syncRoadGuidance(null);
         void deps.reroute.triggerAutoReroute(position);
         return;
       }
@@ -425,7 +469,10 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       // 公車段還沒上車：停在上車指令（站牌），不因人到了站牌就跳到下車指令。
       maxStepIndex: transit.maxStepIndex(promoted ? 0 : nav.currentStepIndex),
     });
-    if (!result) return;
+    if (!result) {
+      syncRoadGuidance(null);
+      return;
+    }
 
     engine = { offRouteHits: result.state.offRouteHits, lastLegType: result.state.lastLegType };
     // 順序對齊 Web：先處理偏航（confirm 會同步 setPending），再處理交接／回到路線（setRerouteIdle），
@@ -457,6 +504,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
     transit.sync();
     if (result.arrivedNow) nav.setArrived(true);
     announceManeuver();
+    syncRoadGuidance(result);
   }
 
   /** 同一個 fix 的位置與航向分兩次寫入 store：合併成一次處理。 */
@@ -638,6 +686,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       resetHeading();
       spokenAdvisoryKeys.clear();
       announcer = freshAnnouncer();
+      lastKnownSpeedLimitKph = null;
       deferredSpeech = null;
       lastSpeech = null;
       const location = useUserLocationStore.getState();
@@ -721,6 +770,7 @@ export function createNavigationController(deps: NavigationControllerDeps): Navi
       deps.speech.stop();
       geometry.path = null;
       geometry.waypoints = [];
+      useNavStore.getState().setRoadGuidance(null, null);
     },
   };
 }

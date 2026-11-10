@@ -105,6 +105,8 @@ export interface VoiceNavigationState {
    * 助理回答「那班公車多久來」時以它為準，與畫面一致。
    */
   busWait?: { routeName: string; stop: string; waitMinutes: number | null; expectedAt?: string };
+  /** 車行 leg 導航中，HUD 上目前路段的速限（後端 strict：只有 kind 與 limitKph）。非車行或無有效進度時省略。 */
+  speedLimit?: { kind: 'known'; limitKph: number } | { kind: 'unlimited' | 'unknown'; limitKph: null };
 }
 
 /** Server -> client: auth + Gemini connect done, client may now send audio. */

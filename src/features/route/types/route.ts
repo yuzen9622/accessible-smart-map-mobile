@@ -158,11 +158,101 @@ export interface WalkStep {
 }
 
 export interface DriveStep {
+  /** 指向同 leg **原始** `maneuvers` 陣列；舊後端沒有。 */
+  maneuverIndex?: number;
   instruction: string;
   maneuver?: string;
   distanceM: number;
   durationMin: number;
   polyline: LngLatTuple[];
+}
+
+// --- 車行結構化道路指引（後端 `road-guidance.ts`，全部 optional；缺值維持基本導航） ---
+export type RoadLaneDirection =
+  | 'none'
+  | 'straight'
+  | 'left'
+  | 'slight_left'
+  | 'sharp_left'
+  | 'right'
+  | 'slight_right'
+  | 'sharp_right'
+  | 'uturn'
+  | 'merge_left'
+  | 'merge_right';
+
+export interface RoadSigns {
+  exitNumbers: string[];
+  branches: string[];
+  /** 原始路牌全部內容，不是本次選定的分支。 */
+  destinations: string[];
+  exitNames: string[];
+}
+
+/** 一條車道的建議（陣列由左至右）。`not_recommended` 不等於法律禁止。 */
+export interface RoadLane {
+  directions: RoadLaneDirection[];
+  recommendation: 'preferred' | 'usable' | 'not_recommended';
+  maneuverDirection: RoadLaneDirection | null;
+}
+
+/** leg 原始 `polyline` 的索引區間，半開 `[fromIndex, toIndex)`。 */
+export interface RoadRange {
+  fromIndex: number;
+  toIndex: number;
+}
+
+export type RoadSpeedLimitSegment = RoadRange &
+  (
+    | { kind: 'known'; limitKph: number; source: 'valhalla' | 'osm_directional' }
+    | { kind: 'unlimited'; limitKph: null; source: 'valhalla' | 'osm_directional' }
+    | { kind: 'unknown'; limitKph: null; source: null }
+  );
+
+/** 以原始 leg `polyline` 的**線段**索引分段（半開區間、完整覆蓋）；不是每個步驟一個數字。 */
+export type RoadSpeedLimits =
+  | { status: 'available'; direction: 'along_leg'; segments: RoadSpeedLimitSegment[] }
+  | {
+      status: 'unavailable';
+      direction: 'along_leg';
+      segments: [];
+      reason: 'upstream_error' | 'budget_exhausted' | 'geometry_mismatch' | 'invalid_response' | 'tileset_changed';
+    };
+
+export interface DriveManeuver {
+  beginStreetNames?: string[];
+  bearingBefore?: number;
+  bearingAfter?: number;
+  signs?: RoadSigns;
+  lanes?: RoadLane[];
+  /** 轉向前約 300 m 的進場段；`toIndex` 是轉向起點。 */
+  laneApproachRange?: RoadRange;
+  instruction?: string;
+  type: number;
+  lengthKm: number;
+  timeSec: number;
+  beginShapeIndex: number;
+  endShapeIndex: number;
+  streetNames?: string[];
+  highway?: boolean;
+  stairs?: boolean;
+}
+
+/** `/route/instructions` 車行指令的結構化指引；索引相對外層 `legIndex` 的原始 leg polyline。 */
+export interface RoadGuidance {
+  maneuverIndex: number;
+  /** 車行轉向 code（外層 `maneuver` 是步行契約，車行為 null）。 */
+  maneuver: string;
+  endPolylineIndex: number;
+  streetNames: string[];
+  beginStreetNames?: string[];
+  bearingBefore?: number;
+  bearingAfter?: number;
+  signs?: RoadSigns;
+  lanes?: RoadLane[];
+  laneApproachRange?: RoadRange;
+  /** 與 `text` 末尾同源的車道建議（例：「靠最左側車道」）。 */
+  laneHint?: string;
 }
 
 // --- Leg（以 `type` 區分的 discriminated union） ---
@@ -420,6 +510,8 @@ export interface DriveLeg {
   arrivalTime?: string | null;
   polyline: LngLatTuple[];
   steps?: DriveStep[];
+  maneuvers?: DriveManeuver[];
+  speedLimits?: RoadSpeedLimits;
 }
 
 export type RouteLeg = WalkLeg | BusLeg | MetroLeg | ThsrLeg | TraLeg | DriveLeg;
@@ -673,6 +765,8 @@ export interface NavInstruction {
   /** 路線引擎的步行動作；非步行指引為 null；舊後端沒有此欄位。和使用者朝向無關，不要和 `relativeDirection` 混用。 */
   maneuver?: WalkRelativeDirection | null;
   driver?: 'manual';
+  /** 車行結構化道路指引；舊後端與非車行指令沒有。 */
+  roadGuidance?: RoadGuidance;
   venueStepType?: import('@/shared/venue').VenueRouteStep['type'];
   buildingId?: string | null;
   levelRef?: string | null;

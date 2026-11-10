@@ -941,3 +941,122 @@ it('rejects an indoor instruction that is missing its manual driver before GPS c
   expect(useNavStore.getState().instructionError).toBe('unavailable');
   controller.stop();
 });
+
+describe('driving lane and speed-limit guidance', () => {
+  const LANES = [
+    { directions: ['straight'], recommendation: 'not_recommended', maneuverDirection: null },
+    { directions: ['right'], recommendation: 'usable', maneuverDirection: 'right' },
+    { directions: ['right'], recommendation: 'preferred', maneuverDirection: 'right' },
+  ] as const;
+
+  function driveRoute(): AccessibleRoute {
+    return {
+      ...makeRoute(),
+      legs: [{
+        type: 'DRIVE', from: 'A', to: 'B', distanceM: 500, durationMin: 2, polyline,
+        speedLimits: {
+          status: 'available',
+          direction: 'along_leg',
+          segments: [
+            { fromIndex: 0, toIndex: 2, kind: 'known', limitKph: 40, source: 'valhalla' },
+            { fromIndex: 2, toIndex: 3, kind: 'unknown', limitKph: null, source: null },
+            { fromIndex: 3, toIndex: 5, kind: 'known', limitKph: 50, source: 'valhalla' },
+          ],
+        },
+      }],
+    };
+  }
+
+  const DRIVE_STEPS = [
+    step('沿市民大道行駛', 0, { type: 'depart', legType: 'DRIVE' }),
+    step('向右轉進入「民生東路」，請靠右側兩個車道', 4, {
+      legType: 'DRIVE',
+      roadGuidance: {
+        maneuverIndex: 1, maneuver: 'right', endPolylineIndex: 5, streetNames: ['民生東路'],
+        lanes: LANES.map((lane) => ({ ...lane, directions: [...lane.directions] })),
+        laneApproachRange: { fromIndex: 2, toIndex: 4 },
+        laneHint: '靠右側兩個車道',
+      },
+    }),
+    step('抵達', 5, { type: 'arrive', legType: 'DRIVE' }),
+  ];
+
+  beforeEach(() => {
+    const route = driveRoute();
+    useMapStore.setState({ selectRoute: { index: 0, route }, computeRoutes: [route] });
+  });
+
+  it('follows route progress for the speed limit and lanes, and cues only a change between known limits', async () => {
+    const { controller, speech } = setup({
+      fetchInstructions: jest.fn(async () => ok(DRIVE_STEPS)),
+      speedLimitText: (kph) => `進入限速 ${kph} 公里路段`,
+    });
+    fix(25.05, 121.5005);
+    controller.start();
+    await flush();
+    expect(useNavStore.getState().speedLimit).toEqual({ kind: 'known', limitKph: 40 });
+    expect(useNavStore.getState().laneGuidance).toBeNull();
+    expect(speech.speak).not.toHaveBeenCalledWith(expect.stringContaining('限速'), 'zh-TW');
+
+    fix(25.05, 121.5025); // segment 2: unknown limit, inside the right turn's approach range
+    await flush();
+    expect(useNavStore.getState().speedLimit).toEqual({ kind: 'unknown', limitKph: null });
+    expect(useNavStore.getState().laneGuidance).toMatchObject({ stepIndex: 1, lanes: [{ recommendation: 'not_recommended' }, {}, {}] });
+
+    fix(25.05, 121.5035); // segment 3: 50 after 40 (an unknown stretch in between does not count as a change)
+    await flush();
+    expect(useNavStore.getState().speedLimit).toEqual({ kind: 'known', limitKph: 50 });
+    expect(speech.speak).toHaveBeenCalledWith('進入限速 50 公里路段', 'zh-TW');
+    // Standing still at the same fix (or rotating the phone) keeps the lanes.
+    const lanes = useNavStore.getState().laneGuidance;
+    expect(lanes).not.toBeNull();
+    fakeUserLocationStore.getState().setCourse(10);
+    await flush();
+    expect(useNavStore.getState().laneGuidance).toBe(lanes);
+
+    fix(25.05, 121.50398); // right at the turn: the step's call-out carries the lane advice from `text`
+    await flush();
+    expect(speech.speak.mock.calls.some(([text]) => String(text).includes('請靠右側兩個車道'))).toBe(true);
+
+    speech.speak.mockClear();
+    fix(25.05, 121.5041); // past the turn point
+    await flush();
+    expect(useNavStore.getState().laneGuidance).toBeNull();
+    expect(speech.speak).not.toHaveBeenCalledWith(expect.stringContaining('限速'), 'zh-TW');
+
+    fix(25.05, 121.505);
+    await flush();
+    expect(useNavStore.getState().arrived).toBe(true);
+    expect(useNavStore.getState().speedLimit).toBeNull();
+    controller.stop();
+    expect(useNavStore.getState().speedLimit).toBeNull();
+    expect(useNavStore.getState().laneGuidance).toBeNull();
+  });
+
+  it('clears the road guidance while off the route instead of claiming a segment', async () => {
+    const { controller } = setup({ fetchInstructions: jest.fn(async () => ok(DRIVE_STEPS)) });
+    fix(25.05, 121.5025);
+    controller.start();
+    await flush();
+    expect(useNavStore.getState().laneGuidance).not.toBeNull();
+    for (let i = 0; i < 3; i++) {
+      fix(25.0510 + i * 0.00001, 121.5025); // ~110 m north of the road, past the 80 m vehicle tolerance
+      await flush();
+    }
+    expect(useNavStore.getState().isOffRoute).toBe(true);
+    expect(useNavStore.getState().speedLimit).toBeNull();
+    expect(useNavStore.getState().laneGuidance).toBeNull();
+    controller.stop();
+  });
+
+  it('shows no speed limit on a walking route', async () => {
+    useMapStore.setState({ selectRoute: { index: 0, route: makeRoute() }, computeRoutes: [makeRoute()] });
+    const { controller } = setup();
+    fix(25.05, 121.5025);
+    controller.start();
+    await flush();
+    expect(useNavStore.getState().speedLimit).toBeNull();
+    expect(useNavStore.getState().laneGuidance).toBeNull();
+    controller.stop();
+  });
+});

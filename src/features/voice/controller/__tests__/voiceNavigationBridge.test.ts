@@ -167,6 +167,27 @@ describe('engine state and speech', () => {
     expect(currentNavigationState()).not.toHaveProperty('busWait');
   });
 
+  it('sends the HUD speed limit in exactly the strict nav.state shape, resends on change and omits it off a vehicle leg', async () => {
+    await handleVoiceUiCommand({ action: 'start', routeToken: 'tok-walk' });
+    useNavStore.getState().setInstructions([
+      { text: '向左轉進入「忠孝西路二段」，請走左邊數來第二車道', type: 'turn', bearing: null, relativeDirection: null, distanceM: 344, streetName: '忠孝西路二段', legType: 'DRIVE', polylineIndex: 4 },
+    ] as never, [], 0);
+    expect(currentNavigationState()).not.toHaveProperty('speedLimit');
+    expect(currentNavigationState().steps?.[0]?.instruction).toBe('向左轉進入「忠孝西路二段」，請走左邊數來第二車道');
+
+    useNavStore.getState().setRoadGuidance({ kind: 'known', limitKph: 50 }, null);
+    const sent = uplink.sendNavigationState.mock.lastCall?.[0];
+    expect(sent.speedLimit).toStrictEqual({ kind: 'known', limitKph: 50 });
+
+    useNavStore.getState().setRoadGuidance({ kind: 'unknown', limitKph: null }, null);
+    expect(uplink.sendNavigationState.mock.lastCall?.[0].speedLimit).toStrictEqual({ kind: 'unknown', limitKph: null });
+    useNavStore.getState().setRoadGuidance({ kind: 'unlimited', limitKph: null }, null);
+    expect(uplink.sendNavigationState.mock.lastCall?.[0].speedLimit).toStrictEqual({ kind: 'unlimited', limitKph: null });
+
+    useNavStore.getState().setRoadGuidance(null, null);
+    expect(uplink.sendNavigationState.mock.lastCall?.[0]).not.toHaveProperty('speedLimit');
+  });
+
   it('hands engine announcements to the live assistant (swallowed while muted), and to local TTS without voice', async () => {
     expect(speechOwner.cueChannelLive?.()).toBe(true);
     expect(speechOwner.speakCue?.('100 公尺後左轉')).toBe(true);

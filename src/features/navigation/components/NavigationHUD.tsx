@@ -16,7 +16,8 @@ import { localRerouteCoordinator } from '../controller/localRerouteCoordinator';
 import { endNavigation } from '../controller/navigationSession';
 import { rerouteStripText, stripStepDistance } from '../domain/hudProgress';
 import { findLegHandoffIndex, isVehicleLegType, resolveActiveLegType } from '../domain/legMode';
-import { stepIcon } from '../domain/navStepIcon';
+import { laneIcon, stepIcon } from '../domain/navStepIcon';
+import { laneAccessibilityParts } from '../domain/roadGuidance';
 import { transitDetail, transitHeadline, transitInstruction, type Translate } from '../domain/transitCopy';
 import { voiceTransitLine } from '../domain/voiceTransitText';
 import { useNavStore } from '../store/navStore';
@@ -75,6 +76,8 @@ export default function NavigationHUD({ onBannerHeightChange, onContinueVenue }:
   const stepMode = useNavStore((s) => s.stepMode);
   const localTransitGuide = useNavStore((s) => s.transitGuide);
   const voiceTransit = useNavStore((s) => s.voiceTransit);
+  const speedLimit = useNavStore((s) => s.speedLimit);
+  const laneGuidance = useNavStore((s) => s.laneGuidance);
   const transitGuide = navigationSource === 'local' ? localTransitGuide : null;
   const voiceLeg = navigationSource === 'voice' && voiceTransit?.onVehicle ? voiceTransit.leg : null;
   const voiceTransitLineText = voiceLeg ? voiceTransitLine(voiceLeg, getAppLanguage(), t as Translate) : null;
@@ -129,6 +132,21 @@ export default function NavigationHUD({ onBannerHeightChange, onContinueVenue }:
   ]
     .filter(Boolean)
     .join(' · ');
+  // 車行目前路段速限：known 顯示數字、unlimited 顯示資料標示，unknown／無進度不顯示（不沿用上一段）。
+  const speedLimitText = speedLimit?.kind === 'known'
+    ? t('navSpeedLimit', { value: speedLimit.limitKph })
+    : speedLimit?.kind === 'unlimited' ? t('navSpeedLimitUnlimited') : null;
+  const speedLimitLabel = speedLimit?.kind === 'known' ? t('navSpeedLimitA11y', { value: speedLimit.limitKph }) : speedLimitText;
+  // 建議選道只屬於畫面上這一步的轉向；進度離開進場段或駛過轉向點時 store 已清除。
+  const lanes = !transitGuide && laneGuidance?.stepIndex === currentStepIndex ? laneGuidance.lanes : null;
+  const laneParts = lanes ? laneAccessibilityParts(lanes) : null;
+  const lanesLabel = laneParts
+    ? [
+        t('navLanesCount', { count: laneParts.count }),
+        laneParts.preferred.length ? t('navLanesPreferred', { lanes: laneParts.preferred.join('、') }) : null,
+        laneParts.usable.length ? t('navLanesUsable', { lanes: laneParts.usable.join('、') }) : null,
+      ].filter(Boolean).join('，')
+    : undefined;
 
   return (
     <>
@@ -233,10 +251,35 @@ export default function NavigationHUD({ onBannerHeightChange, onContinueVenue }:
                 </View>
               ) : null}
             </View>
-            {metaText ? (
+            {lanes ? (
+              // 車道由左至右；建議＝實心、可用＝外框、不建議＝淡化無框，不只靠顏色區分，讀屏讀整列摘要。
+              <View accessible accessibilityRole="image" accessibilityLabel={lanesLabel} style={styles.laneRow}>
+                {lanes.map((lane, index) => {
+                  const icon = laneIcon(lane);
+                  return (
+                    <View
+                      key={index}
+                      style={[
+                        styles.lane,
+                        lane.recommendation === 'preferred' && styles.lanePreferred,
+                        lane.recommendation === 'usable' && styles.laneUsable,
+                        lane.recommendation === 'not_recommended' && styles.previewButtonDisabled,
+                      ]}>
+                      {icon ? (
+                        <Icon name={icon} size={ICON_SIZE.control} color={lane.recommendation === 'preferred' ? ACCENT_FILL : ON_ACCENT_FILL} />
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
+            {metaText || speedLimitText ? (
               <View style={styles.metaRow}>
                 {metaIcon ? <Icon name={metaIcon} size={ICON_SIZE.caption} color={THEN_TEXT} /> : null}
-                <Text fixedSize numberOfLines={1} style={[styles.bannerMeta, styles.flex]}>{metaText}</Text>
+                {metaText ? <Text fixedSize numberOfLines={1} style={[styles.bannerMeta, styles.flex]}>{metaText}</Text> : null}
+                {speedLimitText ? (
+                  <Text fixedSize numberOfLines={1} accessibilityLabel={speedLimitLabel ?? undefined} style={styles.bannerMeta}>{speedLimitText}</Text>
+                ) : null}
               </View>
             ) : null}
           </View>
@@ -360,6 +403,19 @@ const styles = StyleSheet.create({
   },
   thenLabel: { color: THEN_TEXT, fontSize: TYPE.caption, fontWeight: '600' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  laneRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  lane: {
+    minWidth: 28,
+    height: 32,
+    paddingHorizontal: 4,
+    borderRadius: SHAPE.badge, borderCurve: 'continuous',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lanePreferred: { backgroundColor: ON_ACCENT_FILL, borderColor: ON_ACCENT_FILL },
+  laneUsable: { borderColor: ON_ACCENT_FILL },
   previewRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -114,6 +114,16 @@ function busWaitOf(guide: ReturnType<typeof useNavStore.getState>['transitGuide'
   };
 }
 
+/** HUD 上目前路段的速限：只送後端 strict schema 的兩個欄位；非車行或無有效進度時省略。 */
+function speedLimitOf(speedLimit: ReturnType<typeof useNavStore.getState>['speedLimit']): Pick<VoiceNavigationState, 'speedLimit'> {
+  if (!speedLimit) return {};
+  return {
+    speedLimit: speedLimit.kind === 'known'
+      ? { kind: 'known', limitKph: speedLimit.limitKph }
+      : { kind: speedLimit.kind, limitKph: null },
+  };
+}
+
 /** App 導航引擎目前的狀態，給助理回答路線問題。 */
 export function currentNavigationState(): VoiceNavigationState {
   const indoor = useIndoorStore.getState();
@@ -145,6 +155,7 @@ export function currentNavigationState(): VoiceNavigationState {
     remainingDistanceM: nav.remainingM,
     remainingDurationSec: nav.remainingDurationSec,
     ...busWaitOf(nav.transitGuide),
+    ...(nav.arrived ? {} : speedLimitOf(nav.speedLimit)),
     steps: nav.instructions.map((step, index) => ({
       index,
       instruction: step.text,
@@ -322,7 +333,9 @@ export function installVoiceNavigationBridge(target: VoiceNavigationUplink): voi
     const changed = state.isNavigating !== previous.isNavigating || state.currentStepIndex !== previous.currentStepIndex
       || state.stepMode !== previous.stepMode || state.arrived !== previous.arrived || state.instructions !== previous.instructions
       // 等車卡片的分鐘數或預計時間變了：助理被問到時要跟畫面一致。
-      || state.transitGuide !== previous.transitGuide;
+      || state.transitGuide !== previous.transitGuide
+      // 目前路段速限變了（store 只在值改變時換物件）：助理被問「這段限速多少」時要和 HUD 一致。
+      || state.speedLimit !== previous.speedLimit;
     if (changed) publishState(true);
     else if (state.distanceToNextM !== previous.distanceToNextM) publishState(false);
   });
